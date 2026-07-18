@@ -1,0 +1,42 @@
+# 13 - Technology Stack And Platform Decisions Index
+
+## Purpose
+
+This section defines the preferred technology stack for AgentCore. The goal is to make implementation decisions explicit before code is written and to ensure that the selected technologies match the documented architecture: modular backend services, admin web interface, metadata-first code understanding, RAG, Neo4j-backed code graph intelligence, project isolation, automation, reporting, SDKs, and strong software engineering standards.
+
+## Files
+
+- `01-stack-principles-and-decision-rules.md` defines stack selection principles, decision rules, mandatory technologies, and upgrade governance.
+- `02-frontend-and-admin-console-stack.md` defines the Next.js, TypeScript, UI, API client, testing, and admin-console stack.
+- `03-backend-api-and-service-stack.md` defines the Python, FastAPI, service, worker, SDK, validation, DI, and testing stack.
+- `04-data-rag-analytics-and-storage-stack.md` defines the product-per-role data baseline: PostgreSQL for operational data, pgvector for RAG embeddings, Neo4j for the code graph, Redis for optional cache/coordination, object storage, reporting, and exception rules.
+- `05-runtime-messaging-observability-and-deployment-stack.md` defines messaging, cache, jobs, observability, deployment, infrastructure, and operational stack choices.
+- `06-local-venv-docker-and-port-policy.md` defines the local `.venv` policy, Docker Compose service policy, non-default port rules, profile strategy, and preflight requirements.
+- `07-service-product-standard.md` defines the one-product-per-role standard, approved ports, Docker infrastructure rule, unsupported technology rule, and exception governance.
+
+## Mandatory Baseline
+
+AgentCore should use:
+
+- Next.js and TypeScript for the admin web interface and web control surface.
+- Python and FastAPI for backend APIs, workers, automation, parsing, RAG orchestration, and SDK-facing services.
+- PostgreSQL as the primary transactional database and durable system of record.
+- pgvector as the approved vector retrieval technology for RAG embeddings inside PostgreSQL.
+- PostgreSQL full-text search and pg_trgm for exact and fuzzy search over operational records, documents, symbols, and metadata.
+- Neo4j as the approved graph database for code graph nodes, relationships, impact traversal, dependency traversal, graph-guided retrieval, and graph-aware code generation.
+- Redis only when a cache, short-lived coordination layer, rate-limit store, session helper, queue helper, or ephemeral job state store is technically needed.
+- S3-compatible object storage for large artifacts, evidence bundles, exports, logs, generated documents, diagnostics bundles, and graph snapshots.
+- PostgreSQL partitions, indexes, aggregate tables, and materialized views for baseline reporting and analytics.
+- Docker Compose or an equivalent container orchestration profile for infrastructure services such as PostgreSQL, Neo4j, Redis, object storage, broker, and observability tools.
+- No unsupported, deprecated, end-of-life, or unmaintained technology.
+
+## Product-Per-Role Rule
+
+AgentCore must not use multiple products for the same responsibility without a formal ADR. Each infrastructure concern has one approved baseline owner: PostgreSQL for operational relational data, pgvector for RAG vector retrieval, Neo4j for graph traversal, Redis for optional ephemeral cache/coordination, object storage for large binary artifacts, and OpenTelemetry-compatible tooling for observability.
+
+## Relationship To Other Sections
+
+- `../08-software-engineering-architecture/` defines engineering standards and modular architecture.
+- `../07-code-knowledge-graph/` defines Neo4j-backed code understanding and metadata-first retrieval.
+- `../02-memory-and-context/` defines memory, context, scoring, and RAG-related behavior.
+- `../09-platform-governance-operations/` defines operations, reporting, retention, and observability.
