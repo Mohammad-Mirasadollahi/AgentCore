@@ -21,4 +21,4 @@ This package may depend on `packages/contracts` and `packages/shared-kernel`. It
 
 ## Status
 
-Scaffolded for future implementation. Documentation only.
+Minimal implementation under `common_context/` (profile loader/validator, score + token-budget resolvers).

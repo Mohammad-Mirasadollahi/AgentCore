@@ -22,4 +22,4 @@ This package may depend on stable contracts and shared-kernel primitives. It mus
 
 ## Status
 
-Scaffolded for future implementation. Documentation only.
+Minimal implementation under `code_metadata/` (profile loader/validator, file/symbol contract checks, source-escalation helper).

@@ -122,3 +122,55 @@ def test_redaction_validation_and_event_contract():
     assert event["source"] == "core-data-service"
     assert event["tenant_id"] == "t"
     assert event["evidence_refs"] == ["cmd-1"]
+
+
+def test_issue_lifecycle_and_idempotent_supersede_links():
+    store = InMemoryStore()
+    service = CoreData(store)
+    client = ApiClient(app(service))
+    scope = Scope("t", "w", "p")
+
+    issue = client.post(
+        "/api/v1/projects/p/issues",
+        headers={**H, "Idempotency-Key": "issue-1"},
+        json={"title": "flake", "description": "intermittent failure", "severity": "high"},
+    )
+    issue_id = issue.json()["record"]["id"]
+    triaged = client.post(
+        f"/api/v1/projects/p/issues/{issue_id}:transition",
+        headers={**H, "Idempotency-Key": "issue-triage"},
+        json={"status": "triaged", "reason": "confirmed", "expected_version": 1},
+    )
+    assert triaged.status_code == 200
+    assert triaged.json()["issue"]["status"] == "triaged"
+
+    created = client.post(
+        "/api/v1/projects/p/decisions",
+        headers={**H, "Idempotency-Key": "dec-active"},
+        json={**decision(), "status": "active"},
+    )
+    old_id = created.json()["record"]["id"]
+    headers = {**H, "Idempotency-Key": "dec-supersede"}
+    body = {**decision(), "title": "records persist with supersedes link"}
+    first = client.post(f"/api/v1/projects/p/decisions/{old_id}:supersede", headers=headers, json=body)
+    second = client.post(f"/api/v1/projects/p/decisions/{old_id}:supersede", headers=headers, json=body)
+    assert first.status_code == 200
+    assert second.json()["decision"]["id"] == first.json()["decision"]["id"]
+    new_id = first.json()["decision"]["id"]
+    assert service.store.get(new_id, scope).data["supersedes"] == old_id
+    assert service.store.get(old_id, scope).data["superseded_by"] == new_id
+    related = client.get(f"/api/v1/projects/p/related-work?entity_id={old_id}", headers=H).json()["items"]
+    assert {item["id"] for item in related} >= {old_id, new_id}
+
+
+def test_list_pagination_has_more():
+    client = ApiClient(app(CoreData(InMemoryStore())))
+    for index in range(3):
+        client.post(
+            "/api/v1/projects/p/activities",
+            headers={**H, "Idempotency-Key": f"act-{index}"},
+            json={"action_type": "command", "action_summary": f"step {index}"},
+        )
+    page = client.get("/api/v1/projects/p/activities?page_size=2", headers=H).json()
+    assert len(page["items"]) == 2
+    assert page["page"]["has_more"] is True

@@ -96,6 +96,20 @@ Agent receives a new Task with required changes and original merge remains block
 
 Because the change affects revenue, automation fails closed.
 
+## Edge Cases
+
+### Low-Confidence High-Risk
+
+If the LLM Judge returns high risk with low confidence, the system still escalates instead of auto-approving.
+
+### Expired Approval
+
+When the escalation deadline passes without a decision, high-risk automation fails closed and the Task stays blocked.
+
+### Missing Evidence
+
+If required evidence refs are absent, structured judge output is rejected and evaluation does not proceed to approval.
+
 ## Developer Implementation Notes
 
 - Deterministic checks should run before LLM Judge.

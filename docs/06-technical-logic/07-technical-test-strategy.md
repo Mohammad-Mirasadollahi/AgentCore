@@ -194,11 +194,18 @@ tests/backend/code-graph-service/    Phase 7
 tests/backend/phase8-verification/   Phase 8
 tests/backend/phase9-verification/   Phase 9
 tests/backend/phase10-verification/  Phase 10
+tests/backend/phase11-verification/  Phase 11
+tests/backend/audit-service/             platform audit slice
+tests/backend/identity-access-service/   platform identity slice
+tests/backend/orchestration-service/     platform orchestration slice
+tests/backend/reporting-service/         platform reporting slice
+tests/backend/project-profile-service/   platform project-profile slice
+tests/backend/common-context-service/    platform common-context slice
 ```
 
 Phase documentation and module READMEs must reference these canonical paths. When a new service or app is implemented, create its executable tests under `tests/backend/<owner>/` or `tests/frontend/<owner>/` and keep service-local `tests/` folders empty or documentation-only.
 
-Named validation commands for current Phase 1 through 10 slices:
+Named validation commands for current Phase 1 through 11 slices:
 
 ```bash
 PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
@@ -211,6 +218,13 @@ PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest te
 PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification
 PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification
 PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service
+PYTHONPATH=backend/services/identity-access-service/src .venv/bin/python -m pytest tests/backend/identity-access-service
+PYTHONPATH=backend/services/orchestration-service/src .venv/bin/python -m pytest tests/backend/orchestration-service
+PYTHONPATH=backend/services/reporting-service/src .venv/bin/python -m pytest tests/backend/reporting-service
+PYTHONPATH=backend/services/project-profile-service/src .venv/bin/python -m pytest tests/backend/project-profile-service
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service
 ```
 
 Phase 6 harness and gate:

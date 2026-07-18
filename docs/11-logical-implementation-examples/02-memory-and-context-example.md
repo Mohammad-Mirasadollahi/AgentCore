@@ -116,6 +116,20 @@ It is old and rarely retrieved, but it has high incident recovery value. The for
 
 For payment timeout tasks, the WeightProfile boosts incident recovery value, so this memory is included.
 
+## Edge Cases
+
+### Age Alone Hides Critical Memory
+
+If retrieval ranks only by recency, the dormant incident note is omitted and the agent repeats a known duplicate-charge failure.
+
+### Historical Context Requested Explicitly
+
+When the task asks about migration history, omitted Stripe migration memory may be included; otherwise it stays out of the default ContextBundle.
+
+### Missing WeightProfile
+
+If no WeightProfile exists for the domain, prompt assembly fails closed instead of falling back to hard-coded weights.
+
 ## Developer Implementation Notes
 
 - Retrieval should explain included and omitted items.

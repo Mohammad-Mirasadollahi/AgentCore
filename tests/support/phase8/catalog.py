@@ -9,6 +9,15 @@ DOCS = ROOT / "docs" / "08-software-engineering-architecture"
 PORT_PROFILE = ROOT / "backend" / "configs" / "port-profiles" / "agentcore-dev.json"
 PORT_PACKAGE = ROOT / "backend" / "packages" / "port_profile"
 
+# Presence checks for shared packages that live under hyphenated dirs or contracts/sdk.
+SHARED_PACKAGE_LOADERS: tuple[tuple[str, Path], ...] = (
+    ("shared_kernel", ROOT / "backend/packages/shared-kernel/shared_kernel/config.py"),
+    ("contracts", ROOT / "backend/packages/contracts/api/__init__.py"),
+    ("sdk", ROOT / "backend/packages/sdk/python/client.py"),
+    ("code_metadata", ROOT / "backend/packages/code-metadata/code_metadata/loader.py"),
+    ("common_context", ROOT / "backend/packages/common-context/common_context/loader.py"),
+)
+
 
 @dataclass(frozen=True)
 class OwnedService:

@@ -17,3 +17,5 @@ Stores future configuration profiles for metadata extraction, scoring, freshness
 ## Rule
 
 Do not hard-code metadata scoring or source-read behavior. Profiles must drive weighting and thresholds.
+
+Default profile: `default.json`, loaded by `backend/packages/code-metadata/code_metadata/loader.py`.

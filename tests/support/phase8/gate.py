@@ -7,7 +7,16 @@ import subprocess
 import sys
 from typing import Any
 
-from .catalog import DOC_TOPIC_MARKERS, DOCS, OWNED_SERVICES, PORT_PACKAGE, PORT_PROFILE, REQUIRED_DOCS, ROOT
+from .catalog import (
+    DOC_TOPIC_MARKERS,
+    DOCS,
+    OWNED_SERVICES,
+    PORT_PACKAGE,
+    PORT_PROFILE,
+    REQUIRED_DOCS,
+    ROOT,
+    SHARED_PACKAGE_LOADERS,
+)
 
 
 @dataclass
@@ -124,6 +133,16 @@ def check_phase_gate(
             "docs/08-software-engineering-architecture/04-development-port-management.md",
         )
     )
+    for name, loader_path in SHARED_PACKAGE_LOADERS:
+        checks.append(
+            _path_check(
+                f"phase8-shared-pkg-{name}",
+                "shared_package",
+                name,
+                loader_path,
+                "docs/08-software-engineering-architecture/05-modular-project-structure.md",
+            )
+        )
 
     _ensure_packages_path()
     try:

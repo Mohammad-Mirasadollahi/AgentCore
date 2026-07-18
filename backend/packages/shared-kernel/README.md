@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Minimal implementation under `shared_kernel/` (results, errors, time, validation, config loaders for technology and environment profiles).
 
 
 ## Standard Primitive Areas

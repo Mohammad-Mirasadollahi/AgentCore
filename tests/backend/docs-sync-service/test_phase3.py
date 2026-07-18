@@ -1,9 +1,32 @@
+import asyncio
+
+from httpx import ASGITransport, AsyncClient
+
 from docs_sync_service.api import app
-from docs_sync_service.core import DocsSyncService, Scope, digest, normalize_source
+from docs_sync_service.core import ConflictError, DocsSyncService, NotFoundError, Scope, digest, normalize_source
 from docs_sync_service.testing import InMemoryStore
 
 
 SCOPE = Scope("t", "w", "p")
+H = {"X-Tenant-Id": "t", "X-Workspace-Id": "w", "X-Actor-Id": "agent", "Idempotency-Key": "one"}
+
+
+class ApiClient:
+    def __init__(self, api):
+        self.api = api
+
+    def request(self, method: str, url: str, **kwargs):
+        async def execute():
+            async with AsyncClient(transport=ASGITransport(app=self.api), base_url="http://test") as client:
+                return await client.request(method, url, **kwargs)
+
+        return asyncio.run(execute())
+
+    def post(self, url: str, **kwargs):
+        return self.request("POST", url, **kwargs)
+
+    def get(self, url: str, **kwargs):
+        return self.request("GET", url, **kwargs)
 
 
 def symbol_payload(path="auth.login", kind="function", body="def login():\n    return True\n", **extra):
@@ -123,10 +146,99 @@ def test_normalization_ignores_formatting_noise():
     assert digest(left) == digest(right)
 
 
+def test_in_memory_store_scope_idempotency_and_not_found():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    symbol = service.index_symbol(SCOPE, "agent", "corr", "sym-1", symbol_payload())
+    loaded = store.get_symbol(symbol.id, SCOPE)
+    assert loaded.symbol_path == "auth.login"
+    assert store.list_symbols(Scope("other", "w", "p")) == []
+
+    store.remember(SCOPE, "index_symbol", "dup", {"body": "a"}, symbol.id)
+    assert store.idempotent(SCOPE, "index_symbol", "dup", {"body": "a"}) == symbol.id
+    try:
+        store.idempotent(SCOPE, "index_symbol", "dup", {"body": "b"})
+        raise AssertionError("expected idempotency conflict")
+    except ConflictError:
+        pass
+
+    try:
+        store.get_symbol("missing", SCOPE)
+        raise AssertionError("expected not found")
+    except NotFoundError:
+        pass
+
+    event = store.outbox()[0]
+    assert event["event_type"] == "SymbolIndexed"
+    assert event["event_version"] == 1
+    assert event["producer"] == "docs-sync-service"
+    assert event["tenant_id"] == "t"
+    assert event["project_id"] == "p"
+
+
+def test_api_drift_ci_gate_and_coverage_smoke():
+    store = InMemoryStore()
+    client = ApiClient(app(DocsSyncService(store)))
+    symbol = client.post(
+        "/api/v1/projects/p/symbols",
+        headers={**H, "Idempotency-Key": "api-sym"},
+        json=symbol_payload(body="def login():\n    return True\n"),
+    )
+    assert symbol.status_code == 200
+    symbol_id = symbol.json()["symbol"]["id"]
+    body_hash = symbol.json()["symbol"]["body_hash"]
+
+    document = client.post(
+        "/api/v1/projects/p/documents",
+        headers={**H, "Idempotency-Key": "api-doc"},
+        json={"path": "docs/login.md", "frontmatter": frontmatter(), "body": "Login."},
+    )
+    assert document.status_code == 200
+    doc_id = document.json()["document"]["id"]
+
+    anchor = client.post(
+        "/api/v1/projects/p/anchors",
+        headers={**H, "Idempotency-Key": "api-anchor"},
+        json={"doc_id": doc_id, "symbol_id": symbol_id, "recorded_hash": body_hash},
+    )
+    assert anchor.status_code == 200
+
+    changed = client.post(
+        "/api/v1/projects/p/symbols",
+        headers={**H, "Idempotency-Key": "api-sym-2"},
+        json=symbol_payload(body="def login():\n    return True and mfa()\n"),
+    )
+    changed_id = changed.json()["symbol"]["id"]
+    drift = client.post(
+        "/api/v1/projects/p/drift-detections",
+        headers={**H, "Idempotency-Key": "api-drift"},
+        json={"symbol_ids": [changed_id]},
+    )
+    assert drift.status_code == 200
+    assert drift.json()["findings"][0]["issue_ref"].startswith("issue:")
+    assert drift.json()["findings"][0]["task_ref"].startswith("task:docs-agent:")
+
+    gate = client.post("/api/v1/projects/p/ci-gate", headers=H, json={})
+    assert gate.json()["gate"]["decision"] == "fail"
+    coverage = client.get("/api/v1/projects/p/coverage", headers=H)
+    assert coverage.json()["coverage"]["documented_symbols"] == 1
+    assert client.get("/api/v1/projects/p/symbols/" + symbol_id + "/docs", headers=H).json()["items"][0]["id"] == doc_id
+    assert client.post("/api/v1/projects/p/symbols", json=symbol_payload()).status_code == 400
+
+
 def test_api_contract_routes_are_registered():
     routes = {route.path for route in app(DocsSyncService(InMemoryStore())).routes}
     assert "/api/v1/projects/{project_id}/symbols" in routes
     assert "/api/v1/projects/{project_id}/documents" in routes
+    assert "/api/v1/projects/{project_id}/documents:validate-frontmatter" in routes
+    assert "/api/v1/projects/{project_id}/anchors" in routes
     assert "/api/v1/projects/{project_id}/drift-detections" in routes
+    assert "/api/v1/projects/{project_id}/drift-findings" in routes
+    assert "/api/v1/projects/{project_id}/symbols/{symbol_id}/docs" in routes
+    assert "/api/v1/projects/{project_id}/coverage" in routes
+    assert "/api/v1/projects/{project_id}/missing-docs" in routes
+    assert "/api/v1/projects/{project_id}/impact:explain" in routes
+    assert "/api/v1/projects/{project_id}/bloom-lookups" in routes
+    assert "/api/v1/projects/{project_id}/drafts" in routes
     assert "/api/v1/projects/{project_id}/drafts/{draft_id}:approve" in routes
     assert "/api/v1/projects/{project_id}/ci-gate" in routes

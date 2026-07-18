@@ -1,0 +1,12 @@
+{
+  "profile_id": "default",
+  "version": "1.0.0",
+  "title": "Default feature profile",
+  "features": {
+    "memory_retrieval": true,
+    "docs_drift_gate": true,
+    "rule_engine_escalation": true,
+    "common_context": true,
+    "impact_reporting": true
+  }
+}

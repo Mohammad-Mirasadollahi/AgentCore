@@ -75,6 +75,20 @@ Adapter responsibilities:
 - preserve correlation ID,
 - report delivery status back to AgentCore.
 
+## Edge Cases
+
+### Unauthorized Subscriber
+
+A subscriber without tenant or sensitivity clearance does not receive the restricted payload.
+
+### Dead-Letter Replay
+
+After the QA endpoint recovers, operators replay only dead-letter records marked replay-eligible.
+
+### Consumer Crash After Ack
+
+If a consumer acknowledges then crashes mid-side-effect, idempotency keys prevent duplicate Task or notification creation on redelivery.
+
 ## Developer Implementation Notes
 
 - Broker delivery is at-least-once; consumers must be idempotent.

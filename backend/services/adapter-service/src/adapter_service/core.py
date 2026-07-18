@@ -81,6 +81,8 @@ DEPARTMENT_TRIGGERS = {
     "API_READY": ("frontend", "docs"),
 }
 
+CLEARANCE_RANK = {"public": 0, "internal": 1, "restricted": 2}
+
 
 class AdapterError(Exception):
     def __init__(self, code: str, category: str, message: str):
@@ -691,6 +693,80 @@ class AdapterService:
     def list_department_tasks(self, scope: Scope) -> list[DepartmentTask]:
         return self.store.list_department_tasks(scope)
 
+    def inject_context(self, scope: Scope, actor: str, correlation_id: str, key: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Build a scoped context package for an external tool, or deny with a reason code."""
+        self._require_key(key)
+        payload = sanitize(payload)
+        tool_ref = str(payload.get("tool_ref") or "").strip()
+        if not tool_ref:
+            raise ValidationError("tool_ref is required")
+        clearance = str(payload.get("sensitivity_clearance") or "public")
+        if clearance not in CLEARANCE_RANK:
+            raise ValidationError("invalid sensitivity_clearance")
+        command_payload = {
+            "tool_ref": tool_ref,
+            "role": str(payload.get("role") or "tool"),
+            "sensitivity_clearance": clearance,
+            "task_assigned": bool(payload.get("task_assigned", True)),
+            "tenant_id": payload.get("tenant_id"),
+            "project_id": payload.get("project_id"),
+            "items": payload.get("items") or [],
+        }
+        prior = self.store.idempotent(scope, "inject_context", key, command_payload)
+        if prior:
+            return json.loads(prior)
+        if command_payload["tenant_id"] and command_payload["tenant_id"] != scope.tenant_id:
+            result = {"status": "denied", "reason_code": "tenant_mismatch", "package": None}
+            self.store.remember(scope, "inject_context", key, command_payload, json.dumps(result, sort_keys=True))
+            return result
+        if command_payload["project_id"] and command_payload["project_id"] != scope.project_id:
+            result = {"status": "denied", "reason_code": "project_mismatch", "package": None}
+            self.store.remember(scope, "inject_context", key, command_payload, json.dumps(result, sort_keys=True))
+            return result
+        if not command_payload["task_assigned"] and command_payload["role"] != "admin":
+            result = {"status": "denied", "reason_code": "task_assignment_required", "package": None}
+            self.store.remember(scope, "inject_context", key, command_payload, json.dumps(result, sort_keys=True))
+            return result
+        package_items: list[dict[str, Any]] = []
+        for item in command_payload["items"]:
+            if not isinstance(item, dict):
+                raise ValidationError("context items must be objects")
+            sensitivity = str(item.get("sensitivity") or "public")
+            if sensitivity not in CLEARANCE_RANK:
+                raise ValidationError("invalid item sensitivity")
+            if CLEARANCE_RANK[sensitivity] > CLEARANCE_RANK[clearance]:
+                package_items.append(
+                    {
+                        "title": str(item.get("title") or ""),
+                        "body": "[REDACTED]",
+                        "sensitivity": sensitivity,
+                        "redacted": True,
+                    }
+                )
+            else:
+                package_items.append(
+                    {
+                        "title": str(item.get("title") or ""),
+                        "body": str(item.get("body") or ""),
+                        "sensitivity": sensitivity,
+                        "redacted": False,
+                    }
+                )
+        result = {
+            "status": "allowed",
+            "reason_code": None,
+            "package": {
+                "tool_ref": tool_ref,
+                "tenant_id": scope.tenant_id,
+                "project_id": scope.project_id,
+                "actor_id": actor,
+                "correlation_id": correlation_id,
+                "items": package_items,
+            },
+        }
+        self.store.remember(scope, "inject_context", key, command_payload, json.dumps(result, sort_keys=True))
+        return result
+
     def _vendor_to_universal(
         self,
         scope: Scope,
@@ -737,6 +813,9 @@ class AdapterService:
             if subscription.filter_intents and intent not in subscription.filter_intents:
                 continue
             if subscription.filter_domains and domain not in subscription.filter_domains:
+                continue
+            # ponytail: fail_mode=unauthorized denies without schema column; upgrade to ACL table if needed
+            if subscription.fail_mode == "unauthorized":
                 continue
             delivery = Delivery(str(uuid4()), scope, event.id, subscription.id, DeliveryState.PENDING, 1, None, timestamp, timestamp)
             if subscription.fail_mode == "always" and not replay:

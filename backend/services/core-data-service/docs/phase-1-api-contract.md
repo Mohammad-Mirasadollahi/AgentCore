@@ -19,6 +19,8 @@ All commands require `X-Tenant-Id`, `X-Workspace-Id`, `X-Actor-Id`, and `Idempot
 - `POST /api/v1/projects/{project_id}/tasks`
 - `GET /api/v1/projects/{project_id}/tasks`
 - `POST /api/v1/projects/{project_id}/tasks/{task_id}:transition`
+- `POST /api/v1/projects/{project_id}/issues/{issue_id}:transition`
+- `POST /api/v1/projects/{project_id}/decisions/{decision_id}:transition`
 - `GET /api/v1/projects/{project_id}/task-board`
 - `GET /api/v1/projects/{project_id}/decision-history`
 - `GET /api/v1/projects/{project_id}/related-work`

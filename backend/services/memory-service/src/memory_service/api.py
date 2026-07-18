@@ -28,6 +28,11 @@ class ConsolidateRequest(BaseModel):
     reason: str
 
 
+class DecayRequest(BaseModel):
+    memory_ids: list[str]
+    reason: str
+
+
 class ContextRequest(BaseModel):
     query: str
     token_budget: int | None = None
@@ -40,6 +45,11 @@ class QuestionRequest(BaseModel):
 
 class PromoteFaqRequest(BaseModel):
     answer: str
+
+
+class ResolveDocumentationRequest(BaseModel):
+    confidence: float
+    draft_content: str | None = None
 
 
 class BatchRequest(BaseModel):
@@ -127,6 +137,20 @@ def app(service: MemoryService | None = None) -> FastAPI:
         items = service.consolidate_memory(scope, actor, correlation_id, idempotency_key or "", body.memory_ids, body.reason)
         return {"items": [item.public() for item in items], "correlation_id": correlation_id}
 
+    @api.post("/api/v1/projects/{project_id}/memory-decays", operation_id="decay_memory")
+    async def decay(
+        project_id: str,
+        body: DecayRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        items = service.decay_memory(scope, actor, correlation_id, idempotency_key or "", body.memory_ids, body.reason)
+        return {"items": [item.public() for item in items], "correlation_id": correlation_id}
+
     @api.get("/api/v1/projects/{project_id}/memory-items", operation_id="list_memory_items")
     async def list_memory(
         project_id: str,
@@ -190,6 +214,29 @@ def app(service: MemoryService | None = None) -> FastAPI:
         item = service.promote_faq(scope, actor, correlation_id, idempotency_key or "", question_id, body.answer)
         return {"question_memory": item.public(), "correlation_id": correlation_id}
 
+    @api.post("/api/v1/projects/{project_id}/question-memories/{question_id}:resolve-documentation", operation_id="resolve_missing_documentation")
+    async def resolve_documentation(
+        project_id: str,
+        question_id: str,
+        body: ResolveDocumentationRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        result = service.resolve_missing_documentation(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            question_id,
+            body.confidence,
+            body.draft_content,
+        )
+        return {**result, "correlation_id": correlation_id}
+
     @api.get("/api/v1/projects/{project_id}/repeated-questions", operation_id="list_repeated_questions")
     async def repeated_questions(
         project_id: str,
@@ -197,6 +244,14 @@ def app(service: MemoryService | None = None) -> FastAPI:
         x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
     ):
         return {"items": [item.public() for item in service.list_repeated_questions(read_scope(project_id, x_tenant_id, x_workspace_id))], "correlation_id": None}
+
+    @api.get("/api/v1/projects/{project_id}/curious-questions", operation_id="list_curious_questions")
+    async def curious_questions(
+        project_id: str,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+    ):
+        return {"items": service.list_curious_questions(read_scope(project_id, x_tenant_id, x_workspace_id)), "correlation_id": None}
 
     @api.post("/api/v1/projects/{project_id}/work-batches", operation_id="open_work_batch")
     async def open_batch(

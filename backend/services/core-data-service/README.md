@@ -20,6 +20,8 @@ The service owns its records and exposes them only through the Core Data HTTP co
 - `/api/v1/projects/{project_id}/open-issues`
 - `/api/v1/projects/{project_id}/tasks`
 - `/api/v1/projects/{project_id}/tasks/{task_id}:transition`
+- `/api/v1/projects/{project_id}/issues/{issue_id}:transition`
+- `/api/v1/projects/{project_id}/decisions/{decision_id}:transition`
 - `/api/v1/projects/{project_id}/task-board`
 - `/api/v1/projects/{project_id}/decision-history`
 - `/api/v1/projects/{project_id}/related-work`

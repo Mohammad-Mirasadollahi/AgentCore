@@ -208,41 +208,67 @@ class CoreData:
             tasks.append(self.create(Kind.TASK, scope, actor, correlation_id, f"{key}:task:{index}", task_payload))
         return issue, tasks
 
-    def transition(self, scope: Scope, actor: str, correlation_id: str, key: str, record_id: str, target: str, reason: str, version: int | None) -> Record:
+    def transition(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        record_id: str,
+        target: str,
+        reason: str,
+        version: int | None,
+        kind: Kind | None = None,
+    ) -> Record:
         if not key:
             raise ValidationError("Idempotency-Key header is required")
-        payload = {"id": record_id, "target": target, "reason": reason, "version": version}
-        prior = self.store.idempotent(scope, "transition:task", key, payload)
+        payload = {"id": record_id, "target": target, "reason": reason, "version": version, "kind": kind.value if kind else None}
+        command = "transition:" + (kind.value if kind else "record")
+        prior = self.store.idempotent(scope, command, key, payload)
         if prior:
             return self.store.get(prior, scope)
         record = self.store.get(record_id, scope)
-        if record.kind != Kind.TASK:
-            raise ValidationError("record is not a task")
-        if version and record.version != version:
-            raise ConflictError("task version is stale")
-        if target not in TRANSITIONS[Kind.TASK].get(record.status, set()):
-            raise ConflictError("invalid task state transition")
+        if kind and record.kind != kind:
+            raise ValidationError("record kind mismatch")
+        if record.kind not in TRANSITIONS:
+            raise ValidationError("record does not support lifecycle transitions")
+        if version is not None and record.version != version:
+            raise ConflictError(record.kind.value + " version is stale")
+        if target not in TRANSITIONS[record.kind].get(record.status, set()):
+            raise ConflictError("invalid " + record.kind.value + " state transition")
         old = record.status
         record.status = target
         record.version += 1
         record.updated_at = now()
         record.data["last_transition"] = {"from": old, "to": target, "reason": redact(reason), "at": record.updated_at}
         self.store.put(record)
-        self.store.remember(scope, "transition:task", key, payload, record.id)
-        event_name = "task.completed" if target == "done" else "task.state_changed"
+        self.store.remember(scope, command, key, payload, record.id)
+        event_name = {
+            Kind.TASK: "task.completed" if target == "done" else "task.state_changed",
+            Kind.ISSUE: "issue.state_changed",
+            Kind.DECISION: "decision.state_changed",
+        }[record.kind]
         self.emit(event_name, record, key)
         return record
 
     def supersede(self, scope: Scope, actor: str, correlation_id: str, key: str, record_id: str, payload: dict[str, Any]) -> Record:
+        if not key:
+            raise ValidationError("Idempotency-Key header is required")
+        command_payload = {"id": record_id, "payload": redact(payload)}
+        prior = self.store.idempotent(scope, "supersede:decision", key, command_payload)
+        if prior:
+            return self.store.get(prior, scope)
         old = self.store.get(record_id, scope)
         if old.kind != Kind.DECISION or old.status != "active":
             raise ConflictError("only an active decision can be superseded")
-        new = self.create(Kind.DECISION, scope, actor, correlation_id, key, dict(payload, status="active"))
+        new_payload = dict(payload, status="active", supersedes=record_id)
+        new = self.create(Kind.DECISION, scope, actor, correlation_id, key + ":new", new_payload)
         old.status = "superseded"
         old.version += 1
         old.updated_at = now()
         old.data["superseded_by"] = new.id
         self.store.put(old)
+        self.store.remember(scope, "supersede:decision", key, command_payload, new.id)
         self.emit("decision.superseded", old, key)
         return new
 

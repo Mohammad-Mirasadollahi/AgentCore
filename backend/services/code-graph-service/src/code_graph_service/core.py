@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import builtins
+import keyword
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -16,6 +18,7 @@ class SymbolKind(StrEnum):
     FUNCTION = "function"
     METHOD = "method"
     IMPORT = "import"
+    DOCUMENTATION = "documentation"
 
 
 class CallConfidence(StrEnum):
@@ -29,6 +32,31 @@ class DocStatus(StrEnum):
     MISSING = "missing"
     GENERATED = "generated"
     UNCHANGED = "unchanged"
+
+
+# ponytail: stdlib-ast only; tree-sitter parsers plug in when language matrix expands.
+LANGUAGE_MATRIX: dict[str, dict[str, Any]] = {
+    "python": {
+        "status": "supported",
+        "parser": "stdlib_ast",
+        "extensions": (".py",),
+    },
+    "typescript": {
+        "status": "planned",
+        "parser": "tree_sitter",
+        "extensions": (".ts", ".tsx"),
+    },
+    "javascript": {
+        "status": "planned",
+        "parser": "tree_sitter",
+        "extensions": (".js", ".jsx"),
+    },
+    "go": {
+        "status": "planned",
+        "parser": "tree_sitter",
+        "extensions": (".go",),
+    },
+}
 
 
 class CodeGraphError(Exception):
@@ -50,6 +78,27 @@ class NotFoundError(CodeGraphError):
 class ConflictError(CodeGraphError):
     def __init__(self, message: str):
         super().__init__("conflict_error", "conflict_error", message)
+
+
+def language_matrix() -> dict[str, dict[str, Any]]:
+    return {name: dict(meta) for name, meta in LANGUAGE_MATRIX.items()}
+
+
+def supported_languages() -> list[str]:
+    return sorted(name for name, meta in LANGUAGE_MATRIX.items() if meta["status"] == "supported")
+
+
+def assert_language_supported(language: str) -> str:
+    normalized = (language or "python").strip().lower() or "python"
+    meta = LANGUAGE_MATRIX.get(normalized)
+    if meta is None:
+        raise ValidationError(f"unsupported language: {normalized}")
+    if meta["status"] != "supported":
+        raise ValidationError(
+            f"language {normalized} is {meta['status']} (parser={meta['parser']}); "
+            f"supported: {', '.join(supported_languages())}"
+        )
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -164,6 +213,27 @@ def embed_text(text: str, dims: int = 16) -> list[float]:
     return [round(v / norm, 6) for v in vec]
 
 
+@dataclass(frozen=True)
+class EmbeddingResult:
+    vector: list[float]
+    status: str
+    model: str
+    dims: int
+
+
+class LocalEmbeddingStub:
+    """In-process embedding stub — swap for pgvector-backed provider later."""
+
+    def __init__(self, dims: int = 16, model: str = "local-hash-v1") -> None:
+        self.dims = dims
+        self.model = model
+
+    def embed(self, text: str) -> EmbeddingResult:
+        if not text.strip():
+            return EmbeddingResult([0.0] * self.dims, "empty", self.model, self.dims)
+        return EmbeddingResult(embed_text(text, self.dims), "ready", self.model, self.dims)
+
+
 def cosine(left: list[float], right: list[float]) -> float:
     return sum(a * b for a, b in zip(left, right, strict=False))
 
@@ -179,21 +249,39 @@ class ParsedSymbol:
     imports: list[str]
     bases: list[str]
     visibility: str = "public"
+    import_aliases: dict[str, str] = field(default_factory=dict)
 
 
-def parse_python_source(file_path: str, source: str) -> list[ParsedSymbol]:
+@dataclass
+class ParseResult:
+    symbols: list[ParsedSymbol]
+    import_aliases: dict[str, str]
+    module_prefix: str
+
+
+def parse_python_source(file_path: str, source: str) -> ParseResult:
     tree = ast.parse(source)
     module = file_path.replace("\\", "/").removesuffix(".py").replace("/", ".")
     results: list[ParsedSymbol] = []
+    import_aliases: dict[str, str] = {}
 
     for node in tree.body:
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             names: list[str] = []
+            aliases: dict[str, str] = {}
             if isinstance(node, ast.Import):
-                names = [alias.name for alias in node.names]
+                for alias in node.names:
+                    names.append(alias.name)
+                    local = alias.asname or alias.name.split(".", 1)[0]
+                    aliases[local] = alias.name
             else:
                 root = node.module or ""
-                names = [f"{root}.{alias.name}" if root else alias.name for alias in node.names]
+                for alias in node.names:
+                    target = f"{root}.{alias.name}" if root else alias.name
+                    names.append(target)
+                    local = alias.asname or alias.name
+                    aliases[local] = target
+            import_aliases.update(aliases)
             text = ast.get_source_segment(source, node) or ""
             results.append(
                 ParsedSymbol(
@@ -205,6 +293,7 @@ def parse_python_source(file_path: str, source: str) -> list[ParsedSymbol]:
                     calls=[],
                     imports=names,
                     bases=[],
+                    import_aliases=aliases,
                 )
             )
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -228,9 +317,8 @@ def parse_python_source(file_path: str, source: str) -> list[ParsedSymbol]:
             )
             for child in node.body:
                 if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
-                    method = _function_symbol(class_q, source, child, SymbolKind.METHOD)
-                    results.append(method)
-    return results
+                    results.append(_function_symbol(class_q, source, child, SymbolKind.METHOD))
+    return ParseResult(symbols=results, import_aliases=import_aliases, module_prefix=module)
 
 
 def _function_symbol(
@@ -242,7 +330,13 @@ def _function_symbol(
     body = ast.get_source_segment(source, node) or node.name
     args = [arg.arg for arg in node.args.args]
     signature = f"{node.name}({', '.join(args)})"
-    calls = sorted({_call_name(n) for n in ast.walk(node) if isinstance(n, ast.Call)})
+    calls = sorted(
+        {
+            _normalize_call_name(_call_name(n))
+            for n in ast.walk(node)
+            if isinstance(n, ast.Call)
+        }
+    )
     calls = [c for c in calls if c]
     return ParsedSymbol(
         kind=kind,
@@ -270,6 +364,30 @@ def _call_name(node: ast.Call) -> str:
     return _expr_name(node.func)
 
 
+def _normalize_call_name(name: str) -> str:
+    if name.startswith("self.") or name.startswith("cls."):
+        return name.split(".", 1)[1]
+    return name
+
+
+def extract_call_refs(source: str) -> set[str]:
+    """Call-site names used for generated-code unknown-symbol checks."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", source))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        raw = _normalize_call_name(_call_name(node))
+        if not raw:
+            continue
+        names.add(raw)
+        names.add(raw.split(".")[-1])
+    return names
+
+
 def extract_identifier_refs(source: str) -> set[str]:
     try:
         tree = ast.parse(source)
@@ -277,10 +395,8 @@ def extract_identifier_refs(source: str) -> set[str]:
         return set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", source))
     names: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             names.add(node.id)
-        elif isinstance(node, ast.Attribute):
-            names.add(node.attr)
     return names
 
 
@@ -295,35 +411,85 @@ def _defined_names(source: str) -> set[str]:
             names.add(node.name)
         elif isinstance(node, ast.arg):
             names.add(node.arg)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                names.add(alias.asname or alias.name.split(".", 1)[0])
     return names
 
 
 def _builtin_names() -> set[str]:
-    return {
-        "True",
-        "False",
-        "None",
-        "self",
-        "cls",
-        "print",
-        "len",
-        "str",
-        "int",
-        "list",
-        "dict",
-        "set",
-        "tuple",
-        "range",
-        "isinstance",
-        "getattr",
-        "setattr",
-    }
+    return set(dir(builtins)) | set(keyword.kwlist) | {"self", "cls"}
+
+
+def resolve_call_target(
+    call: str,
+    *,
+    by_qualified: dict[str, str],
+    short_names: dict[str, list[str]],
+    import_aliases: dict[str, str],
+    module_prefix: str,
+) -> tuple[list[str], CallConfidence]:
+    """Resolve call name to symbol id(s) with confidence."""
+    if call in by_qualified:
+        return [by_qualified[call]], CallConfidence.EXACT
+
+    local_qualified = f"{module_prefix}.{call}" if module_prefix else call
+    if local_qualified in by_qualified:
+        return [by_qualified[local_qualified]], CallConfidence.EXACT
+
+    # Bare alias: `from mod import helper as help_fn` then `help_fn(...)`.
+    if call in import_aliases:
+        expanded = import_aliases[call]
+        if expanded in by_qualified:
+            return [by_qualified[expanded]], CallConfidence.PROBABLE
+        short = expanded.split(".")[-1]
+        matches = list(short_names.get(short, []))
+        if len(matches) == 1:
+            return matches, CallConfidence.PROBABLE
+        if len(matches) > 1:
+            return matches, CallConfidence.AMBIGUOUS
+
+    if "." in call:
+        head, tail = call.split(".", 1)
+        if head in import_aliases:
+            expanded = f"{import_aliases[head]}.{tail}"
+            if expanded in by_qualified:
+                return [by_qualified[expanded]], CallConfidence.PROBABLE
+            short = short_names.get(tail, [])
+            if len(short) == 1:
+                return short, CallConfidence.PROBABLE
+            if len(short) > 1:
+                return short, CallConfidence.AMBIGUOUS
+
+    short = call.split(".")[-1]
+    matches = list(short_names.get(short, []))
+    if not matches:
+        return [], CallConfidence.UNRESOLVED
+    if len(matches) == 1:
+        return matches, CallConfidence.EXACT if "." not in call else CallConfidence.PROBABLE
+
+    same_module = [
+        mid
+        for qname, mid in by_qualified.items()
+        if mid in matches and qname.startswith(f"{module_prefix}.")
+    ]
+    if len(same_module) == 1:
+        return same_module, CallConfidence.PROBABLE
+    return matches, CallConfidence.AMBIGUOUS
 
 
 class CodeGraphService:
-    def __init__(self, store: Store, docs: HeuristicDocGenerator | None = None) -> None:
+    def __init__(
+        self,
+        store: Store,
+        docs: HeuristicDocGenerator | None = None,
+        embeddings: LocalEmbeddingStub | None = None,
+    ) -> None:
         self.store = store
         self.docs = docs or HeuristicDocGenerator()
+        self.embeddings = embeddings or LocalEmbeddingStub()
 
     def ingest_file(
         self,
@@ -340,15 +506,16 @@ class CodeGraphService:
 
         file_path = str(payload.get("file_path") or "").strip()
         source = str(payload.get("source") or "")
-        language = str(payload.get("language") or "python").strip().lower()
+        language = assert_language_supported(str(payload.get("language") or "python"))
         if not file_path or not source:
             raise ValidationError("file_path and source are required")
         if language != "python":
-            raise ValidationError("Phase 7 slice supports python language only")
+            raise ValidationError("Phase 7 slice parser supports python only")
 
         stamp = now_iso()
         file_hash = digest(normalize_source(source))
         file_id = f"file:{scope.project_id}:{file_path}"
+        file_embed = self.embeddings.embed(file_path)
         file_symbol = GraphSymbol(
             id=file_id,
             scope=scope,
@@ -361,7 +528,7 @@ class CodeGraphService:
             hash_value=file_hash,
             ai_documentation="",
             doc_status=DocStatus.UNCHANGED,
-            embedding=embed_text(file_path),
+            embedding=file_embed.vector,
             created_at=stamp,
             updated_at=stamp,
         )
@@ -375,8 +542,9 @@ class CodeGraphService:
         changed_ids: list[str] = []
         documented = 0
         symbol_ids: list[str] = []
+        documented_pairs: list[tuple[str, str]] = []
 
-        for item in parsed:
+        for item in parsed.symbols:
             symbol_id = f"sym:{scope.project_id}:{item.qualified_name}"
             symbol_ids.append(symbol_id)
             hash_value = digest(normalize_source(item.body))
@@ -408,6 +576,31 @@ class CodeGraphService:
                 doc = self.docs.generate(draft, neighbors)
                 status = DocStatus.GENERATED
                 documented += 1
+                doc_id = f"doc:{scope.project_id}:{item.qualified_name}"
+                self.store.put_symbol(
+                    GraphSymbol(
+                        id=doc_id,
+                        scope=scope,
+                        kind=SymbolKind.DOCUMENTATION,
+                        file_path=file_path,
+                        name=f"{item.name}.md",
+                        qualified_name=f"{item.qualified_name}::__doc__",
+                        signature=item.signature,
+                        body=doc,
+                        hash_value=digest(doc),
+                        ai_documentation=doc,
+                        doc_status=DocStatus.GENERATED,
+                        embedding=self.embeddings.embed(doc).vector,
+                        created_at=stamp,
+                        updated_at=stamp,
+                    )
+                )
+                documented_pairs.append((symbol_id, doc_id))
+            elif previous and previous.ai_documentation:
+                doc_id = f"doc:{scope.project_id}:{item.qualified_name}"
+                if self._maybe_get(doc_id, scope) is not None:
+                    documented_pairs.append((symbol_id, doc_id))
+            embed = self.embeddings.embed(f"{item.qualified_name}\n{doc}")
             symbol = GraphSymbol(
                 id=symbol_id,
                 scope=scope,
@@ -420,7 +613,7 @@ class CodeGraphService:
                 hash_value=hash_value,
                 ai_documentation=doc,
                 doc_status=status if changed else DocStatus.UNCHANGED,
-                embedding=embed_text(f"{item.qualified_name}\n{doc}"),
+                embedding=embed.vector,
                 visibility=item.visibility,
                 version=(previous.version + 1) if previous and changed else (previous.version if previous else 1),
                 created_at=previous.created_at if previous else stamp,
@@ -432,61 +625,91 @@ class CodeGraphService:
         edges_written = 0
         for symbol_id in symbol_ids:
             edges_written += self._put_edge(scope, "CONTAINS", file_id, symbol_id, file_path=file_path)
+        for symbol_id, doc_id in documented_pairs:
+            edges_written += self._put_edge(scope, "DOCUMENTED_BY", symbol_id, doc_id, file_path=file_path)
 
-        by_name = {s.qualified_name: s.id for s in self.store.list_symbols(scope) if s.kind != SymbolKind.FILE}
-        short_names = {}
+        by_qualified = {
+            s.qualified_name: s.id
+            for s in self.store.list_symbols(scope)
+            if s.kind not in {SymbolKind.FILE, SymbolKind.DOCUMENTATION}
+        }
+        short_names: dict[str, list[str]] = {}
         for s in self.store.list_symbols(scope):
+            if s.kind in {SymbolKind.FILE, SymbolKind.DOCUMENTATION, SymbolKind.IMPORT}:
+                continue
             short_names.setdefault(s.name, []).append(s.id)
 
-        for item in parsed:
-            source_id = f"sym:{scope.project_id}:{item.qualified_name}"
-            for base in item.bases:
-                target = by_name.get(base) or (short_names.get(base, [None])[0])
-                if target:
-                    edges_written += self._put_edge(
-                        scope, "INHERITS_FROM", source_id, target, file_path=file_path, confidence=CallConfidence.EXACT
-                    )
+        # FILE -> IMPORT targets (schema: File IMPORTS Import/File)
+        for item in parsed.symbols:
+            if item.kind != SymbolKind.IMPORT:
+                continue
             for imp in item.imports:
-                target = by_name.get(imp)
+                target = by_qualified.get(imp)
                 confidence = CallConfidence.EXACT if target else CallConfidence.UNRESOLVED
                 target_id = target or f"ext:{imp}"
-                if target is None:
-                    # External import placeholder node.
-                    if self._maybe_get(target_id, scope) is None:
-                        self.store.put_symbol(
-                            GraphSymbol(
-                                id=target_id,
-                                scope=scope,
-                                kind=SymbolKind.IMPORT,
-                                file_path=file_path,
-                                name=imp,
-                                qualified_name=imp,
-                                signature=imp,
-                                body=imp,
-                                hash_value=digest(imp),
-                                ai_documentation="external import",
-                                doc_status=DocStatus.UNCHANGED,
-                                embedding=embed_text(imp),
-                                created_at=stamp,
-                                updated_at=stamp,
-                            )
+                if target is None and self._maybe_get(target_id, scope) is None:
+                    self.store.put_symbol(
+                        GraphSymbol(
+                            id=target_id,
+                            scope=scope,
+                            kind=SymbolKind.IMPORT,
+                            file_path=file_path,
+                            name=imp,
+                            qualified_name=imp,
+                            signature=imp,
+                            body=imp,
+                            hash_value=digest(imp),
+                            ai_documentation="external import",
+                            doc_status=DocStatus.UNCHANGED,
+                            embedding=self.embeddings.embed(imp).vector,
+                            created_at=stamp,
+                            updated_at=stamp,
                         )
+                    )
                 edges_written += self._put_edge(
-                    scope, "IMPORTS", source_id, target_id, file_path=file_path, confidence=confidence
+                    scope,
+                    "IMPORTS",
+                    file_id,
+                    target_id,
+                    file_path=file_path,
+                    confidence=confidence,
+                    metadata={"import_text": imp, "is_external": target is None},
                 )
-            for call in item.calls:
-                matches = short_names.get(call, [])
-                if len(matches) == 1:
+                # Keep import-symbol edge for structural navigation from the import node.
+                source_id = f"sym:{scope.project_id}:{item.qualified_name}"
+                edges_written += self._put_edge(
+                    scope,
+                    "IMPORTS",
+                    source_id,
+                    target_id,
+                    file_path=file_path,
+                    confidence=confidence,
+                    metadata={"import_text": imp, "is_external": target is None},
+                )
+
+        for item in parsed.symbols:
+            source_id = f"sym:{scope.project_id}:{item.qualified_name}"
+            for base in item.bases:
+                target = by_qualified.get(base) or (short_names.get(base, [None])[0])
+                if target:
                     edges_written += self._put_edge(
                         scope,
-                        "CALLS",
+                        "INHERITS_FROM",
                         source_id,
-                        matches[0],
+                        target,
                         file_path=file_path,
                         confidence=CallConfidence.EXACT,
                     )
-                elif len(matches) > 1:
-                    for match in matches:
+            for call in item.calls:
+                targets, confidence = resolve_call_target(
+                    call,
+                    by_qualified=by_qualified,
+                    short_names=short_names,
+                    import_aliases=parsed.import_aliases,
+                    module_prefix=parsed.module_prefix,
+                )
+                if confidence == CallConfidence.AMBIGUOUS and targets:
+                    for match in targets:
                         edges_written += self._put_edge(
                             scope,
                             "CALLS",
@@ -495,6 +718,15 @@ class CodeGraphService:
                             file_path=file_path,
                             confidence=CallConfidence.AMBIGUOUS,
                         )
+                elif targets:
+                    edges_written += self._put_edge(
+                        scope,
+                        "CALLS",
+                        source_id,
+                        targets[0],
+                        file_path=file_path,
+                        confidence=confidence,
+                    )
                 else:
                     edges_written += self._put_edge(
                         scope,
@@ -515,6 +747,7 @@ class CodeGraphService:
                 {
                     "file_id": file_id,
                     "file_path": file_path,
+                    "language": language,
                     "symbols_indexed": len(symbol_ids) + 1,
                     "symbols_changed": len(changed_ids),
                     "symbols_documented": documented,
@@ -548,7 +781,7 @@ class CodeGraphService:
     def list_changed_since(self, scope: Scope, previous_hashes: dict[str, str]) -> list[GraphSymbol]:
         changed: list[GraphSymbol] = []
         for symbol in self.store.list_symbols(scope):
-            if symbol.kind == SymbolKind.FILE:
+            if symbol.kind in {SymbolKind.FILE, SymbolKind.DOCUMENTATION}:
                 continue
             prior = previous_hashes.get(symbol.qualified_name)
             if prior is None or prior != symbol.hash_value:
@@ -573,6 +806,7 @@ class CodeGraphService:
                     "source_id": edge.source_id,
                     "target_id": edge.target_id,
                     "confidence": edge.confidence.value,
+                    "metadata": edge.metadata,
                 }
                 for edge in edges
             ],
@@ -581,7 +815,7 @@ class CodeGraphService:
     def semantic_search(self, scope: Scope, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         if not query.strip():
             raise ValidationError("query is required")
-        vector = embed_text(query)
+        vector = self.embeddings.embed(query).vector
         scored: list[tuple[float, GraphSymbol]] = []
         for symbol in self.store.list_symbols(scope):
             if symbol.kind in {SymbolKind.FILE, SymbolKind.IMPORT}:
@@ -602,6 +836,7 @@ class CodeGraphService:
                 related_ids.add(edge.target_id)
             if edge.target_id == seed.id:
                 related_ids.add(edge.source_id)
+            # One-hop via DOCUMENTED_BY / CALLS already covered; prefer high-confidence CALLS.
         symbols = []
         for symbol_id in sorted(related_ids):
             try:
@@ -633,15 +868,25 @@ class CodeGraphService:
     def validate_generated_code(self, scope: Scope, source: str) -> dict[str, Any]:
         if not source.strip():
             raise ValidationError("source is required")
-        known = {symbol.name for symbol in self.store.list_symbols(scope)}
+        symbols = self.store.list_symbols(scope)
+        known = {symbol.name for symbol in symbols}
+        known.update(symbol.qualified_name for symbol in symbols)
         known.update(_builtin_names())
         known.update(_defined_names(source))
-        refs = extract_identifier_refs(source)
-        unknown = sorted(ref for ref in refs if ref not in known and not ref.startswith("__"))
+        # Call-site first: attribute noise on Load names caused false unknowns.
+        call_refs = extract_call_refs(source)
+        unknown = sorted(
+            {
+                ref
+                for ref in call_refs
+                if ref not in known and ref.split(".")[-1] not in known and not ref.startswith("__")
+            }
+        )
         return {
             "accepted": len(unknown) == 0,
             "unknown_symbols": unknown,
             "known_symbol_count": len(known),
+            "checked_call_refs": sorted(call_refs),
         }
 
     def _put_edge(
@@ -653,7 +898,11 @@ class CodeGraphService:
         *,
         file_path: str,
         confidence: CallConfidence = CallConfidence.EXACT,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
+        meta = {"file_path": file_path}
+        if metadata:
+            meta.update(metadata)
         edge = GraphEdge(
             id=f"edge:{digest(f'{rel_type}|{source_id}|{target_id}')[:16]}",
             scope=scope,
@@ -661,7 +910,7 @@ class CodeGraphService:
             source_id=source_id,
             target_id=target_id,
             confidence=confidence,
-            metadata={"file_path": file_path},
+            metadata=meta,
         )
         self.store.put_edge(edge)
         return 1
