@@ -22,7 +22,7 @@ Suggested owner: Platform Architect
 
 Resolution path: Create a storage ownership matrix and update data contracts.
 
-Status: OPEN
+Status: DECISION_NEEDED
 
 ## GAP-002 - First Supported Language Set
 
@@ -62,7 +62,7 @@ Suggested owner: AI Platform Lead
 
 Resolution path: Benchmark models and create default ModelRoutingProfile.
 
-Status: OPEN
+Status: DECISION_NEEDED
 
 ## GAP-004 - Human Approval UX
 
@@ -88,7 +88,7 @@ Status: OPEN
 
 Category: Security
 
-Severity: High
+Severity: Critical
 
 Impact: Tenant isolation is required, but exact implementation across graph, memory, broker, object storage, and vector indexes needs more detail.
 
@@ -102,7 +102,7 @@ Suggested owner: Security Architect
 
 Resolution path: Create tenant isolation threat model and test plan.
 
-Status: OPEN
+Status: UNDER_REVIEW
 
 ## GAP-006 - Weight Profile Governance
 
@@ -140,9 +140,11 @@ Decision needed: Choose default development base and ownership of port profile c
 
 Suggested owner: Developer Experience Lead
 
-Resolution path: Add port profile file format and preflight tool spec.
+Resolution path: Port profile file format and Phase 8 gate ownership checks.
 
-Status: OPEN
+Status: CLOSED
+
+Closed in: Phase 8 port-profile catalog and verification gate (`docs/08-software-engineering-architecture/34-phase8-verification-and-acceptance.md`).
 
 ## GAP-008 - Schema Registry Implementation
 
@@ -162,7 +164,7 @@ Suggested owner: Platform Architect
 
 Resolution path: Create schema registry architecture note.
 
-Status: OPEN
+Status: DECISION_NEEDED
 
 ## GAP-009 - Domain Pack, Feature Profile, And Rule Suggestion Governance
 
@@ -182,4 +184,50 @@ Suggested owner: Product Architect and Platform Architect
 
 Resolution path: Create a formal DomainPack schema, FeatureProfile schema, RuleSuggestion schema, conflict-resolution matrix, admin-console workflow, and acceptance test suite.
 
-Status: OPEN
+Status: DECISION_NEEDED
+
+## GAP-010 - Impact KPI Instrumentation Completeness
+
+Category: Governance and Operations
+
+Severity: Medium
+
+Impact: Impact KPIs need machine-checkable fields and an explicit comparison method.
+
+Why it matters: Without instrumentation completeness, benefit reporting cannot be audited.
+
+Current assumption: KPI catalogs are versioned and gate-checked.
+
+Decision needed: Ensure KPI fields and comparison method are machine-checkable.
+
+Suggested owner: Platform Governance Lead
+
+Resolution path: Impact KPI catalog and Phase 9 gate.
+
+Status: CLOSED
+
+Closed in: Phase 9 impact-kpis catalog and verification gate (`docs/09-platform-governance-operations/11-phase9-verification-and-acceptance.md`).
+
+## GAP-011 - Neo4j as Code Graph Store Timing
+
+Category: Architecture
+
+Severity: Medium
+
+Impact: Phase 7 uses a Postgres `code_graph` slice while Neo4j remains the design target for production graph storage.
+
+Why it matters: Delayed migration can create dual-write debt; early migration can block language-matrix work.
+
+Current assumption: Postgres slice is acceptable until the language support matrix lands.
+
+Decision needed: When to migrate from Postgres code_graph schema to Neo4j in production.
+
+Suggested owner: Code Graph Lead
+
+Approver: Platform Architect
+
+Review date: 2026-10-01
+
+Resolution path: Keep Postgres slice for Phase 7; schedule Neo4j cutover after language matrix lands.
+
+Status: ACCEPTED_RISK

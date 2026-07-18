@@ -1,0 +1,33 @@
+{
+  "profile_id": "agentcore-dev",
+  "description": "AgentCore development port profile (non-default, project-scoped, overrideable).",
+  "base_hint": 32000,
+  "forbidden_defaults": [80, 443, 3000, 3001, 5432, 6379, 7474, 7687, 8000, 8080, 8501, 9000, 9200],
+  "ports": {
+    "AGENTCORE_API_PORT": 32100,
+    "AGENTCORE_ADMIN_PORT": 32101,
+    "AGENTCORE_CORE_DATA_PORT": 32110,
+    "AGENTCORE_MEMORY_PORT": 32120,
+    "AGENTCORE_DOCS_SYNC_PORT": 32130,
+    "AGENTCORE_CODE_GRAPH_PORT": 32140,
+    "AGENTCORE_RULE_ENGINE_PORT": 32150,
+    "AGENTCORE_BROKER_PORT": 32160,
+    "AGENTCORE_ADAPTER_PORT": 32170,
+    "AGENTCORE_WORKER_METRICS_PORT": 32180,
+    "AGENTCORE_POSTGRES_PORT": 32232,
+    "AGENTCORE_NEO4J_BOLT_PORT": 32287,
+    "AGENTCORE_NEO4J_HTTP_PORT": 32474,
+    "AGENTCORE_REDIS_PORT": 32379,
+    "AGENTCORE_OBJECT_STORE_PORT": 32390,
+    "AGENTCORE_OTEL_COLLECTOR_PORT": 32418,
+    "AGENTCORE_GRAFANA_PORT": 32300
+  },
+  "service_owners": {
+    "core-data-service": "AGENTCORE_CORE_DATA_PORT",
+    "memory-service": "AGENTCORE_MEMORY_PORT",
+    "docs-sync-service": "AGENTCORE_DOCS_SYNC_PORT",
+    "code-graph-service": "AGENTCORE_CODE_GRAPH_PORT",
+    "rule-engine-service": "AGENTCORE_RULE_ENGINE_PORT",
+    "adapter-service": "AGENTCORE_ADAPTER_PORT"
+  }
+}

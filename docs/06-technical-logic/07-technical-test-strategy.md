@@ -189,11 +189,16 @@ tests/backend/memory-service/        Phase 2
 tests/backend/docs-sync-service/     Phase 3
 tests/backend/rule-engine-service/   Phase 4
 tests/backend/adapter-service/       Phase 5
+tests/backend/phase6-verification/   Phase 6
+tests/backend/code-graph-service/    Phase 7
+tests/backend/phase8-verification/   Phase 8
+tests/backend/phase9-verification/   Phase 9
+tests/backend/phase10-verification/  Phase 10
 ```
 
 Phase documentation and module READMEs must reference these canonical paths. When a new service or app is implemented, create its executable tests under `tests/backend/<owner>/` or `tests/frontend/<owner>/` and keep service-local `tests/` folders empty or documentation-only.
 
-Named validation commands for current Phase 1 through 5 slices:
+Named validation commands for current Phase 1 through 10 slices:
 
 ```bash
 PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
@@ -201,6 +206,11 @@ PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/
 PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service
 PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service
 PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification
 ```
 
 Phase 6 harness and gate:
@@ -211,5 +221,5 @@ PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verific
 .venv/bin/python tests/backend/phase6-verification/run_phase_gate.py --run-suites
 ```
 
-Harness package: `tests/support/phase6/`. A phase is not technically complete until its tests are in the canonical tree, its README names the exact command, and no executable test files remain hidden under source-owned service folders. Phase 6 is the roadmap gate that checks this completeness before Phase 7 implementation.
+Harness package: `tests/support/phase6/`. A phase is not technically complete until its tests are in the canonical tree, its README names the exact command, and no executable test files remain hidden under source-owned service folders. Phase 6 is the roadmap gate that checks Phases 1 through 5 completeness before Phase 7 implementation.
 

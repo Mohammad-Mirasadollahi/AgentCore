@@ -1,33 +1,29 @@
-# Code Graph Service
+# code-graph-service
 
-Path: `backend/services/code-graph-service`
+Phase 7 Code-Knowledge Graph vertical slice for AgentCore.
 
-## Purpose
+## Owns
 
-Owns code graph ingestion, query, graph-backed code context, and metadata-first retrieval for source-read minimization.
+- Python file ingestion and symbol extraction (stdlib `ast`)
+- Normalized symbol hashing and change detection
+- Local documentation generation for **changed symbols only**
+- Graph edges: `CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`
+- Structural neighbor queries and local semantic ranking
+- Graph-guided generation context packs (`uses_full_repository=false`)
+- Generated-code unknown-symbol validation
+- Outbox events `FileIngested`, `SymbolsDocumented`
 
-## Modular Boundary
+## Config
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+`config/code-graph-service.example.env` documents local development settings. Runtime persistence uses the service-owned `code_graph` PostgreSQL schema. The in-memory Store fake and `HeuristicDocGenerator` are limited to unit/transport tests and local deterministic documentation (no external model calls).
 
-## Metadata-First Responsibility
+## Tests
 
-This service should build and query compact code metadata before agents read full source files. It should expose context packs with signatures, summaries, dependencies, tests, risk tags, freshness, confidence, and source-read recommendations.
+```bash
+PYTHONPATH=backend/services/code-graph-service/src \
+  .venv/bin/python -m pytest tests/backend/code-graph-service/test_phase7.py -q
+```
 
-## Allowed Contents
+## Contract
 
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
-
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
-
-## Status
-
-Scaffold only. No implementation code has been added yet.
+See `docs/phase-7-api-contract.md`.

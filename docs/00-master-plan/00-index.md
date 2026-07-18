@@ -13,6 +13,7 @@ This folder describes the complete AgentCore plan at product and architecture le
 - 05-complete-system-blueprint.md provides the full product and architecture narrative.
 - 06-professional-documentation-standard.md defines the professional documentation standard for writing implementation-grade engineering and product design specifications.
 - 08-documentation-structure-and-machine-ingest-standard.md defines tree numbering, titles, frontmatter, RAG/LLMIndex/GraphRAG authoring shape, and fallback ingest tiers.
+- 09-documentation-classification-and-lanes.md defines documentation lanes: lifecycle (initial/current/future), concern (design/problem/gap/cross-team/…), audience, authority, and visibility.
 
 ## Phase Folders
 
@@ -40,7 +41,7 @@ The Neo4j-backed code understanding and graph-guided code generation design is d
 
 The full software engineering playbook is documented in ../08-software-engineering-architecture/. It covers architecture principles, service boundaries, modular project structure, engineering operating model, domain-driven modularization, interface and contract engineering, data and persistence engineering, quality attributes, testing, CI/CD, release engineering, zero-touch installation, automated bootstrap, agent and resource connectivity automation, self-service operations, local and remote development, observability, extensibility, security engineering, threat modeling, governance, change control, onboarding, runtime topology, configuration model, and development port conflict prevention.
 
-Engineers and product designers should read 06-professional-documentation-standard.md and 08-documentation-structure-and-machine-ingest-standard.md before writing or reviewing new documents. Engineers should then read ../08-software-engineering-architecture/00-index.md first, and ../08-software-engineering-architecture/05-modular-project-structure.md before creating repository folders, services, packages, tools, scripts, configuration profiles, or cross-module tests.
+Engineers and product designers should read 06-professional-documentation-standard.md, 08-documentation-structure-and-machine-ingest-standard.md, and 09-documentation-classification-and-lanes.md before writing or reviewing new documents. Engineers should then read ../08-software-engineering-architecture/00-index.md first, and ../08-software-engineering-architecture/05-modular-project-structure.md before creating repository folders, services, packages, tools, scripts, configuration profiles, or cross-module tests.
 
 ## Platform Governance and Operations Section
 
