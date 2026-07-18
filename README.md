@@ -1,274 +1,66 @@
 # AgentCore
 
-AgentCore is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers (Qwen, webhooks, LangChain/LangGraph, custom services) perform execution; AgentCore owns tickets, routing, policy, approval, and audit.
+AgentCore is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers perform execution; AgentCore owns tickets, routing, policy, approval, memory, docs sync, code graph, and audit.
 
-This repository contains:
+## Repository layout
 
-1. **`hackathon/`** — runnable **Change Society** demo for the Qwen Cloud Hackathon (Track 3). **Start here for install and demo.**
-2. **`backend/`**, **`docs/`** — long-term AgentCore platform architecture and services.
+| Path | Role |
+|------|------|
+| `backend/services/` | Modular FastAPI vertical slices (Phases 1–7 + platform services) |
+| `backend/packages/` | Shared packages (`shared-kernel`, `sdk`, `contracts`, catalogs, …) |
+| `backend/configs/` | Port profiles, governance catalogs, domain/feature packs, examples |
+| `docs/` | Phase-based product and engineering documentation (Phases 0–11+) |
+| `tests/backend/` | Canonical pytest suites and phase gates |
+| `tests/support/` | Phase gate harness packages (`phase6`, `phase8`–`phase11`) |
+| `frontend/` | Admin / UI surfaces (platform) |
+| `archives/hackathon/` | Archived Change Society hackathon demo (not the active product path) |
 
-## Table of contents
+## Implementation status
 
-- [Change Society (hackathon) — start here](#change-society-hackathon--start-here)
-  - [Hackathon repository structure](#hackathon-repository-structure)
-  - [Backend layers (Change Society service)](#backend-layers-change-society-service)
-  - [Society run (sequence)](#society-run-sequence)
-- [Installation](#installation)
-  - [Automatic install (recommended)](#automatic-install-recommended)
-  - [Manual install](#manual-install)
-  - [Full platform PostgreSQL (optional)](#full-platform-postgresql-optional)
-- [AgentCore platform architecture](#agentcore-platform-architecture)
-- [Technology baseline](#technology-baseline)
-- [Documentation](#documentation)
-- [Security & license](#security--license)
+Roadmap Phases **1–11** have executable vertical slices and/or verification gates. Platform services that were previously scaffolds now ship with API + in-memory tests (and Postgres store adapters where applicable).
 
----
+| Phase | Focus | Code / gate home |
+|------:|-------|------------------|
+| 1 | Core data model | `backend/services/core-data-service/` · `tests/backend/core-data-service/` |
+| 2 | Memory and context | `backend/services/memory-service/` · `tests/backend/memory-service/` |
+| 3 | Docs-as-code sync | `backend/services/docs-sync-service/` · `tests/backend/docs-sync-service/` |
+| 4 | Rule engine | `backend/services/rule-engine-service/` · `tests/backend/rule-engine-service/` |
+| 5 | Interoperability / adapters | `backend/services/adapter-service/` · `tests/backend/adapter-service/` |
+| 6 | Technical logic verification | `tests/support/phase6/` · `tests/backend/phase6-verification/` |
+| 7 | Code-knowledge graph | `backend/services/code-graph-service/` · `tests/backend/code-graph-service/` |
+| 8 | Software engineering / ports / packages | `backend/configs/port-profiles/` · `backend/packages/` · `tests/backend/phase8-verification/` |
+| 9 | Governance catalogs | `backend/configs/governance/` · `tests/backend/phase9-verification/` |
+| 10 | Gap analysis catalog | `backend/configs/governance/gap-register.json` · `tests/backend/phase10-verification/` |
+| 11 | Logical examples catalog | `backend/configs/logical-examples/` · `tests/backend/phase11-verification/` |
 
-## Change Society (hackathon) — start here
+**Additional platform services:** `audit-service`, `identity-access-service`, `orchestration-service`, `reporting-service`, `project-profile-service`, `common-context-service`.
 
-| | |
-|---|---|
-| **Install (recommended)** | [Automatic install](#automatic-install-recommended) — `bash install.sh` |
-| **Verify (no API key)** | `bash install.sh --profile verify` |
-| **Hackathon README** | [hackathon/README.md](hackathon/README.md) — install, public demo, **judge live seven scenarios**, Qwen key storage |
-| **Quickstart (detail)** | [hackathon/docs/01-quickstart.md](hackathon/docs/01-quickstart.md) |
+Design target notes (not required for current gates): Neo4j runtime and Tree-sitter multi-language ingestion remain longer-term for Phase 7 (slice today uses PostgreSQL projection + Python `ast` + in-memory Store).
 
-```mermaid
-flowchart TB
-  subgraph submission ["Public demo — hackathon/"]
-    UI[Next.js demo UI]
-    API[change-society-service]
-    SDK[Python SDKs]
-    UI --> API
-    SDK --> API
-    API --> Qwen[Qwen Cloud]
-  end
-
-  subgraph platform ["AgentCore platform"]
-    Admin[Next.js admin — planned]
-    Services[Modular FastAPI services]
-    Admin --> Services
-    Services --> PG[(PostgreSQL + pgvector)]
-    Services --> Neo[(Neo4j code graph)]
-  end
-```
-
-### Hackathon repository structure
-
-```mermaid
-flowchart TB
-  subgraph root ["Repository root"]
-    install["install.sh"]
-    venv[".venv/"]
-  end
-
-  subgraph hackathon ["hackathon/"]
-    h_be["backend/change-society-service/"]
-    h_fe["frontend/"]
-    h_sdk["sdk/python/"]
-    h_scripts["scripts/"]
-    h_deploy["deployments/"]
-    h_docs["docs/"]
-    h_evidence["evidence/real/"]
-  end
-
-  install --> hackathon
-  venv --> h_be
-  h_fe --> h_be
-  h_sdk --> h_be
-```
-
-### Backend layers (Change Society service)
+## Quick architecture
 
 ```mermaid
 flowchart TD
-  IF["interfaces — FastAPI /api/v1"]
-  APP["application — workflow + control plane"]
-  DOM["domain — runs, tickets, policies"]
-  INF["infrastructure — Qwen, PostgreSQL, webhooks"]
-  BOOT["bootstrap — config + DI"]
-  CTR["contracts — Universal Agent JSON"]
-
-  IF --> APP
-  APP --> DOM
-  INF --> APP
-  BOOT --> IF
-  BOOT --> INF
-  CTR --> APP
+  User[Developer or operator] --> Admin[Admin console]
+  User --> SDK[AgentCore SDK package]
+  Admin --> API[FastAPI service APIs]
+  SDK --> API
+  API --> Services[Modular backend services]
+  Services --> Postgres[(PostgreSQL)]
+  Services --> Graph[Code graph projection]
+  Services --> Adapters[Adapter / broker boundary]
+  Adapters --> Agents[External agent runtimes]
 ```
 
-### Society run (sequence)
-
-```mermaid
-sequenceDiagram
-  actor User as Engineering lead
-  participant UI as Demo UI
-  participant API as FastAPI
-  participant CP as Control plane
-  participant W as External workers
-  User->>UI: Start society run
-  UI->>API: POST /society-runs
-  CP->>W: Context, change, impact, policy
-  opt Negotiation
-    CP->>W: Rebuttals + judge
-  end
-  CP->>API: awaiting_approval
-  User->>UI: Approve
-  API->>CP: completed
-```
-
-**Run after install (manual runtime)** — if you chose manual start in the installer, or skipped auto-start:
-
-```bash
-set -a && source hackathon/.env && set +a
-PYTHONPATH=hackathon/backend/change-society-service/src \
-  .venv/bin/python -m uvicorn change_society.main:app --host 127.0.0.1 --port 32500
-# separate terminal: cd hackathon/frontend && npm run dev → http://localhost:32501
-```
-
-If you selected **systemd** or **Docker** during install, see [Automatic install (recommended)](#automatic-install-recommended) for status commands instead.
-
----
-
-## Installation
-
-Change Society (hackathon demo) is the primary install path on this repository. **Use the automatic installer unless you have a specific reason to install by hand.**
-
-### Automatic install (recommended)
-
-From the **repository root** (directory that contains `install.sh` and `hackathon/`):
-
-```bash
-bash install.sh
-```
-
-Equivalent entry point:
-
-```bash
-bash hackathon/install.sh
-```
-
-**What it does automatically**
-
-| Step | Action |
-|------|--------|
-| Virtualenv | Creates `.venv/` at repo root if missing |
-| Backend | `pip install` from `hackathon/backend/change-society-service/requirements.txt` and root `requirements-dev.txt` when present |
-| Frontend | `npm ci` in `hackathon/frontend/` (unless `--skip-frontend`) |
-| Config | Writes `hackathon/.env` with a **safe demo profile** (`fake` model, in-memory store) if the file does not exist |
-| Runtime (optional) | Can start **user systemd** units, **Docker Compose** full stack, or optional **dev PostgreSQL** container — see below |
-
-**Interactive terminal (default on a TTY)**  
-The installer prints an ASCII banner and numbered menus. Each option includes a **concrete example** (commands you can copy), for example:
-
-- Profile: `demo` vs `verify` vs production hints only  
-- OS packages (Debian/Ubuntu): install `python3.12-venv`, `nodejs`, `npm`, `docker.io` via `sudo apt` when needed  
-- Runtime after install: two terminals (manual), **systemd** user services, **Docker** full stack, or dependencies only  
-- Optional Docker PostgreSQL for local DB experiments (demo still uses in-memory store)
-
-**Non-interactive examples**
-
-```bash
-# Default: demo deps, no prompts (manual start after install)
-bash install.sh --non-interactive
-
-# Debian/Ubuntu: install missing OS packages, then enable API + UI as user systemd units
-bash install.sh --non-interactive --install-os-deps --runtime systemd
-
-# Proof install + deterministic end-to-end test (no browser)
-bash install.sh --profile verify --non-interactive
-
-# Full local smoke (install menus + RC gates + systemd + Docker smoke stack)
-bash tests/e2e/change-society/run-full-install-smoke.sh
-
-# Full Docker stack (requires QWEN_API_KEY and AGENTCORE_POSTGRES_PASSWORD in hackathon/.env)
-bash install.sh --non-interactive --runtime docker --install-os-deps
-
-# Optional dev PostgreSQL container only (Docker)
-bash install.sh --non-interactive --with-postgres
-
-# Preview steps without changing the machine
-bash install.sh --dry-run
-```
-
-**After automatic install — check runtime**
-
-| Runtime | Example |
-|---------|---------|
-| Manual (default) | Two terminals: API with `.venv/bin/python -m uvicorn …` and `cd hackathon/frontend && npm run dev` → http://localhost:32501 |
-| systemd | `systemctl --user status change-society-api.service` · `journalctl --user -u change-society-api -f` |
-| Docker | `docker compose -f hackathon/deployments/compose.yaml ps` · http://127.0.0.1:32500/health |
-
-Implementation: `hackathon/scripts/install.py` and `hackathon/scripts/install_support/`. More flags and profiles: [hackathon/docs/01-quickstart.md](hackathon/docs/01-quickstart.md).
-
-**Prerequisites (not fully automated on all OSes)**
-
-- **Python 3.12+** (required)  
-- **Node.js 20+** and **npm** for the demo UI (installer fails with clear hints if missing; use `--install-os-deps` on Debian/Ubuntu)  
-- **Docker** only if you choose Docker runtime or `--with-postgres`  
-- **sudo/apt** only if you opt into `--install-os-deps` or confirm OS package install in the interactive menu  
-
-The installer does **not** create Qwen Cloud accounts or inject production secrets automatically.
-
-### Manual install
-
-Use this when automatic install is blocked (air-gapped mirror, custom Python layout, or policy forbids `install.sh`). The automatic path above is still **recommended** for judges and first-time setup.
-
-**1. System prerequisites**
-
-- Python **3.12+** with the `venv` module (on Debian/Ubuntu: `sudo apt install python3.12 python3.12-venv`)  
-- **Node.js 20+** and **npm** for `hackathon/frontend`  
-- Git clone of this repository  
-
-**2. Python virtualenv and backend**
-
-From repository root:
+## Development setup
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/pip install -r hackathon/backend/change-society-service/requirements.txt
-.venv/bin/pip install -r requirements-dev.txt   # optional, for tests
+.venv/bin/pip install -r requirements-dev.txt
 ```
 
-**3. Frontend**
-
-```bash
-cd hackathon/frontend && npm ci && cd ../..
-```
-
-**4. Environment (safe local demo)**
-
-```bash
-cp hackathon/.env.example hackathon/.env
-# Or copy the demo block from hackathon/docs/01-quickstart.md — default is CHANGE_SOCIETY_MODEL_PROVIDER=qwen (set QWEN_API_KEY).
-```
-
-**5. Run API and UI (two terminals, repository root)**
-
-```bash
-set -a && source hackathon/.env && set +a
-PYTHONPATH=hackathon/backend/change-society-service/src \
-  .venv/bin/python -m uvicorn change_society.main:app --host 127.0.0.1 --port 32500
-```
-
-```bash
-cd hackathon/frontend && npm run dev
-```
-
-Open http://localhost:32501 .
-
-**6. Verify (optional)**
-
-```bash
-bash tests/e2e/change-society/run-real-test.sh
-```
-
-Or re-run the automatic verifier: `bash install.sh --profile verify` (reuses existing `.venv` when present).
-
-### Full platform PostgreSQL (optional)
-
-For the wider AgentCore platform (not required for the hackathon in-memory demo):
+Optional PostgreSQL for full-platform stores:
 
 ```bash
 cp backend/deployments/compose/postgres.example.env /tmp/agentcore-postgres.env
@@ -276,57 +68,75 @@ docker compose --env-file /tmp/agentcore-postgres.env \
   -f backend/deployments/compose/compose.yaml --profile core up -d postgres
 ```
 
-Platform install runbook: [backend/runbooks/install/README.md](backend/runbooks/install/README.md).
+Development ports are non-default and project-scoped. See `backend/configs/port-profiles/agentcore-dev.json`.
 
----
+## Named test commands
 
-## AgentCore platform architecture
+Use the project virtualenv. `PYTHONPATH` must include the service `src` (or `tests/support` + `backend/packages` for gates).
 
-```mermaid
-flowchart TD
-  User[Developer or operator] --> Admin[Next.js admin console]
-  User --> SDK[AgentCore SDK]
-  Admin --> API[FastAPI backend API]
-  SDK --> API
-  API --> Services[Modular backend services]
-  Services --> Postgres[(PostgreSQL)]
-  Postgres --> PGVector[pgvector RAG]
-  Services --> Neo4j[(Neo4j code graph)]
-  Services --> Redis[(Redis — optional)]
-  Services --> Adapters[Agent adapter boundary]
-  Adapters --> Agents[External agent runtimes]
+```bash
+# Phase vertical slices
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service -q
+PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/memory-service -q
+PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service -q
+PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service -q
+PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service -q
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service -q
+
+# Phase gates
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
+
+# Shared packages
+PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
+
+# Platform services (examples)
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service -q
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service -q
 ```
 
----
-
-## Technology baseline
-
-- **Frontend:** Next.js, TypeScript  
-- **Backend:** Python 3.12+, FastAPI  
-- **Data:** PostgreSQL (pgvector), Neo4j; Redis when justified  
-- **Local Python:** `.venv` at repository root (created by `install.sh`)  
-
-Details: [docs/13-technology-stack-and-platform-decisions/00-index.md](docs/13-technology-stack-and-platform-decisions/00-index.md).
-
-PostgreSQL is the runtime relational store for production-shaped deployments; the hackathon demo can use an in-memory store without Docker.
-
----
+Full test layout: [tests/README.md](tests/README.md). Technical test strategy: [docs/06-technical-logic/07-technical-test-strategy.md](docs/06-technical-logic/07-technical-test-strategy.md).
 
 ## Documentation
 
 | Area | Index |
 |------|--------|
-| Hackathon / Change Society | [hackathon/docs/README.md](hackathon/docs/README.md) |
-| **Change Society architecture (HLD/LLD + Mermaid)** | [hackathon/docs/02-architecture.md](hackathon/docs/02-architecture.md) |
-| Submission pack | [hackathon/docs/14-submission-pack-index.md](hackathon/docs/14-submission-pack-index.md) |
-| LangGraph / LangChain workers | [hackathon/docs/11-agent-language-and-langchain-sdk.md](hackathon/docs/11-agent-language-and-langchain-sdk.md) |
-| AgentCore master docs | [docs/README.md](docs/README.md) |
+| Master docs map | [docs/README.md](docs/README.md) |
+| Roadmap and phase gates | [docs/00-master-plan/02-roadmap-and-phase-gates.md](docs/00-master-plan/02-roadmap-and-phase-gates.md) |
 | Engineering architecture | [docs/08-software-engineering-architecture/00-index.md](docs/08-software-engineering-architecture/00-index.md) |
-| API standards | [docs/14-api-design-and-naming-standards/00-index.md](docs/14-api-design-and-naming-standards/00-index.md) |
+| Backend structure standard | [backend/docs/STRUCTURE_STANDARD.md](backend/docs/STRUCTURE_STANDARD.md) |
+| Technology baseline | [docs/13-technology-stack-and-platform-decisions/00-index.md](docs/13-technology-stack-and-platform-decisions/00-index.md) |
+| API naming standards | [docs/14-api-design-and-naming-standards/00-index.md](docs/14-api-design-and-naming-standards/00-index.md) |
+| Archived hackathon demo | [archives/hackathon/README.md](archives/hackathon/README.md) |
 
----
+## Technology baseline
+
+- **Backend:** Python 3.12+, FastAPI  
+- **Data:** PostgreSQL (pgvector planned); Neo4j is the design target for production code graph  
+- **Frontend:** Next.js, TypeScript (admin surfaces)  
+- **Local Python:** `.venv` at repository root  
+
+## Contributing
+
+How to help, open pull requests, and keep slices consistent:
+
+- **Guide:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Bug report:** use the GitHub **Bug report** issue template (`.github/ISSUE_TEMPLATE/bug_report.yml`)
+- **Feature request:** use the GitHub **Feature request** issue template (`.github/ISSUE_TEMPLATE/feature_request.yml`)
+- **Pull requests:** follow `.github/PULL_REQUEST_TEMPLATE.md`
+
+Please search existing issues first. Do not put secrets, tokens, or private customer data in issues or PRs.
+
+## Private sync
+
+Local private-repo sync uses `scripts/git-sync.sh` (gitignored tool + local PAT). After the first push, AI-written change notes live under `scripts/.git-sync-changes/`.
 
 ## Security & license
 
-- [SECURITY.md](SECURITY.md)  
+- [SECURITY.md](SECURITY.md) — vulnerability reporting (not public issues)  
 - [LICENSE](LICENSE) (Apache 2.0)
+
+**Data sovereignty:** do not upload repository contents to public cloud services without explicit per-action approval. See project law in workspace rules / `ai-toolstack` docs.

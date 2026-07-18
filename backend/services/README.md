@@ -26,4 +26,19 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Vertical slices are implemented for roadmap and platform services. Canonical tests live under `tests/backend/<service>/` or phase verification folders. See the repository root `README.md` for the phase map.
+
+| Service | Role |
+|---------|------|
+| `core-data-service` | Phase 1 |
+| `memory-service` | Phase 2 |
+| `docs-sync-service` | Phase 3 |
+| `rule-engine-service` | Phase 4 |
+| `adapter-service` | Phase 5 |
+| `code-graph-service` | Phase 7 |
+| `audit-service` | Audit / evidence trails |
+| `identity-access-service` | Identity and authorization |
+| `orchestration-service` | Work batches and routing |
+| `reporting-service` | Impact / KPI reporting |
+| `project-profile-service` | Projects, packs, groups |
+| `common-context-service` | Reusable common context items |
