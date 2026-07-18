@@ -11,6 +11,19 @@ This section captures known gaps, unresolved assumptions, and areas that need de
 - `03-technical-implementation-gaps.md` captures implementation, algorithm, data, and integration gaps.
 - `04-governance-operations-gaps.md` captures security, compliance, operational, and process gaps.
 - `05-gap-triage-and-resolution-process.md` defines how gaps should be reviewed, owned, prioritized, and closed.
+- `06-phase10-verification-and-acceptance.md` defines the Phase 10 exit gate, gap catalog, and named verification commands.
+
+## Phase 10 verification home
+
+- Catalog: `backend/configs/governance/gap-register.json`
+- Loader: `backend/packages/governance_catalog/`
+- Gate package: `tests/support/phase10/`
+- Tests: `tests/backend/phase10-verification/`
+
+```bash
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification -q
+.venv/bin/python tests/backend/phase10-verification/run_phase_gate.py
+```
 
 ## Gap Record Format
 

@@ -10,7 +10,7 @@ This documentation is written for experienced software engineers, software archi
 
 - 00-master-plan/07-agent-control-plane-product-boundary.md is the normative product-boundary decision and must be read before agent, connector, orchestration, ticket, or model-runtime work.
 
-- 00-master-plan/ defines the product scope, full feature catalog, roadmap, global architecture, cross-cutting challenges, complete system blueprint, professional documentation standard, and documentation structure / machine-ingest standard (numbering, titles, frontmatter, RAG/GraphRAG, fallbacks).
+- 00-master-plan/ defines the product scope, full feature catalog, roadmap, global architecture, cross-cutting challenges, complete system blueprint, professional documentation standard, documentation structure / machine-ingest standard (numbering, titles, frontmatter, RAG/GraphRAG, fallbacks), and documentation classification lanes (lifecycle, concern, audience, authority, visibility).
 - 01-core-data-model/ defines Activity, WorkLog, Decision, Issue, and Task foundations.
 - 02-memory-and-context/ defines three-tier memory, consolidation, state-over-event context, prompt caching, decay, dynamic retrieval, configurable memory weighting, autonomous question discovery, FAQ memory, curiosity scoring, missing documentation discovery, batched consolidation, and deferred documentation or review workflows.
 - 03-docs-as-code-sync/ defines the documentation knowledge graph, AST anchoring, YAML frontmatter, Bloom filter lookup, and lightweight doc flags.
@@ -27,7 +27,7 @@ This documentation is written for experienced software engineers, software archi
 
 1. Start with 00-master-plan/00-index.md.
 2. Read 00-master-plan/05-complete-system-blueprint.md for the full product narrative.
-3. Read 00-master-plan/06-professional-documentation-standard.md and 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md before writing or reviewing new documents.
+3. Read 00-master-plan/06-professional-documentation-standard.md, 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md, and 00-master-plan/09-documentation-classification-and-lanes.md before writing or reviewing new documents.
 4. Read each phase folder in numeric order.
 5. Inside each phase, read the local index file first, then follow the phase-specific file order listed there.
 6. Read 02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md for repeated questions, curiosity scoring, FAQ memory, and missing documentation discovery.

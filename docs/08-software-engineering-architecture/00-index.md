@@ -41,6 +41,21 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 31-error-handling-validation-and-result-standards.md defines typed errors, validation layers, problem-details responses, safe diagnostics, recovery rules, and logging requirements.
 - 32-transaction-idempotency-and-concurrency-standards.md defines transaction boundaries, idempotency keys, outbox/inbox, concurrency control, retries, dead-letter behavior, and race-condition handling.
 - 33-testing-seams-and-contract-boundary-standards.md defines test seams, fakes, mocks, contract boundaries, deterministic tests, LLM test strategy, and acceptance criteria.
+- 34-phase8-verification-and-acceptance.md defines the Phase 8 exit gate, port-profile artifacts, ownership checks, and named verification commands.
+
+## Implementation Slice
+
+Phase 8 verification home:
+
+- Port profile: `backend/configs/port-profiles/agentcore-dev.json`
+- Port loader: `backend/packages/port_profile/`
+- Gate package: `tests/support/phase8/`
+- Tests: `tests/backend/phase8-verification/`
+
+```bash
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
+.venv/bin/python tests/backend/phase8-verification/run_phase_gate.py
+```
 
 ## Recommended Reading Order
 

@@ -18,6 +18,18 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `08-code-metadata-schema-and-lifecycle.md` defines low-level metadata records, lifecycle, freshness states, confidence rules, and source escalation policy.
 - `09-context-pack-retrieval-and-agent-workflow.md` defines context packs, retrieval algorithms, agent workflows, use cases, metrics, and safety rules.
 
+## Implementation Slice
+
+Phase 7 vertical slice service:
+
+- `backend/services/code-graph-service/` — ingest, hash diff, local docs, graph edges, semantic ranking, generation context, generated-code validation
+- Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
+- Tests: `tests/backend/code-graph-service/test_phase7.py`
+
+```bash
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service -q
+```
+
 ## Relationship to Other Sections
 
 - `../03-docs-as-code-sync/` covers documentation synchronization and drift detection.

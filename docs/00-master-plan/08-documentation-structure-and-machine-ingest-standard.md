@@ -20,11 +20,19 @@ phase: "00-master-plan"
 canonical_path: docs/00-master-plan/08-documentation-structure-and-machine-ingest-standard.md
 related_docs:
   - ac.doc.master.professional-documentation
+  - ac.doc.master.documentation-classification-lanes
 doc_version: "1.0.0"
 audience:
   - engineer
   - architect
   - agent
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+  - platform-engineering
+  - agents
+authority: normative
+visibility: internal
 primary_entities:
   - DocumentationStructure
   - IngestTier
@@ -32,6 +40,8 @@ primary_entities:
 relations_declared:
   - type: complements
     target: ac.doc.master.professional-documentation
+  - type: complements
+    target: ac.doc.master.documentation-classification-lanes
   - type: depends_on
     target: docs/03-docs-as-code-sync/
 chunk_hints:
@@ -59,6 +69,7 @@ This standard complements, and does not replace:
 | Document | Owns |
 | --- | --- |
 | `06-professional-documentation-standard.md` | Audience, tone, required *content* sections, acceptance quality |
+| `09-documentation-classification-and-lanes.md` | Lifecycle / concern / audience / authority / visibility **lanes** |
 | `../03-docs-as-code-sync/` and `../06-technical-logic/03-docs-sync-technical-logic.md` | Indexing pipelines, AST anchors, drift detection, CI gates |
 | `../08-software-engineering-architecture/22-product-design-and-engineering-specification-discipline.md` | Dual-track product + engineering specification discipline |
 
@@ -335,6 +346,14 @@ audience:
   - engineer
   - architect
   - agent
+# Classification lanes (normative detail in 09-documentation-classification-and-lanes.md)
+lifecycle_lane: current     # initial | current | future | transition | historical
+concern_lane: standard      # standard | design | decision | problem | gap | …
+audience_lane:              # filter audiences; see 09-…
+  - platform-engineering
+  - agents
+authority: normative        # normative | informative | speculative | example-only
+visibility: internal        # internal | cross-team | operator | restricted
 primary_entities:           # ubiquitous language nouns for graph nodes
   - DocumentationStructure
   - IngestTier
@@ -351,6 +370,8 @@ chunk_hints:
 language: en
 security_classification: internal
 ```
+
+**Lane fields** (`lifecycle_lane`, `concern_lane`, `audience_lane`, `authority`, `visibility`) are required for new normative Full-tier docs. Enumerations, combinations, and RAG filter rules are defined in `09-documentation-classification-and-lanes.md` — do not fork a second taxonomy here.
 
 ### 4.4 `doc_type` values
 
@@ -673,7 +694,7 @@ These are requirements on **software** that consumes docs; authors rely on them.
 | Concern | Expectation |
 | --- | --- |
 | LLMIndex / vector index | One parent document node per `doc_id` (or path at Body tier); child nodes per H2 chunk with preamble |
-| Metadata filters | Support `phase`, `tags`, `status`, `doc_type`, `owner`, `security_classification` |
+| Metadata filters | Support `phase`, `tags`, `status`, `doc_type`, `owner`, `security_classification`, and lane fields from `09-…` |
 | Hybrid search | Vector + keyword on headings, `summary`, and body |
 | GraphRAG | Build Document–Section–Entity–Symbol graph from frontmatter + extracted links; merge with code graph when `linked_symbols` present |
 | Context pack assembly | Prefer Full-tier chunks; if empty, Body-tier; always include `canonical_path` and section heading in the pack citation |
@@ -707,6 +728,7 @@ This standard is satisfied when:
 ## Related Documents
 
 - `06-professional-documentation-standard.md` — professional content and tone requirements.
+- `09-documentation-classification-and-lanes.md` — lifecycle, concern, audience, authority, visibility lanes.
 - `../03-docs-as-code-sync/00-index.md` — docs knowledge graph, frontmatter validation, drift.
 - `../06-technical-logic/03-docs-sync-technical-logic.md` — indexing and CI gate algorithms.
 - `../08-software-engineering-architecture/22-product-design-and-engineering-specification-discipline.md` — specification discipline.

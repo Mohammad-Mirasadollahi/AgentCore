@@ -4,7 +4,7 @@
 
 AgentCore documentation is not intended for a casual reader or a non-technical audience. The documentation must be written for experienced software engineers, software architects, product designers, platform operators, security reviewers, and technical decision makers who need enough detail to design, implement, validate, operate, and evolve the system.
 
-For **tree layout, file numbering, titles, YAML frontmatter, RAG/LLMIndex chunking, GraphRAG link hints, and fallback ingest**, follow `08-documentation-structure-and-machine-ingest-standard.md`. This document owns audience, tone, and required content sections.
+For **tree layout, file numbering, titles, YAML frontmatter, RAG/LLMIndex chunking, GraphRAG link hints, and fallback ingest**, follow `08-documentation-structure-and-machine-ingest-standard.md`. For **lifecycle / concern / audience / authority / visibility lanes** (initial vs future design, problems, other teams, …), follow `09-documentation-classification-and-lanes.md`. This document owns reader tone and required content sections.
 
 Every document should behave like an implementation-grade product and engineering specification. It should explain not only what the system should do, but also why the behavior exists, which actors use it, which modules own it, which contracts expose it, which data it changes, which edge cases exist, how it is verified, and how it appears in the product experience.
 

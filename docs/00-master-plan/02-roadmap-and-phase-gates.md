@@ -142,6 +142,8 @@ Exit gate:
 - AI generation prompts use graph context instead of full repository source.
 - Generated code is checked for unknown symbol references before acceptance.
 
+Implementation home: `backend/services/code-graph-service/` (Phase 7 slice; PostgreSQL graph projection + in-memory test Store; local heuristic docs). Canonical tests: `tests/backend/code-graph-service/`.
+
 ## Phase 8 - Software Engineering Architecture
 
 Mission: define AgentCore as an engineered software platform with a complete software engineering playbook. This phase must explain how the repository is structured, how modules are owned, how domains are decomposed, how interfaces are contracted, how persistence is governed, how quality is verified, how CI/CD and release happen, how local and remote development work, how observability and security are engineered, how extensions are added, and how change control keeps the platform coherent.
@@ -203,6 +205,8 @@ Exit gate:
 - Cross-project composition requires explicit ProjectGroup policy and authorization.
 - The web interface exposes Activity Timeline tracking, object detail pages, memory management, repeated question management, task and ticket management, rule management, agent supervision, batch management, automation jobs, reports, structured FeedbackRecord correction workflows, and audit.
 
+Implementation home: `docs/08-software-engineering-architecture/` plus `backend/configs/port-profiles/agentcore-dev.json`, `backend/packages/port_profile/`, and the Phase 8 gate at `tests/backend/phase8-verification/`.
+
 ## Phase 9 - Platform Governance and Operations
 
 Mission: complete the plan with security, observability, release governance, retention, contract versioning, runbooks, risk tracking, and shared terminology.
@@ -230,6 +234,8 @@ Exit gate:
 - Backup and restore expectations are defined.
 - Risks and open decisions have owners and mitigation paths.
 
+Implementation home: `docs/09-platform-governance-operations/` plus `backend/configs/governance/`, `backend/packages/governance_catalog/`, and the Phase 9 gate at `tests/backend/phase9-verification/`.
+
 ## Phase 10 - Gap Analysis
 
 Mission: make unresolved assumptions, architecture gaps, technical unknowns, governance gaps, and open decisions explicit so they can be reviewed and resolved before they become implementation risk.
@@ -249,6 +255,8 @@ Exit gate:
 - Open decisions have proposed resolution artifacts.
 - Accepted risks have approvers and review dates.
 - Closed gaps are reflected in the relevant documentation.
+
+Implementation home: `docs/10-gap-analysis/` plus `backend/configs/governance/gap-register.json`, `backend/packages/governance_catalog/`, and the Phase 10 gate at `tests/backend/phase10-verification/`.
 
 ## Phase 11 - Logical Implementation Examples
 

@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Phase 8 profile implemented: `agentcore-dev.json` loaded by `backend/packages/port_profile/`.
 
 
 ## Required Local Port Keys
