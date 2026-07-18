@@ -1,0 +1,141 @@
+# Token Optimization and Model Routing
+
+## Purpose
+
+The Code-Knowledge Graph must reduce LLM cost while improving output quality. It does this by avoiding full-repository prompting, processing only changed symbols, routing tasks to the cheapest capable model, and using graph summaries instead of raw code where possible.
+
+## Strategy 1 - Hash-Based Diffing
+
+Every function, method, class, and file receives a normalized hash. On each ingestion run, the system compares the new hash with the stored hash.
+
+Only changed nodes are processed by AI documentation and embedding generation.
+
+Benefits:
+
+- fewer model calls,
+- faster ingestion,
+- lower cost,
+- less repeated documentation churn.
+
+## Strategy 2 - Smart Triggers
+
+Documentation generation should not run on every file save by default. The system should prefer meaningful triggers.
+
+Recommended triggers:
+
+- commit,
+- pull request update,
+- manual sync,
+- CI workflow,
+- scheduled scan,
+- accepted generated code.
+
+This prevents expensive processing of temporary or unfinished code.
+
+## Strategy 3 - Tiered LLM Routing
+
+Different tasks require different model quality.
+
+### Local or Low-Cost Models
+
+Use for:
+
+- function documentation,
+- simple summaries,
+- classification,
+- low-risk extraction,
+- embedding text preparation.
+
+Examples:
+
+- local Qwen Coder through Ollama,
+- local Llama models,
+- low-cost cloud models.
+
+### Strong Cloud Models
+
+Use for:
+
+- complex code generation,
+- multi-file architectural changes,
+- ambiguous reasoning,
+- high-risk refactoring,
+- final synthesis from graph context.
+
+## Strategy 4 - Hierarchical Summarization
+
+The model should not receive full code unless necessary. Context should be hierarchical:
+
+1. project summary,
+2. file summary,
+3. class summary,
+4. function signature,
+5. function documentation,
+6. code snippet only when needed.
+
+For most generation tasks, signatures plus documentation plus graph relationships are enough.
+
+## Strategy 5 - Cheap Embeddings
+
+Embeddings are used to find relevant graph nodes. They should be generated from compact semantic text rather than full raw source code.
+
+Embedding input example:
+
+```text
+qualified_name: users.repository.findUserById
+signature: findUserById(userId: string): Promise<User>
+description: Loads a user by ID from the user repository.
+relationships: calls db.query, used by auth.login
+```
+
+This improves retrieval and reduces embedding cost.
+
+## Strategy 6 - Context Budgeting
+
+Every generation request should have a token budget.
+
+Suggested budget allocation:
+
+- 20 percent task instruction and constraints,
+- 25 percent current rules and Decisions,
+- 30 percent graph context,
+- 15 percent selected code snippets,
+- 10 percent safety margin.
+
+## Strategy 7 - Cacheable Graph Summaries
+
+Stable graph summaries can be cached:
+
+- project architecture summary,
+- module summaries,
+- stable API summaries,
+- common domain glossary,
+- active high-level Decisions.
+
+These summaries should only invalidate when underlying graph hashes change.
+
+## Routing Decision Logic
+
+```text
+if task == documentation_generation and risk <= medium:
+    use local_or_low_cost_model
+elif task == embedding_text_preparation:
+    use local_or_low_cost_model
+elif task == code_generation and complexity <= low:
+    use low_cost_cloud_or_local_model
+elif task == code_generation and complexity >= medium:
+    use stronger_model
+elif task touches security, billing, auth, or production:
+    use stronger_model plus policy evaluation
+```
+
+## Cost Failure Modes
+
+The system should detect and prevent:
+
+- repeated documentation generation for unchanged code,
+- full file prompts when summaries are enough,
+- embedding full raw repositories,
+- using strong models for simple documentation,
+- invalidating cached context too often,
+- generating docs for temporary code on every save.

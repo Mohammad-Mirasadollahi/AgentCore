@@ -1,0 +1,22 @@
+# 12 - Common Context Reuse Index
+
+## Purpose
+
+This section defines the AgentCore Common Context capability. Common Context stores reusable rules, definitions, constraints, workflow reminders, and project conventions so users and agents do not need to repeat the same information in every task.
+
+Common Context must be scoped, scored, explainable, auditable, configurable, and isolated per project. It is not hard-coded prompt text and it is not a global memory bucket.
+
+## Files
+
+- 01-feature-specification.md defines goals, functional requirements, non-functional requirements, and acceptance criteria.
+- 02-high-level-design.md defines system-level architecture, service responsibilities, integrations, and runtime flows.
+- 03-low-level-design.md defines entities, APIs, scoring inputs, resolution pipeline, conflict handling, and storage needs.
+- 04-data-contracts-and-events.md defines contracts, event names, metadata, and compatibility rules.
+- 05-governance-and-operational-rules.md defines approval, isolation, override, retention, reporting, and operational safety.
+
+## Relationship To Existing Sections
+
+- `../02-memory-and-context/` explains memory and repeated question behavior. Common Context consumes repeated signals but stores reusable project guidance separately.
+- `../04-rule-engine-orchestration/` executes policies and automation decisions. Common Context supplies reusable rules and constraints but does not replace the rule engine.
+- `../08-software-engineering-architecture/` defines modular engineering structure. Common Context adds a dedicated domain, service, package, and configuration profile.
+- `../09-platform-governance-operations/` defines operational governance and reporting. Common Context contributes audit and benefit measurement data.

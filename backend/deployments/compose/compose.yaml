@@ -1,0 +1,27 @@
+name: agentcore
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg18-trixie
+    profiles: ["core", "all"]
+    environment:
+      POSTGRES_DB: ${AGENTCORE_POSTGRES_DATABASE:-agentcore}
+      POSTGRES_USER: ${AGENTCORE_POSTGRES_USER:-agentcore}
+      POSTGRES_PASSWORD: ${AGENTCORE_POSTGRES_PASSWORD:?AGENTCORE_POSTGRES_PASSWORD is required}
+    ports:
+      - "${AGENTCORE_POSTGRES_PORT:-32232}:5432"
+    volumes:
+      - agentcore-postgres-data:/var/lib/postgresql
+      - ../../platform/persistence/postgres/0000_extensions.sql:/docker-entrypoint-initdb.d/0000_extensions.sql:ro
+      - ../../services/core-data-service/migrations/0001_core_data.sql:/docker-entrypoint-initdb.d/0010_core_data.sql:ro
+      - ../../services/memory-service/migrations/0001_memory.sql:/docker-entrypoint-initdb.d/0020_memory.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  agentcore-postgres-data:
