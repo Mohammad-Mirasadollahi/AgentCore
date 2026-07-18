@@ -35,6 +35,6 @@ install_python_dependencies=true
 start_infrastructure_with_docker=true
 ```
 
-These fields document intent only until implementation adds concrete schemas.
+Default profile: `default.json`, loaded by `backend/packages/shared-kernel/shared_kernel/config.py`.
 
 Approved service products are PostgreSQL for operational data, pgvector for RAG vectors, Neo4j for code graph, and Redis for optional ephemeral cache/coordination. Additional products for the same role require a formal ADR.

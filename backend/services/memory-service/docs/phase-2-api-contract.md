@@ -22,9 +22,11 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 
 - `POST /api/v1/projects/{project_id}/memory-items`
 - `POST /api/v1/projects/{project_id}/memory-consolidations`
+- `POST /api/v1/projects/{project_id}/memory-decays`
 - `POST /api/v1/projects/{project_id}/context-bundles`
 - `POST /api/v1/projects/{project_id}/question-memories`
 - `POST /api/v1/projects/{project_id}/question-memories/{question_id}:promote-faq`
+- `POST /api/v1/projects/{project_id}/question-memories/{question_id}:resolve-documentation`
 - `POST /api/v1/projects/{project_id}/work-batches`
 - `POST /api/v1/projects/{project_id}/work-batches/{batch_id}:mark-ready`
 
@@ -33,6 +35,7 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 - `GET /api/v1/projects/{project_id}/memory-items`
 - `GET /api/v1/projects/{project_id}/context-bundles:explain`
 - `GET /api/v1/projects/{project_id}/repeated-questions`
+- `GET /api/v1/projects/{project_id}/curious-questions`
 - `GET /api/v1/projects/{project_id}/work-batches/{batch_id}`
 - `GET /api/v1/projects/{project_id}/stale-memory`
 
@@ -42,9 +45,13 @@ The development outbox emits versioned memory-service events:
 
 - `MemoryItemCreated`
 - `MemoryConsolidationCompleted`
+- `MemoryDecayCompleted`
 - `ContextBundleBuilt`
 - `QuestionObserved`
 - `FAQPromoted`
+- `DocumentationDraftCreated`
+- `DocumentationTaskSuggested`
+- `KnowledgeGapCreated`
 - `BatchReadyForConsolidation`
 
 Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `producer`, scope fields, `actor_ref`, `correlation_id`, `causation_id`, `idempotency_key`, `payload`, and `evidence_refs`.

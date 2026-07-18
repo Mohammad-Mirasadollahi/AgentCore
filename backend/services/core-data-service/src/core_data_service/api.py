@@ -123,9 +123,14 @@ def app(service: CoreData | None = None) -> FastAPI:
             if not 1 <= page_size <= 100:
                 raise ValidationError("page_size must be between 1 and 100")
             scope = read_scope(project_id, x_tenant_id, x_workspace_id)
+            records = service.store.list(kind, scope)
             return {
-                "items": [record.public() for record in service.store.list(kind, scope)[:page_size]],
-                "page": {"next_page_token": None, "page_size": page_size, "has_more": False},
+                "items": [record.public() for record in records[:page_size]],
+                "page": {
+                    "next_page_token": None,
+                    "page_size": page_size,
+                    "has_more": len(records) > page_size,
+                },
                 "correlation_id": None,
             }
 
@@ -141,20 +146,42 @@ def app(service: CoreData | None = None) -> FastAPI:
         api.post("/api/v1/projects/{project_id}/" + path, operation_id="create_" + kind.value)(post(kind))
         api.get("/api/v1/projects/{project_id}/" + path, operation_id="list_" + kind.value)(listing(kind))
 
-    @api.post("/api/v1/projects/{project_id}/tasks/{task_id}:transition", operation_id="transition_task_state")
-    async def transition(
-        project_id: str,
-        task_id: str,
-        body: TransitionTaskStateRequest,
-        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
-        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
-        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
-        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
-    ):
-        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
-        task = service.transition(scope, actor, correlation_id, idempotency_key or "", task_id, body.status, body.reason, body.expected_version)
-        return {"task": task.public(), "correlation_id": correlation_id}
+    def transition_route(kind: Kind, field: str):
+        async def handler(
+            project_id: str,
+            record_id: str,
+            body: TransitionTaskStateRequest,
+            idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+            x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+            x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+            x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+            x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+        ):
+            scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+            record = service.transition(
+                scope,
+                actor,
+                correlation_id,
+                idempotency_key or "",
+                record_id,
+                body.status,
+                body.reason,
+                body.expected_version,
+                kind,
+            )
+            return {field: record.public(), "correlation_id": correlation_id}
+
+        return handler
+
+    api.post("/api/v1/projects/{project_id}/tasks/{record_id}:transition", operation_id="transition_task_state")(
+        transition_route(Kind.TASK, "task")
+    )
+    api.post("/api/v1/projects/{project_id}/issues/{record_id}:transition", operation_id="transition_issue_state")(
+        transition_route(Kind.ISSUE, "issue")
+    )
+    api.post("/api/v1/projects/{project_id}/decisions/{record_id}:transition", operation_id="transition_decision_state")(
+        transition_route(Kind.DECISION, "decision")
+    )
 
     @api.post("/api/v1/projects/{project_id}/decisions/{decision_id}:supersede", operation_id="supersede_decision")
     async def supersede_decision(

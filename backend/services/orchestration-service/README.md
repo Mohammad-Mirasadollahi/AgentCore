@@ -26,4 +26,8 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Vertical slice implemented. Canonical tests live under `tests/backend/orchestration-service/`.
+
+```bash
+PYTHONPATH=backend/services/orchestration-service/src .venv/bin/python -m pytest tests/backend/orchestration-service -q
+```

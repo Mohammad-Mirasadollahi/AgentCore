@@ -68,6 +68,18 @@ class SyncStatusRequest(BaseModel):
     status: str
 
 
+class ContextInjectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_ref: str
+    role: str = "tool"
+    sensitivity_clearance: str = "public"
+    task_assigned: bool = True
+    tenant_id: str | None = None
+    project_id: str | None = None
+    items: list[dict[str, Any]] = Field(default_factory=list)
+
+
 def app(service: AdapterService | None = None) -> FastAPI:
     service = service or build_service()
     api = FastAPI(title="AgentCore Adapter / Interop API", version="1.0.0")
@@ -242,6 +254,20 @@ def app(service: AdapterService | None = None) -> FastAPI:
         scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
         ticket = service.sync_external_status(scope, actor, correlation_id, idempotency_key or "", ticket_id, body.status)
         return {"ticket": ticket.public(), "correlation_id": correlation_id}
+
+    @api.post("/api/v1/projects/{project_id}/context:inject", operation_id="inject_context")
+    async def inject_context(
+        project_id: str,
+        body: ContextInjectRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        result = service.inject_context(scope, actor, correlation_id, idempotency_key or "", body.model_dump(exclude_none=True))
+        return {**result, "correlation_id": correlation_id}
 
     @api.get("/api/v1/projects/{project_id}/capabilities", operation_id="discover_capabilities")
     async def capabilities(

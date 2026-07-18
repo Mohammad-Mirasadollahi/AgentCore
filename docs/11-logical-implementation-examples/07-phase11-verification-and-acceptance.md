@@ -1,0 +1,34 @@
+# Phase 11 - Verification and Acceptance
+
+## Purpose
+
+Phase 11 turns architecture into engineer-facing runtime examples and a coding checklist. Its executable gate proves that every major subsystem has a logical example with inputs, processing steps, outputs, state changes, and edge cases, and that examples map to implementation tasks and test hooks.
+
+## Gate Artifacts
+
+| Artifact | Path |
+| --- | --- |
+| Logical examples docs | `docs/11-logical-implementation-examples/` |
+| Examples catalog | `backend/configs/logical-examples/examples-catalog.json` |
+| Catalog loader | `backend/packages/logical_examples/` |
+| Verification package | `tests/support/phase11/` |
+| Gate tests | `tests/backend/phase11-verification/` |
+
+## Named Commands
+
+```bash
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
+.venv/bin/python tests/backend/phase11-verification/run_phase_gate.py
+```
+
+## Exit Checks Covered by the Gate
+
+- Required Phase 11 documents exist and contain key topic markers.
+- Examples cover core-data/orchestration, memory, docs/code-graph, rule-engine, and interoperability.
+- Each example lists inputs, processing steps, outputs, state changes, edge cases, implementation tasks, and test hooks.
+- Example markdown includes Edge Cases and Developer Implementation Notes.
+- Developer checklist sections exist so engineers can map examples to coding readiness work.
+
+## Acceptance
+
+Phase 11 passes when `check_phase_gate()` returns `pass` and `run_all_checks()` returns only `passed` results. A documented waiver reference may mark the gate `waived` when an explicit owner accepts temporary failures.

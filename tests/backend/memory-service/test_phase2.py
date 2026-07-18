@@ -86,3 +86,75 @@ def test_api_contract_routes_are_registered():
     assert "/api/v1/projects/{project_id}/memory-items" in routes
     assert "/api/v1/projects/{project_id}/context-bundles" in routes
     assert "/api/v1/projects/{project_id}/question-memories/{question_id}:promote-faq" in routes
+    assert "/api/v1/projects/{project_id}/memory-decays" in routes
+    assert "/api/v1/projects/{project_id}/question-memories/{question_id}:resolve-documentation" in routes
+    assert "/api/v1/projects/{project_id}/curious-questions" in routes
+
+
+def test_current_state_default_excludes_episodic_and_stale():
+    service = MemoryService(InMemoryStore())
+    semantic = service.create_memory(SCOPE, "agent", "corr", "sem", memory())
+    service.consolidate_memory(SCOPE, "agent", "corr", "c1", [semantic.id], "activate current")
+    episodic = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "epi",
+        memory("episodic", "Past migration note", "memory dependency injection history from last quarter."),
+    )
+    service.consolidate_memory(SCOPE, "agent", "corr", "c2", [episodic.id], "activate episodic")
+    stale = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "stale",
+        memory("semantic", "Old memory rule", "memory dependency injection obsolete guidance."),
+    )
+    service.consolidate_memory(SCOPE, "agent", "corr", "c3", [stale.id], "activate stale candidate")
+    decayed = service.decay_memory(SCOPE, "agent", "corr", "decay", [stale.id], "superseded guidance")
+    assert decayed[0].state.value == "stale"
+
+    bundle = service.retrieve_context(SCOPE, "agent", "corr", "memory dependency injection architecture", token_budget=200).public()
+    selected_ids = [item["memory"]["id"] for item in bundle["items"]]
+    assert selected_ids == [semantic.id]
+    assert bundle["prompt_cache"]["version"] == 1
+    reasons = {item["id"]: item["reason"] for item in bundle["excluded"]}
+    assert reasons[episodic.id] == "historical_fact_not_requested"
+    assert reasons[stale.id] == "stale_memory_excluded"
+
+    history = service.retrieve_context(SCOPE, "agent", "corr", "memory dependency injection history audit", token_budget=200).public()
+    assert episodic.id in [item["memory"]["id"] for item in history["items"]]
+    assert service.list_stale_memory(SCOPE)[0].id == stale.id
+
+
+def test_curiosity_and_missing_documentation_outcomes():
+    service = MemoryService(InMemoryStore())
+    first = service.observe_question(SCOPE, "agent", "corr", "q1", "Where is auth documented?", ["sym-1"])
+    second = service.observe_question(SCOPE, "agent", "corr", "q2", "where is auth documented", ["sym-2"])
+    assert first.id == second.id
+    curious = service.list_curious_questions(SCOPE)
+    assert curious[0]["curiosity_score"] >= 2.0
+
+    draft = service.resolve_missing_documentation(
+        SCOPE,
+        "agent",
+        "corr",
+        "doc-high",
+        second.id,
+        0.9,
+        "Auth lives in docs/security/auth.md.",
+    )
+    assert draft["outcome"] == "documentation_draft"
+    assert draft["question_memory"]["state"] == "draft_generated"
+
+    gap_q = service.observe_question(SCOPE, "agent", "corr", "q3", "How does billing retry work?", ["bill-1"])
+    service.observe_question(SCOPE, "agent", "corr", "q4", "how does billing retry work", ["bill-2"])
+    gap = service.resolve_missing_documentation(SCOPE, "agent", "corr", "doc-low", gap_q.id, 0.1, None)
+    assert gap["outcome"] == "knowledge_gap"
+    assert gap["question_memory"]["state"] == "blocked_by_gap"
+
+    task_q = service.observe_question(SCOPE, "agent", "corr", "q5", "How do we version APIs?", ["api-1"])
+    service.observe_question(SCOPE, "agent", "corr", "q6", "how do we version apis", ["api-2"])
+    task = service.resolve_missing_documentation(SCOPE, "agent", "corr", "doc-mid", task_q.id, 0.5, None)
+    assert task["outcome"] == "task"
+    assert task["question_memory"]["state"] == "searching"

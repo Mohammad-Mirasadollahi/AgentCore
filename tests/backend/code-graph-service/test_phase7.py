@@ -1,5 +1,17 @@
 from code_graph_service.api import app
-from code_graph_service.core import CodeGraphService, Scope, digest, normalize_source
+from code_graph_service.core import (
+    CallConfidence,
+    CodeGraphService,
+    LocalEmbeddingStub,
+    Scope,
+    ValidationError,
+    assert_language_supported,
+    digest,
+    language_matrix,
+    normalize_source,
+    resolve_call_target,
+    supported_languages,
+)
 from code_graph_service.testing import InMemoryStore
 
 
@@ -19,6 +31,18 @@ def check_password(password):
 
 def login(user, password):
     return check_password(password) and user is not None
+'''
+
+HELPER_SOURCE = '''\
+def helper(value):
+    return value
+'''
+
+CONSUMER_SOURCE = '''\
+from src.helpers import helper as help_fn
+
+def run(value):
+    return help_fn(value)
 '''
 
 
@@ -61,6 +85,9 @@ def test_hash_change_documents_only_changed_symbols():
     assert login_after.doc_status.value == "generated"
     assert "login" in login_after.ai_documentation
 
+    documented = service.structural_query(SCOPE, check_id, "DOCUMENTED_BY")
+    assert any(edge["rel_type"] == "DOCUMENTED_BY" for edge in documented["edges"])
+
 
 def test_structural_and_semantic_queries():
     store = InMemoryStore()
@@ -76,6 +103,7 @@ def test_structural_and_semantic_queries():
     neighbors = service.structural_query(SCOPE, login_id, "CALLS")
     assert neighbors["symbol"]["qualified_name"] == "src.auth.login"
     assert any(edge["rel_type"] == "CALLS" for edge in neighbors["edges"])
+    assert any(edge["confidence"] == "exact" for edge in neighbors["edges"])
 
     hits = service.semantic_search(SCOPE, "login password authentication", top_k=3)
     assert hits
@@ -103,6 +131,7 @@ def test_generation_context_avoids_full_repo_and_validates_refs():
         "def wrap(user, password):\n    return login(user, password)\n",
     )
     assert ok["accepted"] is True
+    assert "login" in ok["checked_call_refs"]
 
     bad = service.validate_generated_code(
         SCOPE,
@@ -124,3 +153,77 @@ def test_normalization_and_api_routes():
     assert "/api/v1/projects/{project_id}/graph/generation-context" in routes
     assert "/api/v1/projects/{project_id}/graph/generated-code:validate" in routes
     assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors" in routes
+
+
+def test_language_matrix_hook_and_reject_planned():
+    matrix = language_matrix()
+    assert matrix["python"]["status"] == "supported"
+    assert matrix["python"]["parser"] == "stdlib_ast"
+    assert "python" in supported_languages()
+    assert assert_language_supported("Python") == "python"
+    try:
+        assert_language_supported("typescript")
+        raise AssertionError("planned language should raise")
+    except ValidationError as exc:
+        assert "planned" in exc.message
+
+
+def test_import_alias_probable_calls_and_file_imports():
+    store = InMemoryStore()
+    service = CodeGraphService(store)
+    service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-h",
+        "ingest-helper",
+        {"file_path": "src/helpers.py", "source": HELPER_SOURCE, "language": "python"},
+    )
+    service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-c",
+        "ingest-consumer",
+        {"file_path": "src/consumer.py", "source": CONSUMER_SOURCE, "language": "python"},
+    )
+    run_id = f"sym:{SCOPE.project_id}:src.consumer.run"
+    neighbors = service.structural_query(SCOPE, run_id, "CALLS")
+    helper_id = f"sym:{SCOPE.project_id}:src.helpers.helper"
+    assert any(
+        edge["target_id"] == helper_id and edge["confidence"] in {"probable", "exact"}
+        for edge in neighbors["edges"]
+    )
+
+    file_id = f"file:{SCOPE.project_id}:src/consumer.py"
+    imports = service.structural_query(SCOPE, file_id, "IMPORTS")
+    assert any(edge["rel_type"] == "IMPORTS" for edge in imports["edges"])
+
+
+def test_embedding_stub_ready_and_resolve_ambiguous():
+    stub = LocalEmbeddingStub(dims=8)
+    ready = stub.embed("login password")
+    assert ready.status == "ready"
+    assert ready.dims == 8
+    assert len(ready.vector) == 8
+    assert stub.embed("").status == "empty"
+
+    by_qualified = {"mod.a": "id-a", "mod.b": "id-b", "other.a": "id-other"}
+    short_names = {"a": ["id-a", "id-other"], "b": ["id-b"]}
+    targets, confidence = resolve_call_target(
+        "a",
+        by_qualified=by_qualified,
+        short_names=short_names,
+        import_aliases={},
+        module_prefix="mod",
+    )
+    assert confidence == CallConfidence.EXACT
+    assert targets == ["id-a"]
+
+    targets, confidence = resolve_call_target(
+        "a",
+        by_qualified=by_qualified,
+        short_names=short_names,
+        import_aliases={},
+        module_prefix="unrelated",
+    )
+    assert confidence == CallConfidence.AMBIGUOUS
+    assert set(targets) == {"id-a", "id-other"}

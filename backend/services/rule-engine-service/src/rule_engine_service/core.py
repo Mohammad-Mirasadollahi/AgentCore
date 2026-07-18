@@ -517,7 +517,7 @@ class RuleEngineService:
         if prior:
             evaluation_ids = [item for item in prior.split(",") if item]
             evaluations = [self.store.get_evaluation(item_id, scope) for item_id in evaluation_ids]
-            return self._evaluation_bundle(scope, subject, evaluations, shadow)
+            return self._replay_evaluation_bundle(scope, subject, evaluations, shadow)
 
         allowed_states = {RuleState.SHADOW, RuleState.ACTIVE} if shadow else {RuleState.ACTIVE}
         rules = sorted(
@@ -945,6 +945,24 @@ class RuleEngineService:
             "blocked": final in {Verdict.BLOCK, Verdict.ESCALATE} and not shadow,
             "evaluations": [item.public() for item in evaluations],
         }
+
+    def _replay_evaluation_bundle(
+        self, scope: Scope, subject: dict[str, Any], evaluations: list[RuleEvaluation], shadow: bool
+    ) -> dict[str, Any]:
+        """Rebuild full evaluate response on idempotent retry (impact/tasks/approvals)."""
+        bundle = self._evaluation_bundle(scope, subject, evaluations, shadow)
+        subject_ref = subject["subject_ref"]
+        impacts = [item for item in self.store.list_impacts(scope) if item.change_ref == subject_ref]
+        evaluation_ids = {item.id for item in evaluations}
+        bundle["impact"] = impacts[-1].public() if impacts else None
+        bundle["tasks"] = [item.public() for item in self.store.list_tasks(scope) if item.subject_ref == subject_ref]
+        bundle["approvals"] = [
+            item.public() for item in self.store.list_approvals(scope) if item.evaluation_id in evaluation_ids
+        ]
+        bundle["anomalies"] = [
+            item.public() for item in self.store.list_anomalies(scope) if item.subject_ref == subject_ref
+        ]
+        return bundle
 
     def _require_key(self, key: str) -> None:
         if not key:

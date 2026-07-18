@@ -93,6 +93,12 @@ class WeightProfile:
     faq_min_evidence: int
     context_token_budget: int
 
+    curiosity_min_observations: int = 2
+    documentation_draft_min_confidence: float = 0.75
+    documentation_task_min_confidence: float = 0.4
+    current_state_boost: float = 2.0
+    episodic_penalty: float = 1.5
+
     @classmethod
     def default(cls) -> WeightProfile:
         return cls(
@@ -107,6 +113,11 @@ class WeightProfile:
             faq_min_observations=2,
             faq_min_evidence=1,
             context_token_budget=1200,
+            curiosity_min_observations=2,
+            documentation_draft_min_confidence=0.75,
+            documentation_task_min_confidence=0.4,
+            current_state_boost=2.0,
+            episodic_penalty=1.5,
         )
 
 
@@ -195,6 +206,33 @@ class QuestionMemory:
         self.updated_at = at
         self.version += 1
 
+    def curiosity_score(self) -> float:
+        # ponytail: linear observation score; replace with full weighted curiosity profile when needed
+        unresolved = 1.0 if self.state not in {QuestionState.APPROVED_FAQ, QuestionState.DRAFT_GENERATED} else 0.0
+        evidence = min(len(self.evidence_refs), 3) * 0.5
+        return round(float(self.observations) + unresolved + evidence, 3)
+
+    def resolve_documentation(self, confidence: float, draft_content: str | None, profile: WeightProfile, at: str) -> str:
+        if confidence < 0 or confidence > 1:
+            raise ValidationError("confidence must be between 0 and 1")
+        if confidence >= profile.documentation_draft_min_confidence:
+            if not draft_content or not draft_content.strip():
+                raise ValidationError("draft_content is required for documentation draft outcomes")
+            self.answer = draft_content
+            self.state = QuestionState.DRAFT_GENERATED
+            outcome = "documentation_draft"
+        elif confidence >= profile.documentation_task_min_confidence:
+            self.answer = draft_content
+            self.state = QuestionState.SEARCHING
+            outcome = "task"
+        else:
+            self.answer = None
+            self.state = QuestionState.BLOCKED_BY_GAP
+            outcome = "knowledge_gap"
+        self.updated_at = at
+        self.version += 1
+        return outcome
+
     def public(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -276,6 +314,7 @@ class ContextBundle:
             "query": self.query,
             "token_budget": self.token_budget,
             "weight_profile": {"profile_id": self.profile.profile_id, "version": self.profile.version},
+            "prompt_cache": {"profile_id": self.profile.profile_id, "version": self.profile.version},
             "items": self.items,
             "excluded": self.excluded,
             "built_at": self.built_at,
@@ -360,6 +399,30 @@ class MemoryService:
         self.emit("MemoryConsolidationCompleted", {"memory_ids": [item.id for item in consolidated], "reason": reason}, scope, actor, correlation_id, key, joined, [])
         return consolidated
 
+    def decay_memory(self, scope: Scope, actor: str, correlation_id: str, key: str, memory_ids: list[str], reason: str) -> list[MemoryItem]:
+        self._require_key(key)
+        payload = {"memory_ids": memory_ids, "reason": sanitize(reason)}
+        prior = self.store.idempotent(scope, "decay_memory", key, payload)
+        if prior:
+            return [self.store.get_memory(memory_id, scope) for memory_id in prior.split(",") if memory_id]
+        if not memory_ids:
+            raise ValidationError("memory_ids are required")
+        decayed: list[MemoryItem] = []
+        timestamp = now()
+        for memory_id in memory_ids:
+            item = self.store.get_memory(memory_id, scope)
+            if item.kind == MemoryKind.RESTRICTED:
+                continue
+            item.mark_stale(timestamp, payload["reason"])
+            self.store.put_memory(item)
+            decayed.append(item)
+        if not decayed:
+            raise ValidationError("no eligible memory items to decay")
+        joined = ",".join(item.id for item in decayed)
+        self.store.remember(scope, "decay_memory", key, payload, joined)
+        self.emit("MemoryDecayCompleted", {"memory_ids": [item.id for item in decayed], "reason": reason}, scope, actor, correlation_id, key, joined, [])
+        return decayed
+
     def retrieve_context(self, scope: Scope, actor: str, correlation_id: str, query: str, token_budget: int | None = None) -> ContextBundle:
         if not query.strip():
             raise ValidationError("query is required")
@@ -367,16 +430,17 @@ class MemoryService:
         if budget <= 0:
             raise ValidationError("token_budget must be positive")
         terms = tokenize(query)
+        wants_history = bool(terms & HISTORY_TERMS)
         candidates = self.store.list_memory(scope)
         selected: list[dict[str, Any]] = []
         excluded: list[dict[str, Any]] = []
         used_tokens = 0
         scored = sorted(
-            ((self._score(item, terms), item) for item in candidates),
+            ((self._score(item, terms, wants_history), item) for item in candidates),
             key=lambda pair: (-pair[0], pair[1].created_at, pair[1].id),
         )
         for score, item in scored:
-            reason = self._exclude_reason(item, score)
+            reason = self._exclude_reason(item, score, wants_history)
             if reason:
                 excluded.append({"id": item.id, "reason": reason, "score": round(score, 3)})
                 continue
@@ -399,11 +463,19 @@ class MemoryService:
 
     def explain_retrieval(self, scope: Scope, query: str) -> dict[str, Any]:
         terms = tokenize(query)
+        wants_history = bool(terms & HISTORY_TERMS)
         return {
             "query_terms": sorted(terms),
+            "wants_history": wants_history,
             "weight_profile": self.profile.__dict__,
+            "prompt_cache": {"profile_id": self.profile.profile_id, "version": self.profile.version},
             "candidates": [
-                {"id": item.id, "state": item.state.value, "kind": item.kind.value, "score": round(self._score(item, terms), 3)}
+                {
+                    "id": item.id,
+                    "state": item.state.value,
+                    "kind": item.kind.value,
+                    "score": round(self._score(item, terms, wants_history), 3),
+                }
                 for item in self.store.list_memory(scope)
             ],
         }
@@ -439,6 +511,47 @@ class MemoryService:
         self.emit("FAQPromoted", item.public(), scope, actor, correlation_id, key, item.id, item.evidence_refs)
         return item
 
+    def resolve_missing_documentation(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        question_id: str,
+        confidence: float,
+        draft_content: str | None = None,
+    ) -> dict[str, Any]:
+        self._require_key(key)
+        payload = {
+            "question_id": question_id,
+            "confidence": confidence,
+            "draft_content": sanitize(draft_content) if draft_content is not None else None,
+        }
+        prior = self.store.idempotent(scope, "resolve_missing_documentation", key, payload)
+        if prior:
+            item = self.store.get_question(prior, scope)
+            return {
+                "question_memory": item.public(),
+                "outcome": documentation_outcome(item.state),
+                "curiosity_score": item.curiosity_score(),
+            }
+        item = self.store.get_question(question_id, scope)
+        outcome = item.resolve_documentation(confidence, payload["draft_content"], self.profile, now())
+        self.store.put_question(item)
+        self.store.remember(scope, "resolve_missing_documentation", key, payload, item.id)
+        event_type = {
+            "documentation_draft": "DocumentationDraftCreated",
+            "task": "DocumentationTaskSuggested",
+            "knowledge_gap": "KnowledgeGapCreated",
+        }[outcome]
+        result = {
+            "question_memory": item.public(),
+            "outcome": outcome,
+            "curiosity_score": item.curiosity_score(),
+        }
+        self.emit(event_type, result, scope, actor, correlation_id, key, item.id, item.evidence_refs)
+        return result
+
     def open_batch(self, scope: Scope, actor: str, correlation_id: str, key: str, title: str, item_refs: list[str], deferred_actions: list[str]) -> WorkBatch:
         self._require_key(key)
         if not title.strip():
@@ -469,10 +582,20 @@ class MemoryService:
     def list_repeated_questions(self, scope: Scope) -> list[QuestionMemory]:
         return [item for item in self.store.list_questions(scope) if item.observations >= self.profile.faq_min_observations]
 
+    def list_curious_questions(self, scope: Scope) -> list[dict[str, Any]]:
+        curious = []
+        for item in self.store.list_questions(scope):
+            score = item.curiosity_score()
+            if item.observations >= self.profile.curiosity_min_observations and score >= float(self.profile.curiosity_min_observations):
+                payload = item.public()
+                payload["curiosity_score"] = score
+                curious.append(payload)
+        return curious
+
     def list_stale_memory(self, scope: Scope) -> list[MemoryItem]:
         return [item for item in self.store.list_memory(scope) if item.state in {MemoryState.STALE, MemoryState.DEPRECATED}]
 
-    def _score(self, item: MemoryItem, terms: set[str]) -> float:
+    def _score(self, item: MemoryItem, terms: set[str], wants_history: bool = False) -> float:
         haystack = tokenize(" ".join([item.title, item.body, *item.tags]))
         overlap = len(terms & haystack)
         kind_weight = {
@@ -483,13 +606,24 @@ class MemoryService:
             MemoryKind.DEPRECATED: 0.0,
         }[item.kind]
         evidence = self.profile.evidence_weight if item.evidence_refs else 0.0
-        return (overlap * kind_weight) + evidence + (item.confidence * self.profile.recency_weight)
+        score = (overlap * kind_weight) + evidence + (item.confidence * self.profile.recency_weight)
+        if item.state == MemoryState.ACTIVE and item.kind in {MemoryKind.SEMANTIC, MemoryKind.WORKING}:
+            score += self.profile.current_state_boost
+        if item.kind == MemoryKind.EPISODIC and not wants_history:
+            score -= self.profile.episodic_penalty
+        if item.state == MemoryState.CANDIDATE:
+            score -= 0.5
+        return score
 
-    def _exclude_reason(self, item: MemoryItem, score: float) -> str | None:
+    def _exclude_reason(self, item: MemoryItem, score: float, wants_history: bool = False) -> str | None:
         if item.kind == MemoryKind.RESTRICTED or item.state == MemoryState.RESTRICTED:
             return "restricted_memory_boundary"
         if item.state in {MemoryState.DEPRECATED, MemoryState.ARCHIVED}:
             return "inactive_memory_state"
+        if item.state == MemoryState.STALE:
+            return "stale_memory_excluded"
+        if item.kind == MemoryKind.EPISODIC and not wants_history:
+            return "historical_fact_not_requested"
         if score < self.profile.min_relevance_score:
             return "below_relevance_threshold"
         return None
@@ -533,6 +667,7 @@ class MemoryService:
 
 
 SECRET = re.compile(r"(?i)((?:api[_-]?key|token|password|secret)\s*[:=]\s*)([^\s,;]+)")
+HISTORY_TERMS = {"history", "historical", "audit", "past", "previous", "timeline", "root-cause", "migration"}
 
 
 def now() -> str:
@@ -571,3 +706,11 @@ def slug(value: str) -> str:
 
 def estimate_tokens(value: str) -> int:
     return max(1, len(value.split()))
+
+
+def documentation_outcome(state: QuestionState) -> str:
+    return {
+        QuestionState.DRAFT_GENERATED: "documentation_draft",
+        QuestionState.SEARCHING: "task",
+        QuestionState.BLOCKED_BY_GAP: "knowledge_gap",
+    }.get(state, state.value)

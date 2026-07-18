@@ -29,6 +29,7 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 - `POST /api/v1/projects/{project_id}/broker:replay`
 - `POST /api/v1/projects/{project_id}/external-tickets`
 - `POST /api/v1/projects/{project_id}/external-tickets/{ticket_id}:sync-status`
+- `POST /api/v1/projects/{project_id}/context:inject`
 
 ## Queries
 

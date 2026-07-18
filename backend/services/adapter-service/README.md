@@ -4,7 +4,7 @@ Path: `backend/services/adapter-service`
 
 ## Purpose
 
-Implements Phase 5 interoperability: Universal Agent JSON, connector registry, vendor normalization, in-service pub/sub broker with replay and dead-letter handling, IDE notification delivery, external tickets, and governed department workflow tasks.
+Implements Phase 5 interoperability: Universal Agent JSON, connector registry, vendor normalization, in-service pub/sub broker with replay and dead-letter handling, IDE notification delivery, scoped context injection, external tickets, and governed department workflow tasks.
 
 ## Modular Boundary
 

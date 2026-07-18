@@ -150,3 +150,75 @@ def test_api_contract_routes_are_registered():
     assert "/api/v1/projects/{project_id}/agent-events" in routes
     assert "/api/v1/projects/{project_id}/dead-letters" in routes
     assert "/api/v1/projects/{project_id}/department-tasks" in routes
+    assert "/api/v1/projects/{project_id}/context:inject" in routes
+
+
+def test_context_injection_and_unauthorized_subscriber():
+    store = InMemoryStore()
+    service = AdapterService(store)
+    ready_connector(service, "conn-a", "acme")
+
+    denied = service.inject_context(
+        SCOPE,
+        "ops",
+        "corr",
+        "ctx-deny",
+        {
+            "tool_ref": "ide://plugin",
+            "tenant_id": "other-tenant",
+            "items": [{"title": "Secret", "body": "token=super-secret-value", "sensitivity": "restricted"}],
+        },
+    )
+    assert denied["status"] == "denied"
+    assert denied["reason_code"] == "tenant_mismatch"
+
+    allowed = service.inject_context(
+        SCOPE,
+        "ops",
+        "corr",
+        "ctx-ok",
+        {
+            "tool_ref": "ide://plugin",
+            "sensitivity_clearance": "public",
+            "items": [
+                {"title": "Public", "body": "safe note", "sensitivity": "public"},
+                {"title": "Secret", "body": "token=super-secret-value", "sensitivity": "restricted"},
+            ],
+        },
+    )
+    assert allowed["status"] == "allowed"
+    bodies = {item["title"]: item for item in allowed["package"]["items"]}
+    assert bodies["Public"]["redacted"] is False
+    assert bodies["Secret"]["redacted"] is True
+    assert bodies["Secret"]["body"] == "[REDACTED]"
+    assert "super-secret-value" not in bodies["Secret"]["body"]
+
+    allowed_peer = service.subscribe(
+        SCOPE,
+        "ops",
+        "corr",
+        "sub-ok",
+        {"channel": "agent.tasks", "subscriber_type": "agent", "endpoint": "vendor://acme/inbox"},
+    )
+    denied_peer = service.subscribe(
+        SCOPE,
+        "ops",
+        "corr",
+        "sub-deny",
+        {
+            "channel": "agent.tasks",
+            "subscriber_type": "agent",
+            "endpoint": "vendor://evil/inbox",
+            "fail_mode": "unauthorized",
+        },
+    )
+    published = service.publish_agent_event(
+        SCOPE,
+        "ops",
+        "corr",
+        "pub-auth",
+        universal("acme", "TASK_STARTED", "running", refs=["task:1"], summary="started"),
+    )
+    delivered = {item["subscription_id"] for item in published["deliveries"] if item["status"] == "delivered"}
+    assert allowed_peer.id in delivered
+    assert denied_peer.id not in delivered

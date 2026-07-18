@@ -33,7 +33,19 @@ def test_verification_checks_contracts_state_idempotency_redaction():
     assert results
     assert all(item.status == "passed" for item in results)
     types = {item.check_type for item in results}
-    assert {"contract", "state_machine", "idempotency", "redaction"} <= types
+    assert {
+        "contract",
+        "state_machine",
+        "idempotency",
+        "redaction",
+        "retrieval",
+        "docs_drift",
+        "rule_evaluation",
+        "broker_delivery",
+        "catalog_coverage",
+    } <= types
+    subjects = {item.subject_ref for item in results if item.check_type == "broker_delivery"}
+    assert "adapter-service" in subjects
 
 
 def test_runtime_scenario_stitches_phases_with_shared_correlation():

@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Minimal implementation: `api/` helpers for error envelopes and pagination, plus examples.
 
 
 ## Contract Areas

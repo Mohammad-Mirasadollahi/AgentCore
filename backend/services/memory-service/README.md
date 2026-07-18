@@ -22,11 +22,14 @@ Documented in `docs/phase-2-api-contract.md`.
 
 - `/api/v1/projects/{project_id}/memory-items`
 - `/api/v1/projects/{project_id}/memory-consolidations`
+- `/api/v1/projects/{project_id}/memory-decays`
 - `/api/v1/projects/{project_id}/context-bundles`
 - `/api/v1/projects/{project_id}/context-bundles:explain`
 - `/api/v1/projects/{project_id}/question-memories`
 - `/api/v1/projects/{project_id}/question-memories/{question_id}:promote-faq`
+- `/api/v1/projects/{project_id}/question-memories/{question_id}:resolve-documentation`
 - `/api/v1/projects/{project_id}/repeated-questions`
+- `/api/v1/projects/{project_id}/curious-questions`
 - `/api/v1/projects/{project_id}/work-batches`
 - `/api/v1/projects/{project_id}/work-batches/{batch_id}:mark-ready`
 - `/api/v1/projects/{project_id}/stale-memory`

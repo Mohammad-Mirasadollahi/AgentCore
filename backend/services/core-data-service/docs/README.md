@@ -1,29 +1,15 @@
-# Docs
+# Core Data Service Docs
 
 Path: `backend/services/core-data-service/docs`
 
 ## Purpose
 
-Service-specific implementation notes and local design records. Parent service: `services/core-data-service`.
+Service-local contract and implementation notes for the Phase 1 Core Data vertical slice.
 
-## Modular Boundary
+## Contents
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
-
-## Allowed Contents
-
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
-
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+- `phase-1-api-contract.md` — HTTP commands, queries, scope headers, and outbox expectations.
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active. Matches `src/core_data_service/` (InMemoryStore for tests; PostgreSQL via `AGENTCORE_CORE_DATA_DATABASE_URL` at runtime).

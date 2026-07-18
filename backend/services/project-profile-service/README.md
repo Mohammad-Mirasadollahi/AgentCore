@@ -26,4 +26,8 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Vertical slice implemented. Canonical tests live under `tests/backend/project-profile-service/`.
+
+```bash
+PYTHONPATH=backend/services/project-profile-service/src .venv/bin/python -m pytest tests/backend/project-profile-service -q
+```

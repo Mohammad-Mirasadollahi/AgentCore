@@ -276,3 +276,5 @@ Exit gate:
 - Every major subsystem has at least one logical example.
 - Examples include inputs, processing steps, outputs, state changes, and edge cases.
 - Engineers can map examples to implementation tasks and tests.
+
+Implementation home: `docs/11-logical-implementation-examples/` plus `backend/configs/logical-examples/`, `backend/packages/logical_examples/`, and the Phase 11 gate at `tests/backend/phase11-verification/`.

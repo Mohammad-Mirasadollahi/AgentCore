@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Minimal `profile.json` files under `local/`, `dev/`, `test/`, `stage/`, and `prod/`, loaded by `shared_kernel.config`.

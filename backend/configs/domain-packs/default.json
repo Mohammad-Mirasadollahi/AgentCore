@@ -1,0 +1,8 @@
+{
+  "pack_id": "default",
+  "version": "1.0.0",
+  "title": "Default domain pack",
+  "description": "Baseline domain pack for AgentCore projects until specialized packs are approved.",
+  "workflows": ["implementation", "review", "docs"],
+  "default_feature_profile": "default"
+}
