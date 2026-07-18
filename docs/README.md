@@ -6,6 +6,10 @@ AgentCore is a vendor-neutral agent control plane for AI agents, human reviewers
 
 This documentation is written for experienced software engineers, software architects, product designers, platform operators, security reviewers, and technical decision makers. It is not written as beginner-level or general-audience product copy. Feature and architecture documents should be implementation-grade specifications that combine engineering behavior with product workflow, interaction states, permissions, diagnostics, metrics, and acceptance criteria.
 
+## Implementation status
+
+Executable vertical slices and phase gates for Phases 1–11 live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. The repository root [README.md](../README.md) lists the phase map and named pytest commands. Product design docs in this tree remain the normative specification; gates prove slice completeness, not full production depth (for example Neo4j runtime remains a design target for the code graph).
+
 ## Documentation Map
 
 - 00-master-plan/07-agent-control-plane-product-boundary.md is the normative product-boundary decision and must be read before agent, connector, orchestration, ticket, or model-runtime work.

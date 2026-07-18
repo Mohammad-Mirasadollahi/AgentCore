@@ -6,55 +6,55 @@ All executable tests live under this directory.
 
 ```text
 tests/
-  support/           pack-bootstrap.sh, hackathon_pack.py (resolve hackathon pack from monorepo)
-  frontend/          frontend unit tests + tests/frontend/change-society/run-frontend-tests.sh
-  backend/           backend pytest suites + tests/backend/change-society-service/run-pytest.sh, tests/backend/change-society-service/run-integrator-unit-tests.sh
-  e2e/change-society/ deterministic society harness, integrator e2e, evaluation evidence
-  live/change-society/ live Qwen, remote verify, integrator live suites
+  support/                 Phase gate harnesses (phase6, phase8–phase11)
+  backend/                 Backend pytest suites by service / phase gate
+  frontend/                Frontend suites
+  e2e/                     End-to-end harnesses (legacy Change Society under change-society/)
+  live/                    Live / remote suites (legacy Change Society under change-society/)
 ```
 
 Do not add executable tests under service-local source folders such as `backend/services/<service>/tests/`. Keep tests grouped here by owner so local commands and CI discovery stay predictable.
 
-Test **runners** (shell/Python harness) live next to each suite under `tests/backend/`, `tests/frontend/`, `tests/e2e/change-society/`, and `tests/live/change-society/`. **`hackathon/scripts/`** is install/ops only.
-
-## Backend
-
-Run backend tests with the AgentCore virtual environment. Example for Phase 1 Core Data Service:
+## Backend — phase slices
 
 ```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service -q
+PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/memory-service -q
+PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service -q
+PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service -q
+PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service -q
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service -q
 ```
 
-Phase 6 verification gate (paths, contracts, runtime stitch of Phases 1 through 5):
+## Backend — phase gates
 
 ```bash
-PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification
-.venv/bin/python tests/backend/phase6-verification/run_phase_gate.py
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
 ```
 
-Change Society (hackathon):
+## Backend — shared packages and platform services
 
 ```bash
-bash tests/backend/change-society-service/run-pytest.sh -q
+PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
+
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service -q
+PYTHONPATH=backend/services/identity-access-service/src .venv/bin/python -m pytest tests/backend/identity-access-service -q
+PYTHONPATH=backend/services/orchestration-service/src .venv/bin/python -m pytest tests/backend/orchestration-service -q
+PYTHONPATH=backend/services/reporting-service/src .venv/bin/python -m pytest tests/backend/reporting-service -q
+PYTHONPATH=backend/services/project-profile-service/src .venv/bin/python -m pytest tests/backend/project-profile-service -q
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service -q
 ```
 
-Run all backend tests:
-
-```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend
-```
+See also [tests/backend/README.md](backend/README.md) and [docs/06-technical-logic/07-technical-test-strategy.md](../docs/06-technical-logic/07-technical-test-strategy.md).
 
 ## Frontend
 
-Frontend tests belong under `tests/frontend/`. Change Society:
+Frontend tests belong under `tests/frontend/`.
 
-```bash
-bash tests/frontend/change-society/run-frontend-tests.sh
-```
+## Legacy Change Society
 
-## E2E and live harness
-
-| Kind | Directory | Example |
-| --- | --- | --- |
-| Deterministic society proof | `tests/e2e/change-society/` | `tests/e2e/change-society/run-real-test-suite.sh` |
-| Live Qwen / remote API | `tests/live/change-society/` | `tests/live/change-society/run-live-test.sh remote` |
+Archived demo assets live under `archives/hackathon/`. Historical suites may remain under `tests/backend/change-society-service/`, `tests/e2e/change-society/`, and `tests/live/change-society/` for reference; they are not the primary AgentCore platform path.

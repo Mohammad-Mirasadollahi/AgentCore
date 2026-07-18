@@ -6,7 +6,7 @@ This document defines the security expectations for AgentCore development, deplo
 
 ## Supported Status
 
-AgentCore is currently in documentation and scaffold stage. Until implementation code exists, security review should focus on architecture decisions, dependency choices, secret handling, deployment profiles, isolation boundaries, and future implementation requirements.
+AgentCore ships vertical-slice implementations and phase verification gates (see the root README). Security review covers architecture decisions, dependency choices, secret handling, deployment profiles, isolation boundaries, and the behavior of implemented services and catalogs.
 
 ## Reporting Security Issues
 

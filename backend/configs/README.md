@@ -4,26 +4,31 @@ Path: `backend/configs`
 
 ## Purpose
 
-Versioned backend configuration templates.
+Versioned backend configuration templates and machine-readable catalogs used by services and phase gates.
 
-## Modular Boundary
+## Contents
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
-
-## Allowed Contents
-
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
+| Directory | Role |
+|-----------|------|
+| `port-profiles/` | Development port profile (`agentcore-dev.json`) |
+| `governance/` | Risk/decision catalog, impact KPIs, gap register |
+| `logical-examples/` | Phase 11 examples catalog |
+| `domain-packs/` | Domain pack defaults |
+| `feature-profiles/` | Feature profile defaults |
+| `rule-packs/` | Rule pack defaults |
+| `common-context-profiles/` | Common-context scoring defaults |
+| `technology-profiles/` | Technology baseline profiles |
+| `code-metadata-profiles/` | Code-metadata validation profiles |
+| `environments/` | Environment profiles (`local` … `prod`) |
 
 ## Rules
 
 - Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
+- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior in application code; bind through these configs.
 - Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
 - Use shared packages only for stable contracts or cross-cutting primitives.
 - Add or update tests and documentation when this boundary receives implementation code.
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active configuration home for Phase 8–11 gates and platform defaults. Loaders live under `backend/packages/` (`port_profile`, `governance_catalog`, `logical_examples`, `shared-kernel`, `code-metadata`, `common-context`).
