@@ -14,18 +14,19 @@ body:
       label: Area
       description: Where does the bug show up?
       options:
-        - core-data-service (Phase 1)
-        - memory-service (Phase 2)
-        - docs-sync-service (Phase 3)
-        - rule-engine-service (Phase 4)
-        - adapter-service (Phase 5)
-        - phase6-verification
-        - code-graph-service (Phase 7)
-        - phase8 / packages / port-profiles
-        - phase9 / governance
-        - phase10 / gap-register
-        - phase11 / logical-examples
-        - platform service (audit / identity / orchestration / reporting / project-profile / common-context)
+        - services/core-data-service
+        - services/memory-service
+        - services/docs-sync-service
+        - services/rule-engine-service
+        - services/adapter-service
+        - services/code-graph-service
+        - gates/technical-logic-verification
+        - gates/port-profile-verification
+        - gates/governance-catalog-verification
+        - gates/gap-register-verification
+        - gates/logical-examples-verification
+        - services/platform (audit / identity / orchestration / reporting / project-profile / common-context)
+        - tools (cli / outbox / usage-profile)
         - docs
         - frontend
         - tooling / git-sync / install
@@ -37,7 +38,7 @@ body:
     attributes:
       label: Summary
       description: One or two sentences describing the failure.
-      placeholder: Phase 4 idempotent evaluate_rules drops impact tasks on replay.
+      placeholder: rule-engine idempotent evaluate_rules drops impact tasks on replay.
     validations:
       required: true
   - type: textarea

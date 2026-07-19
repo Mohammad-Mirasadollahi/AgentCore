@@ -127,6 +127,8 @@ Example generated fragment (shape):
 - Unknown tool names on `tools/call` fail closed.
 - MCP tool handlers call in-process AgentCore services (memory, code-graph, core-data, docs-sync), not stub-only responses.
 - MCP gateway supports `AGENTCORE_MCP_STORE_MODE=memory|postgres` (auto-postgres when `AGENTCORE_DATABASE_URL` is set) so Cursor sessions share durable store schemas with the platform.
+- Write path: Usage Profile tool `agentcore_write` creates memory, task, activity, or decision records for the scoped project (in addition to `agentcore_create_task`).
+- Docs path: `agentcore_docs_write` (`validate` / `note` / `draft` / `index`) and `agentcore_docs_status` wire Cursor documentation work into docs-sync.
 - Tests cover catalog validation, activation, materialization, MCP protocol handlers, and wired backend calls.
 - Project `.venv` is created via `scripts/ensure-venv.sh` / `requirements-dev.txt`.
 
@@ -137,4 +139,4 @@ Example generated fragment (shape):
 - Loader: `backend/packages/usage_profile/`
 - Activation API: `backend/services/project-profile-service/`
 - MCP server: `backend/services/mcp-gateway-service/`
-- Tests: `tests/backend/usage-profile/`, `tests/backend/mcp-gateway-service/`, extended project-profile tests
+- Tests: `tests/backend/tools/usage-profile/`, `tests/backend/services/mcp-gateway-service/`, extended project-profile tests

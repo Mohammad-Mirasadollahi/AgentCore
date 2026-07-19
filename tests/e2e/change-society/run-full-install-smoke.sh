@@ -127,7 +127,7 @@ run_release_gates() {
   export PYTHONPATH="hackathon/backend/change-society-service/src:hackathon/sdk/python"
 
   log "Gate: backend pytest"
-  .venv/bin/python -m pytest tests/backend/change-society-service -q
+  .venv/bin/python -m pytest tests/backend/legacy/change-society-service -q
 
   log "Gate: production config rejects fake model"
   if CHANGE_SOCIETY_ENVIRONMENT=production \

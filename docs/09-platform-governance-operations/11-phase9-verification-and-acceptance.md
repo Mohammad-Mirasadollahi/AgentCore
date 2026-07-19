@@ -12,14 +12,14 @@ Phase 9 completes operational governance. Its executable gate proves that securi
 | Risk and decision catalog | `backend/configs/governance/risk-open-decisions.json` |
 | Impact KPI catalog | `backend/configs/governance/impact-kpis.json` |
 | Catalog loader | `backend/packages/governance_catalog/` |
-| Verification package | `tests/support/phase9/` |
-| Gate tests | `tests/backend/phase9-verification/` |
+| Verification package | `tests/support/governance_catalog_gate/` |
+| Gate tests | `tests/backend/gates/governance-catalog-verification/` |
 
 ## Named Commands
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification -q
-.venv/bin/python tests/backend/phase9-verification/run_phase_gate.py
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/governance-catalog-verification -q
+.venv/bin/python tests/backend/gates/governance-catalog-verification/run_gate.py
 ```
 
 ## Exit Checks Covered by the Gate

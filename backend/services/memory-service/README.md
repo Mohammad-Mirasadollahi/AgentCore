@@ -40,12 +40,12 @@ The vertical slice follows `backend/docs/ENGINEERING_STANDARDS.md`: dependencies
 
 ## Testing
 
-Executable tests live under `tests/backend/memory-service`.
+Executable tests live under `tests/backend/services/memory-service`.
 
 Run:
 
 ```bash
-PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/memory-service
+PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/services/memory-service
 ```
 
 ## Operational Notes

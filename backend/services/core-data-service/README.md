@@ -30,7 +30,7 @@ The service owns its records and exposes them only through the Core Data HTTP co
 
 ## Testing
 
-Run `.venv/bin/python -m pytest tests/backend/core-data-service`.
+Run `.venv/bin/python -m pytest tests/backend/services/core-data-service`.
 
 All executable tests live under the root `tests/` tree, with backend tests in `tests/backend` and frontend tests in `tests/frontend`.
 

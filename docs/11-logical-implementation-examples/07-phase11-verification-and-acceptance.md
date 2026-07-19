@@ -11,14 +11,14 @@ Phase 11 turns architecture into engineer-facing runtime examples and a coding c
 | Logical examples docs | `docs/11-logical-implementation-examples/` |
 | Examples catalog | `backend/configs/logical-examples/examples-catalog.json` |
 | Catalog loader | `backend/packages/logical_examples/` |
-| Verification package | `tests/support/phase11/` |
-| Gate tests | `tests/backend/phase11-verification/` |
+| Verification package | `tests/support/logical_examples_gate/` |
+| Gate tests | `tests/backend/gates/logical-examples-verification/` |
 
 ## Named Commands
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
-.venv/bin/python tests/backend/phase11-verification/run_phase_gate.py
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/logical-examples-verification -q
+.venv/bin/python tests/backend/gates/logical-examples-verification/run_gate.py
 ```
 
 ## Exit Checks Covered by the Gate

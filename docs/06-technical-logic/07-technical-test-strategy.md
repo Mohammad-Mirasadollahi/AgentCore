@@ -184,56 +184,56 @@ AgentCore uses a root-level test tree. All executable tests must be discoverable
 ```text
 tests/frontend/                 frontend unit, component, integration, and e2e tests
 tests/backend/                  backend unit, contract, integration, security, and live-gated tests
-tests/backend/core-data-service/     Phase 1
-tests/backend/memory-service/        Phase 2
-tests/backend/docs-sync-service/     Phase 3
-tests/backend/rule-engine-service/   Phase 4
-tests/backend/adapter-service/       Phase 5
-tests/backend/phase6-verification/   Phase 6
-tests/backend/code-graph-service/    Phase 7
-tests/backend/phase8-verification/   Phase 8
-tests/backend/phase9-verification/   Phase 9
-tests/backend/phase10-verification/  Phase 10
-tests/backend/phase11-verification/  Phase 11
-tests/backend/audit-service/             platform audit slice
-tests/backend/identity-access-service/   platform identity slice
-tests/backend/orchestration-service/     platform orchestration slice
-tests/backend/reporting-service/         platform reporting slice
-tests/backend/project-profile-service/   platform project-profile slice
-tests/backend/common-context-service/    platform common-context slice
+tests/backend/services/core-data-service/            core data model service
+tests/backend/services/memory-service/               memory and context service
+tests/backend/services/docs-sync-service/            docs-as-code sync service
+tests/backend/services/rule-engine-service/          rule engine service
+tests/backend/services/adapter-service/              interoperability / adapter service
+tests/backend/services/code-graph-service/           code-knowledge graph service
+tests/backend/gates/technical-logic-verification/ technical-logic feature gate
+tests/backend/gates/port-profile-verification/    port-profile feature gate
+tests/backend/gates/governance-catalog-verification/  governance catalog feature gate
+tests/backend/gates/gap-register-verification/    gap-register feature gate
+tests/backend/gates/logical-examples-verification/    logical-examples feature gate
+tests/backend/services/audit-service/             platform audit slice
+tests/backend/services/identity-access-service/   platform identity slice
+tests/backend/services/orchestration-service/     platform orchestration slice
+tests/backend/services/reporting-service/         platform reporting slice
+tests/backend/services/project-profile-service/   platform project-profile slice
+tests/backend/services/common-context-service/    platform common-context slice
 ```
 
-Phase documentation and module READMEs must reference these canonical paths. When a new service or app is implemented, create its executable tests under `tests/backend/<owner>/` or `tests/frontend/<owner>/` and keep service-local `tests/` folders empty or documentation-only.
+Service and feature documentation must reference these canonical paths. When a new service or app is implemented, create its executable tests under `tests/backend/services/<service>/` or `tests/backend/gates/<feature>-verification/` (or `tests/frontend/<owner>/`) and keep service-local `tests/` folders empty or documentation-only.
 
-Named validation commands for current Phase 1 through 11 slices:
+Named validation commands for current services and feature gates:
 
 ```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
-PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/memory-service
-PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service
-PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service
-PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service
-PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification
-PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service
-PYTHONPATH=backend/services/identity-access-service/src .venv/bin/python -m pytest tests/backend/identity-access-service
-PYTHONPATH=backend/services/orchestration-service/src .venv/bin/python -m pytest tests/backend/orchestration-service
-PYTHONPATH=backend/services/reporting-service/src .venv/bin/python -m pytest tests/backend/reporting-service
-PYTHONPATH=backend/services/project-profile-service/src .venv/bin/python -m pytest tests/backend/project-profile-service
-PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service
+PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/services/memory-service
+PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/services/docs-sync-service
+PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/services/rule-engine-service
+PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/services/adapter-service
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/gates/technical-logic-verification
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/port-profile-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/governance-catalog-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/gap-register-verification
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/logical-examples-verification
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/services/audit-service
+PYTHONPATH=backend/services/identity-access-service/src .venv/bin/python -m pytest tests/backend/services/identity-access-service
+PYTHONPATH=backend/services/orchestration-service/src .venv/bin/python -m pytest tests/backend/services/orchestration-service
+PYTHONPATH=backend/services/reporting-service/src .venv/bin/python -m pytest tests/backend/services/reporting-service
+PYTHONPATH=backend/services/project-profile-service/src .venv/bin/python -m pytest tests/backend/services/project-profile-service
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/services/common-context-service
 ```
 
-Phase 6 harness and gate:
+Technical-logic harness and gate:
 
 ```bash
-PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification
-.venv/bin/python tests/backend/phase6-verification/run_phase_gate.py
-.venv/bin/python tests/backend/phase6-verification/run_phase_gate.py --run-suites
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/gates/technical-logic-verification
+.venv/bin/python tests/backend/gates/technical-logic-verification/run_gate.py
+.venv/bin/python tests/backend/gates/technical-logic-verification/run_gate.py --run-suites
 ```
 
-Harness package: `tests/support/phase6/`. A phase is not technically complete until its tests are in the canonical tree, its README names the exact command, and no executable test files remain hidden under source-owned service folders. Phase 6 is the roadmap gate that checks Phases 1 through 5 completeness before Phase 7 implementation.
+Harness package: `tests/support/technical_logic/`. A service or feature is not technically complete until its tests are in the canonical tree, its README names the exact command, and no executable test files remain hidden under source-owned service folders. The technical-logic gate checks owned vertical-slice services (`core-data-service` through `adapter-service`) before treating code-graph and later features as ready.
 

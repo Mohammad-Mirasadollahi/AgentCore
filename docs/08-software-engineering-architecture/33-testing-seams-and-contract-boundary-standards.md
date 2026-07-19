@@ -64,11 +64,11 @@ tests/frontend/<app-or-feature-name>/*.spec.tsx
 
 Backend service code may expose public test seams through ports, adapters, factories, fakes, and documented contracts, but tests must import through the service public package or public contract surface. Tests should not rely on private table names, hidden module internals, or service-local cache artifacts.
 
-Contract tests for APIs and events should sit beside the owning backend test suite, for example `tests/backend/core-data-service/test_phase1.py` until a larger suite is split into `unit`, `contract`, or `integration` subdirectories under the same owner folder.
+Contract tests for APIs and events should sit beside the owning backend test suite, for example `tests/backend/services/core-data-service/test_core_data_service.py` until a larger suite is split into `unit`, `contract`, or `integration` subdirectories under the same owner folder.
 
 CI and local validation should use root-level test paths, never service-local test paths. Example:
 
 ```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service
 ```
 

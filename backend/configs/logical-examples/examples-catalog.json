@@ -50,9 +50,9 @@
         "Drift detection before merge"
       ],
       "test_hooks": [
-        "tests/backend/core-data-service",
-        "tests/backend/rule-engine-service",
-        "tests/backend/docs-sync-service"
+        "tests/backend/services/core-data-service",
+        "tests/backend/services/rule-engine-service",
+        "tests/backend/services/docs-sync-service"
       ]
     },
     {
@@ -90,7 +90,7 @@
         "ContextBundle redaction and source refs"
       ],
       "test_hooks": [
-        "tests/backend/memory-service"
+        "tests/backend/services/memory-service"
       ]
     },
     {
@@ -129,8 +129,8 @@
         "Unknown-symbol validation"
       ],
       "test_hooks": [
-        "tests/backend/code-graph-service",
-        "tests/backend/docs-sync-service"
+        "tests/backend/services/code-graph-service",
+        "tests/backend/services/docs-sync-service"
       ]
     },
     {
@@ -170,7 +170,7 @@
         "Fail-closed expiry handling"
       ],
       "test_hooks": [
-        "tests/backend/rule-engine-service"
+        "tests/backend/services/rule-engine-service"
       ]
     },
     {
@@ -209,7 +209,7 @@
         "Dead-letter replay path"
       ],
       "test_hooks": [
-        "tests/backend/adapter-service"
+        "tests/backend/services/adapter-service"
       ]
     }
   ],

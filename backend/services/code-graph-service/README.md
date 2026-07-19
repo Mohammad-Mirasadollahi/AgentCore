@@ -22,7 +22,7 @@ Phase 7 Code-Knowledge Graph vertical slice for AgentCore.
 
 ```bash
 PYTHONPATH=backend/services/code-graph-service/src \
-  .venv/bin/python -m pytest tests/backend/code-graph-service/test_phase7.py -q
+  .venv/bin/python -m pytest tests/backend/services/code-graph-service/test_code_graph_service.py -q
 ```
 
 ## Contract

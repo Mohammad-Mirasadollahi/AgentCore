@@ -24,12 +24,12 @@ This high-level design separates Phase 6 as the verification and technical-logic
 ## System Flow
 
 ```text
-Phase N design (1..5)
-    -> Phase 6 technical logic pack
-    -> Phase 6 verification cases under tests/
+Owned service design (core-data … adapter)
+    -> technical-logic packs under docs/06-technical-logic/
+    -> service suites under tests/backend/services/<service>/
+    -> technical-logic feature gate under tests/backend/gates/technical-logic-verification/
     -> pass/fail evidence
-    -> Phase 6 exit gate
-    -> allow Phase 7
+    -> allow code-graph and later feature work
 ```
 
 ## Boundaries
@@ -42,5 +42,5 @@ Phase N design (1..5)
 
 - Reads designs from `docs/01-` through `docs/05-`.
 - Owns `docs/06-technical-logic/`.
-- Points executable proof at `tests/backend/<service>/` and related roots.
+- Points executable proof at `tests/backend/services/<service>/` and related roots.
 - Hands off to Phase 7 only after exit criteria or an owned waiver.

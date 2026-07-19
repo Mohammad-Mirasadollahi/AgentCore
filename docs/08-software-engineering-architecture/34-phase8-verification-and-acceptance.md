@@ -11,21 +11,21 @@ Phase 8 is a documentation-and-governance phase. Its executable gate does not in
 | Playbook docs | `docs/08-software-engineering-architecture/` |
 | Port profile | `backend/configs/port-profiles/agentcore-dev.json` |
 | Port loader | `backend/packages/port_profile/` |
-| Verification package | `tests/support/phase8/` |
-| Gate tests | `tests/backend/phase8-verification/` |
+| Verification package | `tests/support/port_profile_gate/` |
+| Gate tests | `tests/backend/gates/port-profile-verification/` |
 
 ## Named Commands
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
-.venv/bin/python tests/backend/phase8-verification/run_phase_gate.py
-.venv/bin/python tests/backend/phase8-verification/run_phase_gate.py --run-suites
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/port-profile-verification -q
+.venv/bin/python tests/backend/gates/port-profile-verification/run_gate.py
+.venv/bin/python tests/backend/gates/port-profile-verification/run_gate.py --run-suites
 ```
 
 ## Exit Checks Covered by the Gate
 
 - Required Phase 8 engineering documents exist and contain key topic markers.
-- Every Phase 1 through 5 and Phase 7 runtime service has source, tests, README, and an owned API contract.
+- Every owned runtime service (core-data through adapter, plus code-graph) has source, tests, README, and an owned API contract.
 - Development port profile exists, rejects common default ports, supports `AGENTCORE_*_PORT` overrides, and maps each owned service to a port key.
 - Optional `--run-suites` executes canonical pytest suites for owned services.
 

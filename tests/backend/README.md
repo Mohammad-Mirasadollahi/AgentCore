@@ -1,40 +1,51 @@
 # Backend Tests
 
-Backend tests are grouped by owning service, phase gate, or package.
+Backend tests are nested by category, then by owning service or feature.
 
-## Current suites
+```text
+tests/backend/
+  services/<service>/     mirrors backend/services/<service>/
+  gates/<feature>-verification/
+  packages/               shared package loaders
+  tools/                  agentcore-cli, outbox-relay, usage-profile
+  platform/               cross-cutting smokes (service entrypoints)
+  legacy/                 archived Change Society suites
+```
 
-| Suite | Role |
-|-------|------|
-| `core-data-service/` | Phase 1 |
-| `memory-service/` | Phase 2 |
-| `docs-sync-service/` | Phase 3 |
-| `rule-engine-service/` | Phase 4 |
-| `adapter-service/` | Phase 5 |
-| `phase6-verification/` | Phase 6 gate |
-| `code-graph-service/` | Phase 7 |
-| `phase8-verification/` | Phase 8 gate |
-| `phase9-verification/` | Phase 9 gate |
-| `phase10-verification/` | Phase 10 gate |
-| `phase11-verification/` | Phase 11 gate |
+## Suites
+
+| Path | Role |
+|------|------|
+| `services/core-data-service/` | Core data model service |
+| `services/memory-service/` | Memory and context service |
+| `services/docs-sync-service/` | Docs-as-code sync service |
+| `services/rule-engine-service/` | Rule engine service |
+| `services/adapter-service/` | Interoperability / adapter service |
+| `services/code-graph-service/` | Code-knowledge graph service |
+| `services/audit-service/` | Platform audit slice |
+| `services/identity-access-service/` | Platform identity slice |
+| `services/orchestration-service/` | Platform orchestration slice |
+| `services/reporting-service/` | Platform reporting slice |
+| `services/project-profile-service/` | Platform project-profile slice |
+| `services/common-context-service/` | Platform common-context slice |
+| `services/mcp-gateway-service/` | Cursor MCP gateway |
+| `gates/technical-logic-verification/` | Technical-logic feature gate |
+| `gates/port-profile-verification/` | Port-profile feature gate |
+| `gates/governance-catalog-verification/` | Governance catalog feature gate |
+| `gates/gap-register-verification/` | Gap-register feature gate |
+| `gates/logical-examples-verification/` | Logical-examples feature gate |
 | `packages/` | Shared package loaders |
-| `audit-service/` | Platform audit slice |
-| `identity-access-service/` | Platform identity slice |
-| `orchestration-service/` | Platform orchestration slice |
-| `reporting-service/` | Platform reporting slice |
-| `project-profile-service/` | Platform project-profile slice |
-| `common-context-service/` | Platform common-context slice |
-| `usage-profile/` | Usage Profile catalog loader |
-| `mcp-gateway-service/` | Cursor MCP gateway |
-| `outbox-relay/` | Transactional outbox relay (memory → audit → broker) |
+| `tools/usage-profile/` | Usage Profile catalog loader |
+| `tools/outbox-relay/` | Transactional outbox relay |
+| `tools/agentcore-cli/` | AgentCore CLI |
+| `platform/` | Cross-cutting platform smokes |
+| `legacy/change-society-service/` | Archived hackathon suites |
 
 Service-local `backend/**/tests/` directories are documentation-only placeholders. Canonical executable tests live here.
 
-Use the project virtual environment and set `PYTHONPATH` to the service `src` (or `tests/support` / `backend/packages` for gates). Examples:
-
 ```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/port-profile-verification -q
 ```
 
 Full command list: [../README.md](../README.md).

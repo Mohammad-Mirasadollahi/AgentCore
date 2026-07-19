@@ -30,10 +30,10 @@ Documented in `docs/phase-3-api-contract.md`.
 
 ## Testing
 
-Executable tests live under `tests/backend/docs-sync-service`.
+Executable tests live under `tests/backend/services/docs-sync-service`.
 
 ```bash
-PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service
+PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/services/docs-sync-service
 ```
 
 ## Operational Notes

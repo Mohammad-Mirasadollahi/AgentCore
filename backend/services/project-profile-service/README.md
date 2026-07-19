@@ -26,11 +26,11 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Vertical slice implemented, including **Usage Profile** activation and Cursor MCP export. Canonical tests live under `tests/backend/project-profile-service/`.
+Vertical slice implemented, including **Usage Profile** activation and Cursor MCP export. Canonical tests live under `tests/backend/services/project-profile-service/`.
 
 ```bash
 PYTHONPATH=backend/services/project-profile-service/src:backend/packages \
-  .venv/bin/python -m pytest tests/backend/project-profile-service -q
+  .venv/bin/python -m pytest tests/backend/services/project-profile-service -q
 ```
 
 Usage Profile API: [docs/usage-profile-api.md](docs/usage-profile-api.md)  

@@ -16,7 +16,7 @@ This section completes the AgentCore plan from an operational and governance per
 - 08-glossary-and-ubiquitous-language.md defines common terminology used across the documentation tree.
 - 09-automated-deployment-and-connectivity-runbooks.md defines operational runbooks for automated first installation, agent connector registration, repository registration, external resource connection, automated upgrade, drift detection, and repair.
 - 10-impact-reporting-and-benefit-measurement.md defines the impact measurement framework, KPI definitions, instrumentation requirements, baseline strategy, with-or-without AgentCore comparison, dashboard states, evidence model, and reporting contracts for code generation speed, bug reduction, architecture quality, rework reduction, and token consumption.
-- 11-phase9-verification-and-acceptance.md defines the Phase 9 exit gate, governance catalogs, and named verification commands.
+- 11-phase9-verification-and-acceptance.md defines the governance-catalog feature gate and named verification commands under `tests/backend/gates/governance-catalog-verification/`.
 
 ## Implementation Slice
 
@@ -25,12 +25,12 @@ Phase 9 verification home:
 - Risk/decision catalog: `backend/configs/governance/risk-open-decisions.json`
 - Impact KPI catalog: `backend/configs/governance/impact-kpis.json`
 - Catalog loader: `backend/packages/governance_catalog/`
-- Gate package: `tests/support/phase9/`
-- Tests: `tests/backend/phase9-verification/`
+- Gate package: `tests/support/governance_catalog_gate/`
+- Tests: `tests/backend/gates/governance-catalog-verification/`
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification -q
-.venv/bin/python tests/backend/phase9-verification/run_phase_gate.py
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/governance-catalog-verification -q
+.venv/bin/python tests/backend/gates/governance-catalog-verification/run_gate.py
 ```
 
 ## Why This Section Exists

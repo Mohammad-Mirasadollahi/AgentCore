@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+from uuid import uuid4
+
+from . import _paths  # noqa: F401 — side effect: service path bootstrap
+
+from code_graph_service.core import CodeGraphService, Scope as GraphScope
+from core_data_service.core import CoreData, Scope as CoreScope
+from docs_sync_service.core import DocsSyncService, Scope as DocsScope
+from memory_service.core import MemoryService, Scope as MemoryScope
+
+from ..store_factory import StoreBundle, build_stores
+
+
+class PlatformBackends:
+    """In-process AgentCore service facades used by the MCP gateway."""
+
+    def __init__(self, stores: StoreBundle | None = None) -> None:
+        self._stores = stores or build_stores()
+        self.core = CoreData(self._stores.core)
+        self.memory = MemoryService(self._stores.memory)
+        self.graph = CodeGraphService(self._stores.graph)
+        self.docs = DocsSyncService(self._stores.docs)
+        self.actor_id = "mcp-gateway"
+        self.store_mode = self._stores.mode
+
+    @classmethod
+    def from_env(cls, environ: dict[str, str] | None = None) -> PlatformBackends:
+        return cls(build_stores(environ))
+
+    def close(self) -> None:
+        self._stores.close()
+
+    def core_scope(self, scope: dict[str, str]) -> CoreScope:
+        return CoreScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def memory_scope(self, scope: dict[str, str]) -> MemoryScope:
+        return MemoryScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def graph_scope(self, scope: dict[str, str]) -> GraphScope:
+        return GraphScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def docs_scope(self, scope: dict[str, str]) -> DocsScope:
+        return DocsScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def ensure_memory_seed(self, scope: dict[str, str], query: str) -> None:
+        mem_scope = self.memory_scope(scope)
+        if self.memory.store.list_memory(mem_scope):
+            return
+        self.memory.create_memory(
+            mem_scope,
+            self.actor_id,
+            str(uuid4()),
+            f"seed-memory:{scope['project_id']}",
+            {
+                "kind": "semantic",
+                "state": "active",
+                "title": "Project coding conventions",
+                "body": f"Prefer AgentCore scoped APIs and idempotency keys. Context query seed: {query}",
+                "tags": ["programming", "conventions"],
+                "evidence_refs": ["usage-profile:programming-cursor-mcp"],
+                "source_refs": ["mcp-gateway"],
+                "confidence": 0.95,
+            },
+        )
+
+    def ensure_graph_seed(self, scope: dict[str, str]) -> None:
+        graph_scope = self.graph_scope(scope)
+        if self.graph.store.list_symbols(graph_scope):
+            return
+        self.graph.ingest_file(
+            graph_scope,
+            self.actor_id,
+            str(uuid4()),
+            f"seed-graph:{scope['project_id']}",
+            {
+                "file_path": "src/auth/hash.py",
+                "language": "python",
+                "source": (
+                    "def hash_password(value: str) -> str:\n"
+                    "    return value\n\n"
+                    "def verify_password(value: str, hashed: str) -> bool:\n"
+                    "    return hash_password(value) == hashed\n"
+                ),
+            },
+        )
+
+    def ensure_docs_symbol(self, scope: dict[str, str], symbol: str, file_path: str | None) -> str:
+        docs_scope = self.docs_scope(scope)
+        repo = scope["project_id"]
+        path = file_path or "src/module.py"
+        existing = self.docs.store.find_symbol(docs_scope, repo, path, symbol)
+        if existing is not None:
+            return existing.id
+        for candidate in self.docs.store.list_symbols(docs_scope):
+            if candidate.symbol_path == symbol:
+                return candidate.id
+        indexed = self.docs.index_symbol(
+            docs_scope,
+            self.actor_id,
+            str(uuid4()),
+            f"docs-symbol:{repo}:{path}:{symbol}",
+            {
+                "repo": repo,
+                "file_path": path,
+                "symbol_path": symbol,
+                "kind": "function",
+                "body": f"def {symbol.split('.')[-1]}():\n    pass\n",
+                "doc_required": True,
+            },
+        )
+        return indexed.id

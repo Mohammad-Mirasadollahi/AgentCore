@@ -367,13 +367,13 @@ tests/
       test_*.py
 ```
 
-Backend tests are grouped by owning service or app. For example, Core Data Service tests live in `tests/backend/core-data-service/`. Frontend tests must live in `tests/frontend/` and may be further grouped by application, feature, or test family once a frontend package exists.
+Backend tests are grouped by owning service or app. For example, Core Data Service tests live in `tests/backend/services/core-data-service/`. Frontend tests must live in `tests/frontend/` and may be further grouped by application, feature, or test family once a frontend package exists.
 
 Recommended backend commands:
 
 ```bash
 PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service
 ```
 
 Test files should follow the Python convention `test_*.py` or `*_test.py`. Shared backend fixtures should live under `tests/backend/fixtures/` when they are genuinely reusable across multiple backend modules. Frontend fixtures should live under `tests/frontend/fixtures/`.

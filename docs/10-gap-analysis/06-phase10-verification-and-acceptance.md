@@ -11,14 +11,14 @@ Phase 10 makes unresolved assumptions and design gaps explicit and reviewable. I
 | Gap analysis docs | `docs/10-gap-analysis/` |
 | Gap register catalog | `backend/configs/governance/gap-register.json` |
 | Catalog loader | `backend/packages/governance_catalog/` |
-| Verification package | `tests/support/phase10/` |
-| Gate tests | `tests/backend/phase10-verification/` |
+| Verification package | `tests/support/gap_register_gate/` |
+| Gate tests | `tests/backend/gates/gap-register-verification/` |
 
 ## Named Commands
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification -q
-.venv/bin/python tests/backend/phase10-verification/run_phase_gate.py
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/gap-register-verification -q
+.venv/bin/python tests/backend/gates/gap-register-verification/run_gate.py
 ```
 
 ## Exit Checks Covered by the Gate
