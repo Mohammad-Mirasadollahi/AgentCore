@@ -2,9 +2,11 @@
 
 ## Vision
 
-The Code-Knowledge Graph is a live structural memory of the codebase. It represents the project as a graph of files, classes, functions, methods, dependencies, calls, documentation, pgvector embedding references, and semantic relationships.
+The Code-Knowledge Graph is the core mechanism of the AgentCore wedge: connect a repository, understand it as structured knowledge, and improve connected AI coding outputs.
 
-The purpose is to let AI understand and modify code with minimal hallucination, minimal token cost, and maximum awareness of existing project structure.
+It is a live structural memory of the codebase. It represents the project as a graph of files, classes, functions, methods, dependencies, calls, documentation, pgvector embedding references, and semantic relationships.
+
+The purpose is to let AI understand and modify code with minimal hallucination, minimal token cost, and maximum awareness of existing project structure. Product scope and positioning live in `../00-master-plan/01-product-scope-and-feature-catalog.md`.
 
 ## Problem Statement
 

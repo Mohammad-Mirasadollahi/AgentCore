@@ -2,15 +2,54 @@
 
 ## Vision
 
-AgentCore is a vendor-neutral control plane for autonomous and semi-autonomous agents inside an organization. It turns fragmented AI interactions into structured, governed, reusable operational knowledge while leaving task execution inside connected agent runtimes.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools.
 
-AgentCore is not an agent, an LLM, or a replacement for agent frameworks. Codex, IDE-based workers, LangChain applications, custom agents, and future runtimes are managed resources connected through adapters. AgentCore owns registry, capability routing, tickets, governance, shared context, observability, audit, and lifecycle control.
+It indexes repository structure, documentation, decisions, and current project truth, then injects only the relevant context into IDE assistants, agent runtimes, and review workflows. The measurable result is better code and answers: fewer hallucinations, less rework, lower token cost, and clearer impact awareness.
 
-The platform is not only a coding assistant. It is a coordination system that gives agents and humans a common memory, common protocol, common policy layer, common documentation graph, common task model, common project isolation model, common reporting layer, and common control surface.
+AgentCore is not an agent, an LLM, a coding IDE, or a replacement for agent frameworks. Connected runtimes still write the code. AgentCore owns the code-linked knowledge layer that makes those runtimes produce better work.
+
+## Product Positioning
+
+### Wedge product (delivery focus)
+
+The first product users must understand and adopt is:
+
+**Connect a repository → build structured code knowledge → improve AI outputs on that repository.**
+
+This wedge answers one job:
+
+1. Attach AgentCore to one or more repositories.
+2. Keep a live structural and semantic model of the code and linked docs.
+3. Serve task-scoped context packs to IDE agents, autonomous workers, and human reviewers.
+4. Measure whether outputs improved: acceptance rate, rework, defects, architecture drift, and token usage.
+
+### Platform expansion (architecture destination)
+
+The same knowledge layer expands into a vendor-neutral control plane for agentic work: durable tickets, capability routing, governance, shared memory, audit, multi-agent coordination, and enterprise operations.
+
+The control plane is the destination architecture. It is not the first sentence of the product promise. Features that coordinate many agents, departments, or approval systems must reuse the code-connected knowledge wedge rather than replace it.
+
+### Normative boundary
+
+AgentCore remains a control and knowledge plane, not an executor. See `07-agent-control-plane-product-boundary.md`. External agents perform task execution through versioned adapters. AgentCore owns registry, routing constraints, tickets, policy, shared context references, observability, and audit.
 
 ## Core Product Promise
 
-AgentCore answers nine questions that ordinary AI chat tools usually lose:
+AgentCore improves AI-assisted software work through a closed loop:
+
+```text
+Repository  →  Structured code knowledge  →  Context injection  →  Better agent/IDE output  →  Measured gain
+```
+
+Concrete promises for the wedge:
+
+1. Connected truth: the system knows what exists in the repository now, not only what was said in chat.
+2. Relevant context: agents receive signatures, neighbors, docs, decisions, and constraints for the current task instead of raw repository dumps.
+3. Better outputs: generated code and answers align with existing APIs, architecture, and project rules more often.
+4. Lower waste: token use, retry loops, and abandoned diffs decrease when context is precise.
+5. Evidence of gain: teams can see whether speed, quality, architecture adherence, rework, and token cost improved after connection.
+
+The broader platform still answers the questions ordinary AI chat tools lose:
 
 1. What happened?
 2. Why did it happen?
@@ -22,58 +61,131 @@ AgentCore answers nine questions that ordinary AI chat tools usually lose:
 8. Which project scope owns this data?
 9. Did the tool improve speed, quality, architecture, rework, and token usage?
 
+Those nine questions remain valid. The wedge prioritizes questions 3, 5, and 9 first, because they are required to prove output improvement on a connected codebase.
+
+## How the Wedge Works
+
+### Connect
+
+- Register a project and repository through connectors and project profiles.
+- Isolate memory, graph, docs, tickets, and audit by project by default.
+- Validate that the repository can be indexed and that adapters can receive context packs.
+
+### Understand
+
+- Parse code into a Code-Knowledge Graph: files, symbols, imports, calls, hashes, and relationships.
+- Link documentation, decisions, issues, tasks, and rules to code anchors.
+- Maintain current semantic state separately from raw activity history.
+- Detect documentation drift and missing knowledge as structured gaps.
+
+### Improve
+
+- Build task-scoped context packs for IDE assistants and agent adapters.
+- Prefer graph lookup, deterministic checks, and cached stable rules before expensive model calls.
+- Capture Activities, WorkLogs, corrections, and acceptance outcomes as evidence.
+- Report benefit metrics against a baseline from before AgentCore context was enabled.
+
+## Differentiation
+
+AgentCore is not interchangeable with a generic repo RAG plugin or a standalone code graph viewer.
+
+| Capability | Generic repo RAG / chat | Standalone code graph | AgentCore wedge |
+|---|---|---|---|
+| Retrieve snippets by similarity | Yes | Limited | Yes |
+| Structural symbol and call graph | Rare | Yes | Yes |
+| Living docs linked to symbols | Rare | Partial | Yes |
+| Decisions, rules, and current truth injected with code | No | No | Yes |
+| Adapter delivery into many agent/IDE runtimes | No | No | Yes |
+| Measured output improvement loop | No | No | Yes |
+| Path to governed multi-agent control plane | No | No | Yes |
+
+The differentiator is not “has a graph.” The differentiator is **code-connected knowledge that changes agent outputs and can prove it**, with a clean path to enterprise agent coordination.
+
 ## Primary Users
 
+Wedge-first users:
+
+- Developers using IDE-based assistants who need fewer wrong edits and less context thrash.
+- Tech leads who want AI changes to respect existing architecture and APIs.
+- Platform engineers connecting repositories, MCP/IDE adapters, and project profiles.
+
+Platform expansion users:
+
 - Engineering leaders who need visibility into AI-driven work.
-- Developers using IDE-based assistants such as IDE or similar tools.
 - Autonomous backend, frontend, QA, data, DevOps, documentation, and security agents.
 - Product managers and business owners who must approve high-risk changes.
-- Product designers designing operator workflows, review surfaces, onboarding, state models, and explainability UX.
-- Compliance, support, marketing, HR, and operations teams that depend on engineering events.
+- Product designers defining operator workflows, review surfaces, onboarding, and explainability UX.
+- Compliance, support, and operations teams that depend on engineering events.
 - Platform operators who install, connect, monitor, repair, and upgrade the system.
 
 ## Feature Catalog
 
-1. Activity and Work Log: capture atomic agent actions, changed files, commands, tests, artifacts, and session summaries.
-2. Decision Tracking: record the reason behind architectural and product choices so future agents do not undo them blindly.
-3. Issue and Task Separation: model a discovered risk as an Issue and the required work as one or more Tasks.
-4. Three-Tier Memory: separate working, episodic, and semantic memory.
-5. Memory Consolidation: compress raw activity into durable knowledge.
-6. State over Event Context: inject current truth before historical narratives.
-7. Decay and Garbage Collection: deprecate stale memory and rules when linked code or domains disappear.
-8. Prompt Caching: keep stable rules and architecture in cache-friendly prompt sections.
-9. Dynamic Context Injection and RAG: retrieve only task-relevant context.
-10. Autonomous Question Discovery: detect repeated or unanswered questions and treat them as knowledge gap signals.
-11. FAQ Memory: promote stable, frequently asked, evidence-backed answers into scoped project or workspace memory.
-12. Curiosity Scoring: score whether the system should proactively investigate a question, missing answer, or missing documentation.
-13. Missing Documentation Discovery: detect when code, functions, rules, APIs, or workflows lack documentation and create drafts, Tasks, or Gaps.
-14. Batched Memory and Deferred Knowledge Workflows: group related activity into WorkBatch units before memory consolidation, documentation generation, or code review.
-15. Documentation Knowledge Graph: link docs, code, decisions, issues, tasks, and owners.
-16. AST Anchoring: detect semantic code changes through stable symbol hashes.
-17. YAML Frontmatter: make Markdown readable by humans and routable by machines.
-18. Bloom Filter Lookup: quickly skip symbols that definitely have no documentation.
-19. Lightweight y/n Doc Flags: use simple manifest or inline flags to guide documentation lookup.
-20. Semantic Rules and LLM-as-a-Judge: evaluate natural-language policies for ambiguous risks.
-21. Escalation and Human-in-the-Loop: stop risky automation and request approval.
-22. Hybrid Anomaly Detection: run cheap checks first and invoke LLM review only when useful.
-23. Dependency and Impact Analysis: estimate blast radius and generate downstream tasks.
-24. Universal Agent JSON: define a common structured language between agents.
-25. Central Message Broker and Pub/Sub: publish events to subscribers without direct coupling.
-26. Vendor-Agnostic Adapters: connect different AI tools, IDEs, and model providers.
-27. Zero-Touch Installation and Bootstrap: install dependencies, generate configuration, provision stores, run migrations, start services, and validate readiness with minimal manual work.
-28. Agent and Resource Connectivity Automation: register agents, repositories, IDEs, ticket systems, model providers, and other resources through generated profiles and validation.
-29. Multi-Project Isolation: keep project memory, graph, docs, tickets, agents, reports, and audit data isolated by default.
-30. Project Composition: explicitly combine related projects such as frontend and backend through authorized ProjectGroup policies.
-31. Admin Web Interface and Agent Control Surface: track actions, manage memory, tasks, tickets, rules, agents, connectors, batches, automation jobs, reports, corrections, and audit.
-32. Human Feedback and Correction Loop: let users correct wrong answers, memory retrieval, documentation drafts, rules, scope decisions, and task decomposition so future behavior improves.
-33. Impact Reporting and Benefit Measurement: report code generation speed, bug reduction, architecture quality, rework reduction, and token consumption with baselines.
-34. Cross-Domain Operating System: extend the same agent coordination model beyond coding.
+Features are grouped by delivery priority. The catalog remains the full product surface; the wedge defines what must work first.
+
+### A. Code connection and output improvement (wedge)
+
+1. Repository and project connection: register repositories, project isolation, and connector validation.
+2. Code-Knowledge Graph: files, classes, functions, methods, imports, calls, hashes, and relationships.
+3. AST anchoring and change detection: stable symbol hashes for semantic diffs and doc drift.
+4. Living documentation linked to code symbols.
+5. Dynamic context injection and RAG: retrieve only task-relevant code, docs, and state.
+6. State-over-event context: inject current truth before historical narratives.
+7. Prompt caching for stable architecture and rules.
+8. Vendor-agnostic adapters for IDE assistants and coding agents.
+9. Human feedback and correction loop for wrong retrievals, drafts, and answers.
+10. Impact reporting and benefit measurement for speed, quality, architecture, rework, and tokens.
+
+### B. Structured memory and knowledge (supports the wedge)
+
+11. Activity and Work Log: capture atomic agent actions, changed files, commands, tests, artifacts, and session summaries.
+12. Decision Tracking: record architectural and product choices so future agents do not undo them blindly.
+13. Issue and Task Separation: model discovered risk as an Issue and required work as Tasks.
+14. Three-tier memory: working, episodic, and semantic.
+15. Memory consolidation: compress raw activity into durable knowledge.
+16. Decay and garbage collection: deprecate stale memory and rules when linked code or domains disappear.
+17. Autonomous question discovery, FAQ memory, curiosity scoring, and missing documentation discovery.
+18. Batched memory and deferred knowledge workflows.
+19. Documentation knowledge graph with YAML frontmatter, Bloom filter lookup, and lightweight doc flags.
+
+### C. Governance and multi-agent control plane (platform expansion)
+
+20. Semantic rules and LLM-as-a-judge for ambiguous policy risks.
+21. Escalation and human-in-the-loop approval.
+22. Hybrid anomaly detection.
+23. Dependency and impact analysis with downstream task generation.
+24. Universal Agent JSON and central message broker / pub-sub.
+25. Agent registry, capability routing, durable tickets, and lifecycle control.
+26. Zero-touch installation and bootstrap.
+27. Agent and resource connectivity automation.
+28. Multi-project isolation and authorized project composition.
+29. Admin web interface and agent control surface.
+30. Cross-domain operating system beyond coding, after the coding wedge is proven.
 
 ## Non-Goals for Initial Delivery
 
 - Replacing existing IDEs, ticket systems, CI systems, or agent vendors.
+- Becoming “just another chat UI” over the repository.
 - Training a custom foundation model.
+- Claiming output improvement without measurable baselines and evidence.
 - Allowing fully autonomous high-risk production changes without approval.
 - Treating raw chat history as the permanent source of truth.
 - Sharing project data across projects without explicit authorization and project composition policy.
 - Creating noisy long-term memory from every small action or line-level edit.
+- Leading the product narrative with multi-department orchestration before code-connected output improvement is credible.
+
+## Acceptance Criteria for the Positioning
+
+This product scope is satisfied when:
+
+1. A new reader can state the wedge in one sentence: connect to code, improve AI outputs.
+2. Design and implementation plans treat repository connection, code knowledge, context injection, and benefit measurement as first-class wedge deliverables.
+3. Control-plane features are documented as expansion on top of the wedge, not as a conflicting identity.
+4. AgentCore is never specified as an agent runtime or LLM replacement.
+5. Differentiation from generic repo RAG and standalone code graphs is explicit in product and engineering docs.
+
+## Related Documents
+
+- `05-complete-system-blueprint.md` — full narrative aligned to this positioning.
+- `07-agent-control-plane-product-boundary.md` — normative executor vs control-plane boundary.
+- `../07-code-knowledge-graph/01-vision-and-scope.md` — code graph as the core wedge mechanism.
+- `../09-platform-governance-operations/` — benefit measurement and operational controls.

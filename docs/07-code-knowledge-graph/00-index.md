@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This section adds the Code-Knowledge Graph design to AgentCore. The goal is to build a live graph of the codebase that connects files, classes, functions, methods, imports, calls, inheritance, documentation, embeddings, hashes, and generated code context.
+This section adds the Code-Knowledge Graph design to AgentCore. The graph is the core wedge mechanism: connect a repository, understand it as structured knowledge, and improve connected AI coding outputs through task-scoped context packs.
 
-This design extends the existing Docs-as-Code and Technical Logic sections. It focuses specifically on graph-backed code understanding, live documentation generation, and graph-guided code generation.
+This design extends the existing Docs-as-Code and Technical Logic sections. It focuses specifically on graph-backed code understanding, live documentation generation, and graph-guided code generation. Product positioning lives in `../00-master-plan/01-product-scope-and-feature-catalog.md`.
 
 ## Files
 

@@ -4,9 +4,11 @@
 
 This folder describes the complete AgentCore plan at product and architecture level. It is the entry point for professional readers who need the whole system before going into phase-specific design. The documentation is written for experienced software engineers, architects, product designers, operators, security reviewers, and technical decision makers rather than a general audience.
 
+Product positioning starts with a wedge: AgentCore connects to a codebase and improves connected AI coding outputs. The vendor-neutral control plane is the architecture destination built on that wedge. Read `01-product-scope-and-feature-catalog.md` before phase designs.
+
 ## Files
 
-- 01-product-scope-and-feature-catalog.md explains the target product, users, full feature set, and non-goals.
+- 01-product-scope-and-feature-catalog.md explains the wedge product promise, control-plane expansion, users, full feature set, and non-goals.
 - 02-roadmap-and-phase-gates.md defines implementation phases, sequencing, dependencies, and exit criteria.
 - 03-global-architecture-hld.md provides the system-wide high-level architecture.
 - 04-cross-cutting-challenges.md captures challenges that affect multiple phases.
