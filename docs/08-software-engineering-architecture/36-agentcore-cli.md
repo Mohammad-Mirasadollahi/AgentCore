@@ -72,4 +72,4 @@ Merge the exported `mcpServers` into Cursor MCP settings, then reload MCP.
 - Package: `backend/packages/agentcore_cli/`
 - Entry point: `pyproject.toml` → `agentcore = agentcore_cli.main:main`
 - Local state: `.agentcore/projects/<tenant>/<workspace>/<project>.json`
-- Tests: `tests/backend/agentcore-cli/`
+- Tests: `tests/backend/tools/agentcore-cli/`

@@ -20,7 +20,8 @@
 
 - Roadmap Phase 6 exists as a separate gated phase, not only a documentation folder name.
 - `docs/06-technical-logic/` contains both phase-design files and domain technical logic packs.
-- Every Phase 1 through 5 vertical slice names a canonical pytest command under `tests/backend/<service>/`.
+- Every owned vertical slice names a canonical pytest command under `tests/backend/services/<service>/`.
+- The technical-logic feature gate at `tests/backend/gates/technical-logic-verification/` passes (or is waived with an owner).
 - End-to-end runtime logic can be traced from agent action to brokered completion without undocumented steps.
 - Contract, state-machine, idempotency, and redaction expectations are defined for the owned surfaces.
 - Phase 7 work requires Phase 6 gate pass or an explicit owned waiver.

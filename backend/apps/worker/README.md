@@ -56,7 +56,7 @@ Compose profile `all` includes `outbox-relay` beside Postgres.
 
 ```bash
 PYTHONPATH=backend/packages:backend/services/memory-service/src:backend/services/audit-service/src:backend/services/adapter-service/src:backend/services/core-data-service/src \
-  .venv/bin/python -m pytest tests/backend/outbox-relay -q
+  .venv/bin/python -m pytest tests/backend/tools/outbox-relay -q
 ```
 
 ## Status

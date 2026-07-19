@@ -38,8 +38,8 @@ The service may depend on `packages/contracts`, `packages/common-context`, `pack
 
 ## Status
 
-Vertical slice implemented. Canonical tests live under `tests/backend/common-context-service/`.
+Vertical slice implemented. Canonical tests live under `tests/backend/services/common-context-service/`.
 
 ```bash
-PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service -q
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/services/common-context-service -q
 ```

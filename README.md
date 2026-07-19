@@ -10,8 +10,8 @@ AgentCore is a vendor-neutral **control plane** for registering, coordinating, g
 | `backend/packages/` | Shared packages (`shared-kernel`, `sdk`, `contracts`, catalogs, …) |
 | `backend/configs/` | Port profiles, governance catalogs, domain/feature packs, examples |
 | `docs/` | Phase-based product and engineering documentation (Phases 0–11+) |
-| `tests/backend/` | Canonical pytest suites and phase gates |
-| `tests/support/` | Phase gate harness packages (`phase6`, `phase8`–`phase11`) |
+| `tests/backend/` | Nested suites: `services/`, `gates/`, `packages/`, `tools/`, `platform/`, `legacy/` |
+| `tests/support/` | Feature-gate harness packages (`technical_logic`, `port_profile_gate`, …) |
 | `frontend/` | Admin / UI surfaces (platform) |
 | `archives/hackathon/` | Archived Change Society hackathon demo (not the active product path) |
 
@@ -21,17 +21,17 @@ Roadmap Phases **1–11** have executable vertical slices and/or verification ga
 
 | Phase | Focus | Code / gate home |
 |------:|-------|------------------|
-| 1 | Core data model | `backend/services/core-data-service/` · `tests/backend/core-data-service/` |
-| 2 | Memory and context | `backend/services/memory-service/` · `tests/backend/memory-service/` |
-| 3 | Docs-as-code sync | `backend/services/docs-sync-service/` · `tests/backend/docs-sync-service/` |
-| 4 | Rule engine | `backend/services/rule-engine-service/` · `tests/backend/rule-engine-service/` |
-| 5 | Interoperability / adapters | `backend/services/adapter-service/` · `tests/backend/adapter-service/` |
-| 6 | Technical logic verification | `tests/support/phase6/` · `tests/backend/phase6-verification/` |
-| 7 | Code-knowledge graph | `backend/services/code-graph-service/` · `tests/backend/code-graph-service/` |
-| 8 | Software engineering / ports / packages | `backend/configs/port-profiles/` · `backend/packages/` · `tests/backend/phase8-verification/` |
-| 9 | Governance catalogs | `backend/configs/governance/` · `tests/backend/phase9-verification/` |
-| 10 | Gap analysis catalog | `backend/configs/governance/gap-register.json` · `tests/backend/phase10-verification/` |
-| 11 | Logical examples catalog | `backend/configs/logical-examples/` · `tests/backend/phase11-verification/` |
+| 1 | Core data model | `backend/services/core-data-service/` · `tests/backend/services/core-data-service/` |
+| 2 | Memory and context | `backend/services/memory-service/` · `tests/backend/services/memory-service/` |
+| 3 | Docs-as-code sync | `backend/services/docs-sync-service/` · `tests/backend/services/docs-sync-service/` |
+| 4 | Rule engine | `backend/services/rule-engine-service/` · `tests/backend/services/rule-engine-service/` |
+| 5 | Interoperability / adapters | `backend/services/adapter-service/` · `tests/backend/services/adapter-service/` |
+| 6 | Technical logic verification | `tests/support/technical_logic/` · `tests/backend/gates/technical-logic-verification/` |
+| 7 | Code-knowledge graph | `backend/services/code-graph-service/` · `tests/backend/services/code-graph-service/` |
+| 8 | Software engineering / ports / packages | `backend/configs/port-profiles/` · `backend/packages/` · `tests/backend/gates/port-profile-verification/` |
+| 9 | Governance catalogs | `backend/configs/governance/` · `tests/backend/gates/governance-catalog-verification/` |
+| 10 | Gap analysis catalog | `backend/configs/governance/gap-register.json` · `tests/backend/gates/gap-register-verification/` |
+| 11 | Logical examples catalog | `backend/configs/logical-examples/` · `tests/backend/gates/logical-examples-verification/` |
 
 **Additional platform services:** `audit-service`, `identity-access-service`, `orchestration-service`, `reporting-service`, `project-profile-service`, `common-context-service`, `mcp-gateway-service` (memory or PostgreSQL stores via `AGENTCORE_DATABASE_URL`).
 
@@ -88,31 +88,31 @@ Use the project virtualenv. `PYTHONPATH` must include the service `src` (or `tes
 
 ```bash
 # Phase vertical slices
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service -q
-PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/memory-service -q
-PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/docs-sync-service -q
-PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service -q
-PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service -q
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service -q
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service -q
+PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/services/memory-service -q
+PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/services/docs-sync-service -q
+PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/services/rule-engine-service -q
+PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/services/adapter-service -q
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
 
 # Phase gates
-PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/phase6-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase8-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase9-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase10-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
+PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/gates/technical-logic-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/port-profile-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/governance-catalog-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/gap-register-verification -q
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/logical-examples-verification -q
 
 # Shared packages
 PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
 
 # Platform services (examples)
-PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service -q
-PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service -q
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/services/audit-service -q
+PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/services/common-context-service -q
 
 # Usage Profile + Cursor MCP gateway
-PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/usage-profile -q
-PYTHONPATH=backend/services/project-profile-service/src:backend/packages .venv/bin/python -m pytest tests/backend/project-profile-service -q
-PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages .venv/bin/python -m pytest tests/backend/mcp-gateway-service -q
+PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/usage-profile -q
+PYTHONPATH=backend/services/project-profile-service/src:backend/packages .venv/bin/python -m pytest tests/backend/services/project-profile-service -q
+PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages .venv/bin/python -m pytest tests/backend/services/mcp-gateway-service -q
 ```
 
 Full test layout: [tests/README.md](tests/README.md). Technical test strategy: [docs/06-technical-logic/07-technical-test-strategy.md](docs/06-technical-logic/07-technical-test-strategy.md).

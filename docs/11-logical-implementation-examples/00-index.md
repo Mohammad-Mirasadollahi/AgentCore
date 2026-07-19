@@ -14,18 +14,18 @@ The earlier sections define architecture, contracts, technical logic, governance
 - `04-rule-engine-and-human-approval-example.md` shows policy evaluation, deterministic checks, LLM judge use, escalation, and approval outcomes.
 - `05-interoperability-and-broker-example.md` shows Universal Agent JSON, broker routing, IDE notification, adapter behavior, and dead-letter handling.
 - `06-developer-implementation-checklist.md` gives an engineering checklist for implementing each subsystem.
-- `07-phase11-verification-and-acceptance.md` defines the Phase 11 exit gate, examples catalog, and named verification commands.
+- `07-phase11-verification-and-acceptance.md` defines the logical-examples feature gate and named verification commands under `tests/backend/gates/logical-examples-verification/`.
 
 ## Phase 11 verification home
 
 - Catalog: `backend/configs/logical-examples/examples-catalog.json`
 - Loader: `backend/packages/logical_examples/`
-- Gate package: `tests/support/phase11/`
-- Tests: `tests/backend/phase11-verification/`
+- Gate package: `tests/support/logical_examples_gate/`
+- Tests: `tests/backend/gates/logical-examples-verification/`
 
 ```bash
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/phase11-verification -q
-.venv/bin/python tests/backend/phase11-verification/run_phase_gate.py
+PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/logical-examples-verification -q
+.venv/bin/python tests/backend/gates/logical-examples-verification/run_gate.py
 ```
 
 ## How to Use This Section

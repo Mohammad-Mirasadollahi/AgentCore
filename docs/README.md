@@ -8,7 +8,7 @@ This documentation is written for experienced software engineers, software archi
 
 ## Implementation status
 
-Executable vertical slices and phase gates for Phases 1–11 live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. The repository root [README.md](../README.md) lists the phase map and named pytest commands. Product design docs in this tree remain the normative specification; gates prove slice completeness, not full production depth (for example Neo4j runtime remains a design target for the code graph).
+Executable vertical slices and **feature/service gates** live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. Suites are grouped by owning service or feature (for example `tests/backend/services/memory-service/`, `tests/backend/gates/port-profile-verification/`), not by roadmap phase number. The repository root [README.md](../README.md) lists the roadmap map and named pytest commands. Product design docs in this tree remain the normative specification; gates prove slice completeness, not full production depth (for example Neo4j runtime remains a design target for the code graph).
 
 **Usage Profiles** (org/person configuration + Cursor MCP): see [08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
 

@@ -28,10 +28,10 @@ Documented in `docs/phase-4-api-contract.md`.
 
 ## Testing
 
-Executable tests live under `tests/backend/rule-engine-service`.
+Executable tests live under `tests/backend/services/rule-engine-service`.
 
 ```bash
-PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/rule-engine-service
+PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/services/rule-engine-service
 ```
 
 ## Operational Notes

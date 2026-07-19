@@ -11,5 +11,5 @@ tests/backend/<service-or-app-name>/
 For Phase 1 Core Data Service, use:
 
 ```bash
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/core-data-service
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service
 ```

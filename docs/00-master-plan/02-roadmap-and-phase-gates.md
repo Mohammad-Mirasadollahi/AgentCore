@@ -111,11 +111,11 @@ Primary deliverables:
 
 Exit gate:
 
-- Every Phase 1 through 5 vertical slice has documented technical logic and a named canonical test command under `tests/`.
+- Every owned vertical slice (`core-data-service` through `adapter-service`) has documented technical logic and a named canonical test command under `tests/backend/services/<service>/`.
 - End-to-end runtime logic can be walked without hidden steps between domains.
-- Contract, state-machine, idempotency, and redaction checks exist for the owned Phase 1 through 5 surfaces.
+- Contract, state-machine, idempotency, and redaction checks exist for those owned service surfaces.
 - Risky operations are documented as idempotent, reversible, or human-approved.
-- Phase 7 work does not begin until Phase 6 exit criteria are met or explicitly waived with an owner.
+- Code-graph work does not begin until the technical-logic gate at `tests/backend/gates/technical-logic-verification/` passes or is explicitly waived with an owner.
 
 Design home: `docs/06-technical-logic/`.
 
@@ -142,7 +142,7 @@ Exit gate:
 - AI generation prompts use graph context instead of full repository source.
 - Generated code is checked for unknown symbol references before acceptance.
 
-Implementation home: `backend/services/code-graph-service/` (Phase 7 slice; PostgreSQL graph projection + in-memory test Store; local heuristic docs). Canonical tests: `tests/backend/code-graph-service/`.
+Implementation home: `backend/services/code-graph-service/` (Phase 7 slice; PostgreSQL graph projection + in-memory test Store; local heuristic docs). Canonical tests: `tests/backend/services/code-graph-service/`.
 
 ## Phase 8 - Software Engineering Architecture
 
@@ -205,7 +205,7 @@ Exit gate:
 - Cross-project composition requires explicit ProjectGroup policy and authorization.
 - The web interface exposes Activity Timeline tracking, object detail pages, memory management, repeated question management, task and ticket management, rule management, agent supervision, batch management, automation jobs, reports, structured FeedbackRecord correction workflows, and audit.
 
-Implementation home: `docs/08-software-engineering-architecture/` plus `backend/configs/port-profiles/agentcore-dev.json`, `backend/packages/port_profile/`, and the Phase 8 gate at `tests/backend/phase8-verification/`.
+Implementation home: `docs/08-software-engineering-architecture/` plus `backend/configs/port-profiles/agentcore-dev.json`, `backend/packages/port_profile/`, and the port-profile feature gate at `tests/backend/gates/port-profile-verification/`.
 
 ## Phase 9 - Platform Governance and Operations
 
@@ -234,7 +234,7 @@ Exit gate:
 - Backup and restore expectations are defined.
 - Risks and open decisions have owners and mitigation paths.
 
-Implementation home: `docs/09-platform-governance-operations/` plus `backend/configs/governance/`, `backend/packages/governance_catalog/`, and the Phase 9 gate at `tests/backend/phase9-verification/`.
+Implementation home: `docs/09-platform-governance-operations/` plus `backend/configs/governance/`, `backend/packages/governance_catalog/`, and the governance-catalog feature gate at `tests/backend/gates/governance-catalog-verification/`.
 
 ## Phase 10 - Gap Analysis
 
@@ -256,7 +256,7 @@ Exit gate:
 - Accepted risks have approvers and review dates.
 - Closed gaps are reflected in the relevant documentation.
 
-Implementation home: `docs/10-gap-analysis/` plus `backend/configs/governance/gap-register.json`, `backend/packages/governance_catalog/`, and the Phase 10 gate at `tests/backend/phase10-verification/`.
+Implementation home: `docs/10-gap-analysis/` plus `backend/configs/governance/gap-register.json`, `backend/packages/governance_catalog/`, and the gap-register feature gate at `tests/backend/gates/gap-register-verification/`.
 
 ## Phase 11 - Logical Implementation Examples
 
@@ -277,4 +277,4 @@ Exit gate:
 - Examples include inputs, processing steps, outputs, state changes, and edge cases.
 - Engineers can map examples to implementation tasks and tests.
 
-Implementation home: `docs/11-logical-implementation-examples/` plus `backend/configs/logical-examples/`, `backend/packages/logical_examples/`, and the Phase 11 gate at `tests/backend/phase11-verification/`.
+Implementation home: `docs/11-logical-implementation-examples/` plus `backend/configs/logical-examples/`, `backend/packages/logical_examples/`, and the logical-examples feature gate at `tests/backend/gates/logical-examples-verification/`.

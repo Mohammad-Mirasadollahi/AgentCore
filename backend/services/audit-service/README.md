@@ -26,8 +26,8 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Vertical slice implemented. Canonical tests live under `tests/backend/audit-service/`.
+Vertical slice implemented. Canonical tests live under `tests/backend/services/audit-service/`.
 
 ```bash
-PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service -q
+PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/services/audit-service -q
 ```

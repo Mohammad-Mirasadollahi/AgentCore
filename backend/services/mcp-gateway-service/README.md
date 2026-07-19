@@ -6,7 +6,32 @@ Path: `backend/services/mcp-gateway-service`
 
 Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Protocol (MCP). Tool surfaces are defined by the active **Usage Profile**. Tool calls are dispatched to **in-process** core-data, memory, code-graph, and docs-sync service slices.
 
-## Persistence
+## Cursor tools (`programming-cursor-mcp`)
+
+| Tool | Mode | Purpose |
+|------|------|---------|
+| `agentcore_ping` | read | Connectivity + profile metadata |
+| `agentcore_get_effective_profile` | read | Effective Usage Profile |
+| `agentcore_memory_retrieve` | read | Retrieve memory for a query |
+| `agentcore_code_graph_search` | read | Search code-knowledge graph |
+| `agentcore_docs_drift_check` | read | Docs drift for a symbol |
+| `agentcore_create_task` | write | Create a Task |
+| `agentcore_write` | write | Unified write: `memory` / `task` / `activity` / `decision` |
+| `agentcore_docs_drift_check` | read | Docs drift for a symbol |
+| `agentcore_docs_write` | write | Docs workflow: `validate` / `note` / `draft` / `index` |
+| `agentcore_docs_status` | read | Coverage + missing docs |
+
+## Layout
+
+| Module | Role |
+|--------|------|
+| `store_factory.py` | memory vs postgres store selection |
+| `backends/platform.py` | `PlatformBackends` facade + seeds |
+| `backends/dispatch.py` | capability router (`maps_to`) |
+| `backends/writes.py` | `platform.write` (memory/task/activity/decision) |
+| `backends/docs.py` | docs-sync write/status/drift helpers |
+| `backends/_paths.py` | PYTHONPATH bootstrap for in-process services |
+| `server.py` | MCP JSON-RPC stdio surface |
 
 | Mode | When | Behavior |
 |------|------|----------|
@@ -52,7 +77,7 @@ PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages:backend/ser
 
 ```bash
 PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages \
-  .venv/bin/python -m pytest tests/backend/mcp-gateway-service -q
+  .venv/bin/python -m pytest tests/backend/services/mcp-gateway-service -q
 ```
 
 Design: `docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md`

@@ -14,7 +14,7 @@ Phase 6 includes:
 - canonical test path enforcement,
 - gate evidence expectations.
 
-Phase 6 does not own a separate long-lived business microservice. Verification code lives beside the owning services under `tests/backend/<service>/` and shared harness helpers under `tests/` as needed.
+Phase 6 does not own a separate long-lived business microservice. Verification code lives under `tests/backend/services/<service>/` (and feature gates under `tests/backend/gates/`) with shared harness helpers under `tests/support/` as needed.
 
 ## Internal Module Layout
 
@@ -23,9 +23,16 @@ Recommended verification layout:
 ```text
 tests/
   backend/
-    <service>/
-      test_phaseN.py
-  support/                  # optional shared fixtures/helpers
+    services/<service>/
+      test_<service>.py
+    gates/<feature>-verification/
+      test_<feature>_gate.py
+      run_gate.py
+    packages/
+    tools/
+    platform/
+    legacy/
+  support/                  # feature gate harness packages
 docs/
   06-technical-logic/
     01-..05-*-technical-logic.md
@@ -34,6 +41,7 @@ docs/
     08-..13-phase-design.md
 ```
 
+Tests are organized by **service** or **feature gate** folders (under `services/` / `gates/`), not by roadmap phase number.
 ## Commands (verification operations)
 
 - `VerifyContracts` for schema and event envelope checks.
@@ -41,11 +49,11 @@ docs/
 - `VerifyIdempotency` for duplicate delivery safety.
 - `VerifyRedaction` for secret and sensitive payload handling.
 - `VerifyRuntimeScenario` for end-to-end evidence chains.
-- `CheckPhaseGate` for named pytest/command completion before Phase 7.
+- `CheckFeatureGate` for named pytest/command completion before code-graph work.
 
 ## Queries
 
-- `ListRequiredChecksForPhase` for a Phase 1 through 5 owner.
+- `ListRequiredChecksForService` for an owned vertical-slice service.
 - `ExplainFailedCheck` for rationale, expected evidence, and owning doc refs.
 - `GetCanonicalTestCommand` for a service vertical slice.
 

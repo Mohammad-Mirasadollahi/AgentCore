@@ -17,7 +17,7 @@ Documented in `docs/phase-5-api-contract.md`.
 ## Testing
 
 ```bash
-PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/adapter-service
+PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/services/adapter-service
 ```
 
 ## Operational Notes

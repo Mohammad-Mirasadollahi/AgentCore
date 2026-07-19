@@ -24,10 +24,10 @@ Phase 7 vertical slice service:
 
 - `backend/services/code-graph-service/` — ingest, hash diff, local docs, graph edges, semantic ranking, generation context, generated-code validation
 - Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
-- Tests: `tests/backend/code-graph-service/test_phase7.py`
+- Tests: `tests/backend/services/code-graph-service/test_code_graph_service.py`
 
 ```bash
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/code-graph-service -q
+PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
 ```
 
 ## Relationship to Other Sections
