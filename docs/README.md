@@ -2,7 +2,7 @@
 
 This documentation tree replaces the legacy flat documents numbered 0 through 5 with an indexed, phase-based English documentation set.
 
-AgentCore is a vendor-neutral agent control plane for AI agents, human reviewers, tools, codebases, documentation, memory, policies, and cross-department workflows. AgentCore is not an agent and does not replace agent runtimes or frameworks. It registers and supervises external agents through adapters, routes durable tickets by capability, governs execution, and records structured evidence. Its core idea is simple: AI work should not disappear into chat history.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It builds structured code knowledge, injects task-scoped context into IDE assistants and agent runtimes, and measures whether speed, quality, rework, and token cost improved. On that wedge, AgentCore expands into a vendor-neutral control plane for AI agents, human reviewers, tools, documentation, memory, policies, and cross-department workflows. AgentCore is not an agent and does not replace agent runtimes or frameworks. It registers and supervises external agents through adapters, routes durable tickets by capability, governs execution, and records structured evidence so AI work does not disappear into chat history.
 
 This documentation is written for experienced software engineers, software architects, product designers, platform operators, security reviewers, and technical decision makers. It is not written as beginner-level or general-audience product copy. Feature and architecture documents should be implementation-grade specifications that combine engineering behavior with product workflow, interaction states, permissions, diagnostics, metrics, and acceptance criteria.
 
@@ -32,35 +32,36 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 ## Reading Order
 
 1. Start with 00-master-plan/00-index.md.
-2. Read 00-master-plan/05-complete-system-blueprint.md for the full product narrative.
-3. Read 00-master-plan/06-professional-documentation-standard.md, 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md, and 00-master-plan/09-documentation-classification-and-lanes.md before writing or reviewing new documents.
-4. Read each phase folder in numeric order.
-5. Inside each phase, read the local index file first, then follow the phase-specific file order listed there.
-6. Read 02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md for repeated questions, curiosity scoring, FAQ memory, and missing documentation discovery.
-7. Read 02-memory-and-context/08-batched-memory-and-deferred-knowledge-workflows.md for WorkBatch, deferred consolidation, deferred docs, and deferred code review.
-8. Read 06-technical-logic/00-index.md for **Phase 6** (Technical Logic and Verification) before Phase 7 implementation.
-9. Read 06-technical-logic/06-end-to-end-runtime-logic.md before the phase-level technical logic files, then 08 through 12 for the Phase 6 design package and gate.
-10. Read 07-code-knowledge-graph/00-index.md for graph-backed code understanding, living documentation, and graph-guided code generation only after the Phase 6 gate is understood.
-11. Read 08-software-engineering-architecture/00-index.md for the complete engineering playbook.
-12. Read 08-software-engineering-architecture/05-modular-project-structure.md before creating repository folders or new modules.
-13. Read 08-software-engineering-architecture/06-engineering-operating-model.md before planning implementation work.
-14. Read 08-software-engineering-architecture/08-interface-and-contract-engineering.md before changing APIs, events, SDKs, config schemas, adapter payloads, or graph contracts.
-15. Read 05-interoperability-ecosystem/07-sdk-and-developer-platform.md and 08-software-engineering-architecture/27-sdk-engineering-and-contract-generation.md before implementing SDK packages, generated clients, adapter SDKs, agent SDKs, admin SDKs, test SDKs, or SDK release pipelines.
-16. Read 08-software-engineering-architecture/11-testing-and-verification-engineering.md before writing verification plans.
-17. Read 08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md before designing installation, bootstrap, generated configuration, first-run readiness, or installation evidence reports.
-18. Read 08-software-engineering-architecture/20-agent-and-resource-connectivity-automation.md before designing agent onboarding, connector registration, capability discovery, connection profiles, or resource integration.
-19. Read 08-software-engineering-architecture/21-automation-control-plane-and-self-service-operations.md before designing self-service operations, automated repair, drift detection, upgrades, or diagnostics bundles.
-20. Read 08-software-engineering-architecture/22-product-design-and-engineering-specification-discipline.md before writing feature specifications, product experience specifications, operator workflows, or implementation-ready technical designs.
-21. Read 08-software-engineering-architecture/23-project-isolation-and-composition-architecture.md before designing multi-project, project-group, memory scope, graph scope, report scope, or connector scope behavior.
-22. Read 08-software-engineering-architecture/24-admin-web-interface-and-agent-control-surface.md before designing the web interface, agent control surface, memory management, task management, rule management, feedback, or tracking workflows.
-23. Read 08-software-engineering-architecture/25-live-and-unit-test-strategy.md before designing Unit Tests, Live Tests, release validation, real-data safety, or test evidence workflows.
-24. Read 08-software-engineering-architecture/26-domain-customization-and-feature-control.md before designing domain packs, feature profiles, user-defined rules, feature hiding, or conversation-based rule suggestions.
-25. Read 08-software-engineering-architecture/13-local-development-and-environment-engineering.md before running local or remote development stacks.
-26. Read 08-software-engineering-architecture/18-developer-onboarding-and-delivery-workflow.md when onboarding or preparing a delivery checklist.
-27. Read 09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md before designing reports for speed, bug reduction, architecture quality, rework, or token consumption.
-28. Read 09-platform-governance-operations/00-index.md for operational governance, security, observability, release, retention, automated deployment, connectivity runbooks, impact reporting, and operational procedures.
-29. Read 10-gap-analysis/00-index.md to review unresolved gaps, assumptions, and decisions that need future thinking.
-30. Read 11-logical-implementation-examples/00-index.md to see concrete examples of how the system should behave when implemented.
+2. Read 00-master-plan/01-product-scope-and-feature-catalog.md for the wedge promise (connect to code, improve AI outputs) and control-plane expansion.
+3. Read 00-master-plan/05-complete-system-blueprint.md for the full product narrative.
+4. Read 00-master-plan/06-professional-documentation-standard.md, 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md, and 00-master-plan/09-documentation-classification-and-lanes.md before writing or reviewing new documents.
+5. Read each phase folder in numeric order.
+6. Inside each phase, read the local index file first, then follow the phase-specific file order listed there.
+7. Read 02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md for repeated questions, curiosity scoring, FAQ memory, and missing documentation discovery.
+8. Read 02-memory-and-context/08-batched-memory-and-deferred-knowledge-workflows.md for WorkBatch, deferred consolidation, deferred docs, and deferred code review.
+9. Read 06-technical-logic/00-index.md for **Phase 6** (Technical Logic and Verification) before Phase 7 implementation.
+10. Read 06-technical-logic/06-end-to-end-runtime-logic.md before the phase-level technical logic files, then 08 through 12 for the Phase 6 design package and gate.
+11. Read 07-code-knowledge-graph/00-index.md for graph-backed code understanding, living documentation, and graph-guided code generation only after the Phase 6 gate is understood.
+12. Read 08-software-engineering-architecture/00-index.md for the complete engineering playbook.
+13. Read 08-software-engineering-architecture/05-modular-project-structure.md before creating repository folders or new modules.
+14. Read 08-software-engineering-architecture/06-engineering-operating-model.md before planning implementation work.
+15. Read 08-software-engineering-architecture/08-interface-and-contract-engineering.md before changing APIs, events, SDKs, config schemas, adapter payloads, or graph contracts.
+16. Read 05-interoperability-ecosystem/07-sdk-and-developer-platform.md and 08-software-engineering-architecture/27-sdk-engineering-and-contract-generation.md before implementing SDK packages, generated clients, adapter SDKs, agent SDKs, admin SDKs, test SDKs, or SDK release pipelines.
+17. Read 08-software-engineering-architecture/11-testing-and-verification-engineering.md before writing verification plans.
+18. Read 08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md before designing installation, bootstrap, generated configuration, first-run readiness, or installation evidence reports.
+19. Read 08-software-engineering-architecture/20-agent-and-resource-connectivity-automation.md before designing agent onboarding, connector registration, capability discovery, connection profiles, or resource integration.
+20. Read 08-software-engineering-architecture/21-automation-control-plane-and-self-service-operations.md before designing self-service operations, automated repair, drift detection, upgrades, or diagnostics bundles.
+21. Read 08-software-engineering-architecture/22-product-design-and-engineering-specification-discipline.md before writing feature specifications, product experience specifications, operator workflows, or implementation-ready technical designs.
+22. Read 08-software-engineering-architecture/23-project-isolation-and-composition-architecture.md before designing multi-project, project-group, memory scope, graph scope, report scope, or connector scope behavior.
+23. Read 08-software-engineering-architecture/24-admin-web-interface-and-agent-control-surface.md before designing the web interface, agent control surface, memory management, task management, rule management, feedback, or tracking workflows.
+24. Read 08-software-engineering-architecture/25-live-and-unit-test-strategy.md before designing Unit Tests, Live Tests, release validation, real-data safety, or test evidence workflows.
+25. Read 08-software-engineering-architecture/26-domain-customization-and-feature-control.md before designing domain packs, feature profiles, user-defined rules, feature hiding, or conversation-based rule suggestions.
+26. Read 08-software-engineering-architecture/13-local-development-and-environment-engineering.md before running local or remote development stacks.
+27. Read 08-software-engineering-architecture/18-developer-onboarding-and-delivery-workflow.md when onboarding or preparing a delivery checklist.
+28. Read 09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md before designing reports for speed, bug reduction, architecture quality, rework, or token consumption.
+29. Read 09-platform-governance-operations/00-index.md for operational governance, security, observability, release, retention, automated deployment, connectivity runbooks, impact reporting, and operational procedures.
+30. Read 10-gap-analysis/00-index.md to review unresolved gaps, assumptions, and decisions that need future thinking.
+31. Read 11-logical-implementation-examples/00-index.md to see concrete examples of how the system should behave when implemented.
 
 ## compatible IDE agent documentation (not product scope)
 

@@ -2,24 +2,45 @@
 
 ## Executive Summary
 
-AgentCore is designed as an enterprise operating layer for AI-assisted work. The platform does not try to replace existing coding assistants, IDEs, CI pipelines, ticket systems, or human reviewers. Its job is to connect them through a shared model of memory, work, documentation, policy, and communication.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measurable: fewer hallucinations, less rework, lower token cost, and stronger architecture adherence.
 
-The central problem is that AI work often disappears into chat history. A developer or agent asks for a change, the model produces code, and the organization is left with weak answers to important questions: what changed, why it changed, which decision justified it, which documents are now stale, which teams are affected, and whether a human should approve the risk. AgentCore solves this by turning meaningful work into structured entities and events.
+The platform does not replace coding assistants, IDEs, CI pipelines, ticket systems, or human reviewers. Connected runtimes still execute work. AgentCore owns the code-linked knowledge layer and, over time, the control plane that coordinates those runtimes.
+
+The deeper organizational problem remains: AI work often disappears into chat history. After a change ships, teams still need durable answers to what changed, why it changed, which decision justified it, which documents are stale, which teams are affected, and whether a human should approve risk. AgentCore solves that by turning meaningful work into structured entities and events. That broader operating layer is the expansion path. The wedge that earns adoption is code connection and output improvement.
 
 ## Product Positioning
 
-AgentCore is the vendor-neutral control plane for agentic work. It is not a single agent, an LLM, or an agent framework. It is the system that lets many independently executed agents and humans behave like a coordinated organization through adapters, capability routing, durable tickets, governance, health supervision, shared context, and audit evidence.
+### Wedge
+
+AgentCore's primary product promise is:
+
+**Connect a repository → build structured code knowledge → improve AI outputs → measure the gain.**
+
+Readers and implementers should treat repository connection, the Code-Knowledge Graph, context injection, correction loops, and benefit measurement as the first credible product surface. See `01-product-scope-and-feature-catalog.md`.
+
+### Control-plane destination
+
+AgentCore is also the vendor-neutral control plane for agentic work. It is not a single agent, an LLM, or an agent framework. Independently executed agents and humans coordinate through adapters, capability routing, durable tickets, governance, health supervision, shared context, and audit evidence.
 
 The boundary is strict: AgentCore may use a model for bounded control-plane intelligence, but it must not hide an internal agent runtime behind the coordinator. Codex, IDE-based workers, LangChain applications, Qwen-powered workers, and custom services remain external managed agents. Deterministic code owns permissions, lifecycle transitions, idempotency, concurrency, and approval gates.
 
-The platform is valuable because it gives leaders and teams:
+### Value stack
+
+The wedge is valuable because it gives developers and leads:
+
+- Connected truth: agents see what exists in the repository now.
+- Relevant context: task-scoped symbols, docs, decisions, and constraints instead of repository dumps.
+- Better outputs: fewer invented APIs, fewer architecture violations, less abandoned work.
+- Cost control: precise context reduces token waste and retry loops.
+- Evidence of gain: benefit metrics against a pre-connection baseline.
+
+The platform expansion adds:
 
 - Accountability: every important action has an actor, timestamp, evidence, and result.
-- Memory: future agents can inherit current project truth instead of repeating old mistakes.
+- Memory: future agents inherit current project truth instead of repeating old mistakes.
 - Governance: risky changes can be blocked, reviewed, approved, or rejected.
 - Synchronization: code, docs, decisions, and tasks stay linked.
-- Interoperability: different tools can coordinate without using the same vendor.
-- Cost control: agents receive relevant context without sending the whole project history.
+- Interoperability: different tools coordinate without sharing one vendor runtime.
 
 ## Core Concepts
 
@@ -66,11 +87,13 @@ This example shows the whole platform working as one system: data model, memory,
 
 ### What AgentCore Owns
 
+- The code-connected knowledge layer that improves external agent and IDE outputs.
 - The canonical record of AI-assisted work.
 - The shared memory and context model.
 - The knowledge graph linking work, docs, code, rules, and ownership.
 - The policy evaluation and escalation workflow.
 - The protocol and event broker between agents and tools.
+- Benefit measurement evidence for whether connected context improved outcomes.
 
 ### What AgentCore Integrates With
 

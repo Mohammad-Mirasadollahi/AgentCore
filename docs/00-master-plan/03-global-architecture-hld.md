@@ -6,7 +6,7 @@ This document defines the system-wide high-level architecture for AgentCore. It 
 
 ## Architectural Mission
 
-AgentCore is an enterprise control plane for AI-assisted work. It coordinates external agents, humans, tools, repositories, documentation, memory, rules, tickets, and audit evidence through structured records and governed workflows. It does not execute work as an agent and does not replace an agent runtime. Execution crosses a versioned adapter boundary; AgentCore retains deterministic control of authorization, routing constraints, ticket state, approvals, and audit.
+AgentCore's architectural mission starts with code-connected output improvement: ingest repositories into structured knowledge, assemble task-scoped context packs, deliver them to external IDE assistants and agent runtimes, and retain evidence of whether outputs improved. On that foundation, AgentCore is an enterprise control plane for AI-assisted work. It coordinates external agents, humans, tools, repositories, documentation, memory, rules, tickets, and audit evidence through structured records and governed workflows. It does not execute work as an agent and does not replace an agent runtime. Execution crosses a versioned adapter boundary; AgentCore retains deterministic control of authorization, routing constraints, ticket state, approvals, and audit.
 
 ## Primary Architectural Principles
 

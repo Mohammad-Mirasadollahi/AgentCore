@@ -4,9 +4,15 @@
 
 Accepted and normative. This document resolves whether AgentCore is itself an agent.
 
+## Relationship to product wedge
+
+Product scope leads with a wedge: connect to a codebase, build structured code knowledge, and improve the outputs of connected IDE assistants and agent runtimes. See `01-product-scope-and-feature-catalog.md`.
+
+That wedge does not change this boundary. Improving agent outputs means supplying governed context, memory references, rules, and evidence to external executors. It does not mean AgentCore becomes the executor, writes repository mutations itself, or embeds an agent framework as domain logic.
+
 ## Decision
 
-AgentCore is a vendor-neutral control plane for registering, coordinating, governing, observing, and improving autonomous and semi-autonomous agents. AgentCore is not an agent, an LLM, an agent executor, or an agent framework.
+AgentCore is a vendor-neutral knowledge and control plane for registering, coordinating, governing, observing, and improving autonomous and semi-autonomous agents. AgentCore is not an agent, an LLM, an agent executor, or an agent framework.
 
 External runtimes perform task execution. Examples include Codex, IDE-based workers, MCP-connected tools, LangChain applications, Qwen-powered services, CI workers, and custom organization agents. They connect through versioned `AgentAdapter` contracts and remain replaceable.
 

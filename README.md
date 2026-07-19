@@ -1,6 +1,6 @@
 # AgentCore
 
-AgentCore is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers perform execution; AgentCore owns tickets, routing, policy, approval, memory, docs sync, code graph, and audit.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes code knowledge, injects task-scoped context into IDE assistants and agent runtimes, and measures the gain. On that wedge it is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers perform execution; AgentCore owns code graph, memory, docs sync, tickets, routing, policy, approval, and audit.
 
 ## Repository layout
 
