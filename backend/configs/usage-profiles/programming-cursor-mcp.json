@@ -1,0 +1,103 @@
+{
+  "profile_id": "programming-cursor-mcp",
+  "version": "1.0.0",
+  "title": "Programming with Cursor via MCP",
+  "audience": "software-engineering",
+  "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP to use memory, docs drift, code graph, tasks, and rule evaluation capabilities.",
+  "domain_pack": "default",
+  "feature_profile": "default",
+  "connectors": [
+    {
+      "id": "cursor-mcp",
+      "type": "ide_mcp",
+      "vendor": "cursor",
+      "transport": "stdio",
+      "protocol": "mcp"
+    }
+  ],
+  "mcp": {
+    "server_name": "agentcore-programming",
+    "tools": [
+      {
+        "name": "agentcore_ping",
+        "description": "Confirm MCP connectivity and return active usage profile metadata for this project.",
+        "maps_to": "platform.ping",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_get_effective_profile",
+        "description": "Return the effective Usage Profile (domain pack, feature profile, connectors, MCP tools) for the scoped project.",
+        "maps_to": "profile.effective",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_memory_retrieve",
+        "description": "Retrieve current-state memory hints for a programming task (maps to memory retrieval capability).",
+        "maps_to": "memory.retrieve",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Task or question text" },
+            "include_history": { "type": "boolean", "default": false }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_search",
+        "description": "Search the code-knowledge graph for symbols relevant to a programming query.",
+        "maps_to": "code_graph.search",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "top_k": { "type": "integer", "minimum": 1, "maximum": 50, "default": 5 }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_create_task",
+        "description": "Create a durable Task record for follow-up engineering work.",
+        "maps_to": "core_data.create_task",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "instructions": { "type": "string" }
+          },
+          "required": ["title"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_docs_drift_check",
+        "description": "Request a documentation drift check for changed symbols (docs-sync capability).",
+        "maps_to": "docs_sync.drift_check",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol": { "type": "string" },
+            "file_path": { "type": "string" }
+          },
+          "required": ["symbol"],
+          "additionalProperties": false
+        }
+      }
+    ]
+  },
+  "defaults": {
+    "isolation": "strict",
+    "ide": "cursor"
+  }
+}

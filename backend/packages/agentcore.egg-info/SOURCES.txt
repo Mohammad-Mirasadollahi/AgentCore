@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+backend/packages/agentcore.egg-info/PKG-INFO
+backend/packages/agentcore.egg-info/SOURCES.txt
+backend/packages/agentcore.egg-info/dependency_links.txt
+backend/packages/agentcore.egg-info/entry_points.txt
+backend/packages/agentcore.egg-info/requires.txt
+backend/packages/agentcore.egg-info/top_level.txt
+backend/packages/agentcore_cli/__init__.py
+backend/packages/agentcore_cli/main.py
+backend/packages/agentcore_cli/state.py
+backend/packages/usage_profile/__init__.py
+backend/packages/usage_profile/loader.py

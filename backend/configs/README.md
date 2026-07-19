@@ -20,6 +20,7 @@ Versioned backend configuration templates and machine-readable catalogs used by 
 | `technology-profiles/` | Technology baseline profiles |
 | `code-metadata-profiles/` | Code-metadata validation profiles |
 | `environments/` | Environment profiles (`local` … `prod`) |
+| `usage-profiles/` | Usage Profiles (org/person compositions, Cursor MCP tool surfaces) |
 
 ## Rules
 

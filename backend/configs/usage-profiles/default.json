@@ -1,0 +1,27 @@
+{
+  "profile_id": "default",
+  "version": "1.0.0",
+  "title": "Default Usage Profile",
+  "audience": "general",
+  "domain_pack": "default",
+  "feature_profile": "default",
+  "connectors": [],
+  "mcp": {
+    "server_name": "agentcore-default",
+    "tools": [
+      {
+        "name": "agentcore_ping",
+        "description": "Health check that the AgentCore MCP gateway is reachable for this project scope.",
+        "maps_to": "platform.ping",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      }
+    ]
+  },
+  "defaults": {
+    "isolation": "strict"
+  }
+}

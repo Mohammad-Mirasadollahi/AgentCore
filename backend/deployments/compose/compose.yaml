@@ -14,13 +14,55 @@ services:
       - agentcore-postgres-data:/var/lib/postgresql
       - ../../platform/persistence/postgres/0000_extensions.sql:/docker-entrypoint-initdb.d/0000_extensions.sql:ro
       - ../../services/core-data-service/migrations/0001_core_data.sql:/docker-entrypoint-initdb.d/0010_core_data.sql:ro
+      - ../../services/core-data-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0011_core_data_outbox.sql:ro
       - ../../services/memory-service/migrations/0001_memory.sql:/docker-entrypoint-initdb.d/0020_memory.sql:ro
+      - ../../services/memory-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0021_memory_outbox.sql:ro
+      - ../../services/docs-sync-service/migrations/0001_docs_sync.sql:/docker-entrypoint-initdb.d/0030_docs_sync.sql:ro
+      - ../../services/docs-sync-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0031_docs_sync_outbox.sql:ro
+      - ../../services/code-graph-service/migrations/0001_code_graph.sql:/docker-entrypoint-initdb.d/0040_code_graph.sql:ro
+      - ../../services/code-graph-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0041_code_graph_outbox.sql:ro
+      - ../../services/rule-engine-service/migrations/0001_rule_engine.sql:/docker-entrypoint-initdb.d/0050_rule_engine.sql:ro
+      - ../../services/rule-engine-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0051_rule_engine_outbox.sql:ro
+      - ../../services/adapter-service/migrations/0001_adapter.sql:/docker-entrypoint-initdb.d/0060_adapter.sql:ro
+      - ../../services/adapter-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0061_adapter_outbox.sql:ro
+      - ../../services/audit-service/migrations/0001_audit.sql:/docker-entrypoint-initdb.d/0070_audit.sql:ro
+      - ../../services/audit-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0071_audit_outbox.sql:ro
+      - ../../services/identity-access-service/migrations/0001_identity_access.sql:/docker-entrypoint-initdb.d/0080_identity_access.sql:ro
+      - ../../services/identity-access-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0081_identity_access_outbox.sql:ro
+      - ../../services/orchestration-service/migrations/0001_orchestration.sql:/docker-entrypoint-initdb.d/0090_orchestration.sql:ro
+      - ../../services/orchestration-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0091_orchestration_outbox.sql:ro
+      - ../../services/reporting-service/migrations/0001_reporting.sql:/docker-entrypoint-initdb.d/0100_reporting.sql:ro
+      - ../../services/reporting-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0101_reporting_outbox.sql:ro
+      - ../../services/project-profile-service/migrations/0001_project_profile.sql:/docker-entrypoint-initdb.d/0110_project_profile.sql:ro
+      - ../../services/project-profile-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0111_project_profile_outbox.sql:ro
+      - ../../services/common-context-service/migrations/0001_common_context.sql:/docker-entrypoint-initdb.d/0120_common_context.sql:ro
+      - ../../services/common-context-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0121_common_context_outbox.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
+
+  outbox-relay:
+    image: python:3.12-slim
+    profiles: ["all"]
+    working_dir: /opt/AgentCore
+    environment:
+      AGENTCORE_DATABASE_URL: postgresql://${AGENTCORE_POSTGRES_USER:-agentcore}:${AGENTCORE_POSTGRES_PASSWORD:?AGENTCORE_POSTGRES_PASSWORD is required}@postgres:5432/${AGENTCORE_POSTGRES_DATABASE:-agentcore}
+      PYTHONPATH: backend/packages:backend/apps/worker/src:backend/services/memory-service/src:backend/services/audit-service/src:backend/services/adapter-service/src
+    volumes:
+      - ../../../:/opt/AgentCore:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      [
+        "bash",
+        "-lc",
+        "pip install -q 'psycopg[binary]==3.3.4' && python -m agentcore_worker",
+      ]
     restart: unless-stopped
 
 volumes:

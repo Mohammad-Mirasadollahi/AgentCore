@@ -81,3 +81,37 @@ def test_update_feature_profile(tmp_path):
     assert updated.json()["project"]["feature_profile"] == "strict-review"
     reloaded = DictStore(str(path))
     assert reloaded.get_project("p", Scope("t", "w", "p"))["feature_profile"] == "strict-review"
+
+
+def test_activate_programming_usage_profile_and_export_cursor_mcp():
+    store = InMemoryStore()
+    client = ApiClient(app(ProjectProfileService(store)))
+    created = client.post(
+        "/api/v1/projects/p/profile",
+        headers=H,
+        json={"name": "Eng", "usage_profile": "default"},
+    )
+    assert created.status_code == 200
+    assert created.json()["project"]["usage_profile"] == "default"
+
+    activated = client.post(
+        "/api/v1/projects/p/usage-profile:activate",
+        headers=H,
+        json={"usage_profile": "programming-cursor-mcp"},
+    )
+    assert activated.status_code == 200
+    assert activated.json()["project"]["usage_profile"] == "programming-cursor-mcp"
+
+    effective = client.get("/api/v1/projects/p/usage-profile/effective", headers=H)
+    assert effective.status_code == 200
+    assert effective.json()["effective"]["profile_id"] == "programming-cursor-mcp"
+    assert effective.json()["effective"]["mcp"]["server_name"] == "agentcore-programming"
+
+    cursor = client.get("/api/v1/projects/p/usage-profile/cursor-mcp", headers=H)
+    assert cursor.status_code == 200
+    servers = cursor.json()["cursor_mcp"]["mcpServers"]
+    assert "agentcore-programming" in servers
+    assert servers["agentcore-programming"]["env"]["AGENTCORE_USAGE_PROFILE"] == "programming-cursor-mcp"
+
+    listed = client.get("/api/v1/usage-profiles", headers=H)
+    assert "programming-cursor-mcp" in listed.json()["items"]

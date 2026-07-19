@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Implemented minimal client with HTTP transport (`AgentCoreClient`: URL/headers helpers plus lazy `httpx` `request` / `get` / `post`).

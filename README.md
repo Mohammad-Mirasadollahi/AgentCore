@@ -33,7 +33,11 @@ Roadmap Phases **1–11** have executable vertical slices and/or verification ga
 | 10 | Gap analysis catalog | `backend/configs/governance/gap-register.json` · `tests/backend/phase10-verification/` |
 | 11 | Logical examples catalog | `backend/configs/logical-examples/` · `tests/backend/phase11-verification/` |
 
-**Additional platform services:** `audit-service`, `identity-access-service`, `orchestration-service`, `reporting-service`, `project-profile-service`, `common-context-service`.
+**Additional platform services:** `audit-service`, `identity-access-service`, `orchestration-service`, `reporting-service`, `project-profile-service`, `common-context-service`, `mcp-gateway-service` (memory or PostgreSQL stores via `AGENTCORE_DATABASE_URL`).
+
+**Outbox relay:** `backend/packages/outbox_relay` + `python -m agentcore_worker` publishes unpublished service outbox rows to memory, audit, and the adapter broker. Compose profile `all` can run the worker beside Postgres.
+
+**Usage Profiles:** named compositions for org/person configuration (domain pack + feature profile + MCP tools). Catalog: `backend/configs/usage-profiles/` (includes `programming-cursor-mcp`). Activate via `project-profile-service`; Cursor connects through `mcp-gateway-service`. Design: [docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
 
 Design target notes (not required for current gates): Neo4j runtime and Tree-sitter multi-language ingestion remain longer-term for Phase 7 (slice today uses PostgreSQL projection + Python `ast` + in-memory Store).
 
@@ -55,10 +59,18 @@ flowchart TD
 ## Development setup
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/pip install -r requirements-dev.txt
+bash scripts/ensure-venv.sh
 ```
+
+This creates `.venv`, installs dependencies, installs the editable `agentcore` package, and puts the `agentcore` command on your PATH (`~/.local/bin`).
+
+```bash
+agentcore doctor
+agentcore profile list
+agentcore --help
+```
+
+CLI reference: [docs/08-software-engineering-architecture/36-agentcore-cli.md](docs/08-software-engineering-architecture/36-agentcore-cli.md).
 
 Optional PostgreSQL for full-platform stores:
 
@@ -96,6 +108,11 @@ PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
 # Platform services (examples)
 PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/audit-service -q
 PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/common-context-service -q
+
+# Usage Profile + Cursor MCP gateway
+PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/usage-profile -q
+PYTHONPATH=backend/services/project-profile-service/src:backend/packages .venv/bin/python -m pytest tests/backend/project-profile-service -q
+PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages .venv/bin/python -m pytest tests/backend/mcp-gateway-service -q
 ```
 
 Full test layout: [tests/README.md](tests/README.md). Technical test strategy: [docs/06-technical-logic/07-technical-test-strategy.md](docs/06-technical-logic/07-technical-test-strategy.md).

@@ -42,6 +42,8 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 32-transaction-idempotency-and-concurrency-standards.md defines transaction boundaries, idempotency keys, outbox/inbox, concurrency control, retries, dead-letter behavior, and race-condition handling.
 - 33-testing-seams-and-contract-boundary-standards.md defines test seams, fakes, mocks, contract boundaries, deterministic tests, LLM test strategy, and acceptance criteria.
 - 34-phase8-verification-and-acceptance.md defines the Phase 8 exit gate, port-profile artifacts, ownership checks, and named verification commands.
+- 35-usage-profile-and-cursor-mcp-onboarding.md defines Usage Profiles (org/person configuration compositions) and Cursor MCP connection materialization via the MCP gateway.
+- 36-agentcore-cli.md defines the `agentcore` CLI, PATH install, and project/MCP management commands.
 
 ## Implementation Slice
 
@@ -80,6 +82,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 19. Read 24-admin-web-interface-and-agent-control-surface.md before designing admin-console, tracking, memory management, task management, rule management, feedback, or agent supervision workflows.
 20. Read 25-live-and-unit-test-strategy.md before designing module test suites, release validation, real-data test workflows, connector validation, or production-like test evidence.
 21. Read 26-domain-customization-and-feature-control.md before designing domain packs, feature profiles, user-defined rules, feature hiding, or conversation-based rule suggestions.
+21a. Read 35-usage-profile-and-cursor-mcp-onboarding.md before designing org/person Usage Profiles or Cursor MCP onboarding.
 22. Read 13-local-development-and-environment-engineering.md before running services locally or adding development configuration.
 23. Read 14-observability-and-debuggability-engineering.md before adding logs, metrics, traces, diagnostics, alerts, or workflow explanations.
 24. Read 15-extensibility-and-plugin-engineering.md before adding adapters, plugins, rule packs, memory profiles, or parser extensions.

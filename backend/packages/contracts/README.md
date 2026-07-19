@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Minimal implementation: `api/` helpers for error envelopes and pagination, plus examples.
+Minimal implementation: `api/` helpers for error envelopes and pagination, `events/` envelope helpers, plus examples.
 
 
 ## Contract Areas
