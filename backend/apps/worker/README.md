@@ -1,29 +1,64 @@
-# Worker
+# Outbox Relay
 
-Path: `backend/apps/worker`
+Path: `backend/packages/outbox_relay` · Worker: `backend/apps/worker`
 
 ## Purpose
 
-General asynchronous worker application boundary.
+Transactional outbox relay for AgentCore. Polls unpublished rows from every service `*.outbox` table, runs platform handlers, then marks rows with `published_at`.
 
-## Modular Boundary
+## Handlers
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+| Handler | Trigger | Effect |
+|---------|---------|--------|
+| `memory_from_core_data` | `core-data` create/activity events | Candidate semantic memory |
+| `audit_mirror` | every event | Immutable audit record |
+| `broker_forward` | selected `core-data` events | Adapter broker publish |
 
-## Allowed Contents
+## Outbox DDL shapes
 
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
+| Shape | Services | Mark key |
+|-------|----------|----------|
+| `event_id` + `event_type` + payload | core-data, memory, docs-sync, code-graph, rule-engine, adapter | `event_id` |
+| `seq` + payload | audit, identity-access, orchestration, reporting, project-profile, common-context | `seq` |
 
-## Rules
+`code-graph` uses `created_at` instead of `occurred_at`. The relay normalizes both families.
 
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+## Run
+
+```bash
+export AGENTCORE_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/agentcore
+PYTHONPATH=backend/packages:backend/apps/worker/src:backend/services/memory-service/src:backend/services/audit-service/src:backend/services/adapter-service/src \
+  .venv/bin/python -m agentcore_worker --once --json
+```
+
+Poll forever (default):
+
+```bash
+PYTHONPATH=backend/packages:backend/apps/worker/src:backend/services/memory-service/src:backend/services/audit-service/src:backend/services/adapter-service/src \
+  .venv/bin/python -m agentcore_worker
+```
+
+Compose profile `all` includes `outbox-relay` beside Postgres.
+
+## Env
+
+| Variable | Purpose |
+|----------|---------|
+| `AGENTCORE_DATABASE_URL` | Required PostgreSQL URL |
+| `AGENTCORE_OUTBOX_SOURCES` | Optional comma list of source names |
+| `AGENTCORE_OUTBOX_BATCH_SIZE` | Default 100 |
+| `AGENTCORE_OUTBOX_POLL_INTERVAL` | Seconds between polls (default 2) |
+| `AGENTCORE_OUTBOX_MEMORY_HANDLER` | `true`/`false` |
+| `AGENTCORE_OUTBOX_AUDIT_HANDLER` | `true`/`false` |
+| `AGENTCORE_OUTBOX_BROKER_HANDLER` | `true`/`false` |
+
+## Tests
+
+```bash
+PYTHONPATH=backend/packages:backend/services/memory-service/src:backend/services/audit-service/src:backend/services/adapter-service/src:backend/services/core-data-service/src \
+  .venv/bin/python -m pytest tests/backend/outbox-relay -q
+```
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Implemented. In-memory source for unit tests; PostgreSQL source for runtime.

@@ -75,6 +75,53 @@ def app(service: ProjectProfileService | None = None) -> FastAPI:
         )
         return {"project": project}
 
+    @api.get("/api/v1/usage-profiles")
+    async def list_usage_profiles(
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = (x_tenant_id, x_workspace_id, x_actor_id)
+        return {"items": service.list_usage_profiles()}
+
+    @api.post("/api/v1/projects/{project_id}/usage-profile:activate")
+    async def activate_usage_profile(
+        project_id: str,
+        body: dict[str, Any],
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        profile_id = str(body.get("usage_profile") or "").strip()
+        project = service.activate_usage_profile(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            x_actor_id,
+            profile_id,
+            apply_catalog_defaults=bool(body.get("apply_catalog_defaults", True)),
+        )
+        return {"project": project}
+
+    @api.get("/api/v1/projects/{project_id}/usage-profile/effective")
+    async def effective_usage_profile(
+        project_id: str,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        effective = service.get_effective_usage_profile(Scope(x_tenant_id, x_workspace_id, project_id))
+        return {"effective": effective}
+
+    @api.get("/api/v1/projects/{project_id}/usage-profile/cursor-mcp")
+    async def export_cursor_mcp(
+        project_id: str,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        return service.export_cursor_mcp_connection(Scope(x_tenant_id, x_workspace_id, project_id))
+
     @api.post("/api/v1/project-groups")
     async def create_group(
         body: dict[str, Any],

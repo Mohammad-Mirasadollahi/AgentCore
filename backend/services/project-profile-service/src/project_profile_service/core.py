@@ -2,8 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
+import sys
 from typing import Any, Protocol
 from uuid import uuid4
+
+_PACKAGES = Path(__file__).resolve().parents[4] / "packages"
+if str(_PACKAGES) not in sys.path:
+    sys.path.insert(0, str(_PACKAGES))
+
+from usage_profile import (  # noqa: E402
+    UsageProfileError,
+    list_profile_ids,
+    load_usage_profile,
+    materialize_cursor_mcp_config,
+    resolve_effective_profile,
+)
 
 
 class ProjectProfileError(Exception):
@@ -70,8 +84,17 @@ class ProjectProfileService:
         name = str(payload.get("name") or "").strip()
         domain_pack = str(payload.get("domain_pack") or "default").strip()
         feature_profile = str(payload.get("feature_profile") or "default").strip()
+        usage_profile = str(payload.get("usage_profile") or "default").strip()
         if not name:
             raise ValidationError("name is required")
+        try:
+            catalog = load_usage_profile(usage_profile)
+        except UsageProfileError as exc:
+            raise ValidationError(str(exc)) from exc
+        if not payload.get("domain_pack"):
+            domain_pack = str(catalog["domain_pack"])
+        if not payload.get("feature_profile"):
+            feature_profile = str(catalog["feature_profile"])
         existing = self.store.begin_idempotency(scope, idempotency_key, "project")
         if existing:
             return self.store.get_project(existing, scope)
@@ -83,6 +106,7 @@ class ProjectProfileService:
             "name": name,
             "domain_pack": domain_pack,
             "feature_profile": feature_profile,
+            "usage_profile": usage_profile,
             "project_group_id": payload.get("project_group_id"),
             "isolation": "strict",
             "created_by": actor_id,
@@ -140,8 +164,9 @@ class ProjectProfileService:
         project = self.store.get_project(scope.project_id, scope)
         domain_pack = payload.get("domain_pack")
         feature_profile = payload.get("feature_profile")
-        if domain_pack is None and feature_profile is None:
-            raise ValidationError("domain_pack or feature_profile is required")
+        usage_profile = payload.get("usage_profile")
+        if domain_pack is None and feature_profile is None and usage_profile is None:
+            raise ValidationError("domain_pack, feature_profile, or usage_profile is required")
         if domain_pack is not None:
             value = str(domain_pack).strip()
             if not value:
@@ -152,6 +177,19 @@ class ProjectProfileService:
             if not value:
                 raise ValidationError("feature_profile cannot be empty")
             project["feature_profile"] = value
+        if usage_profile is not None:
+            value = str(usage_profile).strip()
+            if not value:
+                raise ValidationError("usage_profile cannot be empty")
+            try:
+                catalog = load_usage_profile(value)
+            except UsageProfileError as exc:
+                raise ValidationError(str(exc)) from exc
+            project["usage_profile"] = value
+            if domain_pack is None:
+                project["domain_pack"] = str(catalog["domain_pack"])
+            if feature_profile is None:
+                project["feature_profile"] = str(catalog["feature_profile"])
         project["updated_by"] = actor_id
         project["updated_at"] = _now()
         self.store.put_project(project)
@@ -161,6 +199,56 @@ class ProjectProfileService:
                 "project_id": scope.project_id,
                 "domain_pack": project["domain_pack"],
                 "feature_profile": project["feature_profile"],
+                "usage_profile": project.get("usage_profile"),
             }
         )
         return project
+
+    def activate_usage_profile(
+        self,
+        scope: Scope,
+        actor_id: str,
+        usage_profile_id: str,
+        *,
+        apply_catalog_defaults: bool = True,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"usage_profile": usage_profile_id}
+        if not apply_catalog_defaults:
+            project = self.store.get_project(scope.project_id, scope)
+            payload["domain_pack"] = project["domain_pack"]
+            payload["feature_profile"] = project["feature_profile"]
+        return self.update_feature_profile(scope, actor_id, payload)
+
+    def list_usage_profiles(self) -> list[str]:
+        return list_profile_ids()
+
+    def get_effective_usage_profile(self, scope: Scope) -> dict[str, Any]:
+        project = self.store.get_project(scope.project_id, scope)
+        profile_id = str(project.get("usage_profile") or "default")
+        try:
+            return resolve_effective_profile(
+                profile_id,
+                tenant_id=scope.tenant_id,
+                workspace_id=scope.workspace_id,
+                project_id=scope.project_id,
+                overrides={
+                    "domain_pack": project.get("domain_pack"),
+                    "feature_profile": project.get("feature_profile"),
+                },
+            )
+        except UsageProfileError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    def export_cursor_mcp_connection(self, scope: Scope) -> dict[str, Any]:
+        effective = self.get_effective_usage_profile(scope)
+        fragment = materialize_cursor_mcp_config(effective)
+        return {
+            "usage_profile": effective["profile_id"],
+            "effective": effective,
+            "cursor_mcp": fragment,
+            "instructions": [
+                "Merge cursor_mcp.mcpServers into your Cursor MCP settings (mcp.json).",
+                "Ensure PYTHONPATH includes backend/services/mcp-gateway-service/src and backend/packages.",
+                "Reload Cursor MCP / window after saving.",
+            ],
+        }

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentcore"
+version = "0.1.0"
+description = "AgentCore control-plane CLI and shared packages"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.138.1",
+  "uvicorn==0.49.0",
+  "pydantic==2.13.4",
+  "httpx==0.28.1",
+  "psycopg[binary]==3.3.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1",
+  "httpx2==2.5.0",
+]
+
+[project.scripts]
+agentcore = "agentcore_cli.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "backend/packages"}
+packages = ["agentcore_cli", "usage_profile", "outbox_relay"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

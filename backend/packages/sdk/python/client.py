@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
+
+if TYPE_CHECKING:
+    import httpx
 
 
 class SdkError(ValueError):
@@ -17,6 +20,7 @@ class AgentCoreClient:
         *,
         default_headers: dict[str, str] | None = None,
         api_prefix: str = "/api/v1",
+        http_client: httpx.Client | None = None,
     ) -> None:
         base = (base_url or "").strip()
         if not base:
@@ -24,6 +28,15 @@ class AgentCoreClient:
         self.base_url = base.rstrip("/") + "/"
         self.api_prefix = api_prefix.rstrip("/")
         self.default_headers = dict(default_headers or {})
+        self._http_client = http_client
+
+    @property
+    def http_client(self) -> httpx.Client:
+        if self._http_client is None:
+            import httpx
+
+            self._http_client = httpx.Client()
+        return self._http_client
 
     def url(self, path: str) -> str:
         relative = path if path.startswith("/") else f"/{path}"
@@ -68,3 +81,61 @@ class AgentCoreClient:
                 extra=headers,
             ),
         }
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Any | None = None,
+        correlation_id: str | None = None,
+        idempotency_key: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        built = self.build_request(
+            method,
+            path,
+            correlation_id=correlation_id,
+            idempotency_key=idempotency_key,
+            headers=headers,
+        )
+        return self.http_client.request(
+            built["method"],
+            built["url"],
+            headers=built["headers"],
+            json=json,
+        )
+
+    def get(
+        self,
+        path: str,
+        *,
+        correlation_id: str | None = None,
+        idempotency_key: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        return self.request(
+            "GET",
+            path,
+            correlation_id=correlation_id,
+            idempotency_key=idempotency_key,
+            headers=headers,
+        )
+
+    def post(
+        self,
+        path: str,
+        *,
+        json: Any | None = None,
+        correlation_id: str | None = None,
+        idempotency_key: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        return self.request(
+            "POST",
+            path,
+            json=json,
+            correlation_id=correlation_id,
+            idempotency_key=idempotency_key,
+            headers=headers,
+        )

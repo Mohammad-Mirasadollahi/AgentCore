@@ -24,6 +24,9 @@ Backend tests are grouped by owning service, phase gate, or package.
 | `reporting-service/` | Platform reporting slice |
 | `project-profile-service/` | Platform project-profile slice |
 | `common-context-service/` | Platform common-context slice |
+| `usage-profile/` | Usage Profile catalog loader |
+| `mcp-gateway-service/` | Cursor MCP gateway |
+| `outbox-relay/` | Transactional outbox relay (memory → audit → broker) |
 
 Service-local `backend/**/tests/` directories are documentation-only placeholders. Canonical executable tests live here.
 

@@ -24,6 +24,18 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 - Use shared packages only for stable contracts or cross-cutting primitives.
 - Add or update tests and documentation when this boundary receives implementation code.
 
+## Local HTTP entrypoints
+
+Each FastAPI service package under `src/<pkg>/` exposes `python -m <pkg>` via `__main__.py` (uvicorn `factory=True` on `api:app`). Port comes from the matching `AGENTCORE_*_PORT` env var; defaults match `backend/configs/port-profiles/agentcore-dev.json`.
+
+Example:
+
+```bash
+PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m core_data_service
+```
+
+`mcp-gateway-service` remains a stdio MCP process (`python -m mcp_gateway_service`), not an HTTP uvicorn app.
+
 ## Status
 
 Vertical slices are implemented for roadmap and platform services. Canonical tests live under `tests/backend/<service>/` or phase verification folders. See the repository root `README.md` for the phase map.
@@ -42,3 +54,4 @@ Vertical slices are implemented for roadmap and platform services. Canonical tes
 | `reporting-service` | Impact / KPI reporting |
 | `project-profile-service` | Projects, packs, groups |
 | `common-context-service` | Reusable common context items |
+| `mcp-gateway-service` | MCP stdio gateway for Cursor (Usage Profile tools) |

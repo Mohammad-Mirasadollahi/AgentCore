@@ -25,6 +25,7 @@ htmlcov/
 venv/
 env/
 .smoke-temp/
+.agentcore/
 
 # Node / Next.js
 node_modules/
