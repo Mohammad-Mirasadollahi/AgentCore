@@ -84,7 +84,7 @@ Thumbs.db
 .pip-show.txt
 .pip-*.txt
 
-# Agent / IDE local wiring + full ai-toolstack (local tooling — never sync)
+# Agent / IDE local wiring (never sync)
 .cursor/
 .cursorrules
 **/.cursorrules
@@ -104,9 +104,6 @@ project_docs/
 .codex/
 .mcp-memory
 .mcp-memory/
-ai-toolstack/
-Ai-toolstack/
-AI-Toolstack/
 
 # Generated evidence and exports (track only redacted hackathon real reports)
 evidence/

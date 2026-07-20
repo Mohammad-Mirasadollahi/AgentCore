@@ -46,10 +46,15 @@ Questions:
 - How are old embeddings invalidated?
 - How are embedding model changes handled?
 
+Partial resolution:
+
+- **Vector index ownership (accelerator role):** optional turbovec ANN replica is documented in `../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md`. Durable embeddings stay in PostgreSQL+pgvector; turbovec is not SoR.
+- Refresh / model-change / invalidation policy for embedding *content* remains open.
+
 Resolution output:
 
-- Embedding lifecycle policy.
-- Vector index ownership decision.
+- Embedding lifecycle policy (still open).
+- Vector index ownership decision (accelerator path: closed by stack ADR `13/08`; baseline SoR remains pgvector).
 
 ## GAP-T04 - Prompt Context Verification
 

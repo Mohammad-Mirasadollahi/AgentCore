@@ -98,4 +98,101 @@ def app(service: CommonContextService | None = None) -> FastAPI:
         bundle = service.resolve_bundle(Scope(x_tenant_id, x_workspace_id, project_id), token_budget)
         return {"bundle": bundle}
 
+    @api.post("/api/v1/projects/{project_id}/guidance/resolve")
+    async def resolve_guidance(
+        project_id: str,
+        body: dict[str, Any] = Body(default_factory=dict),
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        scope = Scope(x_tenant_id, x_workspace_id, project_id)
+        bundle = service.resolve_guidance(
+            scope,
+            task_summary=str(body.get("task_summary") or ""),
+            workflow_type=str(body.get("workflow_type") or "coding"),
+            include_skill_bodies=bool(body.get("include_skill_bodies") or False),
+            budget_overrides=body.get("budget_overrides") if isinstance(body.get("budget_overrides"), dict) else None,
+            include_general_common_context=bool(body.get("include_general_common_context") or False),
+        )
+        return {"bundle": bundle}
+
+    @api.get("/api/v1/projects/{project_id}/guidance/skills")
+    async def list_skills(
+        project_id: str,
+        query: str = "",
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        skills = service.list_skills(Scope(x_tenant_id, x_workspace_id, project_id), query=query)
+        return {"skills": skills}
+
+    @api.get("/api/v1/projects/{project_id}/guidance/skills/{skill_id}")
+    async def get_skill_by_id(
+        project_id: str,
+        skill_id: str,
+        bundle_id: str | None = None,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        skill = service.get_skill(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            skill_id=skill_id,
+            bundle_id=bundle_id,
+        )
+        return {"skill": skill}
+
+    @api.post("/api/v1/projects/{project_id}/guidance/skills:get")
+    async def get_skill(
+        project_id: str,
+        body: dict[str, Any] = Body(default_factory=dict),
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        skill = service.get_skill(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            skill_id=str(body.get("skill_id") or "").strip() or None,
+            name=str(body.get("name") or "").strip() or None,
+            bundle_id=str(body.get("bundle_id") or "").strip() or None,
+        )
+        return {"skill": skill}
+
+    @api.post("/api/v1/projects/{project_id}/guidance/seed-mcp-first")
+    async def seed_mcp_first(
+        project_id: str,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+        x_correlation_id: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        result = service.ensure_mcp_first_seed(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            x_actor_id,
+            x_correlation_id or str(uuid4()),
+        )
+        return result
+
+    @api.post("/api/v1/projects/{project_id}/guidance/export")
+    async def export_guidance(
+        project_id: str,
+        body: dict[str, Any] = Body(default_factory=dict),
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        result = service.export_guidance_layout(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            layout=str(body.get("layout") or "cursor"),
+            dry_run=bool(body.get("dry_run", True)),
+        )
+        return {"export": result}
+
     return api

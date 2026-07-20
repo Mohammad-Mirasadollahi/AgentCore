@@ -20,7 +20,9 @@ This document is the design home for Usage Profiles. It complements:
 | Connection profile | Generated client config for one connector (for example Cursor MCP) |
 | MCP gateway | AgentCore process that speaks MCP to IDE clients and maps tools to platform APIs |
 
-Usage Profiles are **not** Cursor workspace rule packs under `ai-toolstack/`. Those configure the AgentCore development IDE only.
+Usage Profiles are **not** Cursor workspace rule packs under `.cursor/rules/`. Those configure the AgentCore development IDE only.
+
+**Agent Workspace Guidance** (product AGENTS entry, always-on rules, and skills for customer projects) is specified in [`../15-agent-workspace-guidance/00-index.md`](../15-agent-workspace-guidance/00-index.md). Connect-time delivery is MCP-primary via tools such as `agentcore_guidance_resolve`, `agentcore_guidance_list_skills`, and `agentcore_guidance_get_skill` when a Usage Profile allow-lists them. The MCP-first seed rule and capability skills that tell Cursor (and other coding agents) to call AgentCore tools for memory, graph, docs-sync, writes, and tasks are normative in [`../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md`](../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md). This document owns Usage Profile composition and MCP onboarding; phase 15 owns guidance artifact contracts, resolve semantics, and that seed pack. Implementation of guidance tools and seed materialization is follow-on work after the phase 15 design docs.
 
 ## Goals
 

@@ -13,6 +13,7 @@ SERVICE_URL_ENV = {
     "memory": "AGENTCORE_MEMORY_DATABASE_URL",
     "graph": "AGENTCORE_CODE_GRAPH_DATABASE_URL",
     "docs": "AGENTCORE_DOCS_SYNC_DATABASE_URL",
+    "common_context": "AGENTCORE_COMMON_CONTEXT_DATABASE_URL",
 }
 
 
@@ -23,10 +24,11 @@ class StoreBundle:
     memory: Any
     graph: Any
     docs: Any
+    common_context: Any
     database_url: str | None = None
 
     def close(self) -> None:
-        for store in (self.core, self.memory, self.graph, self.docs):
+        for store in (self.core, self.memory, self.graph, self.docs, self.common_context):
             closer = getattr(store, "close", None)
             if callable(closer):
                 closer()
@@ -70,6 +72,7 @@ def build_stores(environ: dict[str, str] | None = None) -> StoreBundle:
     mode = resolve_store_mode(env)
     if mode == "memory":
         from code_graph_service.testing import InMemoryStore as GraphStore
+        from common_context_service.testing import InMemoryStore as CommonContextStore
         from core_data_service.testing import InMemoryStore as CoreStore
         from docs_sync_service.testing import InMemoryStore as DocsStore
         from memory_service.testing import InMemoryStore as MemoryStore
@@ -80,9 +83,11 @@ def build_stores(environ: dict[str, str] | None = None) -> StoreBundle:
             memory=MemoryStore(),
             graph=GraphStore(),
             docs=DocsStore(),
+            common_context=CommonContextStore(),
         )
 
     from code_graph_service.postgres_store import PostgresStore as GraphStore
+    from common_context_service.postgres_store import PostgresStore as CommonContextStore
     from core_data_service.postgres_store import PostgresStore as CoreStore
     from docs_sync_service.postgres_store import PostgresStore as DocsStore
     from memory_service.postgres_store import PostgresStore as MemoryStore
@@ -94,5 +99,6 @@ def build_stores(environ: dict[str, str] | None = None) -> StoreBundle:
         memory=MemoryStore(urls["memory"]),
         graph=GraphStore(urls["graph"]),
         docs=DocsStore(urls["docs"]),
+        common_context=CommonContextStore(urls["common_context"]),
         database_url=urls["core"],
     )

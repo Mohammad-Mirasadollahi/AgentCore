@@ -20,3 +20,4 @@ Common Context must be scoped, scored, explainable, auditable, configurable, and
 - `../04-rule-engine-orchestration/` executes policies and automation decisions. Common Context supplies reusable rules and constraints but does not replace the rule engine.
 - `../08-software-engineering-architecture/` defines modular engineering structure. Common Context adds a dedicated domain, service, package, and configuration profile.
 - `../09-platform-governance-operations/` defines operational governance and reporting. Common Context contributes audit and benefit measurement data.
+- `../15-agent-workspace-guidance/` projects typed Common Context kinds (`agents_entry`, `always_rule`, `skill`) into connect-time MCP bundles and optional IDE filesystem export. Common Context remains the source of truth; phase 15 owns the coding-agent artifact shape and delivery.

@@ -15,6 +15,7 @@ The earlier sections define architecture, contracts, technical logic, governance
 - `05-interoperability-and-broker-example.md` shows Universal Agent JSON, broker routing, IDE notification, adapter behavior, and dead-letter handling.
 - `06-developer-implementation-checklist.md` gives an engineering checklist for implementing each subsystem.
 - `07-phase11-verification-and-acceptance.md` defines the logical-examples feature gate and named verification commands under `tests/backend/gates/logical-examples-verification/`.
+- `08-turbovec-hybrid-retrieval-example.md` shows Stage-1 SQL/ACL candidate narrowing plus optional turbovec `IdMapIndex` allowlist dense rerank (see stack ADR `13/08`).
 
 ## Phase 11 verification home
 

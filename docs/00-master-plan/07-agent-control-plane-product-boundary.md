@@ -68,6 +68,7 @@ An agent has a governed lifecycle such as `registered`, `online`, `degraded`, `p
 - LangChain is optional behind an adapter and must not become the orchestration core.
 - Agent-to-agent collaboration is represented as tickets and versioned messages, not hidden sequential prompt calls.
 - Admin UI and SDKs operate on agents, capabilities, tickets, dispatches, approvals, and evidence.
+- Native collaboration aggregates beyond AgentTicket (Issue, Task, ChangeSet, reviews, discussion, labels) are specified in `../01-core-data-model/07-agent-collaboration-work-surface.md`. External VCS/trackers remain optional projections per `../05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md`.
 
 ## Acceptance Criteria
 

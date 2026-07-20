@@ -21,6 +21,9 @@ def test_tools_list_matches_usage_profile():
     assert "agentcore_write" in names
     assert "agentcore_docs_write" in names
     assert "agentcore_docs_status" in names
+    assert "agentcore_guidance_resolve" in names
+    assert "agentcore_guidance_list_skills" in names
+    assert "agentcore_guidance_get_skill" in names
     assert all("inputSchema" in t for t in tools)
 
 
@@ -121,6 +124,24 @@ def test_tools_call_wired_backends():
     status = gw.call_tool("agentcore_docs_status", {})
     assert "coverage" in status["structuredContent"]
     assert "missing_count" in status["structuredContent"]
+
+    guidance = gw.call_tool(
+        "agentcore_guidance_resolve",
+        {"task_summary": "start coding with AgentCore MCP"},
+    )
+    bundle = guidance["structuredContent"]["bundle"]
+    assert bundle["agents_entry"] is not None
+    assert any(r.get("slug") == "mcp-first-agentcore" for r in bundle["always_rules"])
+    assert any(s["name"] == "agentcore-session-bootstrap" for s in bundle["skills"])
+
+    listed = gw.call_tool("agentcore_guidance_list_skills", {"query": "docs"})
+    assert any(s["name"] == "agentcore-docs-sync" for s in listed["structuredContent"]["skills"])
+
+    skill = gw.call_tool(
+        "agentcore_guidance_get_skill",
+        {"name": "agentcore-code-graph", "bundle_id": bundle["bundle_id"]},
+    )
+    assert "agentcore_code_graph_search" in skill["structuredContent"]["skill"]["body"]
 
 
 def test_unknown_tool_fails_closed():

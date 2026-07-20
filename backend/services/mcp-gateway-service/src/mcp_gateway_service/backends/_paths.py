@@ -17,6 +17,7 @@ def ensure_service_paths() -> None:
         SERVICES / "memory-service" / "src",
         SERVICES / "code-graph-service" / "src",
         SERVICES / "docs-sync-service" / "src",
+        SERVICES / "common-context-service" / "src",
     ):
         text = str(path)
         if text not in sys.path:

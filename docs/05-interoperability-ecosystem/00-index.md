@@ -15,6 +15,11 @@ Connect different AI coding tools, models, IDEs, departments, humans, SDK client
 - `07-sdk-and-developer-platform.md` defines SDK families, developer platform, Agent SDK, Adapter SDK, Admin SDK, Test SDK, scoped clients, authentication, transport, events, errors, versioning, packaging, and acceptance criteria.
 - `08-agent-communication-language-and-runtime-sdk.md` defines the agent lingua franca, translator boundary, and integrations for LangChain, LangGraph, Codex, IDE-based workers, MCP, and custom runtimes.
 - `09-multi-vendor-agent-network-ecosystem.md` defines the multi-vendor and federated-network ecosystem vision, topology layers, interaction patterns, and implementation map (demo vs roadmap).
+- `10-external-vcs-and-tracker-mapping.md` defines anti-corruption mapping from GitHub/GitLab/Jira/Linear into AgentCore Issue/Task/ChangeSet/Review aggregates (external systems are projections, not SoR).
+
+## Related Stack Integrations
+
+- Optional local ANN acceleration with [turbovec](https://github.com/RyanCodrai/turbovec) is specified under `../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md` (port/adapter boundary; not a runtime translator). Worked flow: `../11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md`.
 
 ## Features Covered
 
@@ -28,6 +33,7 @@ Connect different AI coding tools, models, IDEs, departments, humans, SDK client
 - Runtime Translator SDK
 - Admin SDK and Test SDK
 - Multi-vendor agent network and federation (vision; broker and peer gateway on roadmap)
+- External VCS and tracker projection mapping (GitHub/GitLab/Jira/Linear → native ChangeSet/Issue)
 
 ## Related Technical Logic
 

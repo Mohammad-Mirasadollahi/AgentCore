@@ -27,6 +27,7 @@ Goals:
 | ticket adapter | create external work item | adapter-service |
 | approval adapter | sync human approvals | adapter-service |
 | model provider adapter | call embedding or reasoning provider | adapter-service or provider package |
+| vector index accelerator | optional ANN replica (e.g. turbovec) behind `VectorIndexPort` | service infrastructure adapter; see `../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md` |
 | rule pack | add security or compliance policy | rule-engine-service |
 | memory profile | adjust retrieval weights | memory-service config |
 | graph parser | parse a new language | code-graph-service parser adapter |

@@ -17,7 +17,7 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 - 00-master-plan/07-agent-control-plane-product-boundary.md is the normative product-boundary decision and must be read before agent, connector, orchestration, ticket, or model-runtime work.
 
 - 00-master-plan/ defines the product scope, full feature catalog, roadmap, global architecture, cross-cutting challenges, complete system blueprint, professional documentation standard, documentation structure / machine-ingest standard (numbering, titles, frontmatter, RAG/GraphRAG, fallbacks), and documentation classification lanes (lifecycle, concern, audience, authority, visibility).
-- 01-core-data-model/ defines Activity, WorkLog, Decision, Issue, and Task foundations.
+- 01-core-data-model/ defines Activity, WorkLog, Decision, Issue, and Task foundations, plus the AgentCore-native collaboration surface (ChangeSet, reviews, discussion, labels) in `07`–`08`.
 - 02-memory-and-context/ defines three-tier memory, consolidation, state-over-event context, prompt caching, decay, dynamic retrieval, configurable memory weighting, autonomous question discovery, FAQ memory, curiosity scoring, missing documentation discovery, batched consolidation, and deferred documentation or review workflows.
 - 03-docs-as-code-sync/ defines the documentation knowledge graph, AST anchoring, YAML frontmatter, Bloom filter lookup, and lightweight doc flags.
 - 04-rule-engine-orchestration/ defines semantic rules, escalation, anomaly detection, dependency analysis, and task routing.
@@ -28,6 +28,10 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 - 09-platform-governance-operations/ defines security, observability, release strategy, retention, API governance, runbooks, automated deployment and connectivity procedures, impact reporting, benefit measurement, risk register, and glossary.
 - 10-gap-analysis/ captures known gaps, unresolved assumptions, open decisions, and the process for reviewing and closing them.
 - 11-logical-implementation-examples/ provides implementation-oriented logical examples and checklists for engineers who will code the system.
+- 12-common-context-reuse/ defines governed reusable project guidance (Common Context) for scoring, approval, and pre-run bundles.
+- 13-technology-stack-and-platform-decisions/ defines the selected technology stack: Next.js, TypeScript, Python, FastAPI, PostgreSQL, pgvector, Neo4j, Redis, object storage, messaging, observability, and deployment profiles.
+- 14-api-design-and-naming-standards/ defines API endpoint naming, DTO naming, error format, pagination, idempotency, API catalog, OpenAPI, SDK, and contract governance.
+- 15-agent-workspace-guidance/ defines Agent Workspace Guidance: project-scoped AGENTS entry, always-on rules, and on-demand skills (including MCP-first routing to AgentCore tools) delivered MCP-primary (optional filesystem export) as typed Common Context projections for connected coding agents.
 
 ## Reading Order
 
@@ -62,19 +66,21 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 29. Read 09-platform-governance-operations/00-index.md for operational governance, security, observability, release, retention, automated deployment, connectivity runbooks, impact reporting, and operational procedures.
 30. Read 10-gap-analysis/00-index.md to review unresolved gaps, assumptions, and decisions that need future thinking.
 31. Read 11-logical-implementation-examples/00-index.md to see concrete examples of how the system should behave when implemented.
+32. Read 12-common-context-reuse/00-index.md for governed reusable guidance storage before Agent Workspace Guidance projections.
+33. Read 15-agent-workspace-guidance/00-index.md for connect-time AGENTS / rules / skills delivery to coding agents (MCP-primary, optional export).
+34. Read `backend/docs/STRUCTURE_STANDARD.md` before creating or moving backend folders.
 
 ## compatible IDE agent documentation (not product scope)
 
-Configuring **IDE** rules, skills, and optional team workspace packs is documented separately from AgentCore product phases:
+Configuring **IDE** rules, skills, and optional team workspace packs **for developing this repository** is documented separately from AgentCore product phases:
 
-- Start at [`docs/agents/00-index.md`](agents/00-index.md) (canonical source: `ai-toolstack/docs/agents/00-index.md`, synced on `install.sh`).
-- Workspace rule interview: [`docs/agents/ide-workspace-rule-discovery.md`](agents/ide-workspace-rule-discovery.md).
+- Start at [`docs/agents/00-index.md`](agents/00-index.md). Rules/skills live under `.cursor/rules/` and `.cursor/skills/`.
+- Workspace rule interview: [`docs/agents/ide-workspace-rule-discovery.md`](agents/ide-workspace-rule-discovery.md) (if present).
 
-This does not implement the platform rule engine under `04-rule-engine-orchestration/`.
+**Product** Skills / Rules / `AGENTS.md` for customer projects connected via MCP: [`15-agent-workspace-guidance/00-index.md`](15-agent-workspace-guidance/00-index.md). That phase does not replace the platform rule engine under `04-rule-engine-orchestration/`.
 
 ## Replacement Goal
 
-The old flat documents numbered 0 through 5 have been replaced. Combined design documents have also been split into separate phase-specific design files. The documentation now includes feature scope, separate design files, contracts, challenges, acceptance criteria, detailed rationale, scenarios, edge cases, operational design guidance, technical logic, algorithms, graph-backed code understanding, modular project structure, a broad software engineering playbook, professional product design and engineering specification discipline, zero-touch installation, automated bootstrap, agent and resource connectivity automation, self-service operations, autonomous question discovery, FAQ memory, batched knowledge workflows, project isolation, project composition, domain packs, feature profiles, custom rule authoring, conversation-based rule suggestions, SDK platform, SDK generation, SDK testing, admin web interface, impact reporting, Unit Test strategy, Live Test strategy, port conflict prevention, operational governance, runbooks, risk tracking, gap analysis, logical implementation examples, and verification strategy.
-31. Read `/root/AgentCore/backend/docs/STRUCTURE_STANDARD.md` before creating or moving backend folders.
-- `13-technology-stack-and-platform-decisions/` defines the selected technology stack: Next.js, TypeScript, Python, FastAPI, PostgreSQL, pgvector, Neo4j, Redis, object storage, messaging, observability, and deployment profiles.
-- `14-api-design-and-naming-standards/` defines API endpoint naming, DTO naming, error format, pagination, idempotency, API catalog, OpenAPI, SDK, and contract governance.
+The old flat documents numbered 0 through 5 have been replaced. Combined design documents have also been split into separate phase-specific design files. The documentation now includes feature scope, separate design files, contracts, challenges, acceptance criteria, detailed rationale, scenarios, edge cases, operational design guidance, technical logic, algorithms, graph-backed code understanding, modular project structure, a broad software engineering playbook, professional product design and engineering specification discipline, zero-touch installation, automated bootstrap, agent and resource connectivity automation, self-service operations, autonomous question discovery, FAQ memory, batched knowledge workflows, project isolation, project composition, domain packs, feature profiles, custom rule authoring, conversation-based rule suggestions, SDK platform, SDK generation, SDK testing, admin web interface, impact reporting, Unit Test strategy, Live Test strategy, port conflict prevention, operational governance, runbooks, risk tracking, gap analysis, logical implementation examples, verification strategy, Common Context reuse, technology stack decisions, API naming standards, and Agent Workspace Guidance for connected coding agents.
+
+Optional turbovec ANN acceleration ADR: `13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md`.

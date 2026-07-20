@@ -49,6 +49,8 @@ pgvector is the approved RAG vector technology. It should store embeddings that 
 
 A separate vector database is not part of the baseline. It requires an ADR with measured evidence that pgvector cannot meet the target workload.
 
+An optional **in-process ANN acceleration replica** (not a second SoR) is governed by `08-turbovec-ann-acceleration-integration.md`. That ADR allows [turbovec](https://github.com/RyanCodrai/turbovec) behind a `VectorIndexPort` while PostgreSQL+pgvector remains the durable embedding store. Enabling it still requires the measured gates in that ADR.
+
 ## Neo4j Standard
 
 Neo4j is the approved code graph product. It owns graph-native records and traversal behavior:
