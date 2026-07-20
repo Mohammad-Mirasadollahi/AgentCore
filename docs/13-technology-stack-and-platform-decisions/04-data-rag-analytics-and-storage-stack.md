@@ -64,6 +64,8 @@ RAG retrieval should combine:
 6. Neo4j relationship expansion when a query depends on ownership, calls, imports, inheritance, or impact.
 7. source-read escalation rules when metadata and retrieval context are insufficient.
 
+Optional Stage-2 dense acceleration with [turbovec](https://github.com/RyanCodrai/turbovec) (`IdMapIndex` allowlist search) is defined in `08-turbovec-ann-acceleration-integration.md` and `11-turbovec-for-rag.md`. pgvector remains the durable embedding SoR; turbovec is a rebuildable replica only.
+
 ## Code Graph With Neo4j
 
 The code graph must use Neo4j as the approved graph product. Neo4j stores graph-native structures that should not be flattened into PostgreSQL merely to avoid another service.

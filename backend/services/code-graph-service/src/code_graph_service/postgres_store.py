@@ -22,7 +22,7 @@ def _timestamp(value: Any) -> str:
 class PostgresStore:
     """PostgreSQL adapter for the Code Graph Store port (graph projection + outbox)."""
 
-    def __init__(self, database_url: str) -> None:
+    def __init__(self, database_url: str, *, ensure_schema: bool = True) -> None:
         if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
             raise ValueError("Code Graph database URL must use PostgreSQL")
         try:
@@ -34,6 +34,76 @@ class PostgresStore:
         normalized_url = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
         self._connection = psycopg.connect(normalized_url, autocommit=True, row_factory=dict_row)
         self._json = Jsonb
+        if ensure_schema:
+            self.ensure_schema()
+
+    def ensure_schema(self) -> None:
+        """Apply core + FTS migrations when present."""
+        from pathlib import Path
+
+        migrations_dir = Path(__file__).resolve().parents[2] / "migrations"
+        with self._connection.cursor() as cur:
+            for name in ("0001_code_graph.sql", "0002_outbox_published.sql", "0006_symbol_fts.sql"):
+                path = migrations_dir / name
+                if path.is_file():
+                    cur.execute(path.read_text(encoding="utf-8"))
+
+    def capabilities(self) -> dict[str, bool]:
+        return {"apoc": False, "gds": False, "fulltext": True}
+
+    def fulltext_search(
+        self,
+        scope: Scope,
+        query: str,
+        *,
+        top_k: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Postgres FTS via tsvector / ts_rank_cd (english config)."""
+        top_k = max(1, min(int(top_k), 100))
+        q = (query or "").strip()
+        if not q:
+            return []
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id AS symbol_id,
+                       ts_rank_cd(
+                         COALESCE(
+                           search_document,
+                           setweight(to_tsvector('english', coalesce(name, '')), 'A')
+                           || setweight(to_tsvector('english', coalesce(qualified_name, '')), 'A')
+                           || setweight(to_tsvector('english', coalesce(signature, '')), 'B')
+                           || setweight(to_tsvector('english', coalesce(file_path, '')), 'B')
+                           || setweight(to_tsvector('english', coalesce(ai_documentation, '')), 'C')
+                         ),
+                         plainto_tsquery('english', %s)
+                       ) AS score
+                FROM code_graph.symbols
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                  AND (
+                    COALESCE(search_document,
+                      setweight(to_tsvector('english', coalesce(name, '')), 'A')
+                      || setweight(to_tsvector('english', coalesce(qualified_name, '')), 'A')
+                      || setweight(to_tsvector('english', coalesce(signature, '')), 'B')
+                      || setweight(to_tsvector('english', coalesce(file_path, '')), 'B')
+                      || setweight(to_tsvector('english', coalesce(ai_documentation, '')), 'C')
+                    ) @@ plainto_tsquery('english', %s)
+                  )
+                ORDER BY score DESC, id
+                LIMIT %s
+                """,
+                (q, scope.tenant_id, scope.workspace_id, scope.project_id, q, top_k),
+            )
+            rows = cur.fetchall()
+        return [
+            {
+                "symbol_id": row["symbol_id"],
+                "score": float(row["score"] or 0.0),
+                "method": "postgres.fts",
+            }
+            for row in rows
+            if float(row["score"] or 0.0) > 0
+        ]
 
     @staticmethod
     def _scope_key(scope: Scope) -> str:
@@ -122,6 +192,25 @@ class PostgresStore:
                     symbol.updated_at,
                 ),
             )
+            # Refresh FTS document (column added by 0006_symbol_fts.sql).
+            try:
+                cur.execute(
+                    """
+                    UPDATE code_graph.symbols
+                    SET search_document = (
+                        setweight(to_tsvector('english', coalesce(name, '')), 'A')
+                        || setweight(to_tsvector('english', coalesce(qualified_name, '')), 'A')
+                        || setweight(to_tsvector('english', coalesce(signature, '')), 'B')
+                        || setweight(to_tsvector('english', coalesce(file_path, '')), 'B')
+                        || setweight(to_tsvector('english', coalesce(ai_documentation, '')), 'C')
+                        || setweight(to_tsvector('english', left(coalesce(body, ''), 2000)), 'D')
+                    )
+                    WHERE id = %s
+                    """,
+                    (symbol.id,),
+                )
+            except Exception:
+                pass
 
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:
         with self._connection.cursor() as cur:
@@ -157,6 +246,16 @@ class PostgresStore:
                   AND metadata->>'file_path' = %s
                 """,
                 (scope.tenant_id, scope.workspace_id, scope.project_id, file_path),
+            )
+
+    def delete_edge(self, scope: Scope, edge_id: str) -> None:
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM code_graph.edges
+                WHERE id = %s AND tenant_id = %s AND workspace_id = %s AND project_id = %s
+                """,
+                (edge_id, scope.tenant_id, scope.workspace_id, scope.project_id),
             )
 
     def put_edge(self, edge: GraphEdge) -> None:

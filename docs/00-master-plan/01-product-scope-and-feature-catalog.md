@@ -127,7 +127,7 @@ Features are grouped by delivery priority. The catalog remains the full product 
 1. Repository and project connection: register repositories, project isolation, and connector validation.
 2. Code-Knowledge Graph: files, classes, functions, methods, imports, calls, hashes, and relationships.
 3. AST anchoring and change detection: stable symbol hashes for semantic diffs and doc drift.
-4. Living documentation linked to code symbols.
+4. Living documentation linked to code symbols, and Repository Code Wiki for holistic, architecture-aware repository-level documentation (hierarchical modules, incremental refresh, Mermaid visuals, admin browse + MCP); see `../07-code-knowledge-graph/14-repository-code-wiki-feature-specification.md`.
 5. Dynamic context injection and RAG: retrieve only task-relevant code, docs, and state.
 6. State-over-event context: inject current truth before historical narratives.
 7. Prompt caching for stable architecture and rules.
@@ -188,4 +188,5 @@ This product scope is satisfied when:
 - `05-complete-system-blueprint.md` — full narrative aligned to this positioning.
 - `07-agent-control-plane-product-boundary.md` — normative executor vs control-plane boundary.
 - `../07-code-knowledge-graph/01-vision-and-scope.md` — code graph as the core wedge mechanism.
+- `../07-code-knowledge-graph/14-repository-code-wiki-feature-specification.md` — Repository Code Wiki (CodeWiki-inspired).
 - `../09-platform-governance-operations/` — benefit measurement and operational controls.

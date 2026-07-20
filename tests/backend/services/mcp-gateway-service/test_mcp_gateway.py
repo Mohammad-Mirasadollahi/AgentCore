@@ -1,6 +1,8 @@
 import json
 
+from mcp_gateway_service.backends.platform import PlatformBackends
 from mcp_gateway_service.server import McpGateway, McpGatewayError, handle_message
+from mcp_gateway_service.store_factory import build_stores
 
 
 def gateway():
@@ -9,6 +11,14 @@ def gateway():
         tenant_id="t",
         workspace_id="w",
         project_id="p",
+        backends=PlatformBackends(
+            build_stores(
+                {
+                    "AGENTCORE_MCP_STORE_MODE": "memory",
+                    "AGENTCORE_MCP_GRAPH_MODE": "memory",
+                }
+            )
+        ),
     )
 
 
@@ -18,6 +28,9 @@ def test_tools_list_matches_usage_profile():
     names = {t["name"] for t in tools}
     assert "agentcore_ping" in names
     assert "agentcore_create_task" in names
+    assert "agentcore_code_graph_search" in names
+    assert "agentcore_code_graph_impact" in names
+    assert "agentcore_code_graph_ingest_file" in names
     assert "agentcore_write" in names
     assert "agentcore_docs_write" in names
     assert "agentcore_docs_status" in names

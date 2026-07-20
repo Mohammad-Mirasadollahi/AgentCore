@@ -63,6 +63,62 @@ class IngestResult:
 
 
 @dataclass
+class RepoIngestFileOutcome:
+    relative_path: str
+    language: str
+    status: str  # ok | skipped | failed
+    detail: str = ""
+    file_id: str = ""
+    symbols_indexed: int = 0
+    symbols_changed: int = 0
+    symbols_documented: int = 0
+    edges_written: int = 0
+
+
+@dataclass
+class RepoIngestResult:
+    root_path: str
+    files_discovered: int
+    files_ingested: int
+    files_failed: int
+    files_skipped: int
+    symbols_indexed: int
+    symbols_changed: int
+    symbols_documented: int
+    edges_written: int
+    truncated: bool
+    outcomes: list[RepoIngestFileOutcome]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "root_path": self.root_path,
+            "files_discovered": self.files_discovered,
+            "files_ingested": self.files_ingested,
+            "files_failed": self.files_failed,
+            "files_skipped": self.files_skipped,
+            "symbols_indexed": self.symbols_indexed,
+            "symbols_changed": self.symbols_changed,
+            "symbols_documented": self.symbols_documented,
+            "edges_written": self.edges_written,
+            "truncated": self.truncated,
+            "outcomes": [
+                {
+                    "relative_path": item.relative_path,
+                    "language": item.language,
+                    "status": item.status,
+                    "detail": item.detail,
+                    "file_id": item.file_id,
+                    "symbols_indexed": item.symbols_indexed,
+                    "symbols_changed": item.symbols_changed,
+                    "symbols_documented": item.symbols_documented,
+                    "edges_written": item.edges_written,
+                }
+                for item in self.outcomes
+            ],
+        }
+
+
+@dataclass
 class ParsedSymbol:
     kind: SymbolKind
     name: str

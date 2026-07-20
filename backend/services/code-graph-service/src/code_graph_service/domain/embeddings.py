@@ -28,7 +28,9 @@ class LocalEmbeddingStub:
         self.dims = dims
         self.model = model
 
-    def embed(self, text: str) -> EmbeddingResult:
+    def embed(self, text: str, *, is_query: bool = False) -> EmbeddingResult:
+        """Embed text. ``is_query`` is accepted for API parity with BGE (ignored here)."""
+        _ = is_query
         if not text.strip():
             return EmbeddingResult([0.0] * self.dims, "empty", self.model, self.dims)
         return EmbeddingResult(embed_text(text, self.dims), "ready", self.model, self.dims)

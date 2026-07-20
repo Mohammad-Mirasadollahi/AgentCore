@@ -148,7 +148,7 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | --- | --- | --- | --- |
 | `agentcore-session-bootstrap` | Connect / guidance / profile | `agentcore_ping`, `agentcore_get_effective_profile`, `agentcore_guidance_resolve`, `agentcore_guidance_list_skills`, `agentcore_guidance_get_skill` | Session start; before first substantive edit |
 | `agentcore-memory` | Memory retrieve / recall | `agentcore_memory_retrieve`; optional write via `agentcore_write` (`resource=memory`) | Need prior facts, decisions, or task context |
-| `agentcore-code-graph` | Code knowledge graph | `agentcore_code_graph_search` | Locate symbols, related files, graph-guided exploration before wide filesystem search |
+| `agentcore-code-graph` | Code knowledge graph | `agentcore_code_graph_explore` (primary), hybrid search, detect_changes, architecture/path | Locate symbols, flows, review impact, and architecture before wide filesystem search |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
 | `agentcore-docs-sync` | Docs-as-code sync | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, validate, note, draft, index |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
@@ -227,13 +227,16 @@ description: Search AgentCore code knowledge graph before wide local search.
 
 ## How
 
-1. Call `agentcore_code_graph_search` with a focused `query` and sensible `top_k`.
-2. Use returned symbols/paths to narrow Read/`rg`; escalate to source only as needed.
-3. If the graph is empty or errors, report degraded mode, then fall back to local search.
+1. Prefer `agentcore_code_graph_explore` for "how does X work", flows, or surveying an area (one call: seeds + call path + budgeted source).
+2. Use `agentcore_code_graph_hybrid_search` or `agentcore_code_graph_search` for name/meaning lookup when you only need ids.
+3. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
+4. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
+5. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, or empty graph; report degraded mode when tools fail.
 
 ## Do not
 
-- Prefer exhaustive workspace crawl when graph search is available and healthy.
+- Prefer exhaustive workspace crawl when graph explore/search is available and healthy.
+- Re-verify explore results with wide Grep when the pack already returned verbatim source.
 ```
 
 ### Skill body: `agentcore-durable-write`

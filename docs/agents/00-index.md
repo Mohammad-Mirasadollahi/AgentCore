@@ -22,6 +22,7 @@ English-only. **This tree is Cursor IDE setup and agent behavior in this repo—
 | --- | --- |
 | `.cursor/rules/persian-chat-typography.mdc` | RTL wrapper + right alignment (`alwaysApply`) |
 | `.cursor/rules/reply-fa-code-docs-en.mdc` | Persian chat; English code/docs (`alwaysApply`) |
+| `.cursor/rules/compose-wait-timeouts.mdc` | Hard 90s Compose/Neo4j wait cutoff; no pytest+sleep chains |
 | `.cursor/skills/persian-chat-reply/SKILL.md` | Skill detailing the RTL reply pattern |
 
 ## Not for product implementation

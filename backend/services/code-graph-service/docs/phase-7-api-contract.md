@@ -4,9 +4,9 @@ Path: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 
 ## Purpose
 
-This contract documents the Phase 7 vertical slice for the Code-Knowledge Graph. The service owns scoped graph symbol projections, relationship edges (CONTAINS, CALLS, IMPORTS, INHERITS_FROM, DOCUMENTED_BY), hash-based change detection, local documentation generation for changed symbols only, semantic ranking via a local embedding stub, generation-context packs, generated-code symbol validation, and code-graph outbox events.
+This contract documents the Phase 7 vertical slice for the Code-Knowledge Graph. The service owns scoped graph symbol projections, relationship edges (CONTAINS, CALLS, IMPORTS, INHERITS_FROM, DOCUMENTED_BY, ROUTES_TO, TESTED_BY), hash-based change detection, documentation generation for changed symbols, **production retrieval** (BM25 + store FTS + BGE/LiteLLM embeddings via RRF — docs `27`–`31`), generation-context packs, explore / detect-changes / architecture intelligence, generated-code symbol validation, and code-graph outbox events.
 
-Neo4j remains the target structural store in the product design. This Phase 7 slice persists a graph projection in PostgreSQL (`code_graph` schema) by default and can select Neo4j via `AGENTCORE_CODE_GRAPH_STORE=neo4j` (`Neo4jStore`). Unit tests use an in-memory Store fake. **Python is a required language** (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. Documentation generation and embeddings are local and deterministic (no cloud model calls). See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
+Neo4j is the **default** structural store (`AGENTCORE_CODE_GRAPH_STORE=neo4j`, `Neo4jStore`). PostgreSQL (`code_graph` schema) remains available for rollback and parity via `AGENTCORE_CODE_GRAPH_STORE=postgres`. When `AGENTCORE_CODE_GRAPH_DATABASE_URL` is set, semantic vectors use pgvector (`code_graph.symbol_embeddings`) and Neo4j outbox events are mirrored to `code_graph.outbox` for the relay worker. The canonical Neo4j projection is `CodeSymbol` + `CODE_REL` (see `docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md`). Unit tests use an in-memory Store fake and may use `LocalEmbeddingStub`; production defaults to local BGE when the `embeddings` extra is installed. **Python is a required language** (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
 ## Scope Headers
 
@@ -23,21 +23,42 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 ## Commands
 
 - `POST /api/v1/projects/{project_id}/graph/ingest-file`
-- `POST /api/v1/projects/{project_id}/graph/search:semantic`
+- `POST /api/v1/projects/{project_id}/graph/ingest-repo` — walk a local `root_path` and ingest supported sources (soft-fail per file)
+- `POST /api/v1/projects/{project_id}/graph/search:semantic` — Stage-1 hybrid RAG: kind-filtered pgvector (when `AGENTCORE_CODE_GRAPH_DATABASE_URL` set) or in-store cosine, then Neo4j/store neighborhood expand on top seeds
+- `POST /api/v1/projects/{project_id}/graph/explore` — hybrid seeds + call path + APOC expand when available; budgeted bodies / sibling skeletonization; `retrieval` mode
+- `POST /api/v1/projects/{project_id}/graph/detect-changes` — Wave 1 risk-scored review report for changed files (flows, test gaps, priorities)
+- `POST /api/v1/projects/{project_id}/graph/architecture-overview` — communities (scikit-network Leiden or Louvain), hubs/bridges/gaps; `algorithm` field
+- `POST /api/v1/projects/{project_id}/graph/path` — shortest path (`method`: neo4j_shortest_path | in_memory_bfs)
+- `POST /api/v1/projects/{project_id}/graph/search:hybrid` — BM25 + semantic + store FTS via RRF (`mode`, `channels`, `embedding_backend`, `fts_method`)
+- `POST /api/v1/projects/{project_id}/graph/pending-sync` — Wave 3 mark file pending
+- `GET /api/v1/projects/{project_id}/graph/freshness` — Wave 3 stale banner state
 - `POST /api/v1/projects/{project_id}/graph/generation-context`
 - `POST /api/v1/projects/{project_id}/graph/generated-code:validate`
 
 ## Queries
 
 - `GET /api/v1/projects/{project_id}/graph/symbols/{symbol_id}`
-- `GET /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors`
+- `GET /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors` (supports `max_depth` for APOC multi-hop when Neo4j plugins are enabled)
+- `GET /api/v1/projects/{project_id}/graph/language-profile`
+- `GET /api/v1/projects/{project_id}/graph/neo4j-capabilities`
+
+## LiteLLM Gateway
+
+Service-wide (not project-scoped) endpoints from `backend/packages/llm_gateway`:
+
+- `GET /api/v1/llm/providers` — list providers; `configured` reflects env API keys
+- `GET /api/v1/llm/config` — public settings (auto Base URL, timeout default 180s, retries default 3; no secrets)
+- `POST /api/v1/llm/complete` — chat completion via LiteLLM (`prompt`, optional `model` / `system` / `reasoning_enabled` / `reasoning_effort`)
+
+Environment: `AGENTCORE_LITELLM_*` in `config/code-graph-service.example.env`. Base URL auto-resolves to `http://{HOST}:{PORT}` unless `AGENTCORE_LITELLM_API_BASE` overrides it. Defaults: timeout `180`s, retries `3`, RPM `30`.
 
 ## Event Types
 
 The development outbox emits versioned code-graph-service events:
 
-- `FileIngested`
+- `FileIngested` (payload includes a compact `polyglot` summary when available)
 - `SymbolsDocumented`
+- `ProjectLanguageProfileUpdated` (emitted when the project is polyglot after ingest)
 
 Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `producer`, scope fields, `actor_ref`, `correlation_id`, `causation_id`, `idempotency_key`, `payload`, and `evidence_refs`.
 

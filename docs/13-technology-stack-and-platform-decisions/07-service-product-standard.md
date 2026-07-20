@@ -16,6 +16,7 @@ This does not mean every workload belongs in PostgreSQL. It means every role has
 | Cache and ephemeral coordination | Redis, when required | TTL cache, rate limits, locks, deduplication windows, transient job state, lightweight coordination |
 | Large artifact storage | S3-compatible object storage | evidence bundles, exports, diagnostics, logs, generated documents, large snapshots |
 | Observability | OpenTelemetry-compatible stack | traces, metrics, logs, correlation ids, service health, evidence reports |
+| LLM gateway | LiteLLM | unified chat/completions, structured outputs, and provider-backed embeddings initiated by AgentCore; see `09-litellm-llm-gateway.md` |
 
 ## PostgreSQL Standard
 
@@ -63,6 +64,19 @@ Neo4j is the approved code graph product. It owns graph-native records and trave
 
 Neo4j must not be used as the operational database or as the durable source of truth for business state.
 
+## LiteLLM Standard
+
+LiteLLM is the approved **LLM gateway** for AgentCore-initiated model calls. It owns:
+
+- unified chat / completion requests across cloud and local providers,
+- provider-backed embedding generation when a routing profile selects a real embedding model,
+- model alias resolution for `ModelRoutingProfile` entries,
+- optional shared LiteLLM proxy deployment when operators need a network gateway.
+
+Application and domain layers must depend on an LLM port, not on vendor SDKs. Direct use of OpenAI, Anthropic, or other provider SDKs for model calls from AgentCore services is forbidden without an ADR that replaces this product-per-role decision.
+
+Normative detail: `09-litellm-llm-gateway.md`.
+
 ## Redis Standard
 
 Redis is approved only when the system needs fast ephemeral behavior. Valid use cases include:
@@ -108,6 +122,7 @@ AGENTCORE_BROKER_PORT=32160
 AGENTCORE_WORKER_METRICS_PORT=32180
 AGENTCORE_OTEL_COLLECTOR_PORT=32418
 AGENTCORE_GRAFANA_PORT=32300
+AGENTCORE_LITELLM_PORT=32400
 ```
 
 Vendor defaults such as PostgreSQL `5432`, Neo4j `7687` and `7474`, Redis `6379`, FastAPI `8000`, Next.js `3000`, and MinIO `9000` or `9001` must not be used as AgentCore development host ports.

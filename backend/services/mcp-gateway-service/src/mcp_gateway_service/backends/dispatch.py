@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
-from . import docs, guidance, writes
+from . import code_graph, docs, guidance, writes
 from core_data_service.core import Kind
 
 from .platform import PlatformBackends
@@ -25,6 +25,7 @@ def dispatch_capability(
         "correlation_id": correlation_id,
         "backend": "in_process",
         "store_mode": backends.store_mode,
+        "graph_mode": backends.graph_mode,
     }
     if maps_to == "platform.ping":
         return {**base, "ok": True}
@@ -35,7 +36,37 @@ def dispatch_capability(
         return _memory_retrieve(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
 
     if maps_to == "code_graph.search":
-        return _code_graph_search(backends, arguments, scope=scope, base=base)
+        return code_graph.search(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.get_symbol":
+        return code_graph.get_symbol(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.neighbors":
+        return code_graph.neighbors(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.impact":
+        return code_graph.impact(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.explore":
+        return code_graph.explore(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.detect_changes":
+        return code_graph.detect_changes(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.architecture_overview":
+        return code_graph.architecture_overview(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.path":
+        return code_graph.symbol_path(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.hybrid_search":
+        return code_graph.hybrid_search(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.freshness":
+        return code_graph.freshness(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.generation_context":
+        return code_graph.generation_context(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.ingest_file":
+        return code_graph.ingest_file(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "code_graph.ingest_repo":
+        return code_graph.ingest_repo(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "code_graph.language_profile":
+        return code_graph.language_profile(backends, arguments, scope=scope, base=base)
 
     if maps_to == "core_data.create_task":
         return _create_task(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
@@ -103,22 +134,6 @@ def _memory_retrieve(
         "items": public.get("items") or [],
         "excluded": public.get("excluded") or [],
     }
-
-
-def _code_graph_search(
-    backends: PlatformBackends,
-    arguments: dict[str, Any],
-    *,
-    scope: dict[str, str],
-    base: dict[str, Any],
-) -> dict[str, Any]:
-    query = str(arguments.get("query") or "").strip()
-    if not query:
-        raise ValueError("query is required")
-    top_k = int(arguments.get("top_k") or 5)
-    backends.ensure_graph_seed(scope)
-    hits = backends.graph.semantic_search(backends.graph_scope(scope), query, top_k=top_k)
-    return {**base, "query": query, "top_k": top_k, "symbols": hits}
 
 
 def _create_task(

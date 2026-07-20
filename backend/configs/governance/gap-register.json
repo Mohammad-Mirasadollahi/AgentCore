@@ -45,8 +45,8 @@
       "linked_phase_gates": [7],
       "proposed_resolution_artifact": "docs/07-code-knowledge-graph/10-language-support-policy.md",
       "documentation_ref": "docs/10-gap-analysis/03-technical-implementation-gaps.md",
-      "decision_needed": "Define cross-language edge resolution and per-language confidence thresholds; Python remains required.",
-      "resolution_path": "Python/TS/JS/Go/Rust parsers supported; expand FFI and package-resolution confidence tests."
+      "decision_needed": "Tune per-language confidence thresholds and package-manager-aware import graphs (npm/cargo/go.mod).",
+      "resolution_path": "Cross-language CALLS/IMPORTS + unresolved relink in domain/cross_language.py; continue package-resolution fidelity."
     },
     {
       "gap_id": "GAP-003",

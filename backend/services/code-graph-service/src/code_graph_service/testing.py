@@ -55,6 +55,11 @@ class InMemoryStore:
         for edge_id in drop:
             del self._edges[edge_id]
 
+    def delete_edge(self, scope: Scope, edge_id: str) -> None:
+        edge = self._edges.get(edge_id)
+        if edge is not None and self._same_project(edge.scope, scope):
+            del self._edges[edge_id]
+
     def put_edge(self, edge: GraphEdge) -> None:
         self._edges[edge.id] = deepcopy(edge)
 

@@ -29,6 +29,7 @@ from .domain.models import (
     IngestResult,
     ParseResult,
     ParsedSymbol,
+    RepoIngestResult,
     Scope,
 )
 from .domain.parsers import parse_source, registered_parsers
@@ -63,6 +64,7 @@ __all__ = [
     "NotFoundError",
     "ParseResult",
     "ParsedSymbol",
+    "RepoIngestResult",
     "Scope",
     "Store",
     "SymbolKind",

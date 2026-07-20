@@ -1,0 +1,109 @@
+"""Local sentence-transformers embedding backend (BGE and similar)."""
+
+from __future__ import annotations
+
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from .domain.models import EmbeddingResult
+
+DEFAULT_LOCAL_MODEL = "BAAI/bge-large-en-v1.5"
+DEFAULT_LOCAL_DIMS = 1024
+DEFAULT_CACHE_DIR = "/opt/agentcore-models"
+
+
+def embedding_settings_from_env(environ: dict[str, str] | None = None) -> dict[str, Any]:
+    env = environ if environ is not None else os.environ
+    provider = str(env.get("AGENTCORE_EMBEDDING_PROVIDER", "local_bge")).strip().lower() or "local_bge"
+    if provider in {"bge", "local", "sentence_transformers"}:
+        provider = "local_bge"
+    model = str(env.get("AGENTCORE_EMBEDDING_MODEL", DEFAULT_LOCAL_MODEL)).strip() or DEFAULT_LOCAL_MODEL
+    cache_dir = str(env.get("AGENTCORE_EMBEDDING_CACHE_DIR", DEFAULT_CACHE_DIR)).strip() or DEFAULT_CACHE_DIR
+    dims_raw = str(env.get("AGENTCORE_EMBEDDING_DIMS", str(DEFAULT_LOCAL_DIMS))).strip()
+    dims = int(dims_raw) if dims_raw else DEFAULT_LOCAL_DIMS
+    device = str(env.get("AGENTCORE_EMBEDDING_DEVICE", "cpu")).strip() or "cpu"
+    local_enabled_raw = str(env.get("AGENTCORE_EMBEDDING_LOCAL_ENABLED", "true")).strip().lower()
+    local_enabled = local_enabled_raw not in {"0", "false", "no", "off"}
+    return {
+        "provider": provider,
+        "model": model,
+        "cache_dir": cache_dir,
+        "dims": dims,
+        "device": device,
+        "local_enabled": local_enabled,
+    }
+
+
+def _prepare_cache_env(cache_dir: str) -> Path:
+    root = Path(cache_dir).expanduser().resolve()
+    hf = root / "huggingface"
+    st = root / "sentence-transformers"
+    hf.mkdir(parents=True, exist_ok=True)
+    st.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HOME", str(hf))
+    os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(hf / "hub"))
+    os.environ.setdefault("TRANSFORMERS_CACHE", str(hf / "transformers"))
+    os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", str(st))
+    return st
+
+
+@lru_cache(maxsize=2)
+def _load_sentence_transformer(model_name: str, cache_dir: str, device: str) -> Any:
+    st_home = _prepare_cache_env(cache_dir)
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(
+        model_name,
+        cache_folder=str(st_home),
+        device=device,
+    )
+
+
+class LocalBgeEmbeddings:
+    """Embed text with a local SentenceTransformer model (default BAAI/bge-large-en-v1.5)."""
+
+    def __init__(
+        self,
+        *,
+        model_name: str = DEFAULT_LOCAL_MODEL,
+        cache_dir: str = DEFAULT_CACHE_DIR,
+        dims: int = DEFAULT_LOCAL_DIMS,
+        device: str = "cpu",
+    ) -> None:
+        self.model_name = model_name
+        self.cache_dir = cache_dir
+        self.dims = dims
+        self.device = device
+        self.model = model_name
+        self._encoder = None
+
+    def _ensure_loaded(self) -> Any:
+        if self._encoder is None:
+            self._encoder = _load_sentence_transformer(self.model_name, self.cache_dir, self.device)
+        return self._encoder
+
+    def preload(self) -> None:
+        """Force model download/load into cache."""
+        self._ensure_loaded()
+
+    def embed(self, text: str, *, is_query: bool = False) -> EmbeddingResult:
+        encoder = self._ensure_loaded()
+        # BGE retrieval: prefix queries; passages (ingest) stay raw.
+        payload = text or ""
+        if is_query and "bge" in self.model_name.lower():
+            payload = f"Represent this sentence for searching relevant passages: {payload}"
+        vector = encoder.encode(
+            payload,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        values = [float(v) for v in list(vector)]
+        if len(values) != self.dims:
+            # Keep pgvector contract strict; pad/truncate only as last resort.
+            if len(values) < self.dims:
+                values = values + [0.0] * (self.dims - len(values))
+            else:
+                values = values[: self.dims]
+        return EmbeddingResult(values, "ready", self.model_name, self.dims)

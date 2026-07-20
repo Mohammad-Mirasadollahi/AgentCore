@@ -62,7 +62,7 @@ Decide which records live in relational storage, graph storage, object storage, 
 
 ### Decision 2 - Model Routing Defaults
 
-Define default local and cloud model routing profiles by task type and risk level.
+**Gateway decided:** LiteLLM (`docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`). Remaining open item: publish concrete default `ModelRoutingProfile` tables (exact LiteLLM model aliases by task type and risk level).
 
 ### Decision 3 - WeightProfile Governance
 

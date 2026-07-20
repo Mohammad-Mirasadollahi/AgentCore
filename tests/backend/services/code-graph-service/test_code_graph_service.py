@@ -96,8 +96,14 @@ class _FakeSession:
 
     def run(self, query: str, **params: Any) -> _FakeResult:
         q = " ".join(query.split())
-        if q.startswith("CREATE CONSTRAINT") or q.startswith("CREATE INDEX"):
+        if q.startswith("CREATE CONSTRAINT") or q.startswith("CREATE INDEX") or q.startswith("CREATE FULLTEXT"):
             return _FakeResult([])
+        if "apoc.version()" in q:
+            return _FakeResult([_FakeRecord({"version": "fake-apoc"})])
+        if "gds.version()" in q:
+            return _FakeResult([_FakeRecord({"version": "fake-gds"})])
+        if "SHOW FULLTEXT INDEXES" in q:
+            return _FakeResult([_FakeRecord({"c": 1})])
         if "MERGE (n:CodeSymbol {id: $id})" in q:
             node = {
                 "id": params["id"],
@@ -166,6 +172,12 @@ class _FakeSession:
             ]
             for edge_id in drop:
                 del self.store.edges[edge_id]
+            return _FakeResult([])
+        if "DELETE r" in q and "id: $id" in q.replace(" ", ""):
+            self.store.edges.pop(params["id"], None)
+            return _FakeResult([])
+        if "DELETE r" in q and "{id: $id}" in q:
+            self.store.edges.pop(params["id"], None)
             return _FakeResult([])
         if "MERGE (source)-[r:CODE_REL {id: $id}]->(target)" in q or "MERGE (source)-[r:CODE_REL" in q:
             self.store.edges[params["id"]] = {
@@ -347,6 +359,9 @@ def test_normalization_and_api_routes():
     assert "/api/v1/projects/{project_id}/graph/generation-context" in routes
     assert "/api/v1/projects/{project_id}/graph/generated-code:validate" in routes
     assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors" in routes
+    assert "/api/v1/llm/providers" in routes
+    assert "/api/v1/llm/config" in routes
+    assert "/api/v1/llm/complete" in routes
 
 
 def test_language_matrix_python_required_and_multi_lang_supported():
@@ -521,4 +536,39 @@ def test_bootstrap_selects_neo4j_store(monkeypatch):
     )
     store = build_store(settings)
     assert isinstance(store, Neo4jStore)
+    store.close()
+
+
+def test_bootstrap_default_store_is_neo4j(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CODE_GRAPH_STORE", raising=False)
+    monkeypatch.setenv("AGENTCORE_NEO4J_PASSWORD", "secret")
+    monkeypatch.delenv("AGENTCORE_NEO4J_URI", raising=False)
+    settings = Settings.from_environment()
+    assert settings.store_backend == "neo4j"
+    assert settings.neo4j_uri == "bolt://127.0.0.1:32287"
+    assert settings.neo4j_gds_enabled is True
+    assert settings.neo4j_gds_concurrency == 4
+
+
+def test_gds_env_option_and_concurrency_cap(monkeypatch):
+    monkeypatch.setenv("AGENTCORE_NEO4J_PASSWORD", "secret")
+    monkeypatch.setenv("AGENTCORE_NEO4J_GDS_ENABLED", "false")
+    monkeypatch.setenv("AGENTCORE_NEO4J_GDS_CONCURRENCY", "16")
+    settings = Settings.from_environment()
+    assert settings.neo4j_gds_enabled is False
+    assert settings.neo4j_gds_concurrency == 4  # Community hard cap
+
+    store = Neo4jStore(
+        uri="bolt://127.0.0.1:1",
+        user="neo4j",
+        password="x",
+        driver=_FakeNeo4jDriver(),
+        ensure_schema=False,
+        gds_enabled=False,
+        gds_concurrency=16,
+    )
+    caps = store.capabilities()
+    assert caps["gds_enabled"] is False
+    assert caps["gds"] is False
+    assert caps["gds_concurrency"] == 4
     store.close()

@@ -35,3 +35,9 @@ Give agents the right context at the right time while keeping prompts fast, chea
 ## Related Technical Logic
 
 - ../06-technical-logic/02-memory-context-technical-logic.md explains memory classification, consolidation, retrieval scoring, prompt cache invalidation, decay, token budgeting, question memory, FAQ scoring, curiosity scoring, and batched consolidation.
+
+## Optional ANN Acceleration
+
+- ../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md — ADR: turbovec beside pgvector SoR.
+- ../13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md — how to use turbovec in RAG pipelines.
+- ../11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md — hybrid allowlist retrieval example.

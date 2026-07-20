@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from uuid import uuid4
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
@@ -13,6 +14,12 @@ from memory_service.core import MemoryService, Scope as MemoryScope
 from ..store_factory import StoreBundle, build_stores
 
 
+def _seed_enabled(environ: dict[str, str] | None = None) -> bool:
+    env = environ if environ is not None else os.environ
+    raw = str(env.get("AGENTCORE_MCP_GRAPH_SEED", "true")).strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
 class PlatformBackends:
     """In-process AgentCore service facades used by the MCP gateway."""
 
@@ -20,11 +27,15 @@ class PlatformBackends:
         self._stores = stores or build_stores()
         self.core = CoreData(self._stores.core)
         self.memory = MemoryService(self._stores.memory)
-        self.graph = CodeGraphService(self._stores.graph)
+        if self._stores.graph_service is not None:
+            self.graph = self._stores.graph_service
+        else:
+            self.graph = CodeGraphService(self._stores.graph)
         self.docs = DocsSyncService(self._stores.docs)
         self.common_context = CommonContextService(self._stores.common_context)
         self.actor_id = "mcp-gateway"
         self.store_mode = self._stores.mode
+        self.graph_mode = self._stores.graph_mode
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> PlatformBackends:
@@ -77,6 +88,14 @@ class PlatformBackends:
         )
 
     def ensure_graph_seed(self, scope: dict[str, str]) -> None:
+        """Seed a tiny demo graph only for ephemeral memory/postgres demo stores.
+
+        Never seed into Neo4j — that would pollute the real indexed project graph.
+        """
+        if self.graph_mode == "neo4j":
+            return
+        if not _seed_enabled():
+            return
         graph_scope = self.graph_scope(scope)
         if self.graph.store.list_symbols(graph_scope):
             return

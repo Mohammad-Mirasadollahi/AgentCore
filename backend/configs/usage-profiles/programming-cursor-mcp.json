@@ -54,7 +54,7 @@
       },
       {
         "name": "agentcore_code_graph_search",
-        "description": "Search the code-knowledge graph for symbols relevant to a programming query.",
+        "description": "Semantic search over the code-knowledge graph (Neo4j when configured) for symbols relevant to a programming query.",
         "maps_to": "code_graph.search",
         "input_schema": {
           "type": "object",
@@ -63,6 +63,203 @@
             "top_k": { "type": "integer", "minimum": 1, "maximum": 50, "default": 5 }
           },
           "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_get_symbol",
+        "description": "Fetch one code-graph symbol by symbol_id or qualified_name (includes AI documentation fields).",
+        "maps_to": "code_graph.get_symbol",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": { "type": "string" },
+            "qualified_name": { "type": "string", "description": "Exact qualified_name or short name" }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_neighbors",
+        "description": "Return structural neighbors (CALLS/IMPORTS/…) for a symbol; uses Neo4j expand when available.",
+        "maps_to": "code_graph.neighbors",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": { "type": "string" },
+            "qualified_name": { "type": "string" },
+            "rel_type": { "type": "string", "description": "Optional edge type filter, e.g. CALLS" },
+            "max_depth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_impact",
+        "description": "Multi-hop impact neighborhood around a symbol (structural expand + importance hints when Neo4j GDS/APOC available).",
+        "maps_to": "code_graph.impact",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": { "type": "string" },
+            "qualified_name": { "type": "string" },
+            "rel_type": { "type": "string" },
+            "max_depth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 3 }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_explore",
+        "description": "PRIMARY code-graph tool: answer how/X works or flows with one call — seeds + call path + budgeted source (sibling skeletonization). Prefer this over wide Read/Grep.",
+        "maps_to": "code_graph.explore",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Natural-language or symbol terms (e.g. login auth flow)" },
+            "top_k": { "type": "integer", "minimum": 1, "maximum": 40, "default": 12 },
+            "max_depth": { "type": "integer", "minimum": 1, "maximum": 4, "default": 2 },
+            "budget_chars": { "type": "integer", "minimum": 2000, "maximum": 100000 }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_detect_changes",
+        "description": "Risk-scored review context for changed files: affected flows, test gaps, review priorities.",
+        "maps_to": "code_graph.detect_changes",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "changed_files": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Repo-relative or absolute paths that changed"
+            },
+            "include_flows": { "type": "boolean", "default": true }
+          },
+          "required": ["changed_files"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_architecture_overview",
+        "description": "Communities, hubs, bridges, knowledge gaps, surprising connections, and suggested architecture questions.",
+        "maps_to": "code_graph.architecture_overview",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "top_n": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_path",
+        "description": "Shortest path between two symbols (ids or qualified names) on the code graph.",
+        "maps_to": "code_graph.path",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "start_id": { "type": "string" },
+            "end_id": { "type": "string" },
+            "max_depth": { "type": "integer", "minimum": 1, "maximum": 30, "default": 12 }
+          },
+          "required": ["start_id", "end_id"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_hybrid_search",
+        "description": "Hybrid lexical + semantic search merged with Reciprocal Rank Fusion (RRF).",
+        "maps_to": "code_graph.hybrid_search",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "top_k": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_freshness",
+        "description": "Report or mark pending file sync (stale banners for explore/review).",
+        "maps_to": "code_graph.freshness",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "file_path": { "type": "string", "description": "If set, mark this path pending until next ingest" }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_generation_context",
+        "description": "Build a generation context pack (seed symbol + related symbols/docs) for coding agents.",
+        "maps_to": "code_graph.generation_context",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": { "type": "string" },
+            "qualified_name": { "type": "string" },
+            "max_symbols": { "type": "integer", "minimum": 1, "maximum": 64, "default": 12 }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_ingest_file",
+        "description": "Index one source file into the code-knowledge graph (symbols, edges, docs). Use to populate Neo4j from the IDE.",
+        "maps_to": "code_graph.ingest_file",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "file_path": { "type": "string" },
+            "source": { "type": "string", "description": "Full file source text" },
+            "language": { "type": "string", "default": "python" },
+            "idempotency_key": { "type": "string" }
+          },
+          "required": ["file_path", "source"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_ingest_repo",
+        "description": "Walk a local repository root and index all supported source files into the code-knowledge graph (Python/TS/JS/Go/Rust). Skips node_modules/.git/.venv/etc.",
+        "maps_to": "code_graph.ingest_repo",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "root_path": { "type": "string", "description": "Absolute or expandable path to the repository root" },
+            "include_extensions": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Optional extension allow-list (e.g. [\".py\", \".ts\"]); default = language matrix"
+            },
+            "exclude_dirs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Directory names to skip (default includes node_modules, .git, .venv, …)"
+            },
+            "max_files": { "type": "integer", "minimum": 1, "maximum": 20000, "default": 2000 },
+            "max_file_bytes": { "type": "integer", "minimum": 1024, "maximum": 20000000, "default": 1500000 },
+            "include_outcomes": { "type": "boolean", "default": true },
+            "idempotency_key": { "type": "string" }
+          },
+          "required": ["root_path"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_language_profile",
+        "description": "Return polyglot language/profile stats for symbols currently in the project graph.",
+        "maps_to": "code_graph.language_profile",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
           "additionalProperties": false
         }
       },

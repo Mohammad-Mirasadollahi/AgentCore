@@ -14,6 +14,10 @@ This section defines the preferred technology stack for AgentCore. The goal is t
 - `06-local-venv-docker-and-port-policy.md` defines the local `.venv` policy, Docker Compose service policy, non-default port rules, profile strategy, and preflight requirements.
 - `07-service-product-standard.md` defines the one-product-per-role standard, approved ports, Docker infrastructure rule, unsupported technology rule, and exception governance.
 - `08-turbovec-ann-acceleration-integration.md` is the ADR for optional in-process [turbovec](https://github.com/RyanCodrai/turbovec) ANN acceleration beside PostgreSQL+pgvector (SoR unchanged).
+- `09-litellm-llm-gateway.md` is the ADR that accepts [LiteLLM](https://docs.litellm.ai/) as the sole LLM gateway for AgentCore model calls.
+- `10-model-routing-profiles-with-litellm.md` specifies `ModelRoutingProfile` → LiteLLM model alias mapping, fallbacks, and stub policy.
+- `11-turbovec-for-rag.md` is the engineer/agent guide for using turbovec in RAG (IdMapIndex lifecycle, hybrid allowlist, bit-width, persistence, fallback).
+- `12-litellm-environment-configuration.md` is the operator reference for every LiteLLM/code-graph env variable (defaults, change impact, examples).
 
 ## Mandatory Baseline
 
@@ -25,6 +29,7 @@ AgentCore should use:
 - pgvector as the approved vector retrieval technology for RAG embeddings inside PostgreSQL.
 - PostgreSQL full-text search and pg_trgm for exact and fuzzy search over operational records, documents, symbols, and metadata.
 - Neo4j as the approved graph database for code graph nodes, relationships, impact traversal, dependency traversal, graph-guided retrieval, and graph-aware code generation.
+- **LiteLLM** as the approved LLM gateway for chat/completions, structured judge calls, and provider-backed embeddings initiated by AgentCore services (see `09-litellm-llm-gateway.md`).
 - Redis only when a cache, short-lived coordination layer, rate-limit store, session helper, queue helper, or ephemeral job state store is technically needed.
 - S3-compatible object storage for large artifacts, evidence bundles, exports, logs, generated documents, diagnostics bundles, and graph snapshots.
 - PostgreSQL partitions, indexes, aggregate tables, and materialized views for baseline reporting and analytics.
@@ -33,7 +38,7 @@ AgentCore should use:
 
 ## Product-Per-Role Rule
 
-AgentCore must not use multiple products for the same responsibility without a formal ADR. Each infrastructure concern has one approved baseline owner: PostgreSQL for operational relational data, pgvector for RAG vector retrieval, Neo4j for graph traversal, Redis for optional ephemeral cache/coordination, object storage for large binary artifacts, and OpenTelemetry-compatible tooling for observability.
+AgentCore must not use multiple products for the same responsibility without a formal ADR. Each infrastructure concern has one approved baseline owner: PostgreSQL for operational relational data, pgvector for RAG vector retrieval, Neo4j for graph traversal, **LiteLLM for LLM gateway calls**, Redis for optional ephemeral cache/coordination, object storage for large binary artifacts, and OpenTelemetry-compatible tooling for observability.
 
 ## Relationship To Other Sections
 

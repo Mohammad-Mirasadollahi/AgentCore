@@ -1,0 +1,177 @@
+"""Shared application helpers for code-graph use cases."""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import uuid4
+
+from ..domain.documentation import HeuristicDocGenerator
+from ..domain.embeddings import LocalEmbeddingStub
+from ..domain.enums import CallConfidence, DocStatus, SymbolKind
+from ..domain.errors import NotFoundError
+from ..domain.hashing import digest, now_iso
+from ..domain.models import GraphEdge, GraphSymbol, Scope
+from ..domain.ports import Store
+from ..domain.rag import SEARCHABLE_SYMBOL_KINDS
+from ..postgres_side import EmbeddingIndex
+
+
+def unresolved_symbol_id(scope: Scope, call: str) -> str:
+    """Scoped placeholder id so unresolved endpoints do not collide across projects."""
+    return f"unresolved:{scope.project_id}:{call}"
+
+
+def unresolved_call_name(target_id: str) -> str:
+    """Extract the call name from unresolved:{project_id}:{call} (or legacy unresolved:{call})."""
+    rest = str(target_id).removeprefix("unresolved:")
+    if ":" in rest:
+        return rest.split(":", 1)[1]
+    return rest
+
+
+class GraphServiceSupport:
+    """Base helpers shared by ingest/query/generation use-case mixins."""
+
+    store: Store
+    docs: HeuristicDocGenerator
+    embeddings: LocalEmbeddingStub
+    embedding_index: EmbeddingIndex | None
+
+    def _index_embedding(
+        self,
+        scope: Scope,
+        symbol_id: str,
+        vector: list[float],
+        *,
+        kind: str,
+    ) -> None:
+        if self.embedding_index is None:
+            return
+        kind_value = str(kind or "").strip() or "unknown"
+        if kind_value not in SEARCHABLE_SYMBOL_KINDS:
+            # Drop stale ANN rows if this id is no longer searchable.
+            deleter = getattr(self.embedding_index, "delete", None)
+            if callable(deleter):
+                deleter(scope, symbol_id)
+            return
+        self.embedding_index.upsert(
+            scope,
+            symbol_id,
+            vector,
+            model=self.embeddings.model,
+            kind=kind_value,
+        )
+
+    def _delete_embedding(self, scope: Scope, symbol_id: str) -> None:
+        if self.embedding_index is None:
+            return
+        deleter = getattr(self.embedding_index, "delete", None)
+        if callable(deleter):
+            deleter(scope, symbol_id)
+
+    def _ensure_unresolved_symbol(self, scope: Scope, symbol_id: str) -> None:
+        """Materialize unresolved:* endpoints so Neo4j edges can attach to nodes."""
+        if not symbol_id.startswith("unresolved:"):
+            return
+        if self._maybe_get(symbol_id, scope) is not None:
+            return
+        name = unresolved_call_name(symbol_id) or symbol_id
+        stamp = now_iso()
+        self.store.put_symbol(
+            GraphSymbol(
+                id=symbol_id,
+                scope=scope,
+                kind=SymbolKind.UNRESOLVED,
+                file_path="",
+                name=name,
+                qualified_name=symbol_id,
+                signature="",
+                body="",
+                hash_value=digest(symbol_id),
+                ai_documentation="",
+                doc_status=DocStatus.MISSING,
+                embedding=[],
+                visibility="public",
+                created_at=stamp,
+                updated_at=stamp,
+            )
+        )
+
+    def _put_edge(
+        self,
+        scope: Scope,
+        rel_type: str,
+        source_id: str,
+        target_id: str,
+        *,
+        file_path: str,
+        confidence: CallConfidence = CallConfidence.EXACT,
+        metadata: dict[str, Any] | None = None,
+        link_key: str | None = None,
+    ) -> int:
+        self._ensure_unresolved_symbol(scope, source_id)
+        self._ensure_unresolved_symbol(scope, target_id)
+        meta = {"file_path": file_path}
+        if metadata:
+            meta.update(metadata)
+        stable = link_key or target_id
+        edge = GraphEdge(
+            id=f"edge:{digest(f'{rel_type}|{source_id}|{stable}')[:16]}",
+            scope=scope,
+            rel_type=rel_type,
+            source_id=source_id,
+            target_id=target_id,
+            confidence=confidence,
+            metadata=meta,
+        )
+        self.store.put_edge(edge)
+        return 1
+
+    def _maybe_get(self, symbol_id: str, scope: Scope) -> GraphSymbol | None:
+        try:
+            return self.store.get_symbol(symbol_id, scope)
+        except NotFoundError:
+            return None
+
+    @staticmethod
+    def _symbol_view(symbol: GraphSymbol) -> dict[str, Any]:
+        return {
+            "id": symbol.id,
+            "kind": symbol.kind.value,
+            "file_path": symbol.file_path,
+            "name": symbol.name,
+            "qualified_name": symbol.qualified_name,
+            "signature": symbol.signature,
+            "hash_value": symbol.hash_value,
+            "ai_documentation": symbol.ai_documentation,
+            "doc_status": symbol.doc_status.value,
+            "visibility": symbol.visibility,
+            "version": symbol.version,
+        }
+
+    @staticmethod
+    def _event(
+        event_type: str,
+        scope: Scope,
+        actor_id: str,
+        correlation_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "event_id": str(uuid4()),
+            "event_type": event_type,
+            "event_version": "1",
+            "occurred_at": now_iso(),
+            "producer": "code-graph-service",
+            "tenant_id": scope.tenant_id,
+            "workspace_id": scope.workspace_id,
+            "project_id": scope.project_id,
+            "project_group_id": scope.project_group_id,
+            "actor_ref": actor_id,
+            "correlation_id": correlation_id,
+            "causation_id": correlation_id,
+            "idempotency_key": idempotency_key,
+            "payload": payload,
+            "evidence_refs": [],
+        }

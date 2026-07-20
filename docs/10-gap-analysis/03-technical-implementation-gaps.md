@@ -49,11 +49,12 @@ Questions:
 Partial resolution:
 
 - **Vector index ownership (accelerator role):** optional turbovec ANN replica is documented in `../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md`. Durable embeddings stay in PostgreSQL+pgvector; turbovec is not SoR.
-- Refresh / model-change / invalidation policy for embedding *content* remains open.
+- **Stage-1 hybrid RAG (code-graph):** kind-filtered pgvector search before ANN, multi-seed Neo4j/store neighborhood expand, and embedding-row delete on non-searchable / orphan / removed-from-file symbols (`code_graph.symbol_embeddings.kind`, `application/queries.py`, `postgres_side.py`). Phase-7 dims remain `vector(16)` until a later model-dim migration.
+- Full refresh / model-change re-embed policy for large corpora remains open.
 
 Resolution output:
 
-- Embedding lifecycle policy (still open).
+- Embedding lifecycle policy (Stage-1 invalidation for code-graph: partial; model-change: still open).
 - Vector index ownership decision (accelerator path: closed by stack ADR `13/08`; baseline SoR remains pgvector).
 
 ## GAP-T04 - Prompt Context Verification

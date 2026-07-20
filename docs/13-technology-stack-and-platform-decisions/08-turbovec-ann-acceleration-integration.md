@@ -24,6 +24,7 @@ related_docs:
   - ac.doc.stack.data-rag-analytics-storage
   - ac.doc.stack.service-product-standard
   - ac.doc.gap.technical-implementation
+  - ac.doc.stack.turbovec-for-rag
 doc_version: "1.0.0"
 audience:
   - engineer
@@ -51,6 +52,8 @@ relations_declared:
     target: docs/07-code-knowledge-graph/
   - type: complements
     target: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
+  - type: complements
+    target: docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -301,4 +304,5 @@ Emit metrics: `rag.accelerator.search_latency`, `rag.accelerator.recall_proxy`, 
 - `../02-memory-and-context/` — retrieval product behavior
 - `../07-code-knowledge-graph/` — semantic search design
 - `../11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md` — worked hybrid flow
+- `11-turbovec-for-rag.md` — engineer/agent RAG usage guide
 - Upstream: [turbovec README](https://github.com/RyanCodrai/turbovec), [API reference](https://github.com/RyanCodrai/turbovec/blob/main/docs/api.md), [TurboQuant paper](https://arxiv.org/abs/2504.19874)

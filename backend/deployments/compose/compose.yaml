@@ -21,6 +21,7 @@ services:
       - ../../services/docs-sync-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0031_docs_sync_outbox.sql:ro
       - ../../services/code-graph-service/migrations/0001_code_graph.sql:/docker-entrypoint-initdb.d/0040_code_graph.sql:ro
       - ../../services/code-graph-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0041_code_graph_outbox.sql:ro
+      - ../../services/code-graph-service/migrations/0003_symbol_embeddings.sql:/docker-entrypoint-initdb.d/0042_code_graph_embeddings.sql:ro
       - ../../services/rule-engine-service/migrations/0001_rule_engine.sql:/docker-entrypoint-initdb.d/0050_rule_engine.sql:ro
       - ../../services/rule-engine-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0051_rule_engine_outbox.sql:ro
       - ../../services/adapter-service/migrations/0001_adapter.sql:/docker-entrypoint-initdb.d/0060_adapter.sql:ro
@@ -46,13 +47,21 @@ services:
     restart: unless-stopped
 
   neo4j:
-    image: neo4j:5.26-community
+    # Override AGENTCORE_NEO4J_IMAGE to pin a patch (e.g. neo4j:5.26.4-community).
+    image: ${AGENTCORE_NEO4J_IMAGE:-neo4j:5.26-community}
     profiles: ["core", "all"]
     environment:
       NEO4J_AUTH: ${AGENTCORE_NEO4J_USER:-neo4j}/${AGENTCORE_NEO4J_PASSWORD:?AGENTCORE_NEO4J_PASSWORD is required}
       NEO4J_server_memory_pagecache_size: 512M
       NEO4J_server_memory_heap_initial__size: 512M
       NEO4J_server_memory_heap_max__size: 512M
+      # Official image auto-installs plugins on first boot.
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
+      NEO4J_dbms_security_procedures_allowlist: apoc.*,gds.*
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
     ports:
       - "${AGENTCORE_NEO4J_BOLT_PORT:-32287}:7687"
       - "${AGENTCORE_NEO4J_HTTP_PORT:-32474}:7474"
@@ -62,8 +71,8 @@ services:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
       interval: 10s
       timeout: 10s
-      retries: 10
-      start_period: 40s
+      retries: 15
+      start_period: 90s
     restart: unless-stopped
 
   outbox-relay:

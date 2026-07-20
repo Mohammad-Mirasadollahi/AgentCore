@@ -49,7 +49,22 @@ Copy `postgres.example.env` (and optionally `neo4j.example.env`) to an untracked
 docker compose --env-file <environment-file> -f backend/deployments/compose/compose.yaml --profile core up -d postgres neo4j
 ```
 
-Code-graph-service defaults to the PostgreSQL projection. To use Neo4j as the structural store:
+Wait for health with a **hard timeout** (default 90s; do not spin forever):
+
+```bash
+backend/deployments/compose/wait-healthy.sh --timeout 90 agentcore-postgres-1 agentcore-neo4j-1
+```
+
+Exit codes: `0` healthy, `1` timeout, `2` missing/exited/restart loop. Agents must stop on non-zero instead of chaining another sleep loop after pytest.
+
+Code-graph-service defaults to the **Neo4j** structural store. To roll back to the PostgreSQL projection:
+
+```bash
+AGENTCORE_CODE_GRAPH_STORE=postgres
+AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:<local-secret>@127.0.0.1:32232/agentcore
+```
+
+Neo4j defaults (when unset, URI defaults to the port profile Bolt address):
 
 ```bash
 AGENTCORE_CODE_GRAPH_STORE=neo4j

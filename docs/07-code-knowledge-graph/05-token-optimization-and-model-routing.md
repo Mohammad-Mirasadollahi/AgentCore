@@ -4,6 +4,15 @@
 
 The Code-Knowledge Graph must reduce LLM cost while improving output quality. It does this by avoiding full-repository prompting, processing only changed symbols, routing tasks to the cheapest capable model, and using graph summaries instead of raw code where possible.
 
+## LLM Gateway (normative)
+
+All AgentCore-initiated model calls for documentation, classification, judge-style structured outputs, and provider-backed embeddings **must** use **LiteLLM** via an application port. Do not call vendor SDKs directly from services.
+
+- Stack ADR: `../13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`
+- Product-per-role: `../13-technology-stack-and-platform-decisions/07-service-product-standard.md`
+
+`ModelRoutingProfile` selects LiteLLM model aliases (local or cloud). Offline Phase slices may keep heuristic docs / `LocalEmbeddingStub` until a profile enables live models.
+
 ## Strategy 1 - Hash-Based Diffing
 
 Every function, method, class, and file receives a normalized hash. On each ingestion run, the system compares the new hash with the stored hash.
@@ -34,7 +43,7 @@ This prevents expensive processing of temporary or unfinished code.
 
 ## Strategy 3 - Tiered LLM Routing
 
-Different tasks require different model quality.
+Different tasks require different model quality. Routing is expressed as LiteLLM model aliases in `ModelRoutingProfile` and executed through the LiteLLM gateway.
 
 ### Local or Low-Cost Models
 
@@ -46,11 +55,10 @@ Use for:
 - low-risk extraction,
 - embedding text preparation.
 
-Examples:
+Examples (LiteLLM model strings — illustrative):
 
-- local Qwen Coder through Ollama,
-- local Llama models,
-- low-cost cloud models.
+- `ollama/qwen2.5-coder` or other local OpenAI-compatible endpoints via LiteLLM,
+- low-cost cloud aliases configured in LiteLLM.
 
 ### Strong Cloud Models
 
