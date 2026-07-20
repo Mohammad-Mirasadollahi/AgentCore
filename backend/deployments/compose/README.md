@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Active PostgreSQL foundation. `compose.yaml` provisions PostgreSQL 18 with pgvector on the configurable non-default host port and initializes service-owned schemas.
+Active PostgreSQL + Neo4j foundation. `compose.yaml` provisions PostgreSQL 18 with pgvector and Neo4j 5 community on configurable non-default host ports. PostgreSQL initializes service-owned schemas; Neo4j constraints are applied by `code-graph-service` when `AGENTCORE_CODE_GRAPH_STORE=neo4j`.
 
 
 ## AgentCore Local Compose Policy
@@ -43,8 +43,17 @@ Additional database profiles require a formal ADR before they can become part of
 
 New services must use non-default host ports from `backend/configs/port-profiles/`. Do not change existing service ports unless an explicit migration is requested.
 
-Copy `postgres.example.env` to an untracked environment file, set a local password, and run:
+Copy `postgres.example.env` (and optionally `neo4j.example.env`) to an untracked environment file, set local passwords, and run:
 
 ```bash
-docker compose --env-file <environment-file> -f backend/deployments/compose/compose.yaml --profile core up -d postgres
+docker compose --env-file <environment-file> -f backend/deployments/compose/compose.yaml --profile core up -d postgres neo4j
+```
+
+Code-graph-service defaults to the PostgreSQL projection. To use Neo4j as the structural store:
+
+```bash
+AGENTCORE_CODE_GRAPH_STORE=neo4j
+AGENTCORE_NEO4J_URI=bolt://127.0.0.1:32287
+AGENTCORE_NEO4J_USER=neo4j
+AGENTCORE_NEO4J_PASSWORD=<local-secret>
 ```

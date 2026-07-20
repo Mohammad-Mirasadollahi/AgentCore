@@ -1,17 +1,30 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
 from code_graph_service.api import app
+from code_graph_service.bootstrap import Settings, build_store
 from code_graph_service.core import (
     CallConfidence,
     CodeGraphService,
+    DocStatus,
+    GraphEdge,
+    GraphSymbol,
     LocalEmbeddingStub,
     Scope,
+    SymbolKind,
     ValidationError,
     assert_language_supported,
+    assert_required_languages_supported,
     digest,
     language_matrix,
     normalize_source,
+    required_languages,
     resolve_call_target,
     supported_languages,
 )
+from code_graph_service.neo4j_store import Neo4jStore
 from code_graph_service.testing import InMemoryStore
 
 
@@ -44,6 +57,187 @@ from src.helpers import helper as help_fn
 def run(value):
     return help_fn(value)
 '''
+
+
+class _FakeNode(dict):
+    """Dict-backed stand-in for a Neo4j node map."""
+
+    pass
+
+
+@dataclass
+class _FakeRecord:
+    data: dict[str, Any]
+
+    def __getitem__(self, key: str) -> Any:
+        return self.data[key]
+
+
+@dataclass
+class _FakeResult:
+    rows: list[_FakeRecord]
+
+    def single(self) -> _FakeRecord | None:
+        return self.rows[0] if self.rows else None
+
+    def __iter__(self):
+        return iter(self.rows)
+
+
+@dataclass
+class _FakeSession:
+    store: "_FakeNeo4jDriver"
+
+    def __enter__(self) -> "_FakeSession":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def run(self, query: str, **params: Any) -> _FakeResult:
+        q = " ".join(query.split())
+        if q.startswith("CREATE CONSTRAINT") or q.startswith("CREATE INDEX"):
+            return _FakeResult([])
+        if "MERGE (n:CodeSymbol {id: $id})" in q:
+            node = {
+                "id": params["id"],
+                "tenant_id": params["tenant_id"],
+                "workspace_id": params["workspace_id"],
+                "project_id": params["project_id"],
+                "project_group_id": params.get("project_group_id"),
+                "kind": params["kind"],
+                "file_path": params["file_path"],
+                "name": params["name"],
+                "qualified_name": params["qualified_name"],
+                "signature": params["signature"],
+                "body": params["body"],
+                "hash_value": params["hash_value"],
+                "ai_documentation": params["ai_documentation"],
+                "doc_status": params["doc_status"],
+                "embedding": list(params.get("embedding") or []),
+                "visibility": params["visibility"],
+                "version": params["version"],
+                "created_at": params["created_at"],
+                "updated_at": params["updated_at"],
+            }
+            self.store.symbols[params["id"]] = node
+            return _FakeResult([])
+        if "MATCH (n:CodeSymbol {id: $id})" in q:
+            node = self.store.symbols.get(params["id"])
+            if node is None:
+                return _FakeResult([])
+            if (
+                node["tenant_id"] != params["tenant_id"]
+                or node["workspace_id"] != params["workspace_id"]
+                or node["project_id"] != params["project_id"]
+            ):
+                return _FakeResult([])
+            return _FakeResult([_FakeRecord({"n": _FakeNode(node)})])
+        if "AND n.qualified_name = $qualified_name" in q:
+            for node in self.store.symbols.values():
+                if (
+                    node["tenant_id"] == params["tenant_id"]
+                    and node["workspace_id"] == params["workspace_id"]
+                    and node["project_id"] == params["project_id"]
+                    and node["qualified_name"] == params["qualified_name"]
+                ):
+                    return _FakeResult([_FakeRecord({"n": _FakeNode(node)})])
+            return _FakeResult([])
+        if "MATCH (n:CodeSymbol)" in q and "ORDER BY n.qualified_name" in q:
+            rows = [
+                _FakeRecord({"n": _FakeNode(node)})
+                for node in sorted(
+                    self.store.symbols.values(),
+                    key=lambda item: (item["qualified_name"], item["id"]),
+                )
+                if node["tenant_id"] == params["tenant_id"]
+                and node["workspace_id"] == params["workspace_id"]
+                and node["project_id"] == params["project_id"]
+            ]
+            return _FakeResult(rows)
+        if "DELETE r" in q and "r.file_path = $file_path" in q:
+            drop = [
+                edge_id
+                for edge_id, edge in self.store.edges.items()
+                if edge["tenant_id"] == params["tenant_id"]
+                and edge["workspace_id"] == params["workspace_id"]
+                and edge["project_id"] == params["project_id"]
+                and edge["file_path"] == params["file_path"]
+            ]
+            for edge_id in drop:
+                del self.store.edges[edge_id]
+            return _FakeResult([])
+        if "MERGE (source)-[r:CODE_REL {id: $id}]->(target)" in q or "MERGE (source)-[r:CODE_REL" in q:
+            self.store.edges[params["id"]] = {
+                "id": params["id"],
+                "source_id": params["source_id"],
+                "target_id": params["target_id"],
+                "tenant_id": params["tenant_id"],
+                "workspace_id": params["workspace_id"],
+                "project_id": params["project_id"],
+                "project_group_id": params.get("project_group_id"),
+                "rel_type": params["rel_type"],
+                "confidence": params["confidence"],
+                "file_path": params["file_path"],
+                "metadata_json": params["metadata_json"],
+            }
+            return _FakeResult([])
+        if "MATCH (source:CodeSymbol)-[r:CODE_REL]->(target:CodeSymbol)" in q:
+            rows = [
+                _FakeRecord(
+                    {
+                        "id": edge["id"],
+                        "rel_type": edge["rel_type"],
+                        "confidence": edge["confidence"],
+                        "metadata_json": edge["metadata_json"],
+                        "source_id": edge["source_id"],
+                        "target_id": edge["target_id"],
+                    }
+                )
+                for edge in sorted(self.store.edges.values(), key=lambda item: item["id"])
+                if edge["tenant_id"] == params["tenant_id"]
+                and edge["workspace_id"] == params["workspace_id"]
+                and edge["project_id"] == params["project_id"]
+            ]
+            return _FakeResult(rows)
+        if "MATCH (n:CodeIdempotency" in q and "RETURN n.resource_id" in q and "MERGE" not in q:
+            key = (params["scope_key"], params["idempotency_key"], params["resource_type"])
+            if key not in self.store.idempotency:
+                return _FakeResult([])
+            return _FakeResult([_FakeRecord({"resource_id": self.store.idempotency[key]})])
+        if "MERGE (n:CodeIdempotency" in q:
+            key = (params["scope_key"], params["idempotency_key"], params["resource_type"])
+            if key not in self.store.idempotency:
+                self.store.idempotency[key] = params["resource_id"]
+            return _FakeResult([_FakeRecord({"resource_id": self.store.idempotency[key]})])
+        if "CREATE (n:CodeOutboxEvent" in q:
+            self.store.outbox.append(
+                {
+                    "event_id": params["event_id"],
+                    "event_type": params["event_type"],
+                    "payload_json": params["payload_json"],
+                }
+            )
+            return _FakeResult([])
+        if "MATCH (n:CodeOutboxEvent)" in q:
+            return _FakeResult(
+                [_FakeRecord({"payload_json": item["payload_json"]}) for item in self.store.outbox]
+            )
+        raise AssertionError(f"unexpected cypher in fake neo4j driver: {q}")
+
+
+@dataclass
+class _FakeNeo4jDriver:
+    symbols: dict[str, dict[str, Any]] = field(default_factory=dict)
+    edges: dict[str, dict[str, Any]] = field(default_factory=dict)
+    idempotency: dict[tuple[str, str, str], str] = field(default_factory=dict)
+    outbox: list[dict[str, Any]] = field(default_factory=list)
+
+    def session(self, database: str = "neo4j") -> _FakeSession:
+        return _FakeSession(self)
+
+    def close(self) -> None:
+        return None
 
 
 def test_hash_change_documents_only_changed_symbols():
@@ -155,17 +349,26 @@ def test_normalization_and_api_routes():
     assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors" in routes
 
 
-def test_language_matrix_hook_and_reject_planned():
+def test_language_matrix_python_required_and_multi_lang_supported():
     matrix = language_matrix()
     assert matrix["python"]["status"] == "supported"
+    assert matrix["python"]["required"] is True
     assert matrix["python"]["parser"] == "stdlib_ast"
+    for language in ("typescript", "javascript", "go", "rust"):
+        assert matrix[language]["status"] == "supported"
+        assert matrix[language]["parser"] == "tree_sitter"
+        assert matrix[language]["required"] is False
     assert "python" in supported_languages()
+    assert set(supported_languages()) >= {"python", "typescript", "javascript", "go", "rust"}
+    assert "python" in required_languages()
+    assert_required_languages_supported()
     assert assert_language_supported("Python") == "python"
+    assert assert_language_supported("rust") == "rust"
     try:
-        assert_language_supported("typescript")
-        raise AssertionError("planned language should raise")
+        assert_language_supported("cobol")
+        raise AssertionError("unknown language should raise")
     except ValidationError as exc:
-        assert "planned" in exc.message
+        assert "unsupported language" in exc.message
 
 
 def test_import_alias_probable_calls_and_file_imports():
@@ -227,3 +430,95 @@ def test_embedding_stub_ready_and_resolve_ambiguous():
     )
     assert confidence == CallConfidence.AMBIGUOUS
     assert set(targets) == {"id-a", "id-other"}
+
+
+def test_neo4j_store_round_trip_with_fake_driver():
+    driver = _FakeNeo4jDriver()
+    store = Neo4jStore(
+        uri="bolt://localhost:7687",
+        user="neo4j",
+        password="test",
+        driver=driver,
+        ensure_schema=True,
+    )
+    symbol = GraphSymbol(
+        id="sym:p:mod.fn",
+        scope=SCOPE,
+        kind=SymbolKind.FUNCTION,
+        file_path="mod.py",
+        name="fn",
+        qualified_name="mod.fn",
+        signature="def fn()",
+        body="return 1",
+        hash_value="abc",
+        ai_documentation="doc",
+        doc_status=DocStatus.GENERATED,
+        embedding=[0.1, 0.2],
+        created_at="2026-01-01T00:00:00Z",
+        updated_at="2026-01-01T00:00:00Z",
+    )
+    store.put_symbol(symbol)
+    loaded = store.get_symbol(symbol.id, SCOPE)
+    assert loaded.qualified_name == "mod.fn"
+    assert loaded.embedding == [0.1, 0.2]
+
+    edge = GraphEdge(
+        id="edge-1",
+        scope=SCOPE,
+        rel_type="CALLS",
+        source_id=symbol.id,
+        target_id=symbol.id,
+        confidence=CallConfidence.EXACT,
+        metadata={"file_path": "mod.py"},
+    )
+    store.put_edge(edge)
+    edges = store.list_edges(SCOPE)
+    assert len(edges) == 1
+    assert edges[0].rel_type == "CALLS"
+
+    store.append_event({"event_id": "e1", "event_type": "FileIngested", "payload": {}})
+    assert store.outbox()[0]["event_type"] == "FileIngested"
+
+    assert store.begin_idempotency(SCOPE, "k1", "ingest") is None
+    store.complete_idempotency(SCOPE, "k1", "ingest", "res-1")
+    assert store.begin_idempotency(SCOPE, "k1", "ingest") == "res-1"
+
+
+def test_neo4j_backed_python_ingest():
+    store = Neo4jStore(
+        uri="bolt://localhost:7687",
+        user="neo4j",
+        password="test",
+        driver=_FakeNeo4jDriver(),
+        ensure_schema=True,
+    )
+    service = CodeGraphService(store)
+    result = service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-neo",
+        "ingest-neo",
+        {"file_path": "src/auth.py", "source": AUTH_SOURCE_V1, "language": "python"},
+    )
+    assert result.symbols_indexed >= 3
+    login_id = f"sym:{SCOPE.project_id}:src.auth.login"
+    neighbors = service.structural_query(SCOPE, login_id, "CALLS")
+    assert any(edge["rel_type"] == "CALLS" for edge in neighbors["edges"])
+
+
+def test_bootstrap_selects_neo4j_store(monkeypatch):
+    def factory(**kwargs):
+        return Neo4jStore(**kwargs, driver=_FakeNeo4jDriver())
+
+    monkeypatch.setattr("code_graph_service.bootstrap.Neo4jStore", factory)
+    settings = Settings(
+        store_backend="neo4j",
+        database_url="",
+        neo4j_uri="bolt://127.0.0.1:32287",
+        neo4j_user="neo4j",
+        neo4j_password="secret",
+        neo4j_database="neo4j",
+    )
+    store = build_store(settings)
+    assert isinstance(store, Neo4jStore)
+    store.close()

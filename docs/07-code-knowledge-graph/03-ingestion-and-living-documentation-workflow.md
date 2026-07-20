@@ -27,9 +27,12 @@ A repository event or manual sync starts the ingestion job. The job records repo
 
 The system identifies supported source files and excludes generated files, vendor directories, build outputs, dependency folders, caches, and binary files.
 
-### 3. Tree-sitter Parsing
+### 3. Parsing (multi-language)
 
-Tree-sitter parses source files into ASTs without executing project code. This allows safe extraction of files, classes, functions, methods, imports, and call sites.
+Python is the mandatory baseline language (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported through tree-sitter adapters registered in `code_graph_service.domain.parsers`.
+
+Each file carries an explicit `language` (or is mapped from extension). Parsers emit a common `ParsedSymbol` schema without executing project code. Unsupported languages fail validation rather than writing incomplete nodes.
+
 
 ### 4. Symbol Extraction
 

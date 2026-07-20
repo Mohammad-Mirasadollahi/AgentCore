@@ -43,7 +43,8 @@ In scope:
 
 - File, Class, Function, Method, Import, and Module graph nodes.
 - Neo4j graph schema with pgvector-backed semantic retrieval integration.
-- Tree-sitter based parsing.
+- **Mandatory Python language support** (stdlib `ast` today; tree-sitter may later provide parity without regressing Python).
+- Tree-sitter based parsing for additional languages as the matrix expands.
 - Hash-based change detection.
 - AI-generated documentation for changed symbols.
 - Embeddings for semantic lookup.
@@ -56,6 +57,11 @@ Out of scope for the initial implementation:
 - Replacing source control.
 - Guaranteeing semantic correctness without tests.
 - Fully automatic merge of generated code without review.
+- Treating TypeScript, JavaScript, or Go as required until their matrix status is `supported`.
+
+## Language Support
+
+Python is required. See `10-language-support-policy.md`.
 
 ## Expected Benefits
 

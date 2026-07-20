@@ -1,18 +1,11 @@
-"""Compatibility facade for the modular Code-Knowledge Graph package.
+"""Code-Knowledge Graph domain package."""
 
-Prefer importing from `code_graph_service.domain` / `code_graph_service.application`
-for new code. This module re-exports the previous `core` public surface.
-"""
-
-from __future__ import annotations
-
-from .application.service import CodeGraphService
-from .domain.documentation import HeuristicDocGenerator
-from .domain.embeddings import LocalEmbeddingStub, cosine, embed_text
-from .domain.enums import CallConfidence, DocStatus, SymbolKind
-from .domain.errors import CodeGraphError, ConflictError, NotFoundError, ValidationError
-from .domain.hashing import digest, normalize_source, now_iso
-from .domain.languages import (
+from .documentation import HeuristicDocGenerator
+from .embeddings import LocalEmbeddingStub, cosine, embed_text
+from .enums import CallConfidence, DocStatus, SymbolKind
+from .errors import CodeGraphError, ConflictError, NotFoundError, ValidationError
+from .hashing import digest, normalize_source, now_iso
+from .languages import (
     LANGUAGE_MATRIX,
     REQUIRED_LANGUAGES,
     assert_language_supported,
@@ -22,7 +15,7 @@ from .domain.languages import (
     required_languages,
     supported_languages,
 )
-from .domain.models import (
+from .models import (
     EmbeddingResult,
     GraphEdge,
     GraphSymbol,
@@ -31,8 +24,8 @@ from .domain.models import (
     ParsedSymbol,
     Scope,
 )
-from .domain.parsers import parse_source, registered_parsers
-from .domain.parsing import (
+from .parsers import parse_source, registered_parsers
+from .parsing import (
     builtin_names,
     defined_names,
     extract_call_refs,
@@ -40,18 +33,13 @@ from .domain.parsing import (
     parse_python_source,
     resolve_call_target,
 )
-from .domain.ports import Store
-
-# Backward-compatible private aliases used by older call sites / tests.
-_builtin_names = builtin_names
-_defined_names = defined_names
+from .ports import Store
 
 __all__ = [
     "LANGUAGE_MATRIX",
     "REQUIRED_LANGUAGES",
     "CallConfidence",
     "CodeGraphError",
-    "CodeGraphService",
     "ConflictError",
     "DocStatus",
     "EmbeddingResult",

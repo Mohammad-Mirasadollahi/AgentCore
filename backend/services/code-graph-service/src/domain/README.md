@@ -4,26 +4,25 @@ Path: `backend/services/code-graph-service/src/domain`
 
 ## Purpose
 
-Pure domain model, entities, value objects, domain services, and invariants. Parent service: `services/code-graph-service`.
+Service-level scaffold for pure domain ownership. Implementation for this service lives under the importable package:
+
+- `backend/services/code-graph-service/src/code_graph_service/domain/`
 
 ## Modular Boundary
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+This directory documents the domain layer boundary for `code-graph-service`. Runtime domain modules are packaged as `code_graph_service.domain` so imports stay service-scoped (`from code_graph_service.domain ...`).
 
 ## Allowed Contents
 
 - README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
+- Cross-links to the packaged domain modules.
 
 ## Rules
 
 - Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+- Domain must not depend on infrastructure adapters (Postgres, Neo4j, HTTP).
+- Prefer dependency inversion through the `Store` port.
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active via `code_graph_service.domain` (enums, models, languages, parsing, ports, embeddings, documentation).

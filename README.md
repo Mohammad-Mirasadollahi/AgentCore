@@ -50,7 +50,7 @@ Roadmap Phases **1–11** have executable vertical slices and/or verification ga
 
 **Usage Profiles:** named compositions for org/person configuration (domain pack + feature profile + MCP tools). Catalog: `backend/configs/usage-profiles/` (includes `programming-cursor-mcp`). Activate via `project-profile-service`; Cursor connects through `mcp-gateway-service`. Design: [docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
 
-Design target notes (not required for current gates): Neo4j runtime and Tree-sitter multi-language ingestion remain longer-term for Phase 7 (slice today uses PostgreSQL projection + Python `ast` + in-memory Store).
+Design target notes: Neo4j runtime is available via Compose + `Neo4jStore` (`AGENTCORE_CODE_GRAPH_STORE=neo4j`); default Phase 7 slice still uses the PostgreSQL projection. **Python is required** (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter.
 
 ## Quick architecture
 
@@ -143,7 +143,7 @@ Full test layout: [tests/README.md](tests/README.md). Technical test strategy: [
 ## Technology baseline
 
 - **Backend:** Python 3.12+, FastAPI  
-- **Data:** PostgreSQL (pgvector planned); Neo4j is the design target for production code graph  
+- **Data:** PostgreSQL (pgvector planned); Neo4j available for code-graph structural store (`AGENTCORE_CODE_GRAPH_STORE=neo4j`); Python is the mandatory indexed language
 - **Frontend:** Next.js, TypeScript (admin surfaces)  
 - **Local Python:** `.venv` at repository root  
 
