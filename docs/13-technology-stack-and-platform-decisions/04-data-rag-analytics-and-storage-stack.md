@@ -121,3 +121,7 @@ Do not use unmaintained, deprecated, end-of-life, or unsupported technologies. E
 ## Scaling Rule
 
 Scale the approved product for its role before adding another product for the same responsibility. PostgreSQL should be tuned for relational/reporting workloads, Neo4j for graph workloads, pgvector for RAG vectors, and Redis for ephemeral cache/coordination. Introducing a second product for an existing role requires an ADR with measured evidence.
+
+## Optional ANN Acceleration
+
+When RAM, SIMD latency, or air-gapped local ANN matters and pgvector remains the SoR, consult `08-turbovec-ann-acceleration-integration.md` for the approved optional turbovec replica pattern (hybrid SQL/ACL allowlist → dense rerank).

@@ -1,5 +1,16 @@
 # AgentCore
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.138-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-ready-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![MCP](https://img.shields.io/badge/MCP-gateway-111827)](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md)
+[![Version](https://img.shields.io/badge/version-0.1.0-informational)](pyproject.toml)
+[![Phases](https://img.shields.io/badge/roadmap-Phases%201--11-8B5CF6)](docs/00-master-plan/02-roadmap-and-phase-gates.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![GitHub stars](https://img.shields.io/github/stars/Mohammad-Mirasadollahi/AgentCore?style=flat)](https://github.com/Mohammad-Mirasadollahi/AgentCore/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/Mohammad-Mirasadollahi/AgentCore)](https://github.com/Mohammad-Mirasadollahi/AgentCore/commits)
+
 AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes code knowledge, injects task-scoped context into IDE assistants and agent runtimes, and measures the gain. On that wedge it is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers perform execution; AgentCore owns code graph, memory, docs sync, tickets, routing, policy, approval, and audit.
 
 ## Repository layout
@@ -156,4 +167,4 @@ Local private-repo sync uses `scripts/git-sync.sh` (gitignored tool + local PAT)
 - [SECURITY.md](SECURITY.md) — vulnerability reporting (not public issues)  
 - [LICENSE](LICENSE) (Apache 2.0)
 
-**Data sovereignty:** do not upload repository contents to public cloud services without explicit per-action approval. See project law in workspace rules / `ai-toolstack` docs.
+**Data sovereignty:** do not upload repository contents to public cloud services without explicit per-action approval. See project law in workspace rules / `AGENTS.md`.

@@ -170,6 +170,66 @@
           "properties": {},
           "additionalProperties": false
         }
+      },
+      {
+        "name": "agentcore_guidance_resolve",
+        "description": "Resolve Agent Workspace Guidance for this project: AGENTS entry, always-on rules, and skill catalog. Prefer calling before substantive coding. Seeds MCP-first guidance when empty.",
+        "maps_to": "guidance.resolve",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "task_summary": {
+              "type": "string",
+              "description": "Optional task summary for applicability scoring"
+            },
+            "workflow_type": {
+              "type": "string",
+              "description": "Workflow type (default coding)"
+            },
+            "include_skill_bodies": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, include skill bodies in the catalog (prefer get_skill instead)"
+            },
+            "budget_overrides": {
+              "type": "object",
+              "description": "Optional budget slice overrides"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_guidance_list_skills",
+        "description": "List AgentCore skill catalog descriptors without always-on rule bodies.",
+        "maps_to": "guidance.list_skills",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Optional filter over skill name/description"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_guidance_get_skill",
+        "description": "Fetch one Agent Workspace Guidance skill body by skill_id or name.",
+        "maps_to": "guidance.get_skill",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "skill_id": { "type": "string" },
+            "name": { "type": "string" },
+            "bundle_id": {
+              "type": "string",
+              "description": "Optional correlation to a prior guidance resolve"
+            }
+          },
+          "additionalProperties": false
+        }
       }
     ]
   },

@@ -1,28 +1,28 @@
 # IDE agent documentation index
 
-English-only. **This tree is compatible IDE setup and agent behavior in this repo—not AgentCore product architecture.** Product specs live under [`../README.md`](../README.md) (phases 00–14).
+English-only. **This tree is Cursor IDE setup and agent behavior in this repo—not AgentCore product architecture.** Product specs live under [`../README.md`](../README.md) (phases 00–15).
 
-**Canonical file:** this folder at repo root (`docs/agents/`). The same files are mirrored under `ai-toolstack/docs/agents/`; `install.sh` syncs them here.
+**Canonical file:** this folder at repo root (`docs/agents/`).
 
 ## Reading order
 
-Follow this path when onboarding a machine or defining team-specific agent rules.
-
 | Step | Document | Why |
 | --- | --- | --- |
-| 1 | [`AGENTS.md`](../../AGENTS.md) | Entry: install commands, high-signal skills |
-| 2 | [`ai-toolstack/ide-agent-config/README.md`](../../ai-toolstack/ide-agent-config/README.md) | Where rules/skills live; one-command restore |
-| 3 | [`ai-toolstack/docs/token-optimization-overview.md`](../../ai-toolstack/docs/token-optimization-overview.md) | MCP (mcp-lazy), memory, headroom, RTK |
-| 4 | [`ai-toolstack/docs/IDE-rules-and-skills.md`](../../ai-toolstack/docs/IDE-rules-and-skills.md) | Rules vs skills; canonical rule list |
-| 5 | [`ai-toolstack/docs/ponytail-IDE-stack.md`](../../ai-toolstack/docs/ponytail-IDE-stack.md) | Ponytail, terse output, Persian typography |
-| 6 | [`ide-mcp-first-workflow.md`](ide-mcp-first-workflow.md) | Docs-first discovery, live-test flow |
-| 7 | **[`ide-workspace-rule-discovery.md`](ide-workspace-rule-discovery.md)** | **Optional:** org interview → workspace packs → `.mdc` |
-| 8 | [`domain.md`](domain.md) | Monorepo context (mattpocock engineering skills) |
-| 9 | [`issue-tracker.md`](issue-tracker.md) · [`triage-labels.md`](triage-labels.md) | Issue workflow vocabulary |
+| 1 | [`AGENTS.md`](../../AGENTS.md) | Entry: laws, high-signal skills |
+| 2 | [`.cursor/rules/`](../../.cursor/rules/) | Always-apply / scoped Cursor rules (`.mdc`) |
+| 3 | [`.cursor/skills/`](../../.cursor/skills/) · [`.agents/skills/`](../../.agents/skills/) | Agent skills (`SKILL.md`) |
+| 4 | [`ide-mcp-first-workflow.md`](ide-mcp-first-workflow.md) | Docs-first discovery, live-test flow (if present) |
+| 5 | [`ide-workspace-rule-discovery.md`](ide-workspace-rule-discovery.md) | Optional: org interview → workspace packs → `.mdc` (if present) |
+| 6 | [`domain.md`](domain.md) | Monorepo context |
+| 7 | [`issue-tracker.md`](issue-tracker.md) · [`triage-labels.md`](triage-labels.md) | Issue workflow vocabulary |
 
-## Workspace packs (step 7 output)
+## Active Persian / language rules
 
-`ai-toolstack/ide-agent-config/workspace-packs/<slug>/` — see step 7 doc for activation (`install.sh` → Reload Window).
+| Path | Role |
+| --- | --- |
+| `.cursor/rules/persian-chat-typography.mdc` | RTL wrapper + right alignment (`alwaysApply`) |
+| `.cursor/rules/reply-fa-code-docs-en.mdc` | Persian chat; English code/docs (`alwaysApply`) |
+| `.cursor/skills/persian-chat-reply/SKILL.md` | Skill detailing the RTL reply pattern |
 
 ## Not for product implementation
 
@@ -30,16 +30,12 @@ Follow this path when onboarding a machine or defining team-specific agent rules
 | --- | --- |
 | Platform rule engine | `docs/04-rule-engine-orchestration/` |
 | Product domain packs | `docs/08-software-engineering-architecture/26-domain-customization-and-feature-control.md` |
+| Product AGENTS / rules / skills for connected coding agents | [`../15-agent-workspace-guidance/00-index.md`](../15-agent-workspace-guidance/00-index.md) |
+| MCP-first seed skills (route work to AgentCore via MCP) | [`../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md`](../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md) |
 | Backend | `backend/docs/` |
 
-IDE `.mdc` configuration does **not** implement those features.
+IDE `.mdc` configuration in this repository does **not** implement those product features.
 
-## Quick commands
+## After changing rules/skills
 
-```bash
-./ai-toolstack/scripts/install-agentcore.sh
-# IDE → Reload Window
-./ai-toolstack/scripts/ai-toolstack.sh verify --quick
-```
-
-Skill for step 7: `IDE-workspace-rule-discovery`.
+Cursor → **Reload Window**.

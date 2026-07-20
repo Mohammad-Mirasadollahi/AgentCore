@@ -4,7 +4,7 @@ Path: `backend/services/mcp-gateway-service`
 
 ## Purpose
 
-Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Protocol (MCP). Tool surfaces are defined by the active **Usage Profile**. Tool calls are dispatched to **in-process** core-data, memory, code-graph, and docs-sync service slices.
+Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Protocol (MCP). Tool surfaces are defined by the active **Usage Profile**. Tool calls are dispatched to **in-process** core-data, memory, code-graph, docs-sync, and common-context (Agent Workspace Guidance) service slices.
 
 ## Cursor tools (`programming-cursor-mcp`)
 
@@ -14,12 +14,14 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_get_effective_profile` | read | Effective Usage Profile |
 | `agentcore_memory_retrieve` | read | Retrieve memory for a query |
 | `agentcore_code_graph_search` | read | Search code-knowledge graph |
-| `agentcore_docs_drift_check` | read | Docs drift for a symbol |
 | `agentcore_create_task` | write | Create a Task |
 | `agentcore_write` | write | Unified write: `memory` / `task` / `activity` / `decision` |
 | `agentcore_docs_drift_check` | read | Docs drift for a symbol |
 | `agentcore_docs_write` | write | Docs workflow: `validate` / `note` / `draft` / `index` |
 | `agentcore_docs_status` | read | Coverage + missing docs |
+| `agentcore_guidance_resolve` | read | Resolve AGENTS entry, always-on rules, skill catalog (seeds MCP-first pack) |
+| `agentcore_guidance_list_skills` | read | List skill catalog descriptors |
+| `agentcore_guidance_get_skill` | read | Fetch one skill body by id or name |
 
 ## Layout
 
@@ -30,6 +32,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `backends/dispatch.py` | capability router (`maps_to`) |
 | `backends/writes.py` | `platform.write` (memory/task/activity/decision) |
 | `backends/docs.py` | docs-sync write/status/drift helpers |
+| `backends/guidance.py` | Agent Workspace Guidance resolve/list/get-skill |
 | `backends/_paths.py` | PYTHONPATH bootstrap for in-process services |
 | `server.py` | MCP JSON-RPC stdio surface |
 

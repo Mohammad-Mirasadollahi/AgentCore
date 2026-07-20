@@ -104,6 +104,8 @@ Resolution output:
 - First IDE integration scope.
 - Developer workflow diagrams.
 
+**Documentation update (2026-07-20):** Connect-time guidance injection shape is specified in [`../15-agent-workspace-guidance/`](../15-agent-workspace-guidance/) (MCP-primary resolve of AGENTS entry / always-on rules / skills, optional filesystem export; Common Context as SoT). This closes the design gap for “how context injection appears” at the guidance-artifact layer. Remaining open: IDE plugin chrome, in-IDE banners, and hard “resolve before write” enforcement. See phase 15 risks doc for residual items. Status: **partially addressed (design docs)**; implementation still open.
+
 ## GAP-A07 - Enterprise Administration Model
 
 The documentation references tenants, profiles, policies, adapters, and port profiles, but admin workflows need more detail.
@@ -121,3 +123,27 @@ Resolution output:
 - Admin role model.
 - Permission matrix.
 - Audit requirements for admin changes.
+
+## GAP-A08 - Agent Collaboration Surface Completeness
+
+Issue, Task, and AgentTicket existed, but Pull Request–like ChangeSet, review threads, discussion comments, and labels were underspecified for agent-native collaboration (without GitHub as SoR).
+
+Questions:
+
+- What is the native PR analog and its state machine?
+- How do reviews relate to AgentTicket `:submit-review` and EscalationTicket?
+- How do external GitHub/Jira objects map without becoming SoR?
+
+Partial resolution:
+
+- Product surface: `../01-core-data-model/07-agent-collaboration-work-surface.md`
+- Contracts: `../01-core-data-model/08-changeset-review-and-discussion-contracts.md`
+- External mapping: `../05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md`
+
+Still open:
+
+- Diff viewer UX and artifact streaming.
+- Whether WorkMilestone ships with ChangeSet MVP.
+- EscalationTicket vs ApprovalRequest vs ApprovalTicket naming unification.
+
+Status: `PLANNED` (docs proposed; implementation not started).

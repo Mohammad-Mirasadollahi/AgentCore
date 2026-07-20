@@ -5,6 +5,7 @@ from uuid import uuid4
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
 
 from code_graph_service.core import CodeGraphService, Scope as GraphScope
+from common_context_service.core import CommonContextService, Scope as CommonContextScope
 from core_data_service.core import CoreData, Scope as CoreScope
 from docs_sync_service.core import DocsSyncService, Scope as DocsScope
 from memory_service.core import MemoryService, Scope as MemoryScope
@@ -21,6 +22,7 @@ class PlatformBackends:
         self.memory = MemoryService(self._stores.memory)
         self.graph = CodeGraphService(self._stores.graph)
         self.docs = DocsSyncService(self._stores.docs)
+        self.common_context = CommonContextService(self._stores.common_context)
         self.actor_id = "mcp-gateway"
         self.store_mode = self._stores.mode
 
@@ -42,6 +44,16 @@ class PlatformBackends:
 
     def docs_scope(self, scope: dict[str, str]) -> DocsScope:
         return DocsScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def common_context_scope(self, scope: dict[str, str]) -> CommonContextScope:
+        return CommonContextScope(scope["tenant_id"], scope["workspace_id"], scope["project_id"])
+
+    def ensure_guidance_seed(self, scope: dict[str, str], correlation_id: str) -> None:
+        self.common_context.ensure_mcp_first_seed(
+            self.common_context_scope(scope),
+            self.actor_id,
+            correlation_id,
+        )
 
     def ensure_memory_seed(self, scope: dict[str, str], query: str) -> None:
         mem_scope = self.memory_scope(scope)

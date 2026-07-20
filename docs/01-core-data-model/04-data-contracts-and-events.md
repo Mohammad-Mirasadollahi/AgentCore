@@ -9,6 +9,8 @@
 - `Issue(id, title, description, severity, discovered_by, evidence_refs, status, owner)`
 - `Task(id, issue_id, title, assignee_type, instructions, dependencies, status, acceptance_criteria)`
 
+Collaboration-surface extensions (ChangeSet, ReviewThread, ReviewComment, DiscussionComment, WorkLabel, WorkMilestone) are specified in `08-changeset-review-and-discussion-contracts.md` and must be merged into this catalog when implementation starts.
+
 ## Events
 
 - `activity.recorded`

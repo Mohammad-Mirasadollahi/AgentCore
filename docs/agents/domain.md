@@ -19,9 +19,9 @@ This repo does not yet have a root `CONTEXT.md`. Use the existing documentation 
 | **Backend** | `backend/docs/` (standards, HLD, runbooks) | Microservices under `backend/services/`; Read design docs + scoped **`rg`** before edits |
 | **Frontend** | `frontend/docs/` (NeonGlass UI, settings) | Read ui-standards; **`rg`** importers under `frontend/` |
 | **Deploy / infra** | `deploy-toolkit/` | Release pipeline, 3-VM install |
-| **Agent tooling** | `ai-toolstack/docs/` | Ponytail, MCP (memory/headroom), token optimization |
+| **Agent tooling** | `.cursor/rules/`, `.cursor/skills/`, `docs/agents/` | Cursor rules/skills and agent docs |
 
-Entry points: [`AGENTS.md`](../../AGENTS.md), [`ai-toolstack/rules/ai-toolstack.mdc`](../../ai-toolstack/rules/ai-toolstack.mdc).
+Entry points: [`AGENTS.md`](../../AGENTS.md), [`docs/agents/00-index.md`](00-index.md).
 
 For standards-backed tasks, prefer **reading the relevant standards folder** then **narrow `rg`** — not repo-wide grep first.
 
@@ -33,9 +33,11 @@ Multi-context repo:
 /
 ├── CONTEXT-MAP.md                     ← to be created by domain-modeling when needed
 ├── docs/adr/                          ← system-wide ADRs (when created)
+├── docs/agents/                       ← Cursor agent documentation
+├── .cursor/rules/                     ← Cursor rules (.mdc)
+├── .cursor/skills/                    ← Cursor skills
 ├── backend/docs/                      ← backend standards & service design
-├── frontend/docs/                     ← UI standards & system docs
-└── ai-toolstack/docs/                 ← agent/MCP tooling docs
+└── frontend/docs/                     ← UI standards & system docs
 ```
 
 ## Use the glossary's vocabulary

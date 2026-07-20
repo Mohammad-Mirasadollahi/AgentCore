@@ -13,6 +13,7 @@ This section defines the preferred technology stack for AgentCore. The goal is t
 - `05-runtime-messaging-observability-and-deployment-stack.md` defines messaging, cache, jobs, observability, deployment, infrastructure, and operational stack choices.
 - `06-local-venv-docker-and-port-policy.md` defines the local `.venv` policy, Docker Compose service policy, non-default port rules, profile strategy, and preflight requirements.
 - `07-service-product-standard.md` defines the one-product-per-role standard, approved ports, Docker infrastructure rule, unsupported technology rule, and exception governance.
+- `08-turbovec-ann-acceleration-integration.md` is the ADR for optional in-process [turbovec](https://github.com/RyanCodrai/turbovec) ANN acceleration beside PostgreSQL+pgvector (SoR unchanged).
 
 ## Mandatory Baseline
 

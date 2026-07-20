@@ -20,6 +20,10 @@ A complete Decision includes context, options considered, chosen option, rejecte
 
 An Issue describes a problem, risk, inconsistency, or need. A Task describes executable work required to address an Issue. This separation allows one Issue to create multiple Tasks across backend, frontend, data, QA, docs, security, or human approval workflows.
 
+## Feature 4 - Agent Collaboration Work Surface
+
+AgentCore owns a specialized collaboration surface for agents: Issue, Task, AgentTicket, ChangeSet (pull-request analog), ReviewThread/ReviewComment, DiscussionComment, and WorkLabel. Agents create and review these records inside AgentCore. GitHub and similar systems are optional projections, not the system of record. See `07-agent-collaboration-work-surface.md` and `08-changeset-review-and-discussion-contracts.md`.
+
 ## User Value
 
 - Teams can reconstruct what happened without reading raw chat logs.
@@ -34,6 +38,7 @@ An Issue describes a problem, risk, inconsistency, or need. A Task describes exe
 - Promote important rationale into Decision records.
 - Create Issues for risks or discovered problems.
 - Decompose Issues into role-specific Tasks.
+- Create ChangeSets, review threads, discussion comments, and work labels as native AgentCore records when agents propose and review changes.
 - Preserve correlation IDs and evidence references across all records.
 
 ## Non-Functional Requirements

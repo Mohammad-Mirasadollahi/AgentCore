@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
-from . import docs, writes
+from . import docs, guidance, writes
 from core_data_service.core import Kind
 
 from .platform import PlatformBackends
@@ -57,6 +57,21 @@ def dispatch_capability(
 
     if maps_to == "docs_sync.status":
         return docs.docs_status(backends, scope=scope, base=base)
+
+    if maps_to == "guidance.resolve":
+        return guidance.guidance_resolve(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+
+    if maps_to == "guidance.list_skills":
+        return guidance.guidance_list_skills(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+
+    if maps_to == "guidance.get_skill":
+        return guidance.guidance_get_skill(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
 
     raise ValueError(f"unmapped capability: {maps_to}")
 
