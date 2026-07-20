@@ -1,19 +1,13 @@
 """AgentCore Code-Knowledge Graph service (Phase 7)."""
 
-from .core import (
-    CodeGraphService,
-    LocalEmbeddingStub,
-    language_matrix,
-    supported_languages,
-)
+from .application import CodeGraphService
+from .domain import LocalEmbeddingStub, Scope, language_matrix, required_languages, supported_languages
 
 __all__ = [
     "CodeGraphService",
     "LocalEmbeddingStub",
+    "Scope",
     "language_matrix",
+    "required_languages",
     "supported_languages",
 ]
-
-from .core import CodeGraphService, Scope
-
-__all__ = ["CodeGraphService", "Scope"]

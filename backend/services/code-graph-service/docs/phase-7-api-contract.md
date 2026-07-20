@@ -6,7 +6,7 @@ Path: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 
 This contract documents the Phase 7 vertical slice for the Code-Knowledge Graph. The service owns scoped graph symbol projections, relationship edges (CONTAINS, CALLS, IMPORTS, INHERITS_FROM, DOCUMENTED_BY), hash-based change detection, local documentation generation for changed symbols only, semantic ranking via a local embedding stub, generation-context packs, generated-code symbol validation, and code-graph outbox events.
 
-Neo4j remains the target structural store in the product design. This Phase 7 slice persists a graph projection in PostgreSQL (`code_graph` schema) and uses an in-memory Store fake for unit tests. Parsing uses stdlib `ast` for Python; a language matrix marks other languages as planned (tree-sitter) without requiring those runtimes. Documentation generation and embeddings are local and deterministic (no cloud model calls).
+Neo4j remains the target structural store in the product design. This Phase 7 slice persists a graph projection in PostgreSQL (`code_graph` schema) by default and can select Neo4j via `AGENTCORE_CODE_GRAPH_STORE=neo4j` (`Neo4jStore`). Unit tests use an in-memory Store fake. **Python is a required language** (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. Documentation generation and embeddings are local and deterministic (no cloud model calls). See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
 ## Scope Headers
 

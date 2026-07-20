@@ -34,15 +34,15 @@ Impact: Tree-sitter supports many languages, but the first implementation must c
 
 Why it matters: Symbol extraction, call resolution, import resolution, and AST hashing differ by language.
 
-Current assumption: The system starts with a small language set before expanding.
+Current assumption: **Python is mandatory and currently supported** (stdlib `ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
-Decision needed: Choose initial language support and define parser confidence rules per language.
+Decision needed: Cross-language edge resolution policy (FFI / package graphs) and confidence thresholds per language.
 
 Suggested owner: Code Graph Lead
 
-Resolution path: Create language support matrix and parser acceptance tests.
+Resolution path: Keep Python required; expand confidence and cross-language resolution tests incrementally.
 
-Status: OPEN
+Status: PARTIALLY_RESOLVED
 
 ## GAP-003 - LLM Provider and Local Model Strategy
 
@@ -214,11 +214,11 @@ Category: Architecture
 
 Severity: Medium
 
-Impact: Phase 7 uses a Postgres `code_graph` slice while Neo4j remains the design target for production graph storage.
+Impact: Phase 7 uses a Postgres `code_graph` slice by default while Neo4j is available as an alternate Store backend and remains the design target for production graph storage.
 
 Why it matters: Delayed migration can create dual-write debt; early migration can block language-matrix work.
 
-Current assumption: Postgres slice is acceptable until the language support matrix lands.
+Current assumption: Postgres slice is acceptable until the language support matrix lands. Neo4j adapter (`neo4j_store.py`) and Compose service exist for staging cutover. **Python support remains mandatory across both stores.**
 
 Decision needed: When to migrate from Postgres code_graph schema to Neo4j in production.
 
@@ -228,6 +228,6 @@ Approver: Platform Architect
 
 Review date: 2026-10-01
 
-Resolution path: Keep Postgres slice for Phase 7; schedule Neo4j cutover after language matrix lands.
+Resolution path: Keep Postgres as default for Phase 7; exercise Neo4j via `AGENTCORE_CODE_GRAPH_STORE=neo4j`; schedule production cutover after language matrix lands (or explicit ADR). Follow `docs/07-code-knowledge-graph/11-neo4j-migration-plan.md`.
 
 Status: ACCEPTED_RISK

@@ -41,12 +41,12 @@
       "category": "Technical Implementation",
       "severity": "High",
       "owner": "Code Graph Lead",
-      "status": "OPEN",
+      "status": "PARTIALLY_RESOLVED",
       "linked_phase_gates": [7],
-      "proposed_resolution_artifact": "docs/07-code-graph/language-support-matrix.md",
+      "proposed_resolution_artifact": "docs/07-code-knowledge-graph/10-language-support-policy.md",
       "documentation_ref": "docs/10-gap-analysis/03-technical-implementation-gaps.md",
-      "decision_needed": "Choose initial language support and define parser confidence rules per language.",
-      "resolution_path": "Create language support matrix and parser acceptance tests."
+      "decision_needed": "Define cross-language edge resolution and per-language confidence thresholds; Python remains required.",
+      "resolution_path": "Python/TS/JS/Go/Rust parsers supported; expand FFI and package-resolution confidence tests."
     },
     {
       "gap_id": "GAP-003",
@@ -162,10 +162,10 @@
       "owner": "Code Graph Lead",
       "status": "ACCEPTED_RISK",
       "linked_phase_gates": [7],
-      "proposed_resolution_artifact": "docs/07-code-graph/neo4j-migration-plan.md",
+      "proposed_resolution_artifact": "docs/07-code-knowledge-graph/11-neo4j-migration-plan.md",
       "documentation_ref": "docs/10-gap-analysis/02-architecture-gaps.md",
       "decision_needed": "When to migrate from Postgres code_graph schema to Neo4j in production.",
-      "resolution_path": "Keep Postgres slice for Phase 7; schedule Neo4j cutover after language matrix lands.",
+      "resolution_path": "Keep Postgres as default; exercise Neo4j via AGENTCORE_CODE_GRAPH_STORE=neo4j; cutover after language matrix or explicit ADR. Python support remains mandatory.",
       "approver": "Platform Architect",
       "review_date": "2026-10-01"
     }

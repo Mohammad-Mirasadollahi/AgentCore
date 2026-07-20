@@ -45,6 +45,27 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  neo4j:
+    image: neo4j:5.26-community
+    profiles: ["core", "all"]
+    environment:
+      NEO4J_AUTH: ${AGENTCORE_NEO4J_USER:-neo4j}/${AGENTCORE_NEO4J_PASSWORD:?AGENTCORE_NEO4J_PASSWORD is required}
+      NEO4J_server_memory_pagecache_size: 512M
+      NEO4J_server_memory_heap_initial__size: 512M
+      NEO4J_server_memory_heap_max__size: 512M
+    ports:
+      - "${AGENTCORE_NEO4J_BOLT_PORT:-32287}:7687"
+      - "${AGENTCORE_NEO4J_HTTP_PORT:-32474}:7474"
+    volumes:
+      - agentcore-neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
   outbox-relay:
     image: python:3.12-slim
     profiles: ["all"]
@@ -67,3 +88,4 @@ services:
 
 volumes:
   agentcore-postgres-data:
+  agentcore-neo4j-data:

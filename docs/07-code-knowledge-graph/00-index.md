@@ -17,18 +17,25 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `07-metadata-first-code-understanding.md` defines the metadata-first architecture that lets agents inspect compact code metadata before reading source code.
 - `08-code-metadata-schema-and-lifecycle.md` defines low-level metadata records, lifecycle, freshness states, confidence rules, and source escalation policy.
 - `09-context-pack-retrieval-and-agent-workflow.md` defines context packs, retrieval algorithms, agent workflows, use cases, metrics, and safety rules.
+- `10-language-support-policy.md` defines mandatory Python support and the planned language matrix.
+- `11-neo4j-migration-plan.md` defines Postgres → Neo4j cutover steps without regressing Python.
 
 ## Implementation Slice
 
 Phase 7 vertical slice service:
 
 - `backend/services/code-graph-service/` — ingest, hash diff, local docs, graph edges, semantic ranking, generation context, generated-code validation
+- Persistence: PostgreSQL projection by default; Neo4j via `AGENTCORE_CODE_GRAPH_STORE=neo4j` (`neo4j_store.py`)
 - Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 - Tests: `tests/backend/services/code-graph-service/test_code_graph_service.py`
 
 ```bash
 PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
 ```
+
+## Language Policy (non-negotiable)
+
+**Python must remain supported.** TypeScript, JavaScript, Go, and Rust are also supported via tree-sitter. Details: `10-language-support-policy.md`.
 
 ## Relationship to Other Sections
 

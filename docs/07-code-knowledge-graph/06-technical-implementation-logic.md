@@ -12,7 +12,8 @@ Discovers files, filters ignored paths, detects language, and emits file indexin
 
 ### AST Parser Service
 
-Uses Tree-sitter to parse source files and extract symbols, imports, inheritance, and call expressions.
+Python is the **required** baseline language (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust use tree-sitter adapters behind `parse_source(language, file_path, source)` and normalize into the shared symbol schema.
+
 
 ### Symbol Normalizer
 
