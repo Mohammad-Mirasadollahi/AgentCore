@@ -20,6 +20,8 @@ dependencies = [
   "tree-sitter-typescript==0.23.2",
   "tree-sitter-go==0.25.0",
   "tree-sitter-rust==0.24.0",
+  "litellm>=1.40.0,<2",
+  "rank-bm25==0.2.2",
 ]
 
 [project.optional-dependencies]
@@ -27,13 +29,21 @@ dev = [
   "pytest==9.1.1",
   "httpx2==2.5.0",
 ]
+embeddings = [
+  "sentence-transformers>=3.0.0,<6",
+]
+graph-analytics = [
+  "scikit-network>=0.32,<0.34",
+  "scipy>=1.11,<2",
+  "numpy>=1.26,<3",
+]
 
 [project.scripts]
 agentcore = "agentcore_cli.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "backend/packages"}
-packages = ["agentcore_cli", "usage_profile", "outbox_relay"]
+packages = ["agentcore_cli", "usage_profile", "outbox_relay", "llm_gateway", "port_profile"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

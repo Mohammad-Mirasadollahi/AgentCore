@@ -14,5 +14,8 @@ FOR (n:CodeIdempotency) REQUIRE (n.scope_key, n.idempotency_key, n.resource_type
 CREATE INDEX code_symbol_scope IF NOT EXISTS
 FOR (n:CodeSymbol) ON (n.tenant_id, n.workspace_id, n.project_id);
 
-CREATE INDEX code_symbol_qualified_name IF NOT EXISTS
-FOR (n:CodeSymbol) ON (n.project_id, n.qualified_name);
+CREATE INDEX code_symbol_kind IF NOT EXISTS
+FOR (n:CodeSymbol) ON (n.kind);
+
+CREATE FULLTEXT INDEX code_symbol_fulltext IF NOT EXISTS
+FOR (n:CodeSymbol) ON EACH [n.qualified_name, n.name, n.signature, n.ai_documentation];

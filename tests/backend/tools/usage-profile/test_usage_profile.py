@@ -23,6 +23,12 @@ def test_programming_profile_validates_and_lists_mcp_tools():
     names = {t["name"] for t in profile["mcp"]["tools"]}
     assert "agentcore_memory_retrieve" in names
     assert "agentcore_code_graph_search" in names
+    assert "agentcore_code_graph_get_symbol" in names
+    assert "agentcore_code_graph_neighbors" in names
+    assert "agentcore_code_graph_impact" in names
+    assert "agentcore_code_graph_generation_context" in names
+    assert "agentcore_code_graph_ingest_file" in names
+    assert "agentcore_code_graph_ingest_repo" in names
     assert "agentcore_guidance_resolve" in names
     assert "agentcore_guidance_get_skill" in names
     assert validate_usage_profile(profile) == []

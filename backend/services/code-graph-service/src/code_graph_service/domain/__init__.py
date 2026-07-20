@@ -22,9 +22,18 @@ from .models import (
     IngestResult,
     ParseResult,
     ParsedSymbol,
+    RepoIngestFileOutcome,
+    RepoIngestResult,
     Scope,
 )
 from .parsers import parse_source, registered_parsers
+from .repo_discovery import (
+    DEFAULT_EXCLUDE_DIRS,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_FILES,
+    DiscoveredFile,
+    discover_source_files,
+)
 from .parsing import (
     builtin_names,
     defined_names,
@@ -51,10 +60,16 @@ __all__ = [
     "NotFoundError",
     "ParseResult",
     "ParsedSymbol",
+    "RepoIngestFileOutcome",
+    "RepoIngestResult",
     "Scope",
     "Store",
     "SymbolKind",
     "ValidationError",
+    "DEFAULT_EXCLUDE_DIRS",
+    "DEFAULT_MAX_FILE_BYTES",
+    "DEFAULT_MAX_FILES",
+    "DiscoveredFile",
     "assert_language_supported",
     "assert_required_languages_supported",
     "builtin_names",
@@ -62,6 +77,7 @@ __all__ = [
     "defined_names",
     "detect_language_from_path",
     "digest",
+    "discover_source_files",
     "embed_text",
     "extract_call_refs",
     "extract_identifier_refs",

@@ -1,0 +1,229 @@
+"""LiteLLM-backed LLM gateway and test double."""
+
+from __future__ import annotations
+
+from typing import Any, Protocol
+
+from .providers import list_providers
+from .rate_limit import RpmLimiter
+from .settings import LlmGatewaySettings
+from .types import ChatMessage, CompletionRequest, CompletionResult, EmbeddingResult, ProviderInfo
+
+
+class LlmGateway(Protocol):
+    def complete(self, request: CompletionRequest) -> CompletionResult: ...
+
+    def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult: ...
+
+    def list_providers(self) -> list[ProviderInfo]: ...
+
+    def settings_public(self) -> dict[str, Any]: ...
+
+
+def _provider_from_model(model: str) -> str:
+    if "/" in model:
+        return model.split("/", 1)[0]
+    return "openai"
+
+
+class LiteLlmGateway:
+    """Infrastructure adapter: AgentCore LLM port → LiteLLM SDK."""
+
+    def __init__(self, settings: LlmGatewaySettings | None = None) -> None:
+        self.settings = settings or LlmGatewaySettings.from_environment()
+        self._rpm = RpmLimiter(self.settings.rpm)
+
+    def settings_public(self) -> dict[str, Any]:
+        return self.settings.public_dict()
+
+    def list_providers(self) -> list[ProviderInfo]:
+        return list_providers(include_litellm_dynamic=True)
+
+    def complete(self, request: CompletionRequest) -> CompletionResult:
+        if not self.settings.enabled:
+            raise RuntimeError("LiteLLM gateway is disabled (AGENTCORE_LITELLM_ENABLED=false)")
+        model = (request.model or self.settings.default_model or "").strip()
+        if not model:
+            raise RuntimeError(
+                "No model configured: set AGENTCORE_LITELLM_DEFAULT_MODEL or pass request.model"
+            )
+        try:
+            import litellm
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "litellm package is required for LiteLlmGateway; install project dependencies"
+            ) from exc
+
+        self._rpm.acquire()
+
+        litellm.drop_params = self.settings.drop_params
+        messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": request.temperature,
+            "timeout": self.settings.timeout_seconds,
+            "num_retries": self.settings.num_retries,
+            "api_base": self.settings.api_base,
+        }
+        if self.settings.api_key:
+            kwargs["api_key"] = self.settings.api_key
+        if request.max_tokens is not None:
+            kwargs["max_tokens"] = request.max_tokens
+        if request.response_format_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        # OpenRouter / gpt-oss style: top-level "reasoning": {"enabled": true}
+        # via extra_body so drop_params cannot strip it.
+        reasoning = self.settings.reasoning_payload(
+            enabled_override=request.reasoning_enabled,
+            effort_override=request.reasoning_effort,
+        )
+        if reasoning is not None:
+            kwargs["extra_body"] = {"reasoning": reasoning}
+
+        response = litellm.completion(**kwargs)
+        content = _message_content(response)
+        usage = {}
+        raw_usage = getattr(response, "usage", None)
+        if raw_usage is not None:
+            usage = {
+                "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
+                "completion_tokens": getattr(raw_usage, "completion_tokens", None),
+                "total_tokens": getattr(raw_usage, "total_tokens", None),
+            }
+        used_model = getattr(response, "model", None) or model
+        return CompletionResult(
+            content=content,
+            model=str(used_model),
+            provider=_provider_from_model(str(used_model)),
+            usage={k: v for k, v in usage.items() if v is not None},
+            raw={"id": getattr(response, "id", None)},
+        )
+
+    def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult:
+        if not self.settings.enabled:
+            raise RuntimeError("LiteLLM gateway is disabled (AGENTCORE_LITELLM_ENABLED=false)")
+        resolved = (model or self.settings.default_model or "").strip()
+        if not resolved:
+            raise RuntimeError(
+                "No embedding model configured: set AGENTCORE_LITELLM_MODEL_EMBED "
+                "or AGENTCORE_LITELLM_DEFAULT_MODEL"
+            )
+        try:
+            import litellm
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "litellm package is required for LiteLlmGateway; install project dependencies"
+            ) from exc
+
+        self._rpm.acquire()
+        litellm.drop_params = self.settings.drop_params
+        kwargs: dict[str, Any] = {
+            "model": resolved,
+            "input": [text],
+            "timeout": self.settings.timeout_seconds,
+            "num_retries": self.settings.num_retries,
+            "api_base": self.settings.api_base,
+        }
+        if self.settings.api_key:
+            kwargs["api_key"] = self.settings.api_key
+        response = litellm.embedding(**kwargs)
+        data = getattr(response, "data", None) or []
+        if not data:
+            raise RuntimeError("LiteLLM embedding returned no data")
+        first = data[0]
+        vector = getattr(first, "embedding", None)
+        if vector is None and isinstance(first, dict):
+            vector = first.get("embedding")
+        if not isinstance(vector, list) or not vector:
+            raise RuntimeError("LiteLLM embedding vector missing")
+        used_model = getattr(response, "model", None) or resolved
+        usage: dict[str, Any] = {}
+        raw_usage = getattr(response, "usage", None)
+        if raw_usage is not None:
+            usage = {
+                "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
+                "total_tokens": getattr(raw_usage, "total_tokens", None),
+            }
+        return EmbeddingResult(
+            vector=[float(v) for v in vector],
+            model=str(used_model),
+            provider=_provider_from_model(str(used_model)),
+            usage={k: v for k, v in usage.items() if v is not None},
+        )
+
+
+def _message_content(response: Any) -> str:
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", None)
+    if message is None and isinstance(choices[0], dict):
+        message = choices[0].get("message")
+    if message is None:
+        return ""
+    content = getattr(message, "content", None)
+    if content is None and isinstance(message, dict):
+        content = message.get("content")
+    return str(content or "")
+
+
+class FakeLlmGateway:
+    """Deterministic gateway for unit tests (no network)."""
+
+    def __init__(
+        self,
+        settings: LlmGatewaySettings | None = None,
+        *,
+        canned: str = "fake-completion",
+    ) -> None:
+        self.settings = settings or LlmGatewaySettings(
+            enabled=True,
+            api_base="http://127.0.0.1:32400",
+            api_base_override="",
+            api_base_is_auto=True,
+            api_key="",
+            default_model="fake/model",
+            timeout_seconds=180.0,
+            num_retries=3,
+            rpm=30,
+            host="127.0.0.1",
+            port=32400,
+            drop_params=True,
+            reasoning_enabled=False,
+            reasoning_effort="",
+        )
+        self.canned = canned
+        self.calls: list[CompletionRequest] = []
+        self._rpm = RpmLimiter(self.settings.rpm)
+
+    def settings_public(self) -> dict[str, Any]:
+        return self.settings.public_dict()
+
+    def list_providers(self) -> list[ProviderInfo]:
+        return list_providers(include_litellm_dynamic=False)
+
+    def complete(self, request: CompletionRequest) -> CompletionResult:
+        self._rpm.acquire()
+        self.calls.append(request)
+        model = request.model or self.settings.default_model
+        return CompletionResult(
+            content=self.canned,
+            model=model,
+            provider=_provider_from_model(model),
+            usage={"total_tokens": 1},
+        )
+
+    def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult:
+        self._rpm.acquire()
+        resolved = model or self.settings.default_model
+        # Deterministic tiny vector for tests.
+        seed = sum(ord(c) for c in text) % 97
+        vector = [((seed + i) % 10) / 10.0 for i in range(8)]
+        return EmbeddingResult(
+            vector=vector,
+            model=resolved,
+            provider=_provider_from_model(resolved),
+            usage={"total_tokens": 1},
+        )

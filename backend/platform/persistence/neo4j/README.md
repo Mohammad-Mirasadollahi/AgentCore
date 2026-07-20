@@ -14,8 +14,25 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 - README and design notes for this boundary.
 - Cypher schema / constraint scripts under `cypher/`.
+- APOC configuration under `conf/`.
 - Shared helpers that belong to this persistence boundary.
 - Subdirectories that follow the backend structure standard.
+
+## Runtime Plugins
+
+Compose enables:
+
+- **APOC** (`apoc`) — path expansion, batch helpers, merge/meta utilities
+- **Graph Data Science** (`graph-data-science`) — degree/path ranking for impact and context prioritization
+
+See `docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md`.
+
+`Neo4jStore.capabilities()` probes `apoc` / `gds` / fulltext (and reports
+`gds_enabled` / `gds_concurrency`). GDS usage is opt-in via
+`AGENTCORE_NEO4J_GDS_ENABLED` (default `true`) with concurrency capped at **4**
+(Community Edition). Advanced expansion uses APOC when present and falls back
+to one-hop Cypher otherwise. See
+`docs/07-code-knowledge-graph/32-intentional-fallbacks-and-neo4j-plugin-licensing.md`.
 
 ## Runtime Adapter
 
@@ -23,7 +40,7 @@ The Phase 7 service adapter lives in:
 
 - `backend/services/code-graph-service/src/code_graph_service/neo4j_store.py`
 
-Select it with:
+Select it with (Neo4j is the service default):
 
 ```bash
 AGENTCORE_CODE_GRAPH_STORE=neo4j
@@ -33,7 +50,22 @@ AGENTCORE_NEO4J_PASSWORD=<local-secret>
 AGENTCORE_NEO4J_DATABASE=neo4j
 ```
 
-Schema constraints in `cypher/0001_code_graph_constraints.cypher` are applied by `Neo4jStore.ensure_schema()` on startup. Do not bind that directory under `/var/lib/neo4j/` in Compose; Neo4j chowns its home tree and a read-only mount prevents startup.
+Rollback / parity against PostgreSQL:
+
+```bash
+AGENTCORE_CODE_GRAPH_STORE=postgres
+AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:<secret>@127.0.0.1:32232/agentcore
+```
+
+Canonical projection: `CodeSymbol` + `CODE_REL` (`docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md`). Structural parity: `code_graph_service.domain.parity`.
+
+When `AGENTCORE_CODE_GRAPH_DATABASE_URL` is set alongside Neo4j:
+
+- Semantic vectors land in `code_graph.symbol_embeddings` (pgvector)
+- Outbox events are mirrored to `code_graph.outbox` for the Postgres `outbox-relay` worker
+- Pin production images with `AGENTCORE_NEO4J_IMAGE` (see `docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md`)
+
+Schema constraints in `cypher/0001_code_graph_constraints.cypher` are applied by `Neo4jStore.ensure_schema()` on startup. Do not bind whole directories or conf files under `/var/lib/neo4j/` as read-only mounts; Neo4j chowns that tree on startup. Keep `conf/apoc.conf` as a reference and configure APOC through Compose `NEO4J_apoc_*` variables.
 
 ## Language Policy
 
@@ -49,4 +81,4 @@ Python is a **required** (mandatory) code-graph language. The Neo4j cutover must
 
 ## Status
 
-Active scaffold with Cypher constraints. Service-owned `Neo4jStore` implements the Code Graph `Store` port. Compose profile `core` can start Neo4j; default Phase 7 slice still uses PostgreSQL unless `AGENTCORE_CODE_GRAPH_STORE=neo4j`.
+Active. Cypher constraints + APOC/GDS Compose plugins. Service-owned `Neo4jStore` implements the Code Graph `Store` port with optional multi-hop expansion and degree ranking.

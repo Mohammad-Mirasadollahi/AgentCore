@@ -18,6 +18,7 @@ phase: "11-logical-implementation-examples"
 canonical_path: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
 related_docs:
   - ac.doc.stack.turbovec-ann-acceleration
+  - ac.doc.stack.turbovec-for-rag
   - ac.doc.examples.memory-and-context
 doc_version: "1.0.0"
 audience:
@@ -188,5 +189,6 @@ class TurboVecIndexAdapter:
 ## Related Documents
 
 - Normative ADR: `../13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md`
+- RAG guide: `../13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md`
 - Memory example without accelerator: `02-memory-and-context-example.md`
 - Upstream API: https://github.com/RyanCodrai/turbovec/blob/main/docs/api.md

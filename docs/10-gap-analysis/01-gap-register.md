@@ -36,11 +36,11 @@ Why it matters: Symbol extraction, call resolution, import resolution, and AST h
 
 Current assumption: **Python is mandatory and currently supported** (stdlib `ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
-Decision needed: Cross-language edge resolution policy (FFI / package graphs) and confidence thresholds per language.
+Decision needed: Tune per-language confidence thresholds and package-manager-aware import graphs (npm/cargo/go.mod).
 
 Suggested owner: Code Graph Lead
 
-Resolution path: Keep Python required; expand confidence and cross-language resolution tests incrementally.
+Resolution path: Cross-language CALLS/IMPORTS + unresolved relink shipped in `domain/cross_language.py`; continue package-resolution fidelity.
 
 Status: PARTIALLY_RESOLVED
 
@@ -50,19 +50,25 @@ Category: Technical Implementation
 
 Severity: High
 
-Impact: The design references local and cloud models, but default routing and fallback behavior need concrete selection.
+Impact: The design references local and cloud models; AgentCore needed a single gateway so services do not integrate each vendor SDK separately.
 
-Why it matters: Cost, latency, privacy, and quality depend on model routing.
+Why it matters: Cost, latency, privacy, and quality depend on model routing and a consistent integration surface.
 
-Current assumption: Low-risk documentation can use local or low-cost models; complex code generation and high-risk judgment use stronger models.
+Current assumption: **LiteLLM is the approved LLM gateway** for all AgentCore-initiated model calls. `ModelRoutingProfile` maps task type / risk / tenant / environment to LiteLLM model aliases (local Ollama/OpenAI-compatible and cloud providers). Durable embedding **storage** remains PostgreSQL+pgvector. See `docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`.
 
-Decision needed: Define model routing profiles by task type, risk level, tenant, and environment.
+Decision needed: None for gateway selection. Remaining work is publishing concrete default `ModelRoutingProfile` tables (exact model aliases per task class).
 
 Suggested owner: AI Platform Lead
 
-Resolution path: Benchmark models and create default ModelRoutingProfile.
+Approver: Platform Architect
 
-Status: DECISION_NEEDED
+Review date: 2026-07-20
+
+Resolution path: Accepted ADR `09-litellm-llm-gateway.md`; implement `LlmCompletionPort` / LiteLLM adapter in services that leave heuristic stubs; keep tiered routing guidance in `docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md`.
+
+Status: CLOSED
+
+Closed in: LiteLLM LLM Gateway ADR (2026-07-20).
 
 ## GAP-004 - Human Approval UX
 
@@ -214,20 +220,22 @@ Category: Architecture
 
 Severity: Medium
 
-Impact: Phase 7 uses a Postgres `code_graph` slice by default while Neo4j is available as an alternate Store backend and remains the design target for production graph storage.
+Impact: Phase 7 previously used a Postgres `code_graph` slice by default while Neo4j was an alternate Store backend.
 
 Why it matters: Delayed migration can create dual-write debt; early migration can block language-matrix work.
 
-Current assumption: Postgres slice is acceptable until the language support matrix lands. Neo4j adapter (`neo4j_store.py`) and Compose service exist for staging cutover. **Python support remains mandatory across both stores.**
+Current assumption: **Neo4j is the default structural store** (`AGENTCORE_CODE_GRAPH_STORE=neo4j`). PostgreSQL remains available for rollback and parity (`AGENTCORE_CODE_GRAPH_STORE=postgres`). **Python support remains mandatory across both stores.**
 
-Decision needed: When to migrate from Postgres code_graph schema to Neo4j in production.
+Decision needed: None — cutover default completed.
 
 Suggested owner: Code Graph Lead
 
 Approver: Platform Architect
 
-Review date: 2026-10-01
+Review date: 2026-07-20
 
-Resolution path: Keep Postgres as default for Phase 7; exercise Neo4j via `AGENTCORE_CODE_GRAPH_STORE=neo4j`; schedule production cutover after language matrix lands (or explicit ADR). Follow `docs/07-code-knowledge-graph/11-neo4j-migration-plan.md`.
+Resolution path: Default flipped to Neo4j; Postgres retained for rollback; structural parity via `domain/parity.py`; projection ADR `docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md`. Follow `docs/07-code-knowledge-graph/11-neo4j-migration-plan.md`.
 
-Status: ACCEPTED_RISK
+Status: CLOSED
+
+Closed in: Neo4j default store + CodeSymbol projection ADR (2026-07-20).

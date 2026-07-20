@@ -16,6 +16,7 @@ This document defines the backend implementation stack for AgentCore services, A
 | Static quality | ruff, mypy or pyright | formatting, linting, type checking, import hygiene |
 | API contracts | OpenAPI generated from FastAPI | frontend client generation, SDK generation, contract tests |
 | Background workers | Python worker services | indexing, embeddings, docs sync, memory consolidation, reporting projections, connector jobs |
+| LLM gateway | LiteLLM | sole approved gateway for AgentCore chat/completions, structured judge calls, and provider-backed embeddings (`09-litellm-llm-gateway.md`) |
 
 ## Service Architecture
 
@@ -23,7 +24,7 @@ Backend services must follow the documented layered model:
 
 - domain for entities, value objects, invariants, and pure policies.
 - application for use cases, command handlers, query handlers, and port definitions.
-- infrastructure for database, broker, filesystem, model provider, parser, and external API adapters.
+- infrastructure for database, broker, filesystem, **LiteLLM-backed model provider adapter**, parser, and external API adapters.
 - interfaces for FastAPI routes, CLI commands, worker consumers, and serializers.
 - bootstrap for composition root, dependency wiring, config loading, and startup validation.
 
@@ -54,7 +55,11 @@ Backend implementation must include:
 - unit tests for domain and application logic.
 - integration tests for PostgreSQL, pgvector-backed retrieval, Neo4j, Redis when enabled, object storage, and messaging adapters where relevant.
 - contract tests for OpenAPI, events, SDKs, and config schemas.
-- live tests for real connectors, model providers, and production-like workflows when required.
+- live tests for real connectors, **LiteLLM-backed** model providers, and production-like workflows when required.
+
+## LLM Gateway Rule
+
+AgentCore services must not call vendor LLM SDKs directly. Model calls go through an application port implemented by a LiteLLM adapter (SDK and/or proxy). See `09-litellm-llm-gateway.md`. Deterministic stubs remain allowed in unit tests and offline Phase slices until a `ModelRoutingProfile` selects a live model.
 
 
 ## Virtual Environment Policy

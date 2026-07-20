@@ -12,6 +12,21 @@ class SymbolKind(StrEnum):
     METHOD = "method"
     IMPORT = "import"
     DOCUMENTATION = "documentation"
+    UNRESOLVED = "unresolved"
+    ROUTE = "route"
+    RATIONALE = "rationale"
+
+
+class RelType(StrEnum):
+    """Canonical CODE_REL.rel_type values (logical vocabulary)."""
+
+    CONTAINS = "CONTAINS"
+    CALLS = "CALLS"
+    IMPORTS = "IMPORTS"
+    INHERITS_FROM = "INHERITS_FROM"
+    DOCUMENTED_BY = "DOCUMENTED_BY"
+    ROUTES_TO = "ROUTES_TO"
+    TESTED_BY = "TESTED_BY"
 
 
 class CallConfidence(StrEnum):

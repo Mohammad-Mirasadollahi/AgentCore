@@ -27,3 +27,5 @@ PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests
 ## Status
 
 Active Phase 5 vertical slice.
+
+LLM calls initiated by AgentCore (when adapters leave stub mode) must use the LiteLLM gateway per `docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`.

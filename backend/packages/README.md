@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active. Shared packages include `outbox_relay`, `llm_gateway`, `port_profile`, and related libraries.

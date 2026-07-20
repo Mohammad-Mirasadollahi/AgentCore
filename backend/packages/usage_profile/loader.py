@@ -140,7 +140,8 @@ def materialize_cursor_mcp_config(
         "backend/services/core-data-service/src:"
         "backend/services/memory-service/src:"
         "backend/services/code-graph-service/src:"
-        "backend/services/docs-sync-service/src"
+        "backend/services/docs-sync-service/src:"
+        "backend/services/common-context-service/src"
     )
     env = {
         "AGENTCORE_USAGE_PROFILE": str(effective.get("profile_id") or ""),
@@ -156,6 +157,26 @@ def materialize_cursor_mcp_config(
     store_mode = os.environ.get("AGENTCORE_MCP_STORE_MODE", "").strip()
     if store_mode and "AGENTCORE_MCP_STORE_MODE" not in env:
         env["AGENTCORE_MCP_STORE_MODE"] = store_mode
+    # Forward code-graph / Neo4j settings so MCP can use the same store as code-graph-service.
+    for key in (
+        "AGENTCORE_MCP_GRAPH_MODE",
+        "AGENTCORE_MCP_GRAPH_SEED",
+        "AGENTCORE_CODE_GRAPH_STORE",
+        "AGENTCORE_CODE_GRAPH_DATABASE_URL",
+        "AGENTCORE_NEO4J_URI",
+        "AGENTCORE_NEO4J_USER",
+        "AGENTCORE_NEO4J_PASSWORD",
+        "AGENTCORE_NEO4J_DATABASE",
+        "AGENTCORE_LITELLM_ENABLED",
+        "AGENTCORE_LITELLM_API_BASE",
+        "AGENTCORE_LITELLM_API_KEY",
+        "AGENTCORE_LITELLM_DEFAULT_MODEL",
+        "AGENTCORE_LITELLM_REASONING_ENABLED",
+        "OPENROUTER_API_KEY",
+    ):
+        value = os.environ.get(key, "").strip()
+        if value and key not in env:
+            env[key] = value
     return {
         "mcpServers": {
             server_name: {

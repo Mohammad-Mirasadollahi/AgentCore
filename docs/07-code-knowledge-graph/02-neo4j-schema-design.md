@@ -1,10 +1,19 @@
 # Code-Knowledge Graph - Neo4j Schema Design
 
+## Runtime projection (normative for Phase 7)
+
+The **canonical Neo4j runtime model** for `code-graph-service` is:
+
+- Label `CodeSymbol` with a `kind` property (`file`, `class`, `function`, `method`, `import`, `module`, `documentation`, …)
+- Relationship type `CODE_REL` with a `rel_type` property (`CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`, `DOCUMENTED_BY`)
+
+See ADR: `13-codesymbol-projection-adr.md`. The typed catalog below is the **logical product vocabulary** and a future optional enrichment path — not what `Neo4jStore` writes today.
+
 ## Database Choice
 
 Neo4j is the primary graph database for the Code-Knowledge Graph. It is responsible for storing structural code relationships and supporting graph traversal. Semantic embeddings are stored in PostgreSQL with pgvector; Neo4j stores graph structure and traversal state only.
 
-## Core Node Types
+## Core Node Types (logical catalog)
 
 ### Project
 
