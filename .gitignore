@@ -186,16 +186,8 @@ GEMINI.md
 mcp-lazy-servers.json
 **/mcp-lazy-servers.local.json
 
-# Cursor rules / skills sources (install → .cursor/ / .agents/). Product docs stay tracked.
-ai-toolstack/rules/
-ai-toolstack/skills/
-ai-toolstack/cursor-agent-config/
-ai-toolstack/cursor-agent-backup/
-ai-toolstack/cursor-agent-backup-test.txt
-
-# ai-toolstack runtime / local state (RTK history.db, mcp-lazy, headroom, node bins).
-# Must stay untracked — verify_install fails if any path under here is in the index.
-ai-toolstack/data/
+# Entire ai-toolstack tree is local/vendor wiring — never commit (rules, skills, runtime data).
+ai-toolstack/
 
 # Generated evidence and exports (track only redacted hackathon real reports)
 evidence/
