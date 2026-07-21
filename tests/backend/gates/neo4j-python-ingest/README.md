@@ -11,6 +11,13 @@ backend/deployments/compose/wait-healthy.sh --timeout 90 agentcore-neo4j-1 agent
 
 # Strict gate (fail if ports down)
 .venv/bin/python tests/backend/gates/neo4j-python-ingest/run_gate.py --require-live --json
+
+# Production retrieval live suite (simple + challenge; BM25/FTS/explore/GDS)
+# See tests/backend/services/code-graph-service/README_production_retrieval_live.md
+AGENTCORE_NEO4J_PASSWORD=… AGENTCORE_POSTGRES_PASSWORD=… \
+  PYTHONPATH=backend/services/code-graph-service/src \
+  .venv/bin/python -m pytest \
+  tests/backend/services/code-graph-service/test_production_retrieval_live.py -v
 ```
 
 Environment defaults match the AgentCore port profile (`32287` Bolt, `32232` Postgres).

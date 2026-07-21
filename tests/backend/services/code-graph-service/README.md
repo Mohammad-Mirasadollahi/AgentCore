@@ -2,6 +2,17 @@
 
 Canonical tests for `code-graph-service`.
 
+`pyproject.toml` sets `pythonpath` for `backend/services/code-graph-service/src`
+(see `docs/07-code-knowledge-graph/33-production-retrieval-live-test-gates.md`).
+
 ```bash
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
+.venv/bin/python -m pytest tests/backend/services/code-graph-service -q
+
+# Live gates (Compose Neo4j + Postgres on non-default ports):
+export AGENTCORE_NEO4J_PASSWORD=agentcore-local-dev-secret
+export AGENTCORE_POSTGRES_PASSWORD=agentcore-local-dev-secret
+.venv/bin/python -m pytest \
+  tests/backend/services/code-graph-service/test_production_retrieval_live.py \
+  tests/backend/services/code-graph-service/test_production_retrieval_fuzzer.py \
+  tests/backend/services/code-graph-service/test_production_retrieval_challenge_live.py -q
 ```

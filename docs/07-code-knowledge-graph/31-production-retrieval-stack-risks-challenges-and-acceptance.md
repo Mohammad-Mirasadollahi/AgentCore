@@ -18,6 +18,7 @@ canonical_path: docs/07-code-knowledge-graph/31-production-retrieval-stack-risks
 related_docs:
   - ac.doc.ckg.prod-retrieval-feature-spec
   - ac.doc.ckg.prod-retrieval-lld
+  - ac.doc.ckg.prod-retrieval-live-test-gates
 doc_version: "1.0.0"
 audience:
   - engineer
@@ -57,6 +58,7 @@ security_classification: internal
 | R-06 | BM25 zero scores on tiny corpora | Lucene-style positive IDF in-process |
 | R-07 | Model download / disk for BGE | Cache dir `AGENTCORE_EMBEDDING_CACHE_DIR`; stub fallback |
 | R-08 | Postgres FTS column absent | Migration `0006`; query falls back to on-the-fly tsvector |
+| R-09 | Live suite AuthError looks like ~50 failures | Doc [`33`](33-production-retrieval-live-test-gates.md): skip policy + `pythonpath`; never ERROR-cascade module fixtures |
 
 ## License inventory (retrieval extras)
 
@@ -78,6 +80,7 @@ security_classification: internal
 - [x] Path reports `method`; architecture reports `algorithm`.
 - [x] Communities prefer scikit-network Leiden; Louvain fallback without GDS.
 - [x] Docs `27`–`31` + index entry; code↔doc field names match.
+- [x] Live/fuzzer/challenge gates documented in `33`; AuthError cascades skipped not ERROR-flooded; `pythonpath` in pyproject.
 - [x] No GPL leidenalg/igraph dependency.
 
 ## Open gaps

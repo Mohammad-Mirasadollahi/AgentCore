@@ -172,6 +172,14 @@ minio-data/
 otel-data/
 grafana-data/
 
+# Local embedding model caches (default lives at /opt/agentcore-models outside the tree;
+# ignore in-repo copies if AGENTCORE_EMBEDDING_CACHE_DIR points inside the checkout)
+agentcore-models/
+**/agentcore-models/
+models--*/
+**/models--*/
+**/sentence-transformers/models--*/
+
 # IDE and OS local state
 .idea/
 .vscode/settings.json
