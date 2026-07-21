@@ -41,6 +41,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `30-production-retrieval-stack-data-contracts-and-events.md` hybrid/path/architecture transparency fields.
 - `31-production-retrieval-stack-risks-challenges-and-acceptance.md` risks and acceptance for production retrieval.
 - `32-intentional-fallbacks-and-neo4j-plugin-licensing.md` why stub/Louvain/Cypher-degree/legacy-FTS stay; APOC/GDS Community vs Enterprise licensing.
+- `33-production-retrieval-live-test-gates.md` live/fuzzer/challenge gates, pythonpath, AuthError skip policy, anti-cascade acceptance.
 
 ## Code Intelligence Enhancements (current)
 
@@ -48,7 +49,7 @@ Surgical explore packs, framework routes, test links, and risk-scored change rev
 
 ## Production Retrieval Stack (current)
 
-BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC expand, free Leiden (`scikit-network`) with Louvain fallback. Reading order: `27` → `28` → `29` → `30` → `31`. Intentional keepers + plugin license truth: `32`.
+BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC expand, free Leiden (`scikit-network`) with Louvain fallback. Reading order: `27` → `28` → `29` → `30` → `31`. Intentional keepers + plugin license truth: `32`. Live/fuzzer/challenge test gates: `33`.
 
 ## Repository Code Wiki (future)
 
@@ -62,9 +63,12 @@ Phase 7 vertical slice service:
 - Persistence: **Neo4j by default** (`AGENTCORE_CODE_GRAPH_STORE=neo4j`); PostgreSQL rollback via `postgres`; pgvector embeddings + outbox mirror via `AGENTCORE_CODE_GRAPH_DATABASE_URL`
 - Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 - Tests: `tests/backend/services/code-graph-service/test_code_graph_service.py`
+- Live retrieval gates: `33-production-retrieval-live-test-gates.md` + suites `test_production_retrieval_{live,fuzzer,challenge_live}.py`
 
 ```bash
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
+.venv/bin/python -m pytest tests/backend/services/code-graph-service -q
+# pythonpath configured in pyproject.toml; optional:
+# PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest ...
 ```
 
 ## Language Policy (non-negotiable)
