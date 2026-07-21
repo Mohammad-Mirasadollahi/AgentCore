@@ -1,9 +1,9 @@
 {
   "profile_id": "programming-cursor-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Programming with Cursor via MCP",
   "audience": "software-engineering",
-  "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP. Explore-first: prefer agentcore_code_graph_explore before wide Read/Grep; also memory, docs drift/write, tasks, and durable project writes.",
+  "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP. Client surface is mcp-lazy style (mcp_search_tools / mcp_execute_tool only on tools/list). Explore-first: prefer agentcore_code_graph_explore before wide Read/Grep; also memory, docs drift/write, tasks, and durable project writes.",
   "domain_pack": "default",
   "feature_profile": "default",
   "connectors": [
@@ -16,7 +16,7 @@
     }
   ],
   "mcp": {
-    "server_name": "agentcore-programming",
+    "server_name": "AgentCore-Programming",
     "tools": [
       {
         "name": "agentcore_ping",
@@ -350,7 +350,7 @@
       },
       {
         "name": "agentcore_code_graph_ingest_repo",
-        "description": "Walk a local repository root and index all supported source files into the code-knowledge graph (Python/TS/JS/Go/Rust). Skips node_modules/.git/.venv/etc.",
+        "description": "Walk a local repository root and index all supported source files into the code-knowledge graph (Python/TS/JS/Go/Rust). Skips node_modules/.git/.venv/etc. Prefer agentcore_code_graph_sync for normal use.",
         "maps_to": "code_graph.ingest_repo",
         "input_schema": {
           "type": "object",
@@ -381,9 +381,7 @@
             },
             "max_file_bytes": {
               "type": "integer",
-              "minimum": 1024,
-              "maximum": 20000000,
-              "default": 1500000
+              "minimum": 1
             },
             "include_outcomes": {
               "type": "boolean",
@@ -395,6 +393,51 @@
           },
           "required": [
             "root_path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_sync",
+        "description": "Sync a repository into the code graph. Chooses full vs incremental automatically; do not pick a mode.",
+        "maps_to": "code_graph.sync",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "root_path": {
+              "type": "string",
+              "description": "Repository root to sync"
+            },
+            "max_files": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000,
+              "default": 2000
+            },
+            "idempotency_key": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "root_path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_purge",
+        "description": "Wipe all graph data for the current project scope. Requires confirm=true. Run sync afterward to rebuild.",
+        "maps_to": "code_graph.purge",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "confirm": {
+              "type": "boolean",
+              "description": "Must be true to execute the wipe"
+            }
+          },
+          "required": [
+            "confirm"
           ],
           "additionalProperties": false
         }

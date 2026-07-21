@@ -48,7 +48,7 @@ def test_resolve_and_materialize_cursor_mcp():
         project_id="p1",
     )
     fragment = materialize_cursor_mcp_config(effective)
-    server = fragment["mcpServers"]["agentcore-programming"]
+    server = fragment["mcpServers"]["AgentCore-Programming"]
     assert server["args"] == ["-m", "mcp_gateway_service"]
     assert server["env"]["AGENTCORE_USAGE_PROFILE"] == "programming-cursor-mcp"
     assert server["env"]["AGENTCORE_PROJECT_ID"] == "p1"

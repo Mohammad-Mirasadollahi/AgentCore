@@ -105,13 +105,13 @@ def test_activate_programming_usage_profile_and_export_cursor_mcp():
     effective = client.get("/api/v1/projects/p/usage-profile/effective", headers=H)
     assert effective.status_code == 200
     assert effective.json()["effective"]["profile_id"] == "programming-cursor-mcp"
-    assert effective.json()["effective"]["mcp"]["server_name"] == "agentcore-programming"
+    assert effective.json()["effective"]["mcp"]["server_name"] == "AgentCore-Programming"
 
     cursor = client.get("/api/v1/projects/p/usage-profile/cursor-mcp", headers=H)
     assert cursor.status_code == 200
     servers = cursor.json()["cursor_mcp"]["mcpServers"]
-    assert "agentcore-programming" in servers
-    assert servers["agentcore-programming"]["env"]["AGENTCORE_USAGE_PROFILE"] == "programming-cursor-mcp"
+    assert "AgentCore-Programming" in servers
+    assert servers["AgentCore-Programming"]["env"]["AGENTCORE_USAGE_PROFILE"] == "programming-cursor-mcp"
 
     listed = client.get("/api/v1/usage-profiles", headers=H)
     assert "programming-cursor-mcp" in listed.json()["items"]

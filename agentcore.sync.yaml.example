@@ -1,0 +1,211 @@
+# AgentCore sync filters template (`agentcore sync`).
+#   cp agentcore.sync.yaml.example agentcore.sync.yaml
+# The local agentcore.sync.yaml is gitignored (like .env); only this example is tracked.
+# Wildcards: *, ?, [], **
+#
+# Exclude lists live ONLY in this YAML (plus optional .agentcore/sync.yaml).
+# Nothing is hardcoded in Python — edit code.exclude / docs.exclude freely.
+# Remove AgentCore-specific path entries (deploy-toolkit, …) for other repos.
+
+# -----------------------------------------------------------------------------
+# Phase 1 — code graph
+# -----------------------------------------------------------------------------
+code:
+  exclude:
+    # --- Project trees (edit for your repo) ---
+    - deploy-toolkit
+    - ai-toolstack
+    - Setup
+    - wheelhouse
+    - charts
+    - archives
+    - migrations
+    - scripts
+    - "**/.agentcore/**"
+    - "**/frontend/dist/**"
+    - "**/frontend/build/**"
+
+    # --- Python package / cache / bytecode ---
+    - "__pycache__"
+    - "**/__pycache__/**"
+    - "**/__init__.py"
+    - "**/*.pyc"
+    - "**/*.pyo"
+    - "**/*.pyd"
+    - "**/*.egg-info/**"
+    - "**/.eggs/**"
+    - "**/site-packages/**"
+    - ".venv"
+    - "venv"
+    - "env"
+    - "**/.venv/**"
+    - "**/venv/**"
+    - ".mypy_cache"
+    - ".pytest_cache"
+    - ".ruff_cache"
+    - ".tox"
+    - ".nox"
+    - ".hypothesis"
+    - "htmlcov"
+    - "**/.mypy_cache/**"
+    - "**/.pytest_cache/**"
+    - "**/.ruff_cache/**"
+    - "**/.tox/**"
+    - "**/.nox/**"
+    - "**/htmlcov/**"
+    - "**/*_pb2.py"
+    - "**/*_pb2_grpc.py"
+
+    # --- Tests / fixtures / mocks ---
+    - tests
+    - test
+    - fixtures
+    - fixture
+    - mocks
+    - testdata
+    - __mocks__
+    - __snapshots__
+    - "**/tests/**"
+    - "**/test/**"
+    - "**/__tests__/**"
+    - "**/testdata/**"
+    - "**/__mocks__/**"
+    - "**/mocks/**"
+    - "**/fixture/**"
+    - "**/fixtures/**"
+    - "**/__snapshots__/**"
+    - "**/*_test.py"
+    - "**/test_*.py"
+    - "**/*_test.go"
+    - "**/*.spec.ts"
+    - "**/*.spec.tsx"
+    - "**/*.spec.js"
+    - "**/*.spec.jsx"
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
+    - "**/*.test.js"
+    - "**/*.test.jsx"
+
+    # --- JS / TS / frontend noise ---
+    - node_modules
+    - "**/node_modules/**"
+    - ".next"
+    - ".nuxt"
+    - ".output"
+    - ".turbo"
+    - ".svelte-kit"
+    - "storybook-static"
+    - "**/.next/**"
+    - "**/.nuxt/**"
+    - "**/.turbo/**"
+    - "**/.svelte-kit/**"
+    - "**/storybook-static/**"
+    - "**/*.min.js"
+    - "**/*.min.css"
+    - "**/*.min.map"
+    - "**/*.bundle.js"
+    - "**/*.bundle.css"
+    - "**/*.map"
+    - "**/*.d.ts"
+
+    # --- Go / Rust / Java / .NET / build outputs ---
+    - vendor
+    - target
+    - dist
+    - build
+    - out
+    - coverage
+    - "**/vendor/**"
+    - "**/target/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/out/**"
+    - "**/coverage/**"
+    - "**/.nyc_output/**"
+    - "**/bin/**"
+    - "**/obj/**"
+    - "**/*.gen.go"
+    - "**/*.pb.go"
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.designer.cs"
+    - "**/*.AssemblyInfo.cs"
+    - "**/*.generated.*"
+    - "**/generated/**"
+
+    # --- Lockfiles / packages (not source) ---
+    - "**/package-lock.json"
+    - "**/yarn.lock"
+    - "**/pnpm-lock.yaml"
+    - "**/Cargo.lock"
+    - "**/poetry.lock"
+    - "**/composer.lock"
+    - "**/go.sum"
+    - "**/Pipfile.lock"
+    - "**/uv.lock"
+    - "**/*.egg"
+    - "**/*.whl"
+
+    # --- Secrets / OS junk ---
+    - "**/.env"
+    - "**/.env.*"
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/*.crt"
+    - "**/*.p12"
+    - "**/.DS_Store"
+    - "**/Thumbs.db"
+    - tmp
+    - temp
+    - logs
+    - log
+    - ".cache"
+    - ".idea"
+    - ".vscode"
+    - ".terraform"
+    - ".serverless"
+
+  include_extensions:
+    - .py
+    - .ts
+    - .tsx
+    - .js
+    - .jsx
+    - .go
+    - .rs
+
+# -----------------------------------------------------------------------------
+# Phase 2 — human docs (match by wildcard; docs-only exclude)
+# -----------------------------------------------------------------------------
+docs:
+  match:
+    - "**/*.md"
+    - "**/*.mdx"
+  exclude:
+    - "**/node_modules/**"
+    - "**/.venv/**"
+    - "**/venv/**"
+    - "**/__pycache__/**"
+    - "**/site-packages/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/coverage/**"
+    - "**/vendor/**"
+    - "**/target/**"
+    - "**/.next/**"
+    - "**/.turbo/**"
+    - "**/wheelhouse/**"
+    - "**/archives/**"
+    - "**/CHANGELOG.md"
+    - "**/CHANGELOG*.md"
+    - "**/HISTORY.md"
+    - "**/LICENSE.md"
+    - "**/LICENSE"
+    - "**/LICENSES/**"
+    - "**/COPYING"
+    - "**/NOTICE"
+    - "**/CODE_OF_CONDUCT.md"
+    - "**/SECURITY.md"
+    - "**/CONTRIBUTING.md"
+    - "**/package-lock.json"
+    - "**/.DS_Store"

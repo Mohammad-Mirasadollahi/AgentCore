@@ -61,20 +61,54 @@ def test_gateway_reports_store_mode():
     gw.backends.close()
 
 
-def test_resolve_graph_mode_neo4j_when_password(monkeypatch):
-    from mcp_gateway_service.store_factory import resolve_graph_mode
+def test_build_stores_neo4j_failure_falls_back_to_memory(monkeypatch, caplog):
+    import logging
 
-    env = {
-        "AGENTCORE_MCP_STORE_MODE": "memory",
-        "AGENTCORE_CODE_GRAPH_STORE": "neo4j",
-        "AGENTCORE_NEO4J_PASSWORD": "secret",
-    }
-    assert resolve_graph_mode(env) == "neo4j"
-    env["AGENTCORE_NEO4J_PASSWORD"] = "replace-with-a-local-secret"
-    assert resolve_graph_mode(env) == "memory"
-    env["AGENTCORE_MCP_GRAPH_MODE"] = "memory"
-    env["AGENTCORE_NEO4J_PASSWORD"] = "secret"
-    assert resolve_graph_mode(env) == "memory"
+    from mcp_gateway_service.store_factory import build_stores
+
+    def boom(_settings):
+        raise ConnectionRefusedError("Neo4j refused connection")
+
+    monkeypatch.setattr("code_graph_service.bootstrap.build_service", boom)
+    with caplog.at_level(logging.ERROR):
+        bundle = build_stores(
+            {
+                "AGENTCORE_MCP_STORE_MODE": "memory",
+                "AGENTCORE_MCP_GRAPH_MODE": "neo4j",
+                "AGENTCORE_NEO4J_PASSWORD": "secret",
+                "AGENTCORE_NEO4J_URI": "bolt://127.0.0.1:1",
+            }
+        )
+    assert bundle.graph_mode == "memory"
+    assert bundle.graph_service is None
+    assert any("Neo4j graph unavailable" in r.message for r in caplog.records)
+    bundle.close()
+
+
+def test_build_stores_postgres_failure_falls_back_to_memory(monkeypatch, caplog):
+    import logging
+
+    from mcp_gateway_service.store_factory import build_stores
+
+    class BoomStore:
+        def __init__(self, *_args, **_kwargs):
+            raise OSError("postgres down")
+
+    monkeypatch.setattr(
+        "core_data_service.postgres_store.PostgresStore",
+        BoomStore,
+    )
+    with caplog.at_level(logging.ERROR):
+        bundle = build_stores(
+            {
+                "AGENTCORE_MCP_STORE_MODE": "postgres",
+                "AGENTCORE_DATABASE_URL": "postgresql://agentcore:x@127.0.0.1:1/agentcore",
+                "AGENTCORE_MCP_GRAPH_MODE": "memory",
+            }
+        )
+    assert bundle.mode == "memory"
+    assert any("postgres stores unavailable" in r.message for r in caplog.records)
+    bundle.close()
 
 
 def test_code_graph_tools_neighbors_and_ingest():

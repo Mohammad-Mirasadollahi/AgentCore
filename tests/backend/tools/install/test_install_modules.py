@@ -95,6 +95,41 @@ echo OK
     assert "OK" in proc.stdout
 
 
+def test_seed_repo_operator_files_copies_examples(tmp_path: Path) -> None:
+    """Install seeds .env and agentcore.sync.yaml from examples when missing."""
+    (tmp_path / ".env.example").write_text("AGENTCORE_TENANT_ID=demo\n", encoding="utf-8")
+    (tmp_path / "agentcore.sync.yaml.example").write_text(
+        "code:\n  exclude: []\ndocs:\n  match: []\n",
+        encoding="utf-8",
+    )
+    script = r"""
+set -euo pipefail
+export AGENTCORE_ROOT="%s"
+source "%s/common.sh"
+seed_repo_operator_files
+test -f "${AGENTCORE_ROOT}/.env"
+test -f "${AGENTCORE_ROOT}/agentcore.sync.yaml"
+grep -q 'AGENTCORE_TENANT_ID=demo' "${AGENTCORE_ROOT}/.env"
+# Second call must not overwrite
+echo KEEP > "${AGENTCORE_ROOT}/.env"
+seed_repo_operator_files
+grep -q KEEP "${AGENTCORE_ROOT}/.env"
+echo OK
+""" % (
+        tmp_path,
+        INSTALL_LIB,
+    )
+    proc = subprocess.run(
+        ["bash", "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+
+
 def test_unknown_flag_exits_nonzero() -> None:
     proc = subprocess.run(
         ["bash", str(INSTALL_SH), "--not-a-real-flag"],

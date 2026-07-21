@@ -31,6 +31,7 @@ from .domain.models import (
     ParsedSymbol,
     RepoIngestResult,
     Scope,
+    SyncRepoResult,
 )
 from .domain.parsers import parse_source, registered_parsers
 from .domain.parsing import (
@@ -68,6 +69,7 @@ __all__ = [
     "Scope",
     "Store",
     "SymbolKind",
+    "SyncRepoResult",
     "ValidationError",
     "assert_language_supported",
     "assert_required_languages_supported",

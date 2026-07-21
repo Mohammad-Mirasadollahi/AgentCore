@@ -40,7 +40,7 @@ def test_connect_bootstrap_register_activate_and_mcp():
     body = response.json()
     assert body["scope"]["project_id"] == "p"
     assert body["usage_profile"] == "programming-cursor-mcp"
-    assert "agentcore-programming" in body["mcp_stdio_fallback"]["mcpServers"]
+    assert "AgentCore-Programming" in body["mcp_stdio_fallback"]["mcpServers"]
     assert body["mcp"]["transport"] == "stdio"
 
 

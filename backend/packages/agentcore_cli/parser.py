@@ -18,6 +18,40 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version", help="Show CLI version and repo root")
     sub.add_parser("doctor", help="Check venv, imports, profiles, and PATH")
 
+    init = sub.add_parser(
+        "init",
+        help="Create tenant + workspace, pin software path(s), then save them",
+    )
+    init.add_argument("--name", default="", help="Display name (default: OS username)")
+    init.add_argument("--tenant", required=True, help="Tenant id you choose (e.g. acme)")
+    init.add_argument("--workspace", required=True, help="First workspace id you choose (e.g. eng)")
+    init.add_argument(
+        "--project",
+        default="",
+        help="Project id you choose (default: current directory name)",
+    )
+    init.add_argument("--project-name", default="", help="Human project title")
+    init.add_argument(
+        "--path",
+        action="append",
+        default=[],
+        help="Software root directory to sync (required on create; repeatable for multiple apps)",
+    )
+    init.add_argument(
+        "--usage-profile",
+        default="programming-cursor-mcp",
+        help="Usage profile for the first project",
+    )
+    init.add_argument("--force", action="store_true", help="Replace existing ~/.agentcore/identity.yaml")
+
+    status = sub.add_parser(
+        "status",
+        help="Show platform + graph sync status (one command)",
+    )
+    add_scope_args(status, required=False)
+    status.add_argument("--json", action="store_true", help="Print full JSON only")
+    status.add_argument("--verbose", action="store_true", help="Human summary + JSON")
+
     connect = sub.add_parser("connect", help="One-command coding-agent onboarding (see connect.yaml)")
     connect.add_argument("--init", action="store_true", help="Write ~/.agentcore/connect.yaml template")
     connect.add_argument("--config", default="", help="Path to connect.yaml / connect.json")
@@ -31,6 +65,105 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also write user-global MCP configs",
     )
     connect.add_argument("--dry-run", action="store_true", help="Print MCP fragment only")
+    connect.add_argument(
+        "--local",
+        action="store_true",
+        help="Same-host stdio MCP (dogfood this checkout; no SSH/HTTP required)",
+    )
+    connect.add_argument("--tenant", default="", help="Override scope.tenant (local mode)")
+    connect.add_argument("--workspace", default="", help="Override scope.workspace (local mode)")
+    connect.add_argument(
+        "--remote-root",
+        default="",
+        help="AgentCore checkout root (local mode; default: detected repo root / cwd)",
+    )
+
+    sync = sub.add_parser(
+        "sync",
+        help="Sync code into the project graph (auto full vs incremental)",
+    )
+    add_scope_args(sync, required=False)
+    sync.add_argument(
+        "--path",
+        action="append",
+        default=None,
+        help="Override: sync only these roots (repeatable). Default: paths from init / paths list",
+    )
+    sync.add_argument("--max-files", type=int, default=2000)
+    sync.add_argument(
+        "--progress-interval",
+        type=float,
+        default=10.0,
+        help="Seconds between progress lines (ETA adapts from observed file rate; default 10)",
+    )
+    sync.add_argument(
+        "--exclude-dir",
+        action="append",
+        default=[],
+        help="Extra exclude (dir name or wildcard glob; repeatable). Requires agentcore.sync.yaml",
+    )
+    sync.add_argument(
+        "--include-path",
+        action="append",
+        default=[],
+        help="Only sync under this prefix/glob (repeatable). Requires agentcore.sync.yaml",
+    )
+    sync.add_argument(
+        "--include-ext",
+        action="append",
+        default=[],
+        help="Override include extensions (repeatable, e.g. --include-ext .py)",
+    )
+
+    purge = sub.add_parser(
+        "purge",
+        help="Wipe project graph data only (requires --yes); then run sync to rebuild",
+    )
+    add_scope_args(purge, required=False)
+    purge.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm destructive wipe of symbols/edges for this scope",
+    )
+
+    destroy = sub.add_parser(
+        "destroy-profile",
+        help=(
+            "Delete this scope's AgentCore profile data (graph, identity, project state, "
+            "env/connect pins, MCP entries). Does NOT delete source code. "
+            "Requires two different typed confirmations in the terminal"
+        ),
+    )
+    add_scope_args(destroy, required=False)
+
+    list_profiles = sub.add_parser(
+        "list-profiles",
+        help="List local tenant/workspace/project profiles and show which scope is active",
+    )
+    list_profiles.add_argument("--json", action="store_true", help="Print JSON only")
+    list_profiles.add_argument("--verbose", action="store_true", help="Human table + JSON")
+
+    paths = sub.add_parser(
+        "paths",
+        help="List / add / remove pinned software roots used by sync",
+    )
+    paths_sub = paths.add_subparsers(dest="paths_command", required=True)
+    paths_sub.add_parser("list", help="Show pinned software paths")
+    paths_add = paths_sub.add_parser("add", help="Add one or more software roots")
+    paths_add.add_argument(
+        "path",
+        nargs="+",
+        help="Directory path(s) to add",
+    )
+    paths_rm = paths_sub.add_parser(
+        "remove",
+        help="Remove software root(s); graph data for removed trees is kept until purge",
+    )
+    paths_rm.add_argument(
+        "path",
+        nargs="+",
+        help="Directory path(s) to remove from the pin list",
+    )
 
     profile = sub.add_parser("profile", help="Usage Profile catalog commands")
     profile_sub = profile.add_subparsers(dest="profile_command", required=True)
@@ -93,7 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Application repo root (default: cwd); used when --out is omitted",
     )
-    wire.add_argument("--server-name", default="", help="MCP server key (default: agentcore-programming)")
+    wire.add_argument("--server-name", default="", help="MCP server key (default: AgentCore-Programming)")
     wire.add_argument("--register", action="store_true", help="Register/activate project on server")
     wire.add_argument("--project-name", default="", help="Project display name for --register")
     wire.add_argument("--usage-profile", default="programming-cursor-mcp")

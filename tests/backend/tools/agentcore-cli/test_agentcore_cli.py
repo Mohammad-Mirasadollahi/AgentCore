@@ -79,8 +79,8 @@ def test_project_lifecycle_and_cursor_export(tmp_path, monkeypatch):
         == 0
     )
     fragment = json.loads(out_file.read_text(encoding="utf-8"))
-    assert "agentcore-programming" in fragment["mcpServers"]
-    assert fragment["mcpServers"]["agentcore-programming"]["env"]["AGENTCORE_PROJECT_ID"] == "p"
+    assert "AgentCore-Programming" in fragment["mcpServers"]
+    assert fragment["mcpServers"]["AgentCore-Programming"]["env"]["AGENTCORE_PROJECT_ID"] == "p"
 
 
 def test_mcp_tools(capsys):

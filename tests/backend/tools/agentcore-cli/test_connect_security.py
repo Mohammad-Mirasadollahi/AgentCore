@@ -36,13 +36,13 @@ def test_atomic_merge_preserves_other_servers(tmp_path: Path):
     )
     fragment = {
         "mcpServers": {
-            "agentcore-programming": {"command": "ssh", "args": ["u@h", "serve"]},
+            "AgentCore-Programming": {"command": "ssh", "args": ["u@h", "serve"]},
         }
     }
     merge_mcp_servers_file(target, fragment)
     merged = json.loads(target.read_text(encoding="utf-8"))
     assert "other" in merged["mcpServers"]
-    assert "agentcore-programming" in merged["mcpServers"]
+    assert "AgentCore-Programming" in merged["mcpServers"]
 
 
 def test_atomic_write_text(tmp_path: Path):

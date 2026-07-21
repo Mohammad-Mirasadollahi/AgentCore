@@ -1,0 +1,275 @@
+"""User-facing code sync and purge (auto full vs incremental)."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+from agentcore_cli import ui
+from agentcore_cli.commands.graph import _graph_scope, _graph_service
+from agentcore_cli.docs_link_sync import sync_human_docs
+from agentcore_cli.software_paths import require_software_paths
+from agentcore_cli.sync_config import resolve_sync_filters
+from agentcore_cli.sync_progress import SyncProgressTracker
+from agentcore_cli.sync_usage_log import (
+    TimedPhase,
+    append_sync_usage_record,
+    approx_tokens_from_chars,
+    build_sync_usage_record,
+    estimate_output_tokens,
+    execution_at_now,
+    task_entry,
+)
+from agentcore_cli.util import now_iso, print_json
+
+
+def _sync_one_root(
+    *,
+    svc: Any,
+    scope: Any,
+    root_path: Path,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    filters = resolve_sync_filters(
+        root=root_path,
+        cli_exclude_dirs=list(args.exclude_dir or []),
+        cli_include_paths=list(args.include_path or []),
+        cli_include_extensions=list(args.include_ext or []) or None,
+    )
+    scope_txt = f"{scope.tenant_id}/{scope.workspace_id}/{scope.project_id}"
+    ui.blank()
+    print(f"{ui.accent('→')}  Syncing {ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id)}")
+    ui.kv("Path", str(root_path))
+    ui.kv("Progress", f"updates about every {int(args.progress_interval)}s (adapts ETA from observed rate)")
+    ui.kv("Config", ", ".join(filters["sources"]))
+    if filters["include_paths"]:
+        ui.kv("Only (legacy)", ", ".join(filters["include_paths"]))
+    if filters.get("docs_enabled") and filters.get("doc_match_globs"):
+        ui.kv("Docs match", ", ".join(filters["doc_match_globs"][:4]))
+    n_dirs = len(filters["exclude_dirs"])
+    n_globs = len(filters["exclude_globs"])
+    sample = [d for d in filters["exclude_dirs"] if d not in {".git", "git"}][:4]
+    sample_g = list(filters["exclude_globs"])[:3]
+    bits = [f"{n_dirs} dirs"]
+    if sample:
+        bits.append(f"e.g. {', '.join(sample)}")
+    bits.append(f"{n_globs} globs")
+    if sample_g:
+        bits.append(f"e.g. {', '.join(sample_g)}")
+    ui.kv("Code exclude", " · ".join(bits))
+    ui.blank()
+
+    tracker = SyncProgressTracker(
+        scope=scope_txt,
+        path=str(root_path),
+        interval_sec=float(args.progress_interval),
+    )
+    ingest_timer = TimedPhase()
+    try:
+        result = svc.sync_repo(
+            scope,
+            "cli",
+            f"cli-sync-{now_iso()}",
+            f"cli-sync:{root_path}",
+            {
+                "root_path": str(root_path),
+                "include_extensions": filters["include_extensions"],
+                "exclude_dirs": filters["exclude_dirs"],
+                "exclude_globs": filters["exclude_globs"],
+                "include_path_prefixes": filters["include_paths"],
+                "max_files": int(args.max_files),
+                "include_outcomes": True,
+                "on_progress": tracker,
+            },
+        )
+    finally:
+        tracker.finish()
+    ingest_sec = ingest_timer.stop()
+
+    payload = result.to_dict() if hasattr(result, "to_dict") else result
+    latest = getattr(tracker, "_latest", {}) or {}
+    tokens_in = int(latest.get("approx_tokens") or 0)
+    if not tokens_in:
+        tokens_in = approx_tokens_from_chars(int(latest.get("chars_read") or 0))
+
+    docs_payload: dict = {}
+    docs_sec = 0.0
+    docs_tokens_in = 0
+    if filters.get("docs_enabled") and filters.get("doc_match_globs"):
+        ui.blank()
+        print(f"{ui.accent('→')}  Linking human documentation")
+        docs_timer = TimedPhase()
+        docs_result = sync_human_docs(
+            graph_service=svc,
+            graph_scope=scope,
+            root_path=root_path,
+            filters={**filters, "max_files": int(args.max_files)},
+            actor="cli",
+            correlation_id=f"cli-docs-{now_iso()}",
+            repo_name=root_path.name,
+        )
+        docs_sec = docs_timer.stop()
+        docs_payload = docs_result.to_dict()
+        docs_tokens_in = approx_tokens_from_chars(int(docs_payload.get("docs_indexed") or 0) * 2048)
+        ui.kv(
+            "Docs",
+            f"indexed={docs_payload.get('docs_indexed')}  "
+            f"links={docs_payload.get('links_created')}  "
+            f"anchors={docs_payload.get('anchors_registered')}",
+        )
+        if docs_payload.get("unresolved_tokens"):
+            ui.kv("Unresolved", ", ".join(docs_payload["unresolved_tokens"][:8]))
+
+    tokens_out = estimate_output_tokens(
+        symbols_documented=int(payload.get("symbols_documented") or 0),
+        docs_indexed=int(docs_payload.get("docs_indexed") or 0),
+    )
+
+    tasks: list[dict[str, Any]] = [
+        task_entry(
+            name=f"code_sync:{root_path}",
+            duration_sec=ingest_sec,
+            tokens_in=tokens_in,
+            tokens_out=estimate_output_tokens(
+                symbols_documented=int(payload.get("symbols_documented") or 0),
+            ),
+        )
+    ]
+    if docs_payload:
+        tasks.append(
+            task_entry(
+                name=f"docs_link:{root_path}",
+                duration_sec=docs_sec,
+                tokens_in=docs_tokens_in,
+                tokens_out=estimate_output_tokens(
+                    symbols_documented=0,
+                    docs_indexed=int(docs_payload.get("docs_indexed") or 0),
+                ),
+            )
+        )
+
+    # Per-file rows (duration share by symbols_indexed)
+    outcomes = list(payload.get("outcomes") or [])
+    sym_total = sum(int(o.get("symbols_indexed") or 0) for o in outcomes) or 1
+    for item in outcomes:
+        share = int(item.get("symbols_indexed") or 0) / sym_total
+        file_in = int(tokens_in * share)
+        file_out = estimate_output_tokens(
+            symbols_documented=int(item.get("symbols_documented") or 0),
+        )
+        tasks.append(
+            task_entry(
+                name=f"file:{item.get('relative_path') or item.get('file_id') or '?'}",
+                duration_sec=ingest_sec * share,
+                tokens_in=file_in,
+                tokens_out=file_out,
+                extra={
+                    "status": item.get("status"),
+                    "language": item.get("language"),
+                    "symbols_indexed": item.get("symbols_indexed"),
+                },
+            )
+        )
+
+    ui.blank()
+    ui.heading("Sync complete")
+    ui.blank()
+    ui.kv("Mode", str(payload.get("mode")))
+    ui.kv("Truncated", str(payload.get("truncated")))
+    ui.kv("Files", f"ingested={payload.get('files_ingested')}  discovered={payload.get('files_discovered')}")
+    ui.kv("Symbols", f"indexed={payload.get('symbols_indexed')}  changed={payload.get('symbols_changed')}")
+    ui.kv(
+        "Tokens≈",
+        f"in={tokens_in + docs_tokens_in}  out={tokens_out}  "
+        f"total={tokens_in + docs_tokens_in + tokens_out}  "
+        f"({ingest_sec + docs_sec:.1f}s)",
+    )
+    if payload.get("hint"):
+        ui.blank()
+        ui.section("Hint")
+        ui.bullet(str(payload["hint"]))
+    return {
+        "path": str(root_path),
+        "filters": {
+            "sources": filters["sources"],
+            "exclude_dirs_count": len(filters["exclude_dirs"]),
+            "exclude_globs_count": len(filters["exclude_globs"]),
+            "include_paths": filters["include_paths"],
+            "include_extensions": filters["include_extensions"],
+            "doc_match_globs": filters.get("doc_match_globs") or [],
+            "docs_enabled": bool(filters.get("docs_enabled")),
+        },
+        "sync": payload,
+        "docs_link": docs_payload,
+        "_usage": {
+            "duration_sec": ingest_sec + docs_sec,
+            "tokens_in": tokens_in + docs_tokens_in,
+            "tokens_out": tokens_out,
+            "tasks": tasks,
+        },
+    }
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    svc = _graph_service()
+    scope = _graph_scope(args, with_defaults=True)
+    scope_txt = f"{scope.tenant_id}/{scope.workspace_id}/{scope.project_id}"
+    cli_paths = list(args.path) if args.path else None
+    roots = [Path(p) for p in require_software_paths(cli_paths=cli_paths)]
+    results: list[dict[str, Any]] = []
+    all_tasks: list[dict[str, Any]] = []
+    total_in = 0
+    total_out = 0
+    total_sec = 0.0
+    overall = TimedPhase()
+    execution_at = execution_at_now()
+    for root_path in roots:
+        row = _sync_one_root(svc=svc, scope=scope, root_path=root_path, args=args)
+        usage = row.pop("_usage", {})
+        results.append(row)
+        all_tasks.extend(list(usage.get("tasks") or []))
+        total_in += int(usage.get("tokens_in") or 0)
+        total_out += int(usage.get("tokens_out") or 0)
+        total_sec += float(usage.get("duration_sec") or 0.0)
+    wall_sec = overall.stop()
+
+    report: dict[str, Any] = {
+        "ok": True,
+        "paths": [r["path"] for r in results],
+        "results": results,
+        # Backward-compatible single-root fields when only one path synced
+        **(results[0] if len(results) == 1 else {}),
+    }
+    usage_record = build_sync_usage_record(
+        scope=scope_txt,
+        report=report,
+        tasks=all_tasks,
+        duration_sec=wall_sec if wall_sec > 0 else total_sec,
+        tokens_in=total_in,
+        tokens_out=total_out,
+        execution_at=execution_at,
+    )
+    log_path = append_sync_usage_record(usage_record)
+    ui.blank()
+    ui.kv("Execution at", execution_at)
+    ui.kv("Usage log", str(log_path))
+    ui.blank()
+    print_json(report)
+    return 0
+
+
+def cmd_purge(args: argparse.Namespace) -> int:
+    if not args.yes:
+        raise SystemExit("error: purge requires --yes (destructive: wipes project graph data)")
+    svc = _graph_service()
+    scope = _graph_scope(args, with_defaults=True)
+    ui.blank()
+    ui.heading("Purging graph data", success=False)
+    ui.kv("Scope", ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id))
+    result = svc.purge_scope(scope)
+    ui.blank()
+    ui.heading("Purge complete")
+    ui.blank()
+    print_json({"ok": True, "purge": result})
+    return 0

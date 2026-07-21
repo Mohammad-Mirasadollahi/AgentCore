@@ -121,7 +121,7 @@ Example generated fragment (shape):
 ```json
 {
   "mcpServers": {
-    "agentcore-programming": {
+    "AgentCore-Programming": {
       "command": "python",
       "args": ["-m", "mcp_gateway_service"],
       "env": {

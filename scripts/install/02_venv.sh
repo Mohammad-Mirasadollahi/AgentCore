@@ -59,6 +59,7 @@ stage_02_venv_run() {
     if [[ -x "${venv_path}/bin/agentcore" ]]; then
       "${venv_path}/bin/agentcore" path install >/dev/null 2>&1 || true
     fi
+    seed_repo_operator_files
     mark_stage "02_venv" "ok"
     return 0
   fi
@@ -77,6 +78,7 @@ stage_02_venv_run() {
   run env AGENTCORE_VENV_DIR="${venv_dir}" bash "${AGENTCORE_ROOT}/scripts/ensure-venv.sh"
 
   stage_02_venv_check || fail "venv verification failed after ensure-venv.sh"
+  seed_repo_operator_files
   mark_stage "02_venv" "ok"
   ok "Stage 02 complete"
 }

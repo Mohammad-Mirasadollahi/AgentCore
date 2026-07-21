@@ -55,6 +55,16 @@ class InMemoryEmbeddingIndex:
         key = (scope.tenant_id, scope.workspace_id, scope.project_id, symbol_id)
         self._rows.pop(key, None)
 
+    def wipe_scope(self, scope: Scope) -> int:
+        drop = [
+            key
+            for key in self._rows
+            if key[:3] == (scope.tenant_id, scope.workspace_id, scope.project_id)
+        ]
+        for key in drop:
+            del self._rows[key]
+        return len(drop)
+
     def search(
         self,
         scope: Scope,
@@ -220,6 +230,17 @@ class PostgresEmbeddingIndex:
                 """,
                 (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
             )
+
+    def wipe_scope(self, scope: Scope) -> int:
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM code_graph.symbol_embeddings
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                """,
+                (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            return int(cur.rowcount or 0)
 
     def search(
         self,

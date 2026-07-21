@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -12,6 +13,42 @@ from .domain.models import EmbeddingResult
 DEFAULT_LOCAL_MODEL = "BAAI/bge-large-en-v1.5"
 DEFAULT_LOCAL_DIMS = 1024
 DEFAULT_CACHE_DIR = "/opt/agentcore-models"
+
+_HF_UNAUTH_NOISE = "unauthenticated requests to the HF Hub"
+_hf_noise_filter_installed = False
+
+
+class _DropUnauthenticatedHfHubNoise(logging.Filter):
+    """Drop huggingface_hub rate-limit nags when operating without HF_TOKEN."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+        return _HF_UNAUTH_NOISE not in msg
+
+
+def _quiet_huggingface_hub_auth_noise() -> None:
+    """Local BGE does not require HF_TOKEN; hide the unauthenticated-request nag.
+
+    Operators who set ``HF_TOKEN`` / ``HUGGING_FACE_HUB_TOKEN`` keep default hub logs.
+    """
+    global _hf_noise_filter_installed
+    if _hf_noise_filter_installed:
+        return
+    if os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN"):
+        return
+    import warnings
+
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*unauthenticated requests to the HF Hub.*",
+    )
+    filt = _DropUnauthenticatedHfHubNoise()
+    for name in ("huggingface_hub", "huggingface_hub.utils", "huggingface_hub.utils._http"):
+        logging.getLogger(name).addFilter(filt)
+    _hf_noise_filter_installed = True
 
 
 def embedding_settings_from_env(environ: dict[str, str] | None = None) -> dict[str, Any]:
@@ -49,6 +86,7 @@ def _prepare_cache_env(cache_dir: str) -> Path:
     os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(hf / "hub"))
     os.environ.setdefault("TRANSFORMERS_CACHE", str(hf / "transformers"))
     os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", str(st))
+    _quiet_huggingface_hub_auth_noise()
     return st
 
 

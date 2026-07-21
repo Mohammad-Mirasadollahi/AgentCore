@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -9,32 +10,10 @@ from typing import Iterable
 from .errors import ValidationError
 from .languages import EXTENSION_TO_LANGUAGE, detect_language_from_path
 
-DEFAULT_EXCLUDE_DIRS: frozenset[str] = frozenset(
-    {
-        ".git",
-        ".hg",
-        ".svn",
-        ".venv",
-        "venv",
-        "node_modules",
-        "__pycache__",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "build",
-        "target",
-        "vendor",
-        ".idea",
-        ".vscode",
-        "coverage",
-        ".turbo",
-        ".next",
-        "Pods",
-        ".eggs",
-    }
-)
+# Operator excludes live in agentcore.sync.yaml (not hardcoded here).
+# Empty defaults keep discovery APIs stable when callers pass explicit lists.
+DEFAULT_EXCLUDE_DIRS: frozenset[str] = frozenset()
+DEFAULT_EXCLUDE_GLOBS: tuple[str, ...] = ()
 
 DEFAULT_MAX_FILES = 2000
 DEFAULT_MAX_FILE_BYTES = 1_500_000  # ~1.5 MiB
@@ -59,6 +38,45 @@ def _normalize_extensions(include_extensions: Iterable[str] | None) -> set[str]:
     return {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in raw}
 
 
+def _looks_like_glob(pattern: str) -> bool:
+    return any(ch in pattern for ch in "*?[")
+
+
+def _normalize_glob(pattern: str) -> str:
+    return pattern.strip().replace("\\", "/").lstrip("./")
+
+
+def path_matches_glob(relative_path: str, pattern: str) -> bool:
+    """Match ``relative_path`` against a user/builtin glob (``*``, ``?``, ``[]``, ``**``).
+
+    Leading ``**/`` matches zero or more directories (so ``**/src/**`` matches ``src/a.py``).
+    """
+    rel = relative_path.replace("\\", "/").lstrip("./")
+    pat = _normalize_glob(pattern)
+    if not pat:
+        return False
+
+    candidates = [pat]
+    # ``**/foo`` ≡ ``foo`` at repo root (zero directories before foo).
+    if pat.startswith("**/"):
+        candidates.append(pat[3:])
+    # ``foo/**`` also matches the directory path ``foo`` itself.
+    if pat.endswith("/**"):
+        candidates.append(pat[:-3].rstrip("/"))
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if fnmatch.fnmatch(rel, candidate):
+            return True
+        if fnmatch.fnmatch(Path(rel).name, candidate):
+            return True
+    # Treat bare ``docs``-style patterns as directory-name matches via glob too.
+    if not _looks_like_glob(pat) and "/" not in pat:
+        return any(part.lower() == pat.lower() for part in Path(rel).parts[:-1])
+    return False
+
+
 def _should_skip_parents(relative: Path, excluded: set[str]) -> bool:
     for part in relative.parts[:-1]:
         lower = part.lower()
@@ -71,18 +89,44 @@ def _should_skip_parents(relative: Path, excluded: set[str]) -> bool:
     return False
 
 
+def _matches_any_glob(relative_path: str, patterns: Iterable[str]) -> bool:
+    return any(path_matches_glob(relative_path, p) for p in patterns if str(p).strip())
+
+
+def _matches_include(relative: Path, patterns: list[str]) -> bool:
+    if not patterns:
+        return True
+    rel = str(relative).replace("\\", "/")
+    for raw in patterns:
+        pat = raw.strip().replace("\\", "/").strip("/")
+        if not pat:
+            continue
+        if _looks_like_glob(pat) or pat.endswith("/**"):
+            if path_matches_glob(rel, pat if _looks_like_glob(pat) or "**" in pat else f"{pat}/**"):
+                return True
+            if path_matches_glob(rel, pat):
+                return True
+            continue
+        # Plain prefix
+        if rel == pat or rel.startswith(pat + "/"):
+            return True
+    return False
+
+
 def discover_source_files(
     root_path: str | Path,
     *,
     include_extensions: Iterable[str] | None = None,
     exclude_dirs: Iterable[str] | None = None,
+    exclude_globs: Iterable[str] | None = None,
+    include_path_prefixes: Iterable[str] | None = None,
     max_files: int = DEFAULT_MAX_FILES,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
 ) -> list[DiscoveredFile]:
     """Walk ``root_path`` and return supported source files (sorted by relative path).
 
-    Skips excluded directory names, hidden parent directories, oversized files,
-    and paths whose language cannot be detected from the extension matrix.
+    Skips excluded directory names, exclude globs, hidden parents, oversized files,
+    and undetectable languages. Optional include patterns/prefixes narrow the tree.
     """
     root = Path(root_path).expanduser().resolve()
     if not root.exists():
@@ -96,8 +140,28 @@ def discover_source_files(
     excluded = {
         str(name).strip().lower()
         for name in (exclude_dirs if exclude_dirs is not None else DEFAULT_EXCLUDE_DIRS)
-        if str(name).strip()
+        if str(name).strip() and not _looks_like_glob(str(name))
     }
+    globs = [
+        _normalize_glob(str(p))
+        for p in (
+            exclude_globs
+            if exclude_globs is not None
+            else DEFAULT_EXCLUDE_GLOBS
+        )
+        if str(p).strip()
+    ]
+    # Plain exclude_dirs entries that look like globs join the glob list.
+    if exclude_dirs is not None:
+        for name in exclude_dirs:
+            text = str(name).strip()
+            if text and _looks_like_glob(text):
+                globs.append(_normalize_glob(text))
+    include_patterns = [
+        str(p).strip().replace("\\", "/")
+        for p in (include_path_prefixes or [])
+        if str(p).strip()
+    ]
 
     discovered: list[DiscoveredFile] = []
     for path in sorted(root.rglob("*")):
@@ -107,7 +171,12 @@ def discover_source_files(
             relative = path.relative_to(root)
         except ValueError:
             continue
+        rel_s = str(relative).replace("\\", "/")
         if _should_skip_parents(relative, excluded):
+            continue
+        if _matches_any_glob(rel_s, globs):
+            continue
+        if not _matches_include(relative, include_patterns):
             continue
 
         language = detect_language_from_path(str(relative))
@@ -127,7 +196,7 @@ def discover_source_files(
         discovered.append(
             DiscoveredFile(
                 absolute_path=str(path),
-                relative_path=str(relative).replace("\\", "/"),
+                relative_path=rel_s,
                 language=language,
                 size_bytes=size,
             )

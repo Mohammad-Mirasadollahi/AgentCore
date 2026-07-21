@@ -8,14 +8,14 @@ from typing import Any
 
 MCP_FIRST_RULE_BODY = """# MCP-first AgentCore
 
-When this workspace is connected to AgentCore over MCP:
+When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search_tools` → `mcp_execute_tool`):
 
-1. Call `agentcore_guidance_resolve` (if available on `tools/list`) before substantive coding.
+1. Search then execute `agentcore_guidance_resolve` before substantive coding.
 2. For capabilities AgentCore exposes on the active Usage Profile, prefer the matching MCP tool over inventing a local-only substitute.
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
 4. Do not skip code-graph search when locating symbols AgentCore can index.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
-6. If a needed capability is missing from `tools/list`, call `agentcore_get_effective_profile` (if available), report the gap, and ask before bypassing with unmanaged workflows.
+6. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
 7. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 """
 
@@ -61,16 +61,16 @@ description: Bootstrap an AgentCore MCP session—ping, profile, resolve guidanc
 
 ## How
 
-1. Call `agentcore_ping` to confirm connectivity.
-2. Call `agentcore_get_effective_profile` to see allowed MCP tools.
-3. If `agentcore_guidance_resolve` is listed, call it and apply `agents_entry` + `always_rules`.
-4. If a catalog skill matches the user task, call `agentcore_guidance_get_skill` before improvising.
+1. Via lazy MCP: `mcp_search_tools` then `mcp_execute_tool` — start with `agentcore_ping`.
+2. Execute `agentcore_get_effective_profile` to see allowed capability tools.
+3. Search/execute `agentcore_guidance_resolve` and apply `agents_entry` + `always_rules`.
+4. If a catalog skill matches the user task, execute `agentcore_guidance_get_skill` before improvising.
 5. Only then start memory/graph/docs/write tools or local edits.
 
 ## Do not
 
 - Start large refactors before guidance resolve when the tool is available.
-- Assume tools exist without checking the effective profile / `tools/list`.
+- Assume tools exist without `mcp_search_tools` or the effective profile.
 """,
     },
     {

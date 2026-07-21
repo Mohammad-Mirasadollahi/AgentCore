@@ -27,6 +27,8 @@ A repository event or manual sync starts the ingestion job. The job records repo
 
 The system identifies supported source files and excludes generated files, vendor directories, build outputs, dependency folders, caches, and binary files.
 
+For the `agentcore sync` operator path, discovery is driven by a **required** filter file (`agentcore.sync.yaml` / `.agentcore/sync.yaml`) plus built-in language excludes and optional wildcards. See [42 - AgentCore CLI Command Reference § Sync filters](../08-software-engineering-architecture/42-agentcore-cli-command-reference.md#sync-filters) and `code_graph_service.domain.repo_discovery`.
+
 ### 3. Parsing (multi-language)
 
 Python is the mandatory baseline language (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported through tree-sitter adapters registered in `code_graph_service.domain.parsers`.
@@ -95,6 +97,20 @@ After graph update, the system emits events for Docs-as-Code and Orchestration:
 - changed public API,
 - changed dependency edge,
 - changed call graph impact.
+
+### 10. Human documentation Phase 2 (`agentcore sync`)
+
+After Phase 1 code ingest, `agentcore sync` runs a second phase when `docs.match` is non-empty (default `**/*.md` / `**/*.mdx`):
+
+1. Discover Markdown via `docs.match` wildcards and **docs-only** `docs.exclude` (`code_graph_service.domain.doc_discovery` — not the language matrix). Code excludes (`code.exclude`) do not apply to this phase.
+2. Index each document into **docs-sync-service** (SoT for Document / DocAnchor / Drift) with frontmatter (`linked_symbols` required for linking).
+3. Resolve each `linked_symbols` token against the code graph (`qualified_name` or `file_path::SymbolName`). Unresolved tokens do **not** create edges.
+4. Project human doc nodes into Neo4j as `doc:human:{project_id}:{doc_id}` (`kind=documentation`, `doc_status=human`) and merge `DOCUMENTED_BY` from each resolved code symbol → human doc (same direction as living AI docs).
+5. Register docs-sync anchors for resolved links so drift can compare code hashes later.
+
+Living AI docs (`doc:{project}:{qualified_name}`) remain separate from human projections. Body-tier Markdown without Full-tier frontmatter is still indexed in docs-sync via provisional fields, but receives no `DOCUMENTED_BY` edges until `linked_symbols` resolve.
+
+Orchestration lives in `agentcore_cli.docs_link_sync` (in-process clients; no cross-service DB reads). Disable Phase 2 with `docs.match: []` or `docs.enabled: false`.
 
 ## Pseudo-Code
 

@@ -13,6 +13,12 @@ COMPOSE_ENV_FILE="${COMPOSE_DIR}/.env.local"
 COMPOSE_ENV_EXAMPLE="${COMPOSE_DIR}/neo4j.example.env"
 WAIT_HEALTHY="${COMPOSE_DIR}/wait-healthy.sh"
 
+# Repo-root operator templates (never overwrite existing files).
+REPO_ENV_FILE="${AGENTCORE_ROOT}/.env"
+REPO_ENV_EXAMPLE="${AGENTCORE_ROOT}/.env.example"
+REPO_SYNC_FILE="${AGENTCORE_ROOT}/agentcore.sync.yaml"
+REPO_SYNC_EXAMPLE="${AGENTCORE_ROOT}/agentcore.sync.yaml.example"
+
 INSTALL_CHECK_ONLY="${INSTALL_CHECK_ONLY:-0}"
 INSTALL_NONINTERACTIVE="${INSTALL_NONINTERACTIVE:-1}"
 INSTALL_SKIP_PREREQS="${INSTALL_SKIP_PREREQS:-0}"
@@ -135,4 +141,24 @@ env_has_placeholder_secret() {
   [[ "${val}" == "replace-with-a-local-secret" ]] && return 0
   [[ "${val}" == "changeme" ]] && return 0
   return 1
+}
+
+copy_example_if_missing() {
+  local example="$1"
+  local dest="$2"
+  local label="$3"
+  if [[ -f "${dest}" ]]; then
+    ok "${label} present: ${dest}"
+    return 0
+  fi
+  require_file "${example}" "missing template ${example}"
+  info "Copying ${example} → ${dest}"
+  cp "${example}" "${dest}"
+  ok "Created ${dest} (edit as needed; re-install will not overwrite)"
+}
+
+# Seed repo-root .env and agentcore.sync.yaml from *.example when absent.
+seed_repo_operator_files() {
+  copy_example_if_missing "${REPO_ENV_EXAMPLE}" "${REPO_ENV_FILE}" "repo .env"
+  copy_example_if_missing "${REPO_SYNC_EXAMPLE}" "${REPO_SYNC_FILE}" "agentcore.sync.yaml"
 }

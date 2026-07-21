@@ -22,22 +22,16 @@ def gateway():
     )
 
 
-def test_tools_list_matches_usage_profile():
+def test_tools_list_is_lazy_facade():
     gw = gateway()
     tools = gw.tools_list()
     names = {t["name"] for t in tools}
-    assert "agentcore_ping" in names
-    assert "agentcore_create_task" in names
-    assert "agentcore_code_graph_search" in names
-    assert "agentcore_code_graph_impact" in names
-    assert "agentcore_code_graph_ingest_file" in names
-    assert "agentcore_write" in names
-    assert "agentcore_docs_write" in names
-    assert "agentcore_docs_status" in names
-    assert "agentcore_guidance_resolve" in names
-    assert "agentcore_guidance_list_skills" in names
-    assert "agentcore_guidance_get_skill" in names
+    assert names == {"mcp_search_tools", "mcp_execute_tool"}
     assert all("inputSchema" in t for t in tools)
+    catalog = {t["name"] for t in gw.catalog_tools()}
+    assert "agentcore_ping" in catalog
+    assert "agentcore_guidance_resolve" in catalog
+    assert "agentcore_create_task" in catalog
 
 
 def test_initialize_and_tools_list_rpc():
@@ -46,9 +40,38 @@ def test_initialize_and_tools_list_rpc():
         gw,
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
     )
-    assert init["result"]["serverInfo"]["name"] == "agentcore-programming"
+    assert init["result"]["serverInfo"]["name"] == "AgentCore-Programming"
     listed = handle_message(gw, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
-    assert len(listed["result"]["tools"]) >= 4
+    assert {t["name"] for t in listed["result"]["tools"]} == {
+        "mcp_search_tools",
+        "mcp_execute_tool",
+    }
+
+
+def test_lazy_search_and_execute():
+    gw = gateway()
+    search = gw.call_tool("mcp_search_tools", {"query": "guidance resolve", "limit": 5})
+    hits = search["structuredContent"]["results"]
+    assert hits
+    assert any(h["tool_name"] == "agentcore_guidance_resolve" for h in hits)
+    assert all(h["server_name"] == "AgentCore-Programming" for h in hits)
+    assert all("inputSchema" in h for h in hits)
+
+    executed = gw.call_tool(
+        "mcp_execute_tool",
+        {
+            "server_name": "AgentCore-Programming",
+            "tool_name": "agentcore_ping",
+            "arguments": {},
+        },
+    )
+    assert executed["structuredContent"]["ok"] is True
+
+    via_aliases = gw.call_tool(
+        "mcp_execute_tool",
+        {"server": "AgentCore-Programming", "tool": "agentcore_ping", "arguments": {}},
+    )
+    assert via_aliases["structuredContent"]["ok"] is True
 
 
 def test_tools_call_wired_backends():

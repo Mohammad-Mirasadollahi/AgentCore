@@ -19,10 +19,27 @@ def _ensure_code_graph_import() -> None:
 
 
 def _graph_service():
-    """In-process code-graph service (memory default; neo4j when env set)."""
+    """In-process code-graph service (auto neo4j when password set; else memory)."""
+    from agentcore_cli.cli_defaults import load_dotenv_files
+
+    load_dotenv_files()
     _ensure_code_graph_import()
-    backend = os.environ.get("AGENTCORE_GRAPH_CLI_BACKEND", "memory").strip().lower() or "memory"
+    backend = os.environ.get("AGENTCORE_GRAPH_CLI_BACKEND", "").strip().lower()
+    if not backend:
+        pwd = os.environ.get("AGENTCORE_NEO4J_PASSWORD", "").strip()
+        backend = "neo4j" if pwd and pwd not in {
+            "replace-with-a-local-secret",
+            "changeme",
+            "password",
+            "neo4j",
+        } else "memory"
     if backend == "neo4j":
+        try:
+            from agentcore_cli.remote_client import apply_compose_env_to_os
+
+            apply_compose_env_to_os(os.environ, repo_root())
+        except SystemExit:
+            pass
         from code_graph_service.bootstrap import Settings, build_service
 
         return build_service(Settings.from_environment())
@@ -32,10 +49,11 @@ def _graph_service():
     return CodeGraphService(InMemoryStore())
 
 
-def _graph_scope(args: argparse.Namespace):
+def _graph_scope(args: argparse.Namespace, *, with_defaults: bool = False):
+    _ensure_code_graph_import()
     from code_graph_service.core import Scope
 
-    tenant, workspace, project = require_scope(args)
+    tenant, workspace, project = require_scope(args, with_defaults=with_defaults)
     return Scope(tenant, workspace, project)
 
 

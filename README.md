@@ -41,6 +41,7 @@ Full catalog and non-goals → [product scope](docs/00-master-plan/01-product-sc
 | [Install](#install) | Local-dev bootstrap details and flags |
 | [Verify](#verify) | Confirm CLI + profiles |
 | [Documentation map](#documentation-map) | Where every topic lives (click through) |
+| **CLI commands (why / flags / examples / what changes)** | **[42 - AgentCore CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md)** |
 | [Contributing & license](#contributing--license) | PRs, security, Apache 2.0 |
 
 ---
@@ -122,7 +123,33 @@ agentcore connect
 
 Reload MCP / the IDE window. You should see tools such as `agentcore_ping`.
 
-Same host for both roles? Run step 1, then `agentcore connect` after `agentcore connect --init` with `prefer_http: false` and `ssh` pointing at localhost, or use [local Cursor export](docs/08-software-engineering-architecture/36-agentcore-cli.md).
+**Same host / dogfood this checkout** (AgentCore as its own MCP client):
+
+```bash
+cd /opt/AgentCore
+agentcore init --tenant acme --workspace eng --path /opt/AgentCore   # you choose the IDs + roots
+agentcore connect --local
+agentcore status
+# Required: copy template once (gitignored local file):
+#   cp agentcore.sync.yaml.example agentcore.sync.yaml
+# Or rely on install.sh which creates it when missing.
+agentcore sync
+# agentcore paths list
+# agentcore paths add /opt/OtherApp
+# agentcore paths remove /opt/OldApp   # warns: old graph data remains until purge
+# agentcore purge --yes
+# agentcore destroy-profile --tenant acme --workspace eng --project agentcore
+#   (type two different confirmations; deletes profile data only — NOT source code)
+agentcore list-profiles                  # see local profiles + which scope is active
+```
+
+After `bash install.sh`, repo-root `.env` and `agentcore.sync.yaml` are created from `.env.example` / `agentcore.sync.yaml.example` when missing (existing files are never overwritten; both copies are **gitignored**). After `init`, scope comes from `~/.agentcore/identity.yaml` and the repo-root `.env`. Override with `--tenant` / `--workspace` / `--project` only when needed.
+
+**Sync filters** (mandatory YAML, wildcards, built-in language excludes) → [42 § Sync filters](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md#sync-filters).
+
+**All CLI commands** (required flags, examples, what changes when you re-run or change IDs) → [42 - AgentCore CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md). Install/PATH overview → [36 - AgentCore CLI](docs/08-software-engineering-architecture/36-agentcore-cli.md).
+
+Or set `server.local: true` and `connect.prefer_http: false` in `~/.agentcore/connect.yaml`, then `agentcore connect`.
 
 ---
 
@@ -159,7 +186,8 @@ agentcore doctor
 
 - Full steps, flags, and troubleshooting → [Local install runbook](docs/08-software-engineering-architecture/39-local-install-runbook.md)
 - Venv only (no Compose infra) → `bash install.sh --skip-infra` (typical **dev host / client**)
-- CLI reference → [AgentCore CLI](docs/08-software-engineering-architecture/36-agentcore-cli.md)
+- **CLI command reference (every command)** → [42 - AgentCore CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md)
+- CLI install / PATH overview → [36 - AgentCore CLI](docs/08-software-engineering-architecture/36-agentcore-cli.md)
 - Server + client MCP connect → [One-command connect](docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md)
 - Usage Profile catalog → [Usage Profile + MCP](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md)
 - Operator connect loop (ingest → explore) → [Wedge connect runbook](docs/07-code-knowledge-graph/35-wedge-operator-connect-runbook.md)
@@ -189,6 +217,7 @@ Start at the docs hub, then open the chapter you need:
 | Roadmap & phase gates | [02-roadmap-and-phase-gates](docs/00-master-plan/02-roadmap-and-phase-gates.md) |
 | Code-knowledge graph | [07-code-knowledge-graph](docs/07-code-knowledge-graph/00-index.md) |
 | Engineering / install / CLI | [08-software-engineering-architecture](docs/08-software-engineering-architecture/00-index.md) |
+| **Every `agentcore` command** | **[42 - CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md)** |
 | Governance & ops | [09-platform-governance-operations](docs/09-platform-governance-operations/00-index.md) |
 | Gap register | [10-gap-analysis](docs/10-gap-analysis/00-index.md) |
 | Technology stack | [13-technology-stack](docs/13-technology-stack-and-platform-decisions/00-index.md) |

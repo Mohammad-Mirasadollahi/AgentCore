@@ -10,6 +10,8 @@ tree-sitter-typescript==0.23.2
 tree-sitter-go==0.25.0
 tree-sitter-rust==0.24.0
 litellm<2,>=1.40.0
+rank-bm25==0.2.2
+PyYAML<7,>=6.0.2
 
 [dev]
 pytest==9.1.1
@@ -17,3 +19,8 @@ httpx2==2.5.0
 
 [embeddings]
 sentence-transformers<6,>=3.0.0
+
+[graph-analytics]
+scikit-network<0.34,>=0.32
+scipy<2,>=1.11
+numpy<3,>=1.26
