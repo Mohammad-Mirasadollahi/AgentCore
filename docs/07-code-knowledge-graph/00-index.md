@@ -10,7 +10,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 
 - `01-vision-and-scope.md` defines the purpose, positioning, and expected benefits of the Code-Knowledge Graph.
 - `02-neo4j-schema-design.md` defines graph nodes, relationships, properties, constraints, and indexing strategy.
-- `03-ingestion-and-living-documentation-workflow.md` defines the real-time ingestion, parsing, hashing, documentation, and graph upsert workflow.
+- `03-ingestion-and-living-documentation-workflow.md` defines explicit ingest (commit/PR/manual/CI), parsing, hashing, documentation, and graph upsert — not save-triggered continuous indexing.
 - `04-graph-guided-code-generation-workflow.md` defines how AI code generation retrieves context from the graph instead of reading the whole repository.
 - `05-token-optimization-and-model-routing.md` defines hash-based diffing, smart triggers, tiered LLM routing via LiteLLM, hierarchical summaries, and cheap embeddings.
 - `06-technical-implementation-logic.md` defines implementation-level algorithms, pseudo-code, failure handling, and integration points.
@@ -42,6 +42,13 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `31-production-retrieval-stack-risks-challenges-and-acceptance.md` risks and acceptance for production retrieval.
 - `32-intentional-fallbacks-and-neo4j-plugin-licensing.md` why stub/Louvain/Cypher-degree/legacy-FTS stay; APOC/GDS Community vs Enterprise licensing.
 - `33-production-retrieval-live-test-gates.md` live/fuzzer/challenge gates, pythonpath, AuthError skip policy, anti-cascade acceptance.
+- `35-wedge-operator-connect-runbook.md` operator connect → ingest → explore/hybrid smoke.
+- `36-dead-code-candidates-and-cleanup-loop.md` unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
+
+## History
+
+- 2026-07-21: Core product readiness backlog `34` (`ac.doc.ckg.core-product-readiness-phased-backlog`) retired (archived). Durable gates live in `19`/`26`/`31`/`33`, product scope, gap register (GAP-005), and runbook `35`. Do not reuse that `doc_id`.
+- 2026-07-21: Added `36-dead-code-candidates-and-cleanup-loop.md` for the unused-candidate / cleanup full loop (guidance + KPIs).
 
 ## Code Intelligence Enhancements (current)
 
@@ -49,7 +56,7 @@ Surgical explore packs, framework routes, test links, and risk-scored change rev
 
 ## Production Retrieval Stack (current)
 
-BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC expand, free Leiden (`scikit-network`) with Louvain fallback. Reading order: `27` → `28` → `29` → `30` → `31`. Intentional keepers + plugin license truth: `32`. Live/fuzzer/challenge test gates: `33`.
+BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC expand, free Leiden (`scikit-network`) with Louvain fallback. Reading order: `27` → `28` → `29` → `30` → `31`. Intentional keepers + plugin license truth: `32`. Live/fuzzer/challenge test gates: `33`. Temporary core-product readiness phases: `34` (retire after A–E).
 
 ## Repository Code Wiki (future)
 
@@ -83,4 +90,7 @@ Phase 7 vertical slice service:
 - Repository Code Wiki (`14`–`18`, `20`) adds repository-level wiki generation on top of the graph; published pages feed docs-sync.
 - Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`) add explore/risk/routes analytics inspired by MIT prior art.
 - Production Retrieval Stack (`27`–`31`) adds BM25/FTS/BGE/APOC/free Leiden for agent search quality.
+- Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
+- `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.
+- `../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md` defines dead-code cleanup KPIs.

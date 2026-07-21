@@ -4,10 +4,28 @@
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| GET | `/health` | Service health (used by `agentcore connect`) |
 | GET | `/api/v1/usage-profiles` | List catalog profile ids |
+| POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register + activate + MCP fragment (HTTP or stdio) |
+| POST | `/api/v1/projects/{project_id}/connect/sources` | Register server path or git source |
+| POST | `/api/v1/projects/{project_id}/connect/ingest` | Request graph ingest for registered source |
+| GET | `/api/v1/projects/{project_id}/connect/status` | Profile, code source, ingest status |
 | POST | `/api/v1/projects/{project_id}/usage-profile:activate` | Activate a Usage Profile on the project |
 | GET | `/api/v1/projects/{project_id}/usage-profile/effective` | Resolve effective profile for scope |
 | GET | `/api/v1/projects/{project_id}/usage-profile/cursor-mcp` | Materialize Cursor `mcpServers` fragment |
+
+### MCP HTTP gateway (Phase B)
+
+On the AgentCore host:
+
+```bash
+export AGENTCORE_MCP_TOKEN_SECRET='long-random-secret'
+export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
+export AGENTCORE_MCP_STORE_MODE=postgres   # when Compose is up
+agentcore mcp serve-http --host 0.0.0.0 --port 32500
+```
+
+Clients receive `url` + `Authorization` from bootstrap / `agentcore connect` (no SSH in mcp.json).
 
 Register/patch project profile may also set `usage_profile`.
 

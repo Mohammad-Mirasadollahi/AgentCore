@@ -106,9 +106,13 @@ Decision needed: Define isolation enforcement strategy per storage and service b
 
 Suggested owner: Security Architect
 
-Resolution path: Create tenant isolation threat model and test plan.
+Resolution path: Threat model + enforceable tests for code-graph store and MCP scope (wedge). Broader broker/object-store surfaces remain follow-up.
 
-Status: UNDER_REVIEW
+Status: CLOSED
+
+Closed in: `docs/09-platform-governance-operations/tenant-isolation-threat-model.md` +
+`tests/.../test_tenant_isolation.py` / `test_mcp_tenant_isolation.py` (2026-07-21).
+v1 commercial mode: **single-tenant lab OK**; multi-tenant SaaS claims blocked until remaining platform surfaces are covered.
 
 ## GAP-006 - Weight Profile Governance
 

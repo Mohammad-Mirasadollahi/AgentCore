@@ -18,6 +18,7 @@ from usage_profile import (  # noqa: E402
     materialize_cursor_mcp_config,
     resolve_effective_profile,
 )
+from usage_profile.mcp_tokens import mint_connect_token  # noqa: E402
 
 
 class ProjectProfileError(Exception):
@@ -251,4 +252,177 @@ class ProjectProfileService:
                 "Ensure PYTHONPATH includes backend/services/mcp-gateway-service/src and backend/packages.",
                 "Reload Cursor MCP / window after saving.",
             ],
+        }
+
+    def register_code_source(self, scope: Scope, actor_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        project = self.get_project(scope)
+        server_path = str(body.get("server_path") or "").strip() or None
+        git = body.get("git") if isinstance(body.get("git"), dict) else None
+        if not server_path and not git:
+            raise ValidationError("server_path or git is required")
+        code_source: dict[str, Any] = {"updated_by": actor_id, "updated_at": _now()}
+        if server_path:
+            code_source["server_path"] = server_path
+        if git:
+            remote = str(git.get("remote") or "").strip()
+            branch = str(git.get("branch") or "main").strip()
+            if not remote:
+                raise ValidationError("git.remote is required")
+            code_source["git"] = {"remote": remote, "branch": branch}
+        project["code_source"] = code_source
+        self.store.put_project(project)
+        self.store.append_event(
+            {"event_type": "project.code_source.registered", "project_id": scope.project_id}
+        )
+        return project
+
+    def connect_status(self, scope: Scope) -> dict[str, Any]:
+        project = self.get_project(scope)
+        effective = self.get_effective_usage_profile(scope)
+        return {
+            "scope": {
+                "tenant_id": scope.tenant_id,
+                "workspace_id": scope.workspace_id,
+                "project_id": scope.project_id,
+            },
+            "usage_profile": effective["profile_id"],
+            "code_source": project.get("code_source"),
+            "ingest": project.get("ingest") or {"status": "unknown"},
+        }
+
+    def request_ingest(self, scope: Scope, actor_id: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Mark ingest requested; optionally run local graph ingest when AGENTCORE_ROOT is set."""
+        import os
+        import subprocess
+
+        project = self.get_project(scope)
+        body = body or {}
+        source_path = str(body.get("source_path") or "").strip()
+        if not source_path:
+            code_source = project.get("code_source") or {}
+            source_path = str(code_source.get("server_path") or "").strip()
+        if not source_path:
+            raise ValidationError("source_path or registered code_source.server_path is required")
+        ingest: dict[str, Any] = {
+            "status": "deferred",
+            "source_path": source_path,
+            "requested_by": actor_id,
+            "requested_at": _now(),
+        }
+        root = os.environ.get("AGENTCORE_ROOT", "").strip()
+        agentcore = Path(root) / ".venv" / "bin" / "agentcore" if root else None
+        if agentcore and agentcore.is_file():
+            proc = subprocess.run(
+                [
+                    str(agentcore),
+                    "graph",
+                    "ingest",
+                    "--tenant",
+                    scope.tenant_id,
+                    "--workspace",
+                    scope.workspace_id,
+                    "--project",
+                    scope.project_id,
+                    "--path",
+                    source_path,
+                ],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            ingest["status"] = "ok" if proc.returncode == 0 else "failed"
+            ingest["exit_code"] = proc.returncode
+            if proc.returncode != 0:
+                ingest["stderr"] = (proc.stderr or "")[:2000]
+        else:
+            ingest["hint"] = "Run agentcore graph ingest on the AgentCore host for this path."
+        project["ingest"] = ingest
+        self.store.put_project(project)
+        self.store.append_event({"event_type": "project.ingest.requested", "project_id": scope.project_id})
+        return {"project": project, "ingest": ingest}
+
+    def connect_bootstrap(
+        self,
+        scope: Scope,
+        actor_id: str,
+        correlation_id: str,
+        idempotency_key: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        import os
+
+        usage_profile = str(body.get("usage_profile") or "programming-cursor-mcp").strip()
+        name = str(body.get("name") or scope.project_id).strip()
+        source_path = str(body.get("source_path") or "").strip() or None
+        git = body.get("git") if isinstance(body.get("git"), dict) else None
+        try:
+            self.get_project(scope)
+        except NotFoundError:
+            self.register_project(
+                scope,
+                actor_id,
+                correlation_id,
+                idempotency_key,
+                {"name": name, "usage_profile": usage_profile},
+            )
+        project = self.activate_usage_profile(scope, actor_id, usage_profile)
+        if source_path or git:
+            project = self.register_code_source(
+                scope,
+                actor_id,
+                {"server_path": source_path, "git": git} if git else {"server_path": source_path},
+            )
+        exported = self.export_cursor_mcp_connection(scope)
+        mcp_http_url = (
+            str(body.get("mcp_http_url") or "").strip()
+            or os.environ.get("AGENTCORE_MCP_HTTP_PUBLIC_URL", "").strip()
+        )
+        mcp_block: dict[str, Any] = {
+            "transport": "stdio",
+            "url": None,
+            "headers": {},
+            "note": "SSH stdio fallback available via agentcore connect when MCP HTTP is unset.",
+        }
+        if mcp_http_url:
+            mcp_block["transport"] = "streamable_http"
+            mcp_block["url"] = mcp_http_url.rstrip("/") + (
+                "" if mcp_http_url.rstrip("/").endswith("/mcp") else "/mcp"
+            )
+            token = ""
+            try:
+                token = mint_connect_token(
+                    tenant_id=scope.tenant_id,
+                    workspace_id=scope.workspace_id,
+                    project_id=scope.project_id,
+                )
+            except ValueError:
+                token = os.environ.get("AGENTCORE_MCP_HTTP_TOKEN", "").strip()
+            if token:
+                mcp_block["headers"] = {
+                    "Authorization": f"Bearer {token}",
+                    "X-Tenant-Id": scope.tenant_id,
+                    "X-Workspace-Id": scope.workspace_id,
+                    "X-Project-Id": scope.project_id,
+                    "X-Usage-Profile": usage_profile,
+                }
+            mcp_block["note"] = "Prefer HTTP MCP; stdio fallback is for agents without HTTP support."
+        ingest: dict[str, Any] = {"status": "skipped", "source_path": source_path}
+        if source_path:
+            ingest = {
+                "status": "registered",
+                "source_path": source_path,
+                "hint": "POST .../connect/ingest or agentcore connect with ingest enabled.",
+            }
+        return {
+            "scope": {
+                "tenant_id": scope.tenant_id,
+                "workspace_id": scope.workspace_id,
+                "project_id": scope.project_id,
+            },
+            "usage_profile": exported["usage_profile"],
+            "project": project,
+            "mcp": mcp_block,
+            "mcp_stdio_fallback": exported["cursor_mcp"],
+            "ingest": ingest,
         }

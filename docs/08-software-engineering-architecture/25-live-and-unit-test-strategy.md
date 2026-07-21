@@ -6,6 +6,8 @@ AgentCore must have both Unit Tests and Live Tests. Unit Tests prove that isolat
 
 These two test families solve different problems and must not be treated as substitutes for each other. Unit Tests provide fast deterministic confidence during development. Live Tests provide real-world confidence that agents, connectors, stores, brokers, code graph, documentation sync, memory retrieval, rules, reports, and automation behave correctly with realistic data and infrastructure.
 
+**Authoring playbook (mandatory concurrent tests, placement, markers):** `37-test-authoring-standard.md`. This document owns Unit vs Live strategy, real-data safety, evidence, and release gates.
+
 ## Corrected Requirement
 
 AgentCore must include a formal testing strategy that separates Unit Tests from Live Tests. The system should run Unit Tests for every module and service to validate pure logic, state transitions, scoring, validation, and command behavior. The system should also support Live Tests with real or production-like data and real integrations to validate end-to-end behavior, connector health, data isolation, memory quality, documentation sync, rule execution, reporting accuracy, and operational readiness.

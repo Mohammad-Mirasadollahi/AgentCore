@@ -41,6 +41,15 @@ class IntelligenceUseCases(GraphServiceSupport):
         state.mark_pending(file_path)
         return state.stale_banner([file_path])
 
+    def mark_files_pending(self, file_paths: list[str]) -> dict[str, Any]:
+        """Batch mark many paths pending (agent coding bursts must not N× sync)."""
+        state = self._ensure_freshness()
+        cleaned = [p for p in (file_paths or []) if str(p).strip()]
+        if not cleaned:
+            raise ValidationError("file_paths is required")
+        state.mark_pending_many(cleaned)
+        return state.stale_banner(cleaned)
+
     def clear_pending_sync(self, file_path: str | None = None) -> dict[str, Any]:
         state = self._ensure_freshness()
         state.clear_pending(file_path)

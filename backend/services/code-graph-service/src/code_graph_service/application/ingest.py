@@ -10,6 +10,7 @@ from ..domain.cross_language import (
     resolve_call_target_polyglot,
     resolve_import_target,
 )
+from ..domain.package_manifests import load_package_aliases
 from ..domain.dispatch_synth import synthesize_interface_dispatch
 from ..domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
 from ..domain.errors import ValidationError
@@ -200,13 +201,19 @@ class IngestUseCases(GraphServiceSupport):
 
         indexes = build_symbol_indexes(self.store.list_symbols(scope))
         source_language = language
+        package_aliases = payload.get("package_aliases")
+        if not isinstance(package_aliases, dict):
+            package_aliases = {}
 
         for item in parsed.symbols:
             if item.kind != SymbolKind.IMPORT:
                 continue
             for imp in item.imports:
                 target, confidence, cross_meta = resolve_import_target(
-                    imp, indexes, source_language=source_language
+                    imp,
+                    indexes,
+                    source_language=source_language,
+                    package_aliases=package_aliases,
                 )
                 target_id = target or f"ext:{imp}"
                 if target is None and self._maybe_get(target_id, scope) is None:
@@ -655,6 +662,8 @@ class IngestUseCases(GraphServiceSupport):
         if truncated:
             discovered = discovered[:max_files]
 
+        package_aliases = load_package_aliases(root_path)
+
         outcomes: list[RepoIngestFileOutcome] = []
         totals = {
             "ingested": 0,
@@ -705,6 +714,7 @@ class IngestUseCases(GraphServiceSupport):
                         "file_path": item.relative_path,
                         "source": text,
                         "language": item.language,
+                        "package_aliases": package_aliases,
                     },
                 )
             except Exception as exc:  # noqa: BLE001 — soft-fail per file for bulk jobs

@@ -1,0 +1,21 @@
+{
+  "servers": {
+    "memory": {
+      "command": "@MCP_MEMORY_CMD@",
+      "args": [@MCP_MEMORY_ARGS@],
+      "env": {
+        "MEMORY_FILE_PATH": "@MCP_MEMORY_FILE@"
+      }
+    },
+    "headroom": {
+      "command": "@HEADROOM_MCP_SERVE@",
+      "args": [],
+      "cwd": "@REPO_ROOT@",
+      "env": {
+        "HEADROOM_WORKSPACE_DIR": "@HEADROOM_DIR@",
+        "HEADROOM_TELEMETRY": "off",
+        "HEADROOM_UPDATE_CHECK": "off"
+      }
+    }
+  }
+}

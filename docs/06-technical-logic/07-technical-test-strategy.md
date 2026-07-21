@@ -4,6 +4,8 @@
 
 This document defines how to verify the technical logic of AgentCore. The platform should not be considered ready because documents exist. It is ready when the documented logic can be tested through deterministic, repeatable scenarios.
 
+**How to write tests with code (normative):** `../08-software-engineering-architecture/37-test-authoring-standard.md`. **Fuzz:** `../08-software-engineering-architecture/38-fuzzing-and-property-based-testing.md`.
+
 ## Test Layers
 
 ### Contract Tests

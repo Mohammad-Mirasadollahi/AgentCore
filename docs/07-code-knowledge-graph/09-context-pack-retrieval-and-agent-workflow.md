@@ -65,6 +65,10 @@ Metadata exposes module ownership, dependency direction, forbidden imports, serv
 
 When repeated failures happen around the same symbol or dependency, metadata can link issues, decisions, tests, and common context. Future agents start with better context instead of rediscovering the same facts.
 
+### Dead-Code Cleanup
+
+After an agent replaces or retires behavior, unused-candidate queries (see [`36-dead-code-candidates-and-cleanup-loop.md`](36-dead-code-candidates-and-cleanup-loop.md)) help remove orphaned predecessors in the same change. Context packs should highlight superseded symbols and callers so cleanup stays task-scoped.
+
 ### Token Consumption
 
 The system can measure source bytes avoided, metadata tokens used, source tokens used after escalation, and final success. This allows reporting the difference between metadata-first and source-first workflows.

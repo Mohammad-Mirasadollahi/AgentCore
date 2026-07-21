@@ -147,6 +147,8 @@ def login(user, password):
     pack = svc.explore(scope, "how does login work")
     assert pack["sections"]
     assert pack["budget_chars"] > 0
+    assert any(sec.get("file_path") for sec in pack["sections"])
+    assert any(s.get("file_path") for sec in pack["sections"] for s in sec.get("symbols") or [])
 
     report = svc.detect_changes(scope, ["src/auth.py"])
     assert "risk_score" in report

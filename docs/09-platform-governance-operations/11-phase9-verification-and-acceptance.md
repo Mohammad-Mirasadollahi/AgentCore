@@ -26,7 +26,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 
 - Required Phase 9 governance documents exist and contain key topic markers.
 - Risk and open-decision catalog entries include owners, mitigations or proposed resolutions, and review dates.
-- Impact KPI catalog covers code generation speed, bug reduction, architecture quality, rework reduction, and token consumption with definition, instrumentation, baseline, scope, time range, sample size, caveats, and evidence drilldown.
+- Impact KPI catalog covers code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup with definition, instrumentation, baseline, scope, time range, sample size, caveats, and evidence drilldown.
 - Comparison method is explicitly with-or-without AgentCore.
 
 ## Acceptance

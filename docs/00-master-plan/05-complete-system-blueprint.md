@@ -30,9 +30,11 @@ The wedge is valuable because it gives developers and leads:
 
 - Connected truth: agents see what exists in the repository now.
 - Relevant context: task-scoped symbols, docs, decisions, and constraints instead of repository dumps.
-- Better outputs: fewer invented APIs, fewer architecture violations, less abandoned work.
+- Better outputs: fewer invented APIs, fewer architecture violations, less abandoned work — and **dead-code cleanup** so replacements do not leave orphaned symbols, imports, or exclusive tests behind.
 - Cost control: precise context reduces token waste and retry loops.
-- Evidence of gain: benefit metrics against a pre-connection baseline.
+- Evidence of gain: benefit metrics against a pre-connection baseline, including cleanup KPIs.
+
+AgentCore surfaces unused candidates from the Code-Knowledge Graph and seeds always-on guidance so connected coding agents delete proven-dead predecessors in the same change. AgentCore does not delete repository files itself. See `../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`.
 
 The platform expansion adds:
 

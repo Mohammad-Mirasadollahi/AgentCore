@@ -1,9 +1,9 @@
 {
   "profile_id": "programming-cursor-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Programming with Cursor via MCP",
   "audience": "software-engineering",
-  "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP to use memory, docs drift/write, code graph, tasks, and durable project writes.",
+  "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP. Explore-first: prefer agentcore_code_graph_explore before wide Read/Grep; also memory, docs drift/write, tasks, and durable project writes.",
   "domain_pack": "default",
   "feature_profile": "default",
   "connectors": [
@@ -39,89 +39,60 @@
         }
       },
       {
-        "name": "agentcore_memory_retrieve",
-        "description": "Retrieve current-state memory hints for a programming task (maps to memory retrieval capability).",
-        "maps_to": "memory.retrieve",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "query": { "type": "string", "description": "Task or question text" },
-            "include_history": { "type": "boolean", "default": false }
-          },
-          "required": ["query"],
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "agentcore_code_graph_search",
-        "description": "Semantic search over the code-knowledge graph (Neo4j when configured) for symbols relevant to a programming query.",
-        "maps_to": "code_graph.search",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "query": { "type": "string" },
-            "top_k": { "type": "integer", "minimum": 1, "maximum": 50, "default": 5 }
-          },
-          "required": ["query"],
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "agentcore_code_graph_get_symbol",
-        "description": "Fetch one code-graph symbol by symbol_id or qualified_name (includes AI documentation fields).",
-        "maps_to": "code_graph.get_symbol",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "symbol_id": { "type": "string" },
-            "qualified_name": { "type": "string", "description": "Exact qualified_name or short name" }
-          },
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "agentcore_code_graph_neighbors",
-        "description": "Return structural neighbors (CALLS/IMPORTS/…) for a symbol; uses Neo4j expand when available.",
-        "maps_to": "code_graph.neighbors",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "symbol_id": { "type": "string" },
-            "qualified_name": { "type": "string" },
-            "rel_type": { "type": "string", "description": "Optional edge type filter, e.g. CALLS" },
-            "max_depth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 1 }
-          },
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "agentcore_code_graph_impact",
-        "description": "Multi-hop impact neighborhood around a symbol (structural expand + importance hints when Neo4j GDS/APOC available).",
-        "maps_to": "code_graph.impact",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "symbol_id": { "type": "string" },
-            "qualified_name": { "type": "string" },
-            "rel_type": { "type": "string" },
-            "max_depth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 3 }
-          },
-          "additionalProperties": false
-        }
-      },
-      {
         "name": "agentcore_code_graph_explore",
         "description": "PRIMARY code-graph tool: answer how/X works or flows with one call — seeds + call path + budgeted source (sibling skeletonization). Prefer this over wide Read/Grep.",
         "maps_to": "code_graph.explore",
         "input_schema": {
           "type": "object",
           "properties": {
-            "query": { "type": "string", "description": "Natural-language or symbol terms (e.g. login auth flow)" },
-            "top_k": { "type": "integer", "minimum": 1, "maximum": 40, "default": 12 },
-            "max_depth": { "type": "integer", "minimum": 1, "maximum": 4, "default": 2 },
-            "budget_chars": { "type": "integer", "minimum": 2000, "maximum": 100000 }
+            "query": {
+              "type": "string",
+              "description": "Natural-language or symbol terms (e.g. login auth flow)"
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 12
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "default": 2
+            },
+            "budget_chars": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 100000
+            }
           },
-          "required": ["query"],
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_hybrid_search",
+        "description": "Hybrid lexical + semantic search merged with Reciprocal Rank Fusion (RRF).",
+        "maps_to": "code_graph.hybrid_search",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          "required": [
+            "query"
+          ],
           "additionalProperties": false
         }
       },
@@ -134,12 +105,19 @@
           "properties": {
             "changed_files": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Repo-relative or absolute paths that changed"
             },
-            "include_flows": { "type": "boolean", "default": true }
+            "include_flows": {
+              "type": "boolean",
+              "default": true
+            }
           },
-          "required": ["changed_files"],
+          "required": [
+            "changed_files"
+          ],
           "additionalProperties": false
         }
       },
@@ -150,7 +128,128 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "top_n": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
+            "top_n": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_memory_retrieve",
+        "description": "Retrieve current-state memory hints for a programming task (maps to memory retrieval capability).",
+        "maps_to": "memory.retrieve",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Task or question text"
+            },
+            "include_history": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_search",
+        "description": "Semantic search over the code-knowledge graph (Neo4j when configured) for symbols relevant to a programming query.",
+        "maps_to": "code_graph.search",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_get_symbol",
+        "description": "Fetch one code-graph symbol by symbol_id or qualified_name (includes AI documentation fields).",
+        "maps_to": "code_graph.get_symbol",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string",
+              "description": "Exact qualified_name or short name"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_neighbors",
+        "description": "Return structural neighbors (CALLS/IMPORTS/…) for a symbol; uses Neo4j expand when available.",
+        "maps_to": "code_graph.neighbors",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "rel_type": {
+              "type": "string",
+              "description": "Optional edge type filter, e.g. CALLS"
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8,
+              "default": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_impact",
+        "description": "Multi-hop impact neighborhood around a symbol (structural expand + importance hints when Neo4j GDS/APOC available).",
+        "maps_to": "code_graph.impact",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "rel_type": {
+              "type": "string"
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8,
+              "default": 3
+            }
           },
           "additionalProperties": false
         }
@@ -162,25 +261,23 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "start_id": { "type": "string" },
-            "end_id": { "type": "string" },
-            "max_depth": { "type": "integer", "minimum": 1, "maximum": 30, "default": 12 }
+            "start_id": {
+              "type": "string"
+            },
+            "end_id": {
+              "type": "string"
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 12
+            }
           },
-          "required": ["start_id", "end_id"],
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "agentcore_code_graph_hybrid_search",
-        "description": "Hybrid lexical + semantic search merged with Reciprocal Rank Fusion (RRF).",
-        "maps_to": "code_graph.hybrid_search",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "query": { "type": "string" },
-            "top_k": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 }
-          },
-          "required": ["query"],
+          "required": [
+            "start_id",
+            "end_id"
+          ],
           "additionalProperties": false
         }
       },
@@ -191,7 +288,10 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "file_path": { "type": "string", "description": "If set, mark this path pending until next ingest" }
+            "file_path": {
+              "type": "string",
+              "description": "If set, mark this path pending until next ingest"
+            }
           },
           "additionalProperties": false
         }
@@ -203,9 +303,18 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "symbol_id": { "type": "string" },
-            "qualified_name": { "type": "string" },
-            "max_symbols": { "type": "integer", "minimum": 1, "maximum": 64, "default": 12 }
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "max_symbols": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64,
+              "default": 12
+            }
           },
           "additionalProperties": false
         }
@@ -217,12 +326,25 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "file_path": { "type": "string" },
-            "source": { "type": "string", "description": "Full file source text" },
-            "language": { "type": "string", "default": "python" },
-            "idempotency_key": { "type": "string" }
+            "file_path": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string",
+              "description": "Full file source text"
+            },
+            "language": {
+              "type": "string",
+              "default": "python"
+            },
+            "idempotency_key": {
+              "type": "string"
+            }
           },
-          "required": ["file_path", "source"],
+          "required": [
+            "file_path",
+            "source"
+          ],
           "additionalProperties": false
         }
       },
@@ -233,23 +355,47 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "root_path": { "type": "string", "description": "Absolute or expandable path to the repository root" },
+            "root_path": {
+              "type": "string",
+              "description": "Absolute or expandable path to the repository root"
+            },
             "include_extensions": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Optional extension allow-list (e.g. [\".py\", \".ts\"]); default = language matrix"
             },
             "exclude_dirs": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Directory names to skip (default includes node_modules, .git, .venv, …)"
             },
-            "max_files": { "type": "integer", "minimum": 1, "maximum": 20000, "default": 2000 },
-            "max_file_bytes": { "type": "integer", "minimum": 1024, "maximum": 20000000, "default": 1500000 },
-            "include_outcomes": { "type": "boolean", "default": true },
-            "idempotency_key": { "type": "string" }
+            "max_files": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000,
+              "default": 2000
+            },
+            "max_file_bytes": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 20000000,
+              "default": 1500000
+            },
+            "include_outcomes": {
+              "type": "boolean",
+              "default": true
+            },
+            "idempotency_key": {
+              "type": "string"
+            }
           },
-          "required": ["root_path"],
+          "required": [
+            "root_path"
+          ],
           "additionalProperties": false
         }
       },
@@ -270,10 +416,16 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "title": { "type": "string" },
-            "instructions": { "type": "string" }
+            "title": {
+              "type": "string"
+            },
+            "instructions": {
+              "type": "string"
+            }
           },
-          "required": ["title"],
+          "required": [
+            "title"
+          ],
           "additionalProperties": false
         }
       },
@@ -286,17 +438,40 @@
           "properties": {
             "resource": {
               "type": "string",
-              "enum": ["memory", "task", "activity", "decision"],
+              "enum": [
+                "memory",
+                "task",
+                "activity",
+                "decision"
+              ],
               "description": "Which AgentCore resource to create"
             },
-            "title": { "type": "string", "description": "Short title (memory/task/decision)" },
-            "body": { "type": "string", "description": "Full text body (memory) or decision statement" },
-            "instructions": { "type": "string", "description": "Task instructions (resource=task)" },
-            "summary": { "type": "string", "description": "Activity action summary (resource=activity)" },
-            "action_type": { "type": "string", "description": "Activity action type (resource=activity)", "default": "cursor_note" },
+            "title": {
+              "type": "string",
+              "description": "Short title (memory/task/decision)"
+            },
+            "body": {
+              "type": "string",
+              "description": "Full text body (memory) or decision statement"
+            },
+            "instructions": {
+              "type": "string",
+              "description": "Task instructions (resource=task)"
+            },
+            "summary": {
+              "type": "string",
+              "description": "Activity action summary (resource=activity)"
+            },
+            "action_type": {
+              "type": "string",
+              "description": "Activity action type (resource=activity)",
+              "default": "cursor_note"
+            },
             "tags": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Optional tags for memory"
             },
             "confidence": {
@@ -307,7 +482,9 @@
               "description": "Memory confidence 0..1"
             }
           },
-          "required": ["resource"],
+          "required": [
+            "resource"
+          ],
           "additionalProperties": false
         }
       },
@@ -318,10 +495,16 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "symbol": { "type": "string" },
-            "file_path": { "type": "string" }
+            "symbol": {
+              "type": "string"
+            },
+            "file_path": {
+              "type": "string"
+            }
           },
-          "required": ["symbol"],
+          "required": [
+            "symbol"
+          ],
           "additionalProperties": false
         }
       },
@@ -334,19 +517,49 @@
           "properties": {
             "mode": {
               "type": "string",
-              "enum": ["validate", "note", "draft", "index"],
+              "enum": [
+                "validate",
+                "note",
+                "draft",
+                "index"
+              ],
               "description": "validate=check frontmatter only; note/index=index a document; draft=create documentation draft for a symbol"
             },
-            "title": { "type": "string" },
-            "body": { "type": "string", "description": "Markdown body" },
-            "symbol": { "type": "string", "description": "Symbol path for draft/note linking (e.g. auth.hash_password)" },
-            "file_path": { "type": "string", "description": "Source file path for the symbol" },
-            "path": { "type": "string", "description": "Logical docs path for note/index (e.g. docs/modules/auth.md)" },
-            "owner": { "type": "string", "description": "Frontmatter owner (default mcp-gateway)" },
-            "doc_id": { "type": "string", "description": "Optional stable doc_id" },
+            "title": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string",
+              "description": "Markdown body"
+            },
+            "symbol": {
+              "type": "string",
+              "description": "Symbol path for draft/note linking (e.g. auth.hash_password)"
+            },
+            "file_path": {
+              "type": "string",
+              "description": "Source file path for the symbol"
+            },
+            "path": {
+              "type": "string",
+              "description": "Logical docs path for note/index (e.g. docs/modules/auth.md)"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Frontmatter owner (default mcp-gateway)"
+            },
+            "doc_id": {
+              "type": "string",
+              "description": "Optional stable doc_id"
+            },
             "status": {
               "type": "string",
-              "enum": ["draft", "active", "deprecated", "archived"],
+              "enum": [
+                "draft",
+                "active",
+                "deprecated",
+                "archived"
+              ],
               "default": "draft"
             },
             "frontmatter": {
@@ -354,7 +567,9 @@
               "description": "Optional full frontmatter object (validate/index). When set, overrides generated fields."
             }
           },
-          "required": ["mode"],
+          "required": [
+            "mode"
+          ],
           "additionalProperties": false
         }
       },
@@ -418,8 +633,12 @@
         "input_schema": {
           "type": "object",
           "properties": {
-            "skill_id": { "type": "string" },
-            "name": { "type": "string" },
+            "skill_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
             "bundle_id": {
               "type": "string",
               "description": "Optional correlation to a prior guidance resolve"

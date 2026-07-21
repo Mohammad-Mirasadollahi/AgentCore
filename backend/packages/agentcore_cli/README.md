@@ -4,6 +4,8 @@ Command-line interface for Usage Profiles, local project state, Cursor MCP expor
 
 Installed as console script `agentcore` via editable install (`pip install -e .` from repo root).
 
+Layout: `main.py` (dispatch) · `parser.py` · `util.py` · `state.py` · `commands/` (handlers).
+
 ```bash
 bash scripts/ensure-venv.sh
 agentcore doctor

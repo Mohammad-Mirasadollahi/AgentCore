@@ -26,6 +26,8 @@ def embedding_settings_from_env(environ: dict[str, str] | None = None) -> dict[s
     device = str(env.get("AGENTCORE_EMBEDDING_DEVICE", "cpu")).strip() or "cpu"
     local_enabled_raw = str(env.get("AGENTCORE_EMBEDDING_LOCAL_ENABLED", "true")).strip().lower()
     local_enabled = local_enabled_raw not in {"0", "false", "no", "off"}
+    preload_raw = str(env.get("AGENTCORE_EMBEDDING_PRELOAD", "false")).strip().lower()
+    preload = preload_raw in {"1", "true", "yes", "on"}
     return {
         "provider": provider,
         "model": model,
@@ -33,6 +35,7 @@ def embedding_settings_from_env(environ: dict[str, str] | None = None) -> dict[s
         "dims": dims,
         "device": device,
         "local_enabled": local_enabled,
+        "preload": preload,
     }
 
 

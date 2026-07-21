@@ -83,10 +83,17 @@ security_classification: internal
 - [x] Live/fuzzer/challenge gates documented in `33`; AuthError cascades skipped not ERROR-flooded; `pythonpath` in pyproject.
 - [x] No GPL leidenalg/igraph dependency.
 
+## Offline retrieval eval (Phase A — durable)
+
+- [x] Offline nDCG harness: `tests/backend/services/code-graph-service/ckg_eval/` + `test_phase_a_honesty_eval.py`.
+- [x] Sample-repo nDCG: `test_phase_a_probe_ndcg.py` on `samples/e2e-graph-probe` (≥1 real sample tree).
+- [x] Report artifact: `tests/artifacts/code-graph-eval/retrieval-ndcg-latest.json`.
+- **Minimum threshold:** mean nDCG@10 **≥ 0.5** on gold queries (callable/type symbols only). Fail the unit gate rather than market retrieval quality without the report.
+- Labels are gold queries / human relevance — never graph self-walk (ADR 19).
+
 ## Open gaps
 
 | Gap | Notes |
 | --- | --- |
-| Offline eval harness (nDCG on real repos) | Follow-up |
-| Watcher daemon for freshness | Session pending-sync already shipped |
-| Force BGE preload at process start | Optional ops knob |
+| Watcher daemon for freshness | Optional **batched** poll sidecar: `watch_pending_sync.py` + `agentcore graph watch` (debounce + max-wait; pending-sync only) |
+| Force BGE preload at process start | `AGENTCORE_EMBEDDING_PRELOAD=true` → `maybe_preload_embeddings` in `build_service` |

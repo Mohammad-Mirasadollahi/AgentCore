@@ -69,7 +69,7 @@ Unchanged from Phase 7: `X-Tenant-Id`, `X-Workspace-Id`, project path param,
 | POST | `/api/v1/projects/{project_id}/graph/architecture-overview` | `{ "top_n"?: number }` | Architecture report |
 | POST | `/api/v1/projects/{project_id}/graph/path` | `{ "from", "to", "max_depth"? }` | Shortest path |
 | POST | `/api/v1/projects/{project_id}/graph/search:hybrid` | `{ "query", "top_k"? }` | RRF-ranked hits |
-| POST | `/api/v1/projects/{project_id}/graph/pending-sync` | `{ "file_path"? }` | Freshness / pending |
+| POST | `/api/v1/projects/{project_id}/graph/pending-sync` | `{ "file_path"? , "file_paths"? }` | Freshness / pending (batch preferred) |
 | GET | `/api/v1/projects/{project_id}/graph/freshness` | — | Freshness status |
 
 ### MCP tools (usage profile)

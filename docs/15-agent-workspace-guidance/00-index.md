@@ -54,7 +54,7 @@ This phase defines **Agent Workspace Guidance**: the product capability that let
 
 Storage and governance reuse Common Context. Session delivery is **MCP-primary** with optional filesystem materialize/export. This phase owns the agent-facing artifact model, connect-time resolve path, contracts, and acceptance criteria.
 
-It also specifies the **MCP-first seed pack**: the always-on rule and skills that tell those agents to send AgentCore-capable work through MCP tools (memory, code graph, docs-sync, durable writes, tasks, guidance resolve) instead of local-only substitutes.
+It also specifies the **MCP-first seed pack**: the always-on rule and skills that tell those agents to send AgentCore-capable work through MCP tools (memory, code graph, dead-code cleanup, docs-sync, durable writes, tasks, guidance resolve) instead of local-only substitutes.
 
 ## Locked Design Defaults
 
@@ -73,7 +73,7 @@ It also specifies the **MCP-first seed pack**: the always-on rule and skills tha
 | [`03-low-level-design.md`](03-low-level-design.md) | Artifact model, resolve pipeline, budgets, export layout mapping |
 | [`04-data-contracts-and-events.md`](04-data-contracts-and-events.md) | Bundle DTO, MCP tools, events, versioning |
 | [`05-risks-challenges-and-acceptance.md`](05-risks-challenges-and-acceptance.md) | Risks, acceptance gates, open gaps |
-| [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md) | Seed always-on rule + skills that route AgentCore work over MCP |
+| [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md) | Seed always-on rule + skills that route AgentCore work over MCP (includes dead-code cleanup) |
 
 ## Reading Order
 

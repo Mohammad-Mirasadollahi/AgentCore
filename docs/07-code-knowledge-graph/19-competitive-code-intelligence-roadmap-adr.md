@@ -130,6 +130,13 @@ agent UX patterns, not local SQLite clones.
     `DOCUMENTED_BY`; optional SQL-schema ingest still deferred.
 15. Multimodal docs/PDF (graphify) only if product scope expands beyond code.
 
+### v1 freshness marketing freeze (backlog `34` Phase B)
+
+**Decision (2026-07-21):** AgentCore v1 markets **explicit ingest + session
+pending-sync only**. Do not claim “always live”, “continuous index”, or
+save-triggered indexing. A filesystem watcher sidecar remains an optional
+ops follow-up (not a v1 launch blocker).
+
 ### Explicit non-goals
 
 - Replacing Neo4j with per-project SQLite as the durable graph store.

@@ -200,6 +200,7 @@ PYTHONPATH=backend/services/code-graph-service/src \
 - [x] Correct Compose secrets yield green challenge (50) / fuzzer (50) / live (9) when deps healthy.
 - [x] Suites refuse default Neo4j/Postgres host ports (`7687` / `5432`).
 - [x] This doc linked from `00-index.md` and risks doc `31`.
+- [x] Offline honesty eval (nDCG / co-change) is a separate unit gate — see `31` and `tests/.../ckg_eval/` (not skip-as-pass live).
 
 ## Non-goals
 

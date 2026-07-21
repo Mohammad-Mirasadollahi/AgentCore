@@ -2,6 +2,8 @@
 
 All executable tests live under this directory.
 
+**Authoring law:** write required tests in the same change as production code. Normative playbook: [docs/08-software-engineering-architecture/37-test-authoring-standard.md](../docs/08-software-engineering-architecture/37-test-authoring-standard.md). Fuzz/property-based: [38-fuzzing-and-property-based-testing.md](../docs/08-software-engineering-architecture/38-fuzzing-and-property-based-testing.md). Live vs Unit: [25-live-and-unit-test-strategy.md](../docs/08-software-engineering-architecture/25-live-and-unit-test-strategy.md).
+
 ## Layout
 
 ```text
@@ -49,7 +51,12 @@ PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
 PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/usage-profile -q
 PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/outbox-relay -q
 PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/agentcore-cli -q
+PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/install -q
 PYTHONPATH=backend/services .venv/bin/python -m pytest tests/backend/platform -q
+
+# Install E2E smoke (host path; Docker optional)
+bash tests/e2e/install/run-install-smoke.sh
+SMOKE_SKIP_DOCKER=1 bash tests/e2e/install/run-install-smoke.sh
 
 PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/services/audit-service -q
 PYTHONPATH=backend/services/identity-access-service/src .venv/bin/python -m pytest tests/backend/services/identity-access-service -q

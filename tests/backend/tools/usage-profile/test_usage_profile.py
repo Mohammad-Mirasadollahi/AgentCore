@@ -32,6 +32,12 @@ def test_programming_profile_validates_and_lists_mcp_tools():
     assert "agentcore_guidance_resolve" in names
     assert "agentcore_guidance_get_skill" in names
     assert validate_usage_profile(profile) == []
+    # Explore-first: PRIMARY code-graph tool appears before other graph tools.
+    tool_names = [t["name"] for t in profile["mcp"]["tools"]]
+    explore_i = tool_names.index("agentcore_code_graph_explore")
+    assert explore_i == 2  # after ping + effective profile
+    assert explore_i < tool_names.index("agentcore_code_graph_search")
+    assert explore_i < tool_names.index("agentcore_memory_retrieve")
 
 
 def test_resolve_and_materialize_cursor_mcp():

@@ -15,7 +15,7 @@ This section completes the AgentCore plan from an operational and governance per
 - 07-risk-register-and-open-decisions.md captures platform risks and decisions that must be resolved before implementation.
 - 08-glossary-and-ubiquitous-language.md defines common terminology used across the documentation tree.
 - 09-automated-deployment-and-connectivity-runbooks.md defines operational runbooks for automated first installation, agent connector registration, repository registration, external resource connection, automated upgrade, drift detection, and repair.
-- 10-impact-reporting-and-benefit-measurement.md defines the impact measurement framework, KPI definitions, instrumentation requirements, baseline strategy, with-or-without AgentCore comparison, dashboard states, evidence model, and reporting contracts for code generation speed, bug reduction, architecture quality, rework reduction, and token consumption.
+- 10-impact-reporting-and-benefit-measurement.md defines the impact measurement framework, KPI definitions, instrumentation requirements, baseline strategy, with-or-without AgentCore comparison, dashboard states, evidence model, and reporting contracts for code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup.
 - 11-phase9-verification-and-acceptance.md defines the governance-catalog feature gate and named verification commands under `tests/backend/gates/governance-catalog-verification/`.
 
 ## Implementation Slice
