@@ -23,9 +23,11 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_code_graph_path` | read | Shortest path between two symbols |
 | `agentcore_code_graph_hybrid_search` | read | RRF hybrid lexical + semantic search |
 | `agentcore_code_graph_freshness` | read | Pending-sync / stale banners |
+| `agentcore_code_graph_sync` | write | **Preferred:** auto full vs incremental repo sync |
+| `agentcore_code_graph_purge` | write | Wipe project graph (`confirm=true`); then sync |
 | `agentcore_code_graph_generation_context` | read | Generation context pack for coding agents |
-| `agentcore_code_graph_ingest_file` | write | Index one source file into the graph |
-| `agentcore_code_graph_ingest_repo` | write | Walk a repo root and index supported sources |
+| `agentcore_code_graph_ingest_file` | write | Index one source file (power users) |
+| `agentcore_code_graph_ingest_repo` | write | Walk a repo root (prefer `sync`) |
 | `agentcore_code_graph_language_profile` | read | Polyglot language stats for the project graph |
 | `agentcore_create_task` | write | Create a Task |
 | `agentcore_write` | write | Unified write: `memory` / `task` / `activity` / `decision` |
@@ -60,7 +62,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 |------------|------|----------|
 | `neo4j` | `AGENTCORE_MCP_GRAPH_MODE=neo4j`, or auto when `AGENTCORE_NEO4J_PASSWORD` is set and store is neo4j | Same composition root as `code-graph-service` (`bootstrap.build_service`) — **no toy seed** |
 | `postgres` | Explicit or `AGENTCORE_CODE_GRAPH_STORE=postgres` | Postgres structural store |
-| `memory` | Tests / default without Neo4j password | In-memory graph + optional demo seed |
+| `memory` | Tests / default without Neo4j password; **also used as fallback** if Neo4j/Postgres are configured but unreachable at gateway start (ERROR logged; MCP stays up) | In-memory graph + optional demo seed |
 
 Responses include `store_mode` and `graph_mode`.
 

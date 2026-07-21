@@ -101,15 +101,15 @@ MCP tools alone are insufficient: agents often ignore them unless rules and skil
 ```markdown
 # MCP-first AgentCore
 
-When this workspace is connected to AgentCore over MCP:
+When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search_tools` → `mcp_execute_tool`):
 
-1. Call `agentcore_guidance_resolve` (if available on `tools/list`) before substantive coding.
+1. Search then execute `agentcore_guidance_resolve` before substantive coding.
 2. For capabilities AgentCore exposes on the active Usage Profile, prefer the matching MCP tool over inventing a local-only substitute.
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
 4. Do not skip code-graph search when locating symbols AgentCore can index.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
 6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
-7. If a needed capability is missing from `tools/list`, call `agentcore_get_effective_profile` (if available), report the gap, and ask before bypassing with unmanaged workflows.
+7. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
 8. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 ```
 ## Agents Entry Pointers

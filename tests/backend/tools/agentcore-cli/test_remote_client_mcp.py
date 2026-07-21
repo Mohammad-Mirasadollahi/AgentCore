@@ -18,7 +18,7 @@ def test_materialize_ssh_mcp_fragment_shape():
         workspace="w",
         project_id="p",
     )
-    server = frag["mcpServers"]["agentcore-programming"]
+    server = frag["mcpServers"]["AgentCore-Programming"]
     assert server["command"] == "ssh"
     assert server["args"][-7:] == [
         "ops@agentcore.example",
@@ -61,7 +61,7 @@ def test_merge_mcp_servers_file_preserves_other_servers(tmp_path: Path):
     merge_mcp_servers_file(target, fragment)
     merged = json.loads(target.read_text(encoding="utf-8"))
     assert "other" in merged["mcpServers"]
-    assert "agentcore-programming" in merged["mcpServers"]
+    assert "AgentCore-Programming" in merged["mcpServers"]
 
 
 def test_client_wire_remote_dry_run(capsys):
@@ -86,4 +86,4 @@ def test_client_wire_remote_dry_run(capsys):
         == 0
     )
     payload = json.loads(capsys.readouterr().out)
-    assert "agentcore-programming" in payload["mcpServers"]
+    assert "AgentCore-Programming" in payload["mcpServers"]

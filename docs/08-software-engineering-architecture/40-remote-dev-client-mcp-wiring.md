@@ -144,7 +144,7 @@ agentcore client wire-remote \
   --project-dir .
 ```
 
-This merges `agentcore-programming` into **every selected client config** under `--project-dir` (default `--clients all`). Reload MCP in your agent / IDE.
+This merges `AgentCore-Programming` into **every selected client config** under `--project-dir` (default `--clients all`). Reload MCP in your agent / IDE.
 
 ### Flags reference
 

@@ -25,7 +25,27 @@ htmlcov/
 venv/
 env/
 .smoke-temp/
+
+# =============================================================================
+# AgentCore operator runtime (local data / logs / secrets — never commit)
+# Default state: .agentcore/  (projects, sync-progress, sync-usage, mcp fragment,
+# optional sync.yaml override, install-state, probes).
+# If you relocate AGENTCORE_SYNC_USAGE_LOG_DIR, keep it under .agentcore/, logs/,
+# or a folder named sync-usage/ so these rules still apply.
+# =============================================================================
 .agentcore/
+
+# Sync usage reports (default .agentcore/sync-usage/; also if relocated)
+**/sync-usage/
+sync-usage.jsonl
+**/sync-usage.jsonl
+*.sync-usage.jsonl
+
+# Sync filter copy (operator-owned; template stays tracked)
+agentcore.sync.yaml
+agentcore.sync.yml
+!agentcore.sync.yaml.example
+!agentcore.sync.yml.example
 
 # Node / Next.js
 node_modules/
@@ -38,11 +58,15 @@ coverage/
 .pnpm-store/
 .yarn/
 
-# Environment and secrets
+# Environment and secrets (never commit real values)
 .env
+.env.local
+**/.env
+**/.env.local
 .env.*
-!.env.example
 !**/.env.example
+!.env.example
+!**/*.example.env
 *.pem
 *.key
 *.crt
@@ -178,11 +202,15 @@ GEMINI.md
 .github/copilot-instructions.md
 **/copilot-instructions.md
 
-# MCP local state
+# MCP local state (agentcore connect writes these; may embed local DB URLs)
 .mcp-memory
 .mcp-memory/
 .mcp.json
 **/.mcp.json
+.vscode/mcp.json
+**/.vscode/mcp.json
+.agentcore-connect-merge.lock
+**/.agentcore-connect-merge.lock
 mcp-lazy-servers.json
 **/mcp-lazy-servers.local.json
 
@@ -246,7 +274,7 @@ diagnostics/
 reports/generated/
 artifacts/generated/
 
-# Local infrastructure data volumes
+# Local infrastructure data volumes / bind mounts + local wheel caches
 .docker-data/
 docker-data/
 postgres-data/
@@ -255,6 +283,8 @@ redis-data/
 minio-data/
 otel-data/
 grafana-data/
+wheelhouse/
+**/wheelhouse/
 
 # Local embedding model caches (default lives at /opt/agentcore-models outside the tree;
 # ignore in-repo copies if AGENTCORE_EMBEDDING_CACHE_DIR points inside the checkout)

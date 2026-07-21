@@ -355,3 +355,28 @@ class PostgresStore:
             cur.execute("SELECT payload FROM code_graph.outbox ORDER BY created_at, event_id")
             rows = cur.fetchall()
         return [dict(row["payload"]) if isinstance(row["payload"], dict) else json.loads(row["payload"]) for row in rows]
+
+    def wipe_scope(self, scope: Scope) -> dict[str, int]:
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM code_graph.edges
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                """,
+                (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            edges = int(cur.rowcount or 0)
+            cur.execute(
+                """
+                DELETE FROM code_graph.symbols
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                """,
+                (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            symbols = int(cur.rowcount or 0)
+            cur.execute(
+                "DELETE FROM code_graph.idempotency WHERE scope_key = %s",
+                (self._scope_key(scope),),
+            )
+            idem = int(cur.rowcount or 0)
+        return {"symbols": symbols, "edges": edges, "idempotency": idem}

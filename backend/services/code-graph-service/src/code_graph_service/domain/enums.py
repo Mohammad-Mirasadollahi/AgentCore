@@ -40,3 +40,4 @@ class DocStatus(StrEnum):
     MISSING = "missing"
     GENERATED = "generated"
     UNCHANGED = "unchanged"
+    HUMAN = "human"

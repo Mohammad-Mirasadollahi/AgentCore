@@ -63,6 +63,15 @@ def create_http_app(*, backends: Any | None = None) -> FastAPI:
                 {"jsonrpc": "2.0", "id": None, "error": {"code": exc.code, "message": exc.message}},
                 status_code=400,
             )
+        except Exception as exc:
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32000, "message": f"gateway start failed: {exc}"},
+                },
+                status_code=500,
+            )
 
         try:
             body = await request.json()

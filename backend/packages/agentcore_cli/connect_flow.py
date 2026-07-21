@@ -11,8 +11,10 @@ from typing import Any
 
 import httpx
 
+from agentcore_cli import state
 from agentcore_cli.connect_config import ConnectSettings
 from agentcore_cli.connect_security import validate_connect_settings
+from agentcore_cli.local_mcp import materialize_local_stdio_fragment
 from agentcore_cli.mcp_client_targets import (
     DEFAULT_SERVER_NAME,
     materialize_http_mcp_fragment,
@@ -24,6 +26,9 @@ from agentcore_cli.remote_client import (
     materialize_ssh_mcp_fragment,
     remote_register_project,
 )
+from agentcore_cli.util import now_iso, repo_root
+from agentcore_cli import ui
+from usage_profile import load_usage_profile
 
 
 def _ssh_command(settings: ConnectSettings, remote_command: list[str], *, connect_timeout: int = 15) -> list[str]:
@@ -114,10 +119,36 @@ def mcp_http_smoke(url: str, headers: dict[str, str]) -> bool:
 
 
 def reachability_check(settings: ConnectSettings) -> None:
+    if settings.local:
+        return
     if settings.api_url and not api_health(settings):
         raise SystemExit(f"error: API health check failed for {settings.api_url}/health")
     if settings.ssh and _run_ssh(settings, ["true"]) != 0:
         raise SystemExit(f"error: SSH reachability failed for {settings.ssh} (use key-based auth)")
+
+
+def _local_register(settings: ConnectSettings) -> Path:
+    root = state.default_state_root(repo_root())
+    catalog = load_usage_profile(settings.usage_profile)
+    existing = state.load_project(root, settings.tenant, settings.workspace, settings.project)
+    project = existing or {
+        "tenant_id": settings.tenant,
+        "workspace_id": settings.workspace,
+        "project_id": settings.project,
+        "created_at": now_iso(),
+        "status": "active",
+    }
+    project.update(
+        {
+            "name": settings.project_name or settings.project,
+            "usage_profile": settings.usage_profile,
+            "domain_pack": catalog["domain_pack"],
+            "feature_profile": catalog["feature_profile"],
+            "updated_at": now_iso(),
+        }
+    )
+    path = state.save_project(root, project)
+    return path
 
 
 def remote_ingest(settings: ConnectSettings) -> int:
@@ -127,8 +158,7 @@ def remote_ingest(settings: ConnectSettings) -> int:
     agentcore = f"{root}/.venv/bin/agentcore"
     remote_cmd = [
         agentcore,
-        "graph",
-        "ingest",
+        "sync",
         "--tenant",
         settings.tenant,
         "--workspace",
@@ -138,8 +168,30 @@ def remote_ingest(settings: ConnectSettings) -> int:
         "--path",
         settings.source_server_path,
     ]
-    print(f"ingest: {settings.source_server_path} on server …")
+    print(f"   {ui.warn('…')} syncing {settings.source_server_path} on server")
     return _run_ssh(settings, remote_cmd)
+
+
+def _local_ingest(settings: ConnectSettings, path: str) -> int:
+    root = repo_root()
+    agentcore = root / ".venv" / "bin" / "agentcore"
+    exe = str(agentcore if agentcore.is_file() else "agentcore")
+    print(f"   {ui.warn('…')} syncing {path} (local)")
+    return subprocess.run(
+        [
+            exe,
+            "sync",
+            "--tenant",
+            settings.tenant,
+            "--workspace",
+            settings.workspace,
+            "--project",
+            settings.project,
+            "--path",
+            path,
+        ],
+        cwd=str(root),
+    ).returncode
 
 
 def _should_ingest(settings: ConnectSettings) -> bool:
@@ -155,17 +207,51 @@ def _should_ingest(settings: ConnectSettings) -> bool:
 
 def _write_clients(work: Path, fragment: dict[str, Any], settings: ConnectSettings) -> list[Path]:
     client_ids = resolve_client_ids(settings.clients)
-    written = write_fragment_to_clients(
+    return write_fragment_to_clients(
         work,
         fragment,
         client_ids,
         server_name=DEFAULT_SERVER_NAME,
         include_user_clients=settings.include_user_clients,
     )
-    for path in written:
-        print(f"wrote {path}")
-    print("Reload MCP in your coding agent / IDE.")
-    return written
+
+
+def _print_connect_summary(
+    *,
+    settings: ConnectSettings,
+    transport: str,
+    project_state: Path | None,
+    written: list[Path],
+    work: Path,
+    extra_notes: list[str] | None = None,
+) -> None:
+    ui.blank()
+    ui.heading("Connect complete")
+    ui.blank()
+    ui.kv("Scope", ui.scope_line(settings.tenant, settings.workspace, settings.project))
+    ui.kv("Profile", settings.usage_profile)
+    ui.kv("Transport", transport)
+    if project_state is not None:
+        ui.kv("Project", str(project_state))
+    ui.blank()
+    ui.section("What happened")
+    ui.bullet("Registered / refreshed local project state for this scope")
+    ui.bullet("Wrote MCP server configs so your IDE can talk to AgentCore")
+    for note in extra_notes or []:
+        ui.bullet(note)
+    if written:
+        ui.blank()
+        ui.section("MCP configs written")
+        for rel in ui.summarize_paths(written, relative_to=str(work)):
+            ui.bullet(rel)
+    ui.next_steps(
+        [
+            "Reload MCP / the IDE window",
+            "Check health: agentcore status",
+            "Fill the graph: agentcore sync",
+        ]
+    )
+    ui.blank()
 
 
 def run_connect(
@@ -178,9 +264,10 @@ def run_connect(
     for line in validate_connect_settings(settings):
         print(line, file=sys.stderr)
     reachability_check(settings)
+    ui.blank()
+    print(f"{ui.accent('→')}  Connecting {ui.scope_line(settings.tenant, settings.workspace, settings.project)}")
     print(
-        f"connect: scope={settings.tenant}/{settings.workspace}/{settings.project} "
-        f"(concurrent agents share this project store; each IDE session is an independent MCP client)"
+        f"   {ui.dim('Agents sharing this scope use the same store; each IDE session is its own MCP client.')}"
     )
 
     bootstrap: dict[str, Any] = {}
@@ -189,31 +276,76 @@ def run_connect(
         bootstrap = api_bootstrap(settings)
         registered_via_api = True
         if bootstrap:
-            print("bootstrap OK:", json.dumps(bootstrap.get("scope", {}), sort_keys=True))
+            print(f"   {ui.ok('✔')} API bootstrap OK")
 
     mcp_info = bootstrap.get("mcp") if isinstance(bootstrap.get("mcp"), dict) else {}
     http_url = str(mcp_info.get("url") or settings.mcp_http_url or "").strip()
     if http_url and not http_url.endswith("/mcp"):
         http_url = http_url.rstrip("/") + "/mcp"
     http_headers = dict(mcp_info.get("headers") or {})
+
+    # --- Local stdio (dogfood same checkout) ---
+    if settings.local and not (settings.prefer_http and http_url and http_headers):
+        project_state: Path | None = None
+        if settings.register and not dry_run:
+            project_state = _local_register(settings)
+        fragment = materialize_local_stdio_fragment(
+            tenant=settings.tenant,
+            workspace=settings.workspace,
+            project_id=settings.project,
+            usage_profile=settings.usage_profile,
+            root=repo_root(),
+        )
+        if dry_run:
+            print(json.dumps(fragment, indent=2, sort_keys=True))
+            return 0
+        written = _write_clients(work, fragment, settings)
+        notes = ["Transport is local stdio (same-host dogfood; no SSH/HTTP required)"]
+        if _should_ingest(settings) and not dry_run:
+            path = settings.source_server_path or str(work)
+            code = _local_ingest(settings, path)
+            if code != 0:
+                print(f"   {ui.warn('!')} sync exited non-zero ({code})", file=sys.stderr)
+            else:
+                notes.append(f"Ran local sync for {path}")
+        _print_connect_summary(
+            settings=settings,
+            transport="local-stdio",
+            project_state=project_state,
+            written=written,
+            work=work,
+            extra_notes=notes,
+        )
+        return 0
+
     if settings.prefer_http and http_url and http_headers:
         fragment = materialize_http_mcp_fragment(url=http_url, headers=http_headers)
         if dry_run:
             print(json.dumps(fragment, indent=2, sort_keys=True))
             return 0
-        _write_clients(work, fragment, settings)
+        written = _write_clients(work, fragment, settings)
+        notes = [f"Transport is Streamable HTTP ({http_url})"]
         if settings.smoke_test and not mcp_http_smoke(http_url, http_headers):
-            print("warn: MCP HTTP smoke (initialize) failed; check serve-http and token", file=sys.stderr)
-        else:
-            print(f"transport: streamable_http ({http_url})")
+            print(
+                f"   {ui.warn('!')} MCP HTTP smoke (initialize) failed; check serve-http and token",
+                file=sys.stderr,
+            )
         if _should_ingest(settings):
             if settings.api_url:
                 result = api_ingest(settings)
-                print("ingest:", json.dumps(result.get("ingest", result), sort_keys=True))
+                notes.append(f"Ingest: {json.dumps(result.get('ingest', result), sort_keys=True)}")
             elif settings.ssh:
                 code = remote_ingest(settings)
                 if code != 0:
-                    print("warn: graph ingest exited non-zero", code)
+                    print(f"   {ui.warn('!')} sync exited non-zero ({code})", file=sys.stderr)
+        _print_connect_summary(
+            settings=settings,
+            transport=f"streamable_http ({http_url})",
+            project_state=None,
+            written=written,
+            work=work,
+            extra_notes=notes,
+        )
         return 0
 
     if not settings.ssh:
@@ -249,15 +381,22 @@ def run_connect(
     if dry_run:
         print(json.dumps(fragment, indent=2, sort_keys=True))
         return 0
-    _write_clients(work, fragment, settings)
-    print("transport: ssh-stdio")
-
+    written = _write_clients(work, fragment, settings)
+    notes = [f"Transport is SSH stdio via {settings.ssh}"]
     if _should_ingest(settings) and not dry_run:
         if settings.api_url:
             result = api_ingest(settings)
-            print("ingest:", json.dumps(result.get("ingest", result), sort_keys=True))
+            notes.append(f"Ingest: {json.dumps(result.get('ingest', result), sort_keys=True)}")
         else:
             ingest_code = remote_ingest(settings)
             if ingest_code != 0:
-                print("warn: graph ingest exited non-zero", ingest_code)
+                print(f"   {ui.warn('!')} sync exited non-zero ({ingest_code})", file=sys.stderr)
+    _print_connect_summary(
+        settings=settings,
+        transport="ssh-stdio",
+        project_state=None,
+        written=written,
+        work=work,
+        extra_notes=notes,
+    )
     return 0

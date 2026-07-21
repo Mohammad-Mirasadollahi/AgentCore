@@ -28,3 +28,7 @@ Make documentation, code, decisions, and ownership part of one synchronized know
 ## Related Authoring Standard
 
 - `../00-master-plan/08-documentation-structure-and-machine-ingest-standard.md` defines how authors must structure files, headings, frontmatter, RAG chunks, GraphRAG relations, and fallback-readable bodies so docs-sync and retrieval stacks can ingest them optimally.
+
+## Operator sync bridge
+
+`agentcore sync` Phase 2 walks `doc_paths`, indexes Markdown into this service (Document + DocAnchor), and projects `DOCUMENTED_BY` edges into the Code-Knowledge Graph for resolved `linked_symbols`. See [03 - Ingestion and Living Documentation Workflow §10](../07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md) and [42 - AgentCore CLI Command Reference § Sync filters](../08-software-engineering-architecture/42-agentcore-cli-command-reference.md#sync-filters).

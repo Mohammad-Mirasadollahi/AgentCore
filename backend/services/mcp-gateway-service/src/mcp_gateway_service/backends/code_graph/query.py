@@ -1,34 +1,13 @@
-"""MCP capability handlers for the code-knowledge graph."""
+"""MCP read/query handlers for the code-knowledge graph."""
 
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
 
 from code_graph_service.domain.errors import CodeGraphError, NotFoundError
 
-from .platform import PlatformBackends
-
-
-def _resolve_symbol_id(backends: PlatformBackends, scope: dict[str, str], arguments: dict[str, Any]) -> str:
-    symbol_id = str(arguments.get("symbol_id") or "").strip()
-    if symbol_id:
-        return symbol_id
-    qualified = str(arguments.get("qualified_name") or arguments.get("name") or "").strip()
-    if not qualified:
-        raise ValueError("symbol_id or qualified_name is required")
-    graph_scope = backends.graph_scope(scope)
-    matches: list[str] = []
-    for symbol in backends.graph.store.list_symbols(graph_scope):
-        if symbol.qualified_name == qualified or symbol.name == qualified:
-            matches.append(symbol.id)
-    if not matches:
-        raise ValueError(f"symbol not found for qualified_name/name={qualified!r}")
-    if len(matches) > 1:
-        # Prefer exact qualified_name match order already collected; return first stable id.
-        return matches[0]
-    return matches[0]
-
+from ..platform import PlatformBackends
+from ._resolve import resolve_symbol_id
 
 def search(
     backends: PlatformBackends,
@@ -60,7 +39,7 @@ def get_symbol(
     base: dict[str, Any],
 ) -> dict[str, Any]:
     backends.ensure_graph_seed(scope)
-    symbol_id = _resolve_symbol_id(backends, scope, arguments)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
     try:
         symbol = backends.graph.get_symbol(backends.graph_scope(scope), symbol_id)
     except NotFoundError as exc:
@@ -77,7 +56,7 @@ def neighbors(
     base: dict[str, Any],
 ) -> dict[str, Any]:
     backends.ensure_graph_seed(scope)
-    symbol_id = _resolve_symbol_id(backends, scope, arguments)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
     rel_type = str(arguments.get("rel_type") or "").strip() or None
     max_depth = int(arguments.get("max_depth") or 1)
     max_depth = max(1, min(max_depth, 8))
@@ -102,7 +81,7 @@ def impact(
 ) -> dict[str, Any]:
     """Impact-style neighborhood: multi-hop structural expand around a seed symbol."""
     backends.ensure_graph_seed(scope)
-    symbol_id = _resolve_symbol_id(backends, scope, arguments)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
     rel_type = str(arguments.get("rel_type") or "").strip() or None
     max_depth = int(arguments.get("max_depth") or 3)
     max_depth = max(1, min(max_depth, 8))
@@ -266,7 +245,7 @@ def generation_context(
     base: dict[str, Any],
 ) -> dict[str, Any]:
     backends.ensure_graph_seed(scope)
-    symbol_id = _resolve_symbol_id(backends, scope, arguments)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
     max_symbols = int(arguments.get("max_symbols") or 12)
     max_symbols = max(1, min(max_symbols, 64))
     try:
@@ -282,96 +261,6 @@ def generation_context(
     return {**base, "graph_mode": backends.graph_mode, **payload}
 
 
-def ingest_file(
-    backends: PlatformBackends,
-    arguments: dict[str, Any],
-    *,
-    scope: dict[str, str],
-    correlation_id: str,
-    base: dict[str, Any],
-) -> dict[str, Any]:
-    file_path = str(arguments.get("file_path") or "").strip()
-    source = str(arguments.get("source") or "")
-    language = str(arguments.get("language") or "python").strip() or "python"
-    if not file_path:
-        raise ValueError("file_path is required")
-    if not source.strip():
-        raise ValueError("source is required")
-    idempotency_key = str(arguments.get("idempotency_key") or f"mcp-ingest:{file_path}:{correlation_id}").strip()
-    try:
-        result = backends.graph.ingest_file(
-            backends.graph_scope(scope),
-            backends.actor_id,
-            correlation_id or str(uuid4()),
-            idempotency_key,
-            {
-                "file_path": file_path,
-                "language": language,
-                "source": source,
-            },
-        )
-    except CodeGraphError as exc:
-        raise ValueError(str(exc.message)) from exc
-    if hasattr(result, "public"):
-        public = result.public()
-    else:
-        public = {
-            "file_id": result.file_id,
-            "symbols_indexed": result.symbols_indexed,
-            "symbols_changed": result.symbols_changed,
-            "symbols_documented": result.symbols_documented,
-            "edges_written": result.edges_written,
-            "changed_symbol_ids": list(result.changed_symbol_ids),
-        }
-    return {
-        **base,
-        "graph_mode": backends.graph_mode,
-        "ingest": public,
-    }
-
-
-def ingest_repo(
-    backends: PlatformBackends,
-    arguments: dict[str, Any],
-    *,
-    scope: dict[str, str],
-    correlation_id: str,
-    base: dict[str, Any],
-) -> dict[str, Any]:
-    root_path = str(arguments.get("root_path") or "").strip()
-    if not root_path:
-        raise ValueError("root_path is required")
-    payload: dict[str, Any] = {"root_path": root_path}
-    if arguments.get("include_extensions") is not None:
-        payload["include_extensions"] = arguments.get("include_extensions")
-    if arguments.get("exclude_dirs") is not None:
-        payload["exclude_dirs"] = arguments.get("exclude_dirs")
-    if arguments.get("max_files") is not None:
-        payload["max_files"] = int(arguments["max_files"])
-    if arguments.get("max_file_bytes") is not None:
-        payload["max_file_bytes"] = int(arguments["max_file_bytes"])
-    if "include_outcomes" in arguments:
-        payload["include_outcomes"] = bool(arguments.get("include_outcomes"))
-    idempotency_key = str(
-        arguments.get("idempotency_key") or f"mcp-ingest-repo:{root_path}:{correlation_id}"
-    ).strip()
-    try:
-        result = backends.graph.ingest_repo(
-            backends.graph_scope(scope),
-            backends.actor_id,
-            correlation_id or str(uuid4()),
-            idempotency_key,
-            payload,
-        )
-    except CodeGraphError as exc:
-        raise ValueError(str(exc.message)) from exc
-    return {
-        **base,
-        "graph_mode": backends.graph_mode,
-        "ingest_repo": result.to_dict(),
-    }
-
-
 def language_profile(
     backends: PlatformBackends,
     arguments: dict[str, Any],
@@ -383,3 +272,4 @@ def language_profile(
     profile = backends.graph.get_polyglot_profile(backends.graph_scope(scope))
     payload = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile)
     return {**base, "graph_mode": backends.graph_mode, "language_profile": payload}
+

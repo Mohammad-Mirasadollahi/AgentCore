@@ -46,7 +46,8 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 33-testing-seams-and-contract-boundary-standards.md defines test seams, fakes, mocks, contract boundaries, deterministic tests, LLM test strategy, and acceptance criteria.
 - 34-phase8-verification-and-acceptance.md defines the port-profile feature gate, ownership checks, and named verification commands under `tests/backend/gates/port-profile-verification/`.
 - 35-usage-profile-and-cursor-mcp-onboarding.md defines Usage Profiles (org/person configuration compositions) and Cursor MCP connection materialization via the MCP gateway.
-- 36-agentcore-cli.md defines the `agentcore` CLI, PATH install, and project/MCP management commands.
+- 36-agentcore-cli.md defines the `agentcore` CLI install, PATH, and overview; points to the full command catalog.
+- 42-agentcore-cli-command-reference.md is the operator reference for every `agentcore` subcommand (why, required flags, examples, what changes), including mandatory sync filters and wildcards.
 - 37-test-authoring-standard.md is the normative test-authoring playbook: concurrent code-and-tests law, family taxonomy (unit, contract, integration, e2e, live, fuzz, security, performance, regression), doubles, placement, markers, CI selection, and Definition of Done for humans and coding agents.
 - 38-fuzzing-and-property-based-testing.md defines property-based and fuzz suites: invariants, bounded generators, schema/API fuzz, corpus, shrinking, and when fuzz is mandatory with implementation.
 
@@ -121,6 +122,8 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | local modular install (`install.sh`) | 39-local-install-runbook.md |
 | remote dev client MCP (SSH) | 40-remote-dev-client-mcp-wiring.md |
 | one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |
+| agentcore CLI install / overview | 36-agentcore-cli.md |
+| agentcore CLI full command reference | 42-agentcore-cli-command-reference.md |
 | agent and resource connectivity | 20-agent-and-resource-connectivity-automation.md |
 | self-service automation and repair | 21-automation-control-plane-and-self-service-operations.md |
 | product design and engineering specification discipline | 22-product-design-and-engineering-specification-discipline.md |

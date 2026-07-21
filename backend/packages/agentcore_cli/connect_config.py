@@ -38,6 +38,7 @@ class ConnectSettings:
     source_git_branch: str = "main"
     mcp_http_url: str = ""
     prefer_http: bool = True
+    local: bool = False
     remote_os: str = "unix"
     actor_id: str = "connect-cli"
 
@@ -126,6 +127,7 @@ def load_connect_settings(
         else "main",
         mcp_http_url=str(server.get("mcp_http_url") or "").strip().rstrip("/"),
         prefer_http=bool(connect.get("prefer_http", True)),
+        local=bool(server.get("local") or connect.get("local")),
         remote_os=str(server.get("remote_os") or "unix").strip(),
         actor_id=str(doc.get("actor_id") or "connect-cli").strip(),
     )
@@ -139,6 +141,8 @@ def load_connect_settings(
     settings.project = _env("AGENTCORE_CONNECT_PROJECT", settings.project)
     settings.ssh_identity = _env("AGENTCORE_CONNECT_SSH_KEY", settings.ssh_identity)
     settings.mcp_http_url = _env("AGENTCORE_CONNECT_MCP_HTTP_URL", settings.mcp_http_url)
+    if _env("AGENTCORE_CONNECT_LOCAL", "").lower() in ("1", "true", "yes"):
+        settings.local = True
 
     if ssh_override.strip():
         settings.ssh = ssh_override.strip()
@@ -156,9 +160,14 @@ def load_connect_settings(
     if not settings.project_name:
         settings.project_name = settings.project
 
-    if not settings.ssh and not settings.api_url and not settings.mcp_http_url:
+    if (
+        not settings.local
+        and not settings.ssh
+        and not settings.api_url
+        and not settings.mcp_http_url
+    ):
         raise SystemExit(
-            "error: connect config must set server.ssh and/or server.url and/or server.mcp_http_url"
+            "error: set server.local: true, and/or server.ssh, and/or server.url / mcp_http_url"
         )
     return settings
 
@@ -166,6 +175,13 @@ def load_connect_settings(
 CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 #
 # Replace example hostnames/paths with yours. Do not store OS or DB passwords here.
+#
+# --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
+# server:
+#   local: true
+#   remote_root: /opt/AgentCore
+# connect:
+#   prefer_http: false
 #
 # --- SSH mode (private LAN, recommended without TLS) ---
 # server:

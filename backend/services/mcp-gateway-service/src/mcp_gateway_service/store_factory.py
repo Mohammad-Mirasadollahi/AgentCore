@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping
 
 StoreMode = Literal["memory", "postgres"]
 GraphMode = Literal["memory", "postgres", "neo4j"]
+
+logger = logging.getLogger(__name__)
 
 SERVICE_URL_ENV = {
     "core": "AGENTCORE_CORE_DATA_DATABASE_URL",
@@ -103,56 +106,84 @@ def _env_dict(environ: Mapping[str, str] | None) -> dict[str, str]:
     return {str(k): str(v) for k, v in environ.items()}
 
 
+def _memory_companion_stores() -> tuple[Any, Any, Any, Any]:
+    from common_context_service.testing import InMemoryStore as CommonContextStore
+    from core_data_service.testing import InMemoryStore as CoreStore
+    from docs_sync_service.testing import InMemoryStore as DocsStore
+    from memory_service.testing import InMemoryStore as MemoryStore
+
+    return CoreStore(), MemoryStore(), DocsStore(), CommonContextStore()
+
+
+def _memory_graph_store() -> Any:
+    from code_graph_service.testing import InMemoryStore as GraphStore
+
+    return GraphStore()
+
+
 def build_stores(environ: Mapping[str, str] | None = None) -> StoreBundle:
     env = _env_dict(environ)
     mode = resolve_store_mode(env)
     graph_mode = resolve_graph_mode(env)
 
     if mode == "memory":
-        from common_context_service.testing import InMemoryStore as CommonContextStore
-        from core_data_service.testing import InMemoryStore as CoreStore
-        from docs_sync_service.testing import InMemoryStore as DocsStore
-        from memory_service.testing import InMemoryStore as MemoryStore
-
-        core, memory, docs, common_context = (
-            CoreStore(),
-            MemoryStore(),
-            DocsStore(),
-            CommonContextStore(),
-        )
+        core, memory, docs, common_context = _memory_companion_stores()
         database_url = None
     else:
-        from common_context_service.postgres_store import PostgresStore as CommonContextStore
-        from core_data_service.postgres_store import PostgresStore as CoreStore
-        from docs_sync_service.postgres_store import PostgresStore as DocsStore
-        from memory_service.postgres_store import PostgresStore as MemoryStore
+        try:
+            from common_context_service.postgres_store import PostgresStore as CommonContextStore
+            from core_data_service.postgres_store import PostgresStore as CoreStore
+            from docs_sync_service.postgres_store import PostgresStore as DocsStore
+            from memory_service.postgres_store import PostgresStore as MemoryStore
 
-        urls = {name: _url_for(name, env) for name in SERVICE_URL_ENV}
-        core = CoreStore(urls["core"])
-        memory = MemoryStore(urls["memory"])
-        docs = DocsStore(urls["docs"])
-        common_context = CommonContextStore(urls["common_context"])
-        database_url = urls["core"]
+            urls = {name: _url_for(name, env) for name in SERVICE_URL_ENV}
+            core = CoreStore(urls["core"])
+            memory = MemoryStore(urls["memory"])
+            docs = DocsStore(urls["docs"])
+            common_context = CommonContextStore(urls["common_context"])
+            database_url = urls["core"]
+        except Exception as exc:
+            logger.exception(
+                "MCP postgres stores unavailable (%s); falling back to in-memory companion stores",
+                exc,
+            )
+            mode = "memory"
+            core, memory, docs, common_context = _memory_companion_stores()
+            database_url = None
 
     graph_service = None
     graph_store: Any = None
 
     if graph_mode == "neo4j":
-        from code_graph_service.bootstrap import Settings, build_service
+        try:
+            from code_graph_service.bootstrap import Settings, build_service
 
-        graph_service = build_service(Settings.from_environment(env))
-        # Placeholder unused store so close() loops stay simple; real close via graph_service.
-        from code_graph_service.testing import InMemoryStore as GraphStore
-
-        graph_store = GraphStore()
+            graph_service = build_service(Settings.from_environment(env))
+            # Placeholder unused store so close() loops stay simple; real close via graph_service.
+            graph_store = _memory_graph_store()
+        except Exception as exc:
+            logger.exception(
+                "MCP Neo4j graph unavailable (%s); falling back to in-memory graph "
+                "(start Compose neo4j or set AGENTCORE_MCP_GRAPH_MODE=memory)",
+                exc,
+            )
+            graph_mode = "memory"
+            graph_service = None
+            graph_store = _memory_graph_store()
     elif graph_mode == "postgres":
-        from code_graph_service.postgres_store import PostgresStore as GraphStore
+        try:
+            from code_graph_service.postgres_store import PostgresStore as GraphStore
 
-        graph_store = GraphStore(_url_for("graph", env))
+            graph_store = GraphStore(_url_for("graph", env))
+        except Exception as exc:
+            logger.exception(
+                "MCP postgres graph unavailable (%s); falling back to in-memory graph",
+                exc,
+            )
+            graph_mode = "memory"
+            graph_store = _memory_graph_store()
     else:
-        from code_graph_service.testing import InMemoryStore as GraphStore
-
-        graph_store = GraphStore()
+        graph_store = _memory_graph_store()
 
     return StoreBundle(
         mode=mode,

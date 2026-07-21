@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from agentcore_cli.util import ensure_service_import_paths, repo_root
+
+ensure_service_import_paths()
+
 from agentcore_cli.commands.connect import cmd_connect
 from agentcore_cli.commands.client import (
     cmd_client_doctor_remote,
@@ -10,6 +14,12 @@ from agentcore_cli.commands.client import (
 )
 from agentcore_cli.commands.cursor import cmd_cursor_export
 from agentcore_cli.commands.doctor import cmd_doctor, cmd_version
+from agentcore_cli.commands.init_cmd import cmd_init
+from agentcore_cli.commands.paths_cmd import cmd_paths_add, cmd_paths_list, cmd_paths_remove
+from agentcore_cli.commands.status import cmd_status
+from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
+from agentcore_cli.commands.list_profiles import cmd_list_profiles
+from agentcore_cli.commands.sync import cmd_purge, cmd_sync
 from agentcore_cli.commands.graph import (
     cmd_graph_explore,
     cmd_graph_freshness,
@@ -29,7 +39,6 @@ from agentcore_cli.commands.project import (
     cmd_project_show,
 )
 from agentcore_cli.parser import build_parser
-from agentcore_cli.util import repo_root
 
 __all__ = ["build_parser", "main", "repo_root"]
 
@@ -47,8 +56,27 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_version(args)
     if args.command == "doctor":
         return cmd_doctor(args)
+    if args.command == "init":
+        return cmd_init(args)
+    if args.command == "status":
+        return cmd_status(args)
     if args.command == "connect":
         return cmd_connect(args)
+    if args.command == "sync":
+        return cmd_sync(args)
+    if args.command == "purge":
+        return cmd_purge(args)
+    if args.command == "destroy-profile":
+        return cmd_destroy_profile(args)
+    if args.command == "list-profiles":
+        return cmd_list_profiles(args)
+    if args.command == "paths":
+        if args.paths_command == "list":
+            return cmd_paths_list(args)
+        if args.paths_command == "add":
+            return cmd_paths_add(args)
+        if args.paths_command == "remove":
+            return cmd_paths_remove(args)
     if args.command == "profile":
         if args.profile_command == "list":
             return cmd_profile_list(args)

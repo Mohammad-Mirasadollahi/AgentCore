@@ -24,6 +24,7 @@ related_docs:
   - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
   - docs/08-software-engineering-architecture/20-agent-and-resource-connectivity-automation.md
   - docs/08-software-engineering-architecture/36-agentcore-cli.md
+  - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md
   - docs/08-software-engineering-architecture/39-local-install-runbook.md
   - backend/services/project-profile-service/docs/usage-profile-api.md
   - backend/services/mcp-gateway-service/README.md
@@ -77,6 +78,25 @@ Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).
 | **AgentCore server** | Platform install + stores + MCP gateway | hostname `agentcore.example.internal`, install `/opt/AgentCore` |
 
 Replace example hostnames and paths with your own. Do not commit real secrets.
+
+### Same host (dogfood / develop AgentCore)
+
+When the coding agent opens the **AgentCore checkout itself** and Postgres/Neo4j are already local from `install.sh`:
+
+```bash
+cd /opt/AgentCore
+agentcore init --tenant acme --workspace eng --path /opt/AgentCore   # you choose the IDs + roots
+agentcore connect --local
+agentcore status
+# Requires agentcore.sync.yaml at each sync root (see doc 42 § Sync filters)
+agentcore sync
+```
+
+This registers a local project, writes workspace MCP configs (stdio gateway on this checkout), and skips SSH/HTTP. Check state with `agentcore status`. Graph sync is off by default for `--local`; run `agentcore sync` when you want the code graph filled (requires a sync filter file; auto full vs incremental; scope/path defaults apply). Use `agentcore purge --yes` only to wipe corrupt graph data.
+
+Command details (required flags, sync filters, what each run changes) → [42 - AgentCore CLI Command Reference](./42-agentcore-cli-command-reference.md) ([§ Sync filters](./42-agentcore-cli-command-reference.md#sync-filters)).
+
+Equivalent YAML: `server.local: true` and `connect.prefer_http: false` in `~/.agentcore/connect.yaml`.
 
 ## Two transports (both shipped)
 
@@ -197,14 +217,14 @@ cd /opt/MyApp
 agentcore connect
 ```
 
-Expected: merges `agentcore-programming` into project MCP files (for example `.cursor/mcp.json`, `.vscode/mcp.json`, …), prints `transport: ssh-stdio`, optional ingest.
+Expected: merges `AgentCore-Programming` into project MCP files (for example `.cursor/mcp.json`, `.vscode/mcp.json`, …), prints `transport: ssh-stdio`, optional ingest.
 
 What lands in MCP config (shape):
 
 ```json
 {
   "mcpServers": {
-    "agentcore-programming": {
+    "AgentCore-Programming": {
       "command": "ssh",
       "args": [
         "-o", "BatchMode=yes",
@@ -294,7 +314,7 @@ What lands in MCP config (shape):
 ```json
 {
   "mcpServers": {
-    "agentcore-programming": {
+    "AgentCore-Programming": {
       "url": "http://agentcore.example.internal:32500/mcp",
       "headers": {
         "Authorization": "Bearer ac1....",

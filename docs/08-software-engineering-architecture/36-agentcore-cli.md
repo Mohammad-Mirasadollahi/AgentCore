@@ -1,8 +1,50 @@
-# AgentCore CLI
+---
+doc_id: ac.doc.sea.agentcore-cli
+title: "36 - AgentCore CLI"
+doc_type: runbook
+status: active
+schema_version: "1.0"
+owner: platform-product
+summary: >-
+  Install and overview for the agentcore CLI. Full per-command reference
+  (why, required flags, examples, what changes) lives in doc 42.
+tags:
+  - cli
+  - agentcore
+  - operator
+  - install
+phase: "08-software-engineering-architecture"
+canonical_path: docs/08-software-engineering-architecture/36-agentcore-cli.md
+related_docs:
+  - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md
+  - docs/08-software-engineering-architecture/39-local-install-runbook.md
+  - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
+  - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
+  - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
+doc_version: "1.3.0"
+audience:
+  - engineer
+  - operator
+lifecycle_lane: current
+concern_lane: runbook
+audience_lane:
+  - platform-engineering
+  - agents
+authority: normative
+visibility: internal
+language: en
+security_classification: internal
+---
+
+# 36 - AgentCore CLI
 
 ## Purpose
 
-`agentcore` is the dedicated command for operators and developers to manage Usage Profiles, local project activation, Cursor MCP connection export, and the MCP gateway process. It is installed into the project virtualenv and linked onto the user PATH.
+`agentcore` is the operator/developer CLI for Usage Profiles, local project state, coding-agent MCP connection, graph sync/status, and the MCP gateway process. It is installed into the project virtualenv and linked onto the user PATH.
+
+**Full command catalog** (why each command exists, required vs optional flags, examples, and what changes when you run it):
+
+→ **[42 - AgentCore CLI Command Reference](./42-agentcore-cli-command-reference.md)**
 
 ## Install (PATH)
 
@@ -36,41 +78,60 @@ Manual PATH install:
 agentcore path install --shell-rc .bashrc
 ```
 
-## Commands
+## Where you choose IDs
 
-| Command | Purpose |
-|---------|---------|
-| `agentcore doctor` | Check venv, imports, profiles, PATH |
-| `agentcore profile list` | List Usage Profiles |
-| `agentcore profile show <id>` | Show catalog JSON |
-| `agentcore project register ...` | Create local project state under `.agentcore/projects/` |
-| `agentcore project activate ...` | Activate a Usage Profile on a project |
-| `agentcore project show / effective` | Inspect local state / resolved profile |
-| `agentcore cursor export ...` | Write Cursor `mcpServers` fragment |
-| `agentcore connect` | One-command onboarding from `~/.agentcore/connect.yaml` |
-| `agentcore connect --init` | Write connect config template |
-| `agentcore client wire-remote ...` | Dev host: SSH stdio MCP to remote AgentCore install |
-| `agentcore client doctor-remote ...` | Check remote MCP serve entrypoint over SSH |
-| `agentcore client list-mcp-clients` | Supported coding-agent MCP config targets |
-| `agentcore mcp tools` | List tools for a profile |
-| `agentcore mcp serve ...` | Run MCP gateway on stdio |
-| `agentcore mcp serve-http` | Phase B Streamable HTTP MCP (concurrent agents) |
+Tenant and workspace IDs are **chosen by you** (not auto-minted):
+
+```bash
+agentcore init --tenant acme --workspace eng --path .
+# optional: --project payments   (default: current directory name)
+```
+
+That writes `~/.agentcore/identity.yaml`, repo `.env`, and pins software path(s) for `sync`. Details: [doc 42 § Scope IDs](./42-agentcore-cli-command-reference.md#scope-ids-tenant--workspace--project).
+
+## First-time operator flow
+
+```bash
+agentcore init --tenant acme --workspace eng --path /opt/AgentCore
+agentcore connect --local
+agentcore status
+cp agentcore.sync.yaml.example agentcore.sync.yaml   # required; local/gitignored
+agentcore sync
+```
+
+`agentcore init` requires at least one `--path` (software root). Edit later: `agentcore paths list|add|remove` (remove warns that old graph data remains). Sync uses pinned paths unless you pass `--path` to override.
+
+Everyday:
+
+```bash
+agentcore sync
+agentcore purge --yes   # graph only
+# agentcore destroy-profile --tenant acme --workspace eng --project agentcore
+#   (interactive: type two different confirmation phrases; does not delete source code)
+```
+
+## Command index (quick)
+
+| Command | One-line purpose |
+| --- | --- |
+| `agentcore init` | You choose tenant + workspace IDs and software `--path`(s); save identity + `.env` |
+| `agentcore paths` | List / add / remove pinned software roots (sync targets) |
+| `agentcore status` | Scope, paths, infra, graph counts, MCP configs, hints |
+| `agentcore connect` / `--init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood |
+| `agentcore sync` / `purge` | Load or wipe project graph data (sync requires `agentcore.sync.yaml` + pinned paths) |
+| `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations |
+| `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope |
+| `agentcore doctor` / `version` | Health / version |
+| `agentcore profile *` | Usage Profile catalog |
+| `agentcore project *` | Local project register / activate / show |
+| `agentcore cursor export` | Export Cursor `mcpServers` fragment |
+| `agentcore mcp tools` / `serve` / `serve-http` | List tools; run stdio or HTTP gateway |
+| `agentcore client *` | Remote SSH wire / doctor / list MCP clients |
 | `agentcore path install` | Symlink CLI onto `~/.local/bin` |
-| `agentcore ports show` | Show resolved ports from the port profile (env overrides) |
-| `agentcore ports check` | Port preflight: bind-check each port; exit 1 on conflict |
-| `agentcore graph smoke` | Ingest + freshness + hybrid + explore (one process) |
-| `agentcore graph ingest` | Ingest a source root |
-| `agentcore graph freshness` | Pending-sync / freshness status |
+| `agentcore ports show` / `check` | Port profile preflight |
+| `agentcore graph *` | Ingest, freshness, explore, hybrid, smoke, watch |
 
-Remote/onboarding: [40](./40-remote-dev-client-mcp-wiring.md) (SSH) · [41](./41-one-command-cross-platform-agent-onboarding.md) (one-command + HTTP).
-
-| `agentcore graph explore` | Explore pack |
-| `agentcore graph hybrid` | Hybrid search |
-| `agentcore graph watch` | Batched pending-sync poll (`--debounce` / `--max-wait`; never per keystroke) |
-
-Default graph CLI backend is in-memory (`AGENTCORE_GRAPH_CLI_BACKEND=memory`). Set
-`AGENTCORE_GRAPH_CLI_BACKEND=neo4j` (plus Neo4j env) for durable Compose labs.
-See [`../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md`](../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md).
+Every row above is expanded in [doc 42](./42-agentcore-cli-command-reference.md).
 
 ## Port preflight
 
@@ -79,31 +140,25 @@ Uses `backend/packages/port_profile` and the default profile at `backend/configs
 ```bash
 agentcore ports show
 agentcore ports check
-agentcore ports check --profile /path/to/custom-port-profile.json
 ```
 
-`ports check` prints JSON with per-key `{port, available}` and overall `ok`. Exit code is `0` when all ports are free, `1` when any bind fails. Environment variables named like the profile keys (e.g. `AGENTCORE_API_PORT`) override profile defaults before the check.
-
-Related: [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md) for dev hosts connecting to a remote AgentCore server.
-
-Example — programming + Cursor MCP (same host):
-
-```bash
-agentcore project register \
-  --tenant acme --workspace eng --project payments \
-  --name "Payments" --usage-profile programming-cursor-mcp
-
-agentcore cursor export \
-  --tenant acme --workspace eng --project payments \
-  --out ~/.cursor/agentcore-mcp.json
-```
-
-Merge the exported `mcpServers` into Cursor MCP settings, then reload MCP.
+`ports check` exits `0` when all ports are free, `1` on conflict. Env vars named like profile keys (e.g. `AGENTCORE_API_PORT`) override defaults.
 
 ## Implementation home
 
 - Package: `backend/packages/agentcore_cli/`
 - Entry point: `pyproject.toml` → `agentcore = agentcore_cli.main:main`
-- Layout: `main.py` (dispatch) · `parser.py` · `util.py` · `state.py` · `commands/` (`doctor`, `profile`, `project`, `cursor`, `client`, `mcp_cmd`, `path_cmd`, `ports`, `graph`) · `remote_client.py` · `remote_mcp_serve.py`
+- Layout: `main.py` · `parser.py` · `cli_defaults.py` · `identity.py` · `commands/`
 - Local state: `.agentcore/projects/<tenant>/<workspace>/<project>.json`
+- Identity: `~/.agentcore/identity.yaml`
+- Sync filters: local `agentcore.sync.yaml` (**gitignored**); template `agentcore.sync.yaml.example` (tracked)
 - Tests: `tests/backend/tools/agentcore-cli/`
+
+## Related Documents
+
+- [42-agentcore-cli-command-reference.md](./42-agentcore-cli-command-reference.md) — **full command reference**
+- [39-local-install-runbook.md](./39-local-install-runbook.md)
+- [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md)
+- [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md)
+- [35-usage-profile-and-cursor-mcp-onboarding.md](./35-usage-profile-and-cursor-mcp-onboarding.md)
+- [../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md](../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md)

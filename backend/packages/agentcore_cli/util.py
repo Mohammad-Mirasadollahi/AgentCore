@@ -18,6 +18,21 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def ensure_service_import_paths() -> None:
+    """Put in-repo service packages on sys.path for the CLI process."""
+    import sys
+
+    root = repo_root()
+    for rel in (
+        ("backend", "services", "code-graph-service", "src"),
+        ("backend", "services", "docs-sync-service", "src"),
+    ):
+        path = root.joinpath(*rel)
+        text = str(path)
+        if path.is_dir() and text not in sys.path:
+            sys.path.insert(0, text)
+
+
 def now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -26,16 +41,40 @@ def print_json(data: Any) -> None:
     print(json.dumps(data, indent=2, sort_keys=True))
 
 
-def require_scope(args: argparse.Namespace) -> tuple[str, str, str]:
+def add_scope_args(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
+    """Attach --tenant/--workspace/--project. When *required* is False, operator defaults apply."""
+    parser.add_argument(
+        "--tenant",
+        default="",
+        required=required,
+        help="Tenant id (default: env / connect.yaml / agentcore)",
+    )
+    parser.add_argument(
+        "--workspace",
+        default="",
+        required=required,
+        help="Workspace id (default: env / connect.yaml / dev)",
+    )
+    parser.add_argument(
+        "--project",
+        default="",
+        required=required,
+        help="Project id (default: env / connect.yaml / cwd name)",
+    )
+
+
+def require_scope(args: argparse.Namespace, *, with_defaults: bool = False) -> tuple[str, str, str]:
+    if with_defaults:
+        from agentcore_cli.cli_defaults import resolve_operator_scope
+
+        return resolve_operator_scope(
+            tenant=str(args.tenant or ""),
+            workspace=str(args.workspace or ""),
+            project=str(args.project or ""),
+        )
     tenant = str(args.tenant or "").strip()
     workspace = str(args.workspace or "").strip()
     project = str(args.project or "").strip()
     if not all((tenant, workspace, project)):
         raise SystemExit("error: --tenant, --workspace, and --project are required")
     return tenant, workspace, project
-
-
-def add_scope_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--tenant", required=True)
-    parser.add_argument("--workspace", required=True)
-    parser.add_argument("--project", required=True)

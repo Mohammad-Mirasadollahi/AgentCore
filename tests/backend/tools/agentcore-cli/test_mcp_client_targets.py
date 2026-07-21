@@ -29,7 +29,7 @@ def test_resolve_client_ids_unknown():
 def test_write_fragment_to_clients_all_project_targets(tmp_path: Path):
     fragment = {
         "mcpServers": {
-            "agentcore-programming": {"command": "ssh", "args": ["u@h", "serve"]},
+            "AgentCore-Programming": {"command": "ssh", "args": ["u@h", "serve"]},
         }
     }
     written = write_fragment_to_clients(tmp_path, fragment, resolve_client_ids("all"))
@@ -38,7 +38,7 @@ def test_write_fragment_to_clients_all_project_targets(tmp_path: Path):
     assert (tmp_path / ".agentcore" / "mcp-servers.json").is_file()
     assert len(written) == len(PROJECT_CLIENTS_ALL)
     cursor = json.loads((tmp_path / ".cursor" / "mcp.json").read_text(encoding="utf-8"))
-    assert "agentcore-programming" in cursor["mcpServers"]
+    assert "AgentCore-Programming" in cursor["mcpServers"]
 
 
 def test_list_mcp_clients_command(capsys):

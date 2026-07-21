@@ -119,6 +119,84 @@ class RepoIngestResult:
 
 
 @dataclass
+class SyncRepoResult:
+    """User-facing sync outcome; mode is chosen by the service, never by the caller."""
+
+    mode: str  # full | incremental | noop
+    root_path: str
+    hint: str
+    files_discovered: int
+    files_ingested: int
+    files_failed: int
+    files_skipped: int
+    symbols_indexed: int
+    symbols_changed: int
+    symbols_documented: int
+    edges_written: int
+    truncated: bool
+    freshness: dict[str, Any]
+    outcomes: list[RepoIngestFileOutcome] = field(default_factory=list)
+
+    @classmethod
+    def from_ingest(
+        cls,
+        *,
+        mode: str,
+        ingest: RepoIngestResult,
+        freshness: dict[str, Any],
+        hint: str = "",
+    ) -> "SyncRepoResult":
+        return cls(
+            mode=mode,
+            root_path=ingest.root_path,
+            hint=hint,
+            files_discovered=ingest.files_discovered,
+            files_ingested=ingest.files_ingested,
+            files_failed=ingest.files_failed,
+            files_skipped=ingest.files_skipped,
+            symbols_indexed=ingest.symbols_indexed,
+            symbols_changed=ingest.symbols_changed,
+            symbols_documented=ingest.symbols_documented,
+            edges_written=ingest.edges_written,
+            truncated=ingest.truncated,
+            freshness=freshness,
+            outcomes=list(ingest.outcomes),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = {
+            "mode": self.mode,
+            "root_path": self.root_path,
+            "hint": self.hint,
+            "files_discovered": self.files_discovered,
+            "files_ingested": self.files_ingested,
+            "files_failed": self.files_failed,
+            "files_skipped": self.files_skipped,
+            "symbols_indexed": self.symbols_indexed,
+            "symbols_changed": self.symbols_changed,
+            "symbols_documented": self.symbols_documented,
+            "edges_written": self.edges_written,
+            "truncated": self.truncated,
+            "freshness": self.freshness,
+            "outcomes": [
+                {
+                    "relative_path": item.relative_path,
+                    "language": item.language,
+                    "status": item.status,
+                    "detail": item.detail,
+                    "file_id": item.file_id,
+                    "symbols_indexed": item.symbols_indexed,
+                    "symbols_changed": item.symbols_changed,
+                    "symbols_documented": item.symbols_documented,
+                    "edges_written": item.edges_written,
+                }
+                for item in self.outcomes
+            ],
+        }
+        return payload
+
+
+@dataclass
 class ParsedSymbol:
     kind: SymbolKind
     name: str

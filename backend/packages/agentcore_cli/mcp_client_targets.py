@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-DEFAULT_SERVER_NAME = "agentcore-programming"
+DEFAULT_SERVER_NAME = "AgentCore-Programming"
 
 MergeRoot = Callable[[dict[str, Any]], dict[str, Any]]
 

@@ -67,6 +67,7 @@ def test_http_mcp_initialize(monkeypatch):
                 json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
             )
             assert tools.status_code == 200
-            assert any(t["name"] == "agentcore_ping" for t in tools.json()["result"]["tools"])
+            listed = {t["name"] for t in tools.json()["result"]["tools"]}
+            assert listed == {"mcp_search_tools", "mcp_execute_tool"}
 
     asyncio.run(run())

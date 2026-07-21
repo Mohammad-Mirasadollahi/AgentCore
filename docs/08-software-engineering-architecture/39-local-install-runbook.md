@@ -75,8 +75,8 @@ flowchart TD
 | Step | Stage | What it checks | What it does if missing |
 | --- | --- | --- | --- |
 | 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker |
-| 2 | `02_venv` | `.venv/bin/python`, `.venv/bin/agentcore`, core imports | Runs `scripts/ensure-venv.sh` (pip + editable install + PATH) |
-| 3 | `03_compose_env` | `backend/deployments/compose/.env.local` with real secrets | Copies `neo4j.example.env`, generates random passwords |
+| 2 | `02_venv` | `.venv/bin/python`, `.venv/bin/agentcore`, core imports | Runs `scripts/ensure-venv.sh`; seeds repo-root `.env` and `agentcore.sync.yaml` from `*.example` if missing |
+| 3 | `03_compose_env` | `backend/deployments/compose/.env.local` with real secrets | Re-seeds repo-root templates; copies `neo4j.example.env`, generates random passwords |
 | 4 | `04_docker_infra` | Postgres + Neo4j containers `healthy` | `docker compose --profile core up -d`, then `wait-healthy.sh` |
 | 5 | `05_verify` | `agentcore doctor` (+ infra unless skipped) | Fails with a clear stage hint; optional ai-toolstack |
 

@@ -65,6 +65,12 @@ def dispatch_capability(
         return code_graph.ingest_repo(
             backends, arguments, scope=scope, correlation_id=correlation_id, base=base
         )
+    if maps_to == "code_graph.sync":
+        return code_graph.sync_repo(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "code_graph.purge":
+        return code_graph.purge_scope(backends, arguments, scope=scope, base=base)
     if maps_to == "code_graph.language_profile":
         return code_graph.language_profile(backends, arguments, scope=scope, base=base)
 

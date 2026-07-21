@@ -84,3 +84,22 @@ class InMemoryStore:
 
     def outbox(self) -> list[dict[str, Any]]:
         return deepcopy(self._events)
+
+    def wipe_scope(self, scope: Scope) -> dict[str, int]:
+        symbol_ids = [
+            sid for sid, item in self._symbols.items() if self._same_project(item.scope, scope)
+        ]
+        edge_ids = [eid for eid, item in self._edges.items() if self._same_project(item.scope, scope)]
+        for sid in symbol_ids:
+            del self._symbols[sid]
+        for eid in edge_ids:
+            del self._edges[eid]
+        scope_key = self._scope_key(scope)
+        drop_keys = [key for key in self._idempotency if key[0] == scope_key]
+        for key in drop_keys:
+            del self._idempotency[key]
+        return {
+            "symbols": len(symbol_ids),
+            "edges": len(edge_ids),
+            "idempotency": len(drop_keys),
+        }
