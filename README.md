@@ -11,46 +11,120 @@
 [![GitHub stars](https://img.shields.io/github/stars/Mohammad-Mirasadollahi/AgentCore?style=flat)](https://github.com/Mohammad-Mirasadollahi/AgentCore/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/Mohammad-Mirasadollahi/AgentCore)](https://github.com/Mohammad-Mirasadollahi/AgentCore/commits)
 
-AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes code knowledge, injects task-scoped context into IDE assistants and agent runtimes, and measures the gain. On that wedge it is a vendor-neutral **control plane** for registering, coordinating, governing, and observing external agent runtimes. It is not an LLM, an agent framework, or a replacement for LangGraph—connected workers perform execution; AgentCore owns code graph, memory, docs sync, tickets, routing, policy, approval, and audit.
+## What it is
 
-## Repository layout
+AgentCore is a vendor-neutral **control and knowledge plane** for AI-assisted work. It is **not** an LLM, a coding IDE, or an agent framework (workers still execute; AgentCore owns registry, memory, docs sync, tickets, routing, policy, approval, and audit).
 
-| Path | Role |
-|------|------|
-| `backend/services/` | Modular FastAPI vertical slices (Phases 1–7 + platform services) |
-| `backend/packages/` | Shared packages (`shared-kernel`, `sdk`, `contracts`, catalogs, …) |
-| `backend/configs/` | Port profiles, governance catalogs, domain/feature packs, examples |
-| `docs/` | Phase-based product and engineering documentation (Phases 0–11+) |
-| `tests/backend/` | Nested suites: `services/`, `gates/`, `packages/`, `tools/`, `platform/`, `legacy/` |
-| `tests/support/` | Feature-gate harness packages (`technical_logic`, `port_profile_gate`, …) |
-| `frontend/` | Admin / UI surfaces (platform) |
-| `archives/hackathon/` | Archived Change Society hackathon demo (not the active product path) |
+It is useful **beyond coding**: the same platform governs shared memory, documentation truth, durable tickets, multi-agent routing, human approval, and audit across domains. Coding is the first wedge that proves the loop; the destination is a cross-domain operating layer for agentic teams.
 
-## Implementation status
+**Primary profile in active development:** programming / Cursor MCP (`programming-cursor-mcp`) — connect a repository, build a code-knowledge graph, and improve IDE/agent outputs. Other Usage Profiles compose the same core for different audiences; see [Usage Profile + MCP](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
 
-Roadmap Phases **1–11** have executable vertical slices and/or verification gates. Platform services that were previously scaffolds now ship with API + in-memory tests (and Postgres store adapters where applicable).
+## Scope (read this first)
 
-| Phase | Focus | Code / gate home |
-|------:|-------|------------------|
-| 1 | Core data model | `backend/services/core-data-service/` · `tests/backend/services/core-data-service/` |
-| 2 | Memory and context | `backend/services/memory-service/` · `tests/backend/services/memory-service/` |
-| 3 | Docs-as-code sync | `backend/services/docs-sync-service/` · `tests/backend/services/docs-sync-service/` |
-| 4 | Rule engine | `backend/services/rule-engine-service/` · `tests/backend/services/rule-engine-service/` |
-| 5 | Interoperability / adapters | `backend/services/adapter-service/` · `tests/backend/services/adapter-service/` |
-| 6 | Technical logic verification | `tests/support/technical_logic/` · `tests/backend/gates/technical-logic-verification/` |
-| 7 | Code-knowledge graph | `backend/services/code-graph-service/` · `tests/backend/services/code-graph-service/` |
-| 8 | Software engineering / ports / packages | `backend/configs/port-profiles/` · `backend/packages/` · `tests/backend/gates/port-profile-verification/` |
-| 9 | Governance catalogs | `backend/configs/governance/` · `tests/backend/gates/governance-catalog-verification/` |
-| 10 | Gap analysis catalog | `backend/configs/governance/gap-register.json` · `tests/backend/gates/gap-register-verification/` |
-| 11 | Logical examples catalog | `backend/configs/logical-examples/` · `tests/backend/gates/logical-examples-verification/` |
+| | |
+| --- | --- |
+| **Nature** | Knowledge + control plane (context, governance, evidence) — not the executor |
+| **Delivery focus (v1 wedge)** | Code connection: **explore · hybrid retrieval · change-risk · architecture** (MCP + CLI) |
+| **Freshness** | Explicit ingest + session pending-sync — **not** continuous save-watch indexing; **not** Repository Code Wiki in v1 |
+| **Trust** | Closed Beta / **single-tenant lab** — multi-tenant SaaS not claimed yet |
+| **Platform destination** | Tickets, adapters, memory, rules, approval, audit, cross-domain ops — built on the wedge, not instead of it |
 
-**Additional platform services:** `audit-service`, `identity-access-service`, `orchestration-service`, `reporting-service`, `project-profile-service`, `common-context-service`, `mcp-gateway-service` (memory or PostgreSQL stores via `AGENTCORE_DATABASE_URL`).
+Full catalog and non-goals → [product scope](docs/00-master-plan/01-product-scope-and-feature-catalog.md).
 
-**Outbox relay:** `backend/packages/outbox_relay` + `python -m agentcore_worker` publishes unpublished service outbox rows to memory, audit, and the adapter broker. Compose profile `all` can run the worker beside Postgres.
+## Contents
 
-**Usage Profiles:** named compositions for org/person configuration (domain pack + feature profile + MCP tools). Catalog: `backend/configs/usage-profiles/` (includes `programming-cursor-mcp`). Activate via `project-profile-service`; Cursor connects through `mcp-gateway-service`. Design: [docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
+| Go here | For |
+| --- | --- |
+| [What it is](#what-it-is) / [Scope](#scope-read-this-first) | Nature and boundaries at a glance |
+| [Quick start](#quick-start) | **Server + client** install and MCP connect (SSH or HTTP) |
+| [Quick architecture](#quick-architecture) | How the pieces connect |
+| [Install](#install) | Local-dev bootstrap details and flags |
+| [Verify](#verify) | Confirm CLI + profiles |
+| [Documentation map](#documentation-map) | Where every topic lives (click through) |
+| [Contributing & license](#contributing--license) | PRs, security, Apache 2.0 |
 
-Design target notes: Neo4j runtime is available via Compose + `Neo4jStore` (`AGENTCORE_CODE_GRAPH_STORE=neo4j`); default Phase 7 slice still uses the PostgreSQL projection. **Python is required** (`stdlib_ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter.
+---
+
+## Quick start
+
+Two machines are typical: an **AgentCore server** (platform + stores) and a **dev host** (your app repo + coding agent). Replace example hostnames with yours.
+
+Full examples (SSH vs HTTP, security, troubleshooting) → [One-command connect guide](docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md).
+
+### 1) AgentCore server
+
+Requires Python 3.12+, Docker (Compose), and a clone of this repo.
+
+```bash
+cd /opt/AgentCore
+bash install.sh
+# new shell so agentcore is on PATH
+agentcore doctor
+```
+
+**Optional — HTTP MCP** (long-running; skip if you use SSH-only connect):
+
+```bash
+export AGENTCORE_MCP_TOKEN_SECRET='replace-with-a-long-random-secret'
+export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
+agentcore mcp serve-http --host 0.0.0.0 --port 32500
+```
+
+### 2) Dev host (client)
+
+Install the CLI only (no Docker required on the client):
+
+```bash
+# clone AgentCore somewhere, then:
+bash install.sh --skip-infra
+agentcore path install   # if needed; open a new shell
+agentcore connect --init
+```
+
+Edit `~/.agentcore/connect.yaml`.
+
+**SSH mode** (recommended on a private LAN; use an SSH **key**, not a password):
+
+```yaml
+server:
+  ssh: ops@agentcore.example.internal
+  remote_root: /opt/AgentCore
+auth:
+  ssh_key: ~/.ssh/id_ed25519_agentcore
+scope:
+  tenant: acme
+  workspace: eng
+connect:
+  prefer_http: false
+  register: true
+```
+
+**HTTP mode** (requires `serve-http` on the server):
+
+```yaml
+server:
+  url: http://agentcore.example.internal:32194
+  mcp_http_url: http://agentcore.example.internal:32500
+scope:
+  tenant: acme
+  workspace: eng
+connect:
+  prefer_http: true
+  register: true
+```
+
+From your **application** repository:
+
+```bash
+cd /opt/MyApp
+agentcore connect
+```
+
+Reload MCP / the IDE window. You should see tools such as `agentcore_ping`.
+
+Same host for both roles? Run step 1, then `agentcore connect` after `agentcore connect --init` with `prefer_http: false` and `ssh` pointing at localhost, or use [local Cursor export](docs/08-software-engineering-architecture/36-agentcore-cli.md).
+
+---
 
 ## Quick architecture
 
@@ -67,104 +141,66 @@ flowchart TD
   Adapters --> Agents[External agent runtimes]
 ```
 
-## Development setup
+---
+
+## Install
+
+Local-dev bootstrap of this checkout (same as **Quick start → AgentCore server**). Requires Python 3.12+, Docker (for Postgres/Neo4j), and a clone of this repo.
 
 ```bash
-bash scripts/ensure-venv.sh
+bash install.sh
 ```
 
-This creates `.venv`, installs dependencies, installs the editable `agentcore` package, and puts the `agentcore` command on your PATH (`~/.local/bin`).
+Open a **new** shell, then:
 
 ```bash
 agentcore doctor
+```
+
+- Full steps, flags, and troubleshooting → [Local install runbook](docs/08-software-engineering-architecture/39-local-install-runbook.md)
+- Venv only (no Compose infra) → `bash install.sh --skip-infra` (typical **dev host / client**)
+- CLI reference → [AgentCore CLI](docs/08-software-engineering-architecture/36-agentcore-cli.md)
+- Server + client MCP connect → [One-command connect](docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md)
+- Usage Profile catalog → [Usage Profile + MCP](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md)
+- Operator connect loop (ingest → explore) → [Wedge connect runbook](docs/07-code-knowledge-graph/35-wedge-operator-connect-runbook.md)
+
+---
+
+## Verify
+
+```bash
 agentcore profile list
 agentcore --help
 ```
 
-CLI reference: [docs/08-software-engineering-architecture/36-agentcore-cli.md](docs/08-software-engineering-architecture/36-agentcore-cli.md).
+Tests and suite layout → [tests/README.md](tests/README.md).
 
-Optional PostgreSQL for full-platform stores:
+---
 
-```bash
-cp backend/deployments/compose/postgres.example.env /tmp/agentcore-postgres.env
-docker compose --env-file /tmp/agentcore-postgres.env \
-  -f backend/deployments/compose/compose.yaml --profile core up -d postgres
-```
+## Documentation map
 
-Development ports are non-default and project-scoped. See `backend/configs/port-profiles/agentcore-dev.json`.
+Start at the docs hub, then open the chapter you need:
 
-## Named test commands
+| Chapter | Link |
+| --- | --- |
+| **Docs hub** | [docs/README.md](docs/README.md) |
+| Product scope & features | [01-product-scope-and-feature-catalog](docs/00-master-plan/01-product-scope-and-feature-catalog.md) |
+| Master plan index | [00-master-plan](docs/00-master-plan/00-index.md) |
+| Roadmap & phase gates | [02-roadmap-and-phase-gates](docs/00-master-plan/02-roadmap-and-phase-gates.md) |
+| Code-knowledge graph | [07-code-knowledge-graph](docs/07-code-knowledge-graph/00-index.md) |
+| Engineering / install / CLI | [08-software-engineering-architecture](docs/08-software-engineering-architecture/00-index.md) |
+| Governance & ops | [09-platform-governance-operations](docs/09-platform-governance-operations/00-index.md) |
+| Gap register | [10-gap-analysis](docs/10-gap-analysis/00-index.md) |
+| Technology stack | [13-technology-stack](docs/13-technology-stack-and-platform-decisions/00-index.md) |
+| API naming | [14-api-design](docs/14-api-design-and-naming-standards/00-index.md) |
+| Backend layout | [backend/docs/STRUCTURE_STANDARD.md](backend/docs/STRUCTURE_STANDARD.md) |
+| Agent workspace rules | [AGENTS.md](AGENTS.md) |
 
-Use the project virtualenv. `PYTHONPATH` must include the service `src` (or `tests/support` + `backend/packages` for gates).
+Reading order for new engineers → [docs/README.md § Reading Order](docs/README.md#reading-order).
 
-```bash
-# Phase vertical slices
-PYTHONPATH=backend/services/core-data-service/src .venv/bin/python -m pytest tests/backend/services/core-data-service -q
-PYTHONPATH=backend/services/memory-service/src .venv/bin/python -m pytest tests/backend/services/memory-service -q
-PYTHONPATH=backend/services/docs-sync-service/src .venv/bin/python -m pytest tests/backend/services/docs-sync-service -q
-PYTHONPATH=backend/services/rule-engine-service/src .venv/bin/python -m pytest tests/backend/services/rule-engine-service -q
-PYTHONPATH=backend/services/adapter-service/src .venv/bin/python -m pytest tests/backend/services/adapter-service -q
-PYTHONPATH=backend/services/code-graph-service/src .venv/bin/python -m pytest tests/backend/services/code-graph-service -q
+---
 
-# Phase gates
-PYTHONPATH=tests/support .venv/bin/python -m pytest tests/backend/gates/technical-logic-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/port-profile-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/governance-catalog-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/gap-register-verification -q
-PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backend/gates/logical-examples-verification -q
+## Contributing & license
 
-# Shared packages
-PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/packages -q
-
-# Platform services (examples)
-PYTHONPATH=backend/services/audit-service/src .venv/bin/python -m pytest tests/backend/services/audit-service -q
-PYTHONPATH=backend/services/common-context-service/src .venv/bin/python -m pytest tests/backend/services/common-context-service -q
-
-# Usage Profile + Cursor MCP gateway
-PYTHONPATH=backend/packages .venv/bin/python -m pytest tests/backend/tools/usage-profile -q
-PYTHONPATH=backend/services/project-profile-service/src:backend/packages .venv/bin/python -m pytest tests/backend/services/project-profile-service -q
-PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages .venv/bin/python -m pytest tests/backend/services/mcp-gateway-service -q
-```
-
-Full test layout: [tests/README.md](tests/README.md). Technical test strategy: [docs/06-technical-logic/07-technical-test-strategy.md](docs/06-technical-logic/07-technical-test-strategy.md).
-
-## Documentation
-
-| Area | Index |
-|------|--------|
-| Master docs map | [docs/README.md](docs/README.md) |
-| Roadmap and phase gates | [docs/00-master-plan/02-roadmap-and-phase-gates.md](docs/00-master-plan/02-roadmap-and-phase-gates.md) |
-| Engineering architecture | [docs/08-software-engineering-architecture/00-index.md](docs/08-software-engineering-architecture/00-index.md) |
-| Backend structure standard | [backend/docs/STRUCTURE_STANDARD.md](backend/docs/STRUCTURE_STANDARD.md) |
-| Technology baseline | [docs/13-technology-stack-and-platform-decisions/00-index.md](docs/13-technology-stack-and-platform-decisions/00-index.md) |
-| API naming standards | [docs/14-api-design-and-naming-standards/00-index.md](docs/14-api-design-and-naming-standards/00-index.md) |
-| Archived hackathon demo | [archives/hackathon/README.md](archives/hackathon/README.md) |
-
-## Technology baseline
-
-- **Backend:** Python 3.12+, FastAPI  
-- **Data:** PostgreSQL (pgvector planned); Neo4j available for code-graph structural store (`AGENTCORE_CODE_GRAPH_STORE=neo4j`); Python is the mandatory indexed language
-- **Frontend:** Next.js, TypeScript (admin surfaces)  
-- **Local Python:** `.venv` at repository root  
-
-## Contributing
-
-How to help, open pull requests, and keep slices consistent:
-
-- **Guide:** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Bug report:** use the GitHub **Bug report** issue template (`.github/ISSUE_TEMPLATE/bug_report.yml`)
-- **Feature request:** use the GitHub **Feature request** issue template (`.github/ISSUE_TEMPLATE/feature_request.yml`)
-- **Pull requests:** follow `.github/PULL_REQUEST_TEMPLATE.md`
-
-Please search existing issues first. Do not put secrets, tokens, or private customer data in issues or PRs.
-
-## Private sync
-
-Local private-repo sync uses `scripts/git-sync.sh` (gitignored tool + local PAT). After the first push, AI-written change notes live under `scripts/.git-sync-changes/`.
-
-## Security & license
-
-- [SECURITY.md](SECURITY.md) — vulnerability reporting (not public issues)  
-- [LICENSE](LICENSE) (Apache 2.0)
-
-**Data sovereignty:** do not upload repository contents to public cloud services without explicit per-action approval. See project law in workspace rules / `AGENTS.md`.
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [LICENSE](LICENSE) (Apache 2.0)
+- Do not upload private repo contents to public cloud without explicit per-action approval ([data sovereignty](ai-toolstack/docs/data-sovereignty-no-cloud-exfiltration.md)).

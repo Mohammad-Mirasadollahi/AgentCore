@@ -4,6 +4,8 @@
 
 This document defines how AgentCore modules should be designed so they can be tested without relying on real infrastructure, private internals, or unstable external services.
 
+**Authoring and concurrent code-and-tests law:** `37-test-authoring-standard.md`. **Fuzz invariants:** `38-fuzzing-and-property-based-testing.md`. This document owns seams, ports, fakes/mocks design, and determinism rules.
+
 ## Test Seam Standard
 
 Every module must expose seams through public contracts, ports, adapters, factories, deterministic clocks, deterministic ids, and fake infrastructure implementations.

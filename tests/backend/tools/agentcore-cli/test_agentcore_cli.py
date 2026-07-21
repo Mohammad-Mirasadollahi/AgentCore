@@ -17,9 +17,9 @@ def test_profile_list_and_show(capsys):
 def test_project_lifecycle_and_cursor_export(tmp_path, monkeypatch):
     root = Path("/opt/AgentCore")
     monkeypatch.setenv("AGENTCORE_ROOT", str(root))
-    import agentcore_cli.main as cli
+    import agentcore_cli.state as state
 
-    monkeypatch.setattr(cli, "default_state_root", lambda _root: tmp_path / "projects")
+    monkeypatch.setattr(state, "default_state_root", lambda _root: tmp_path / "projects")
 
     assert (
         main(
@@ -133,16 +133,16 @@ def test_ports_show_and_check(tmp_path, monkeypatch, capsys):
     assert shown["ports"]["AGENTCORE_API_PORT"] == 32155
     assert shown["ports"]["AGENTCORE_ADMIN_PORT"] == 32101
 
-    import agentcore_cli.main as cli
+    import agentcore_cli.commands.ports as ports_cmd
 
-    monkeypatch.setattr(cli, "check_port_available", lambda port, host="127.0.0.1": True)
+    monkeypatch.setattr(ports_cmd, "check_port_available", lambda port, host="127.0.0.1": True)
     assert main(["ports", "check", "--profile", str(profile)]) == 0
     ok_payload = json.loads(capsys.readouterr().out)
     assert ok_payload["ok"] is True
     assert ok_payload["ports"]["AGENTCORE_API_PORT"] == {"port": 32155, "available": True}
 
     monkeypatch.setattr(
-        cli,
+        ports_cmd,
         "check_port_available",
         lambda port, host="127.0.0.1": port != 32155,
     )
@@ -151,3 +151,72 @@ def test_ports_show_and_check(tmp_path, monkeypatch, capsys):
     assert bad["ok"] is False
     assert bad["ports"]["AGENTCORE_API_PORT"]["available"] is False
     assert bad["ports"]["AGENTCORE_ADMIN_PORT"]["available"] is True
+
+
+def test_graph_smoke_ingest_explore(capsys, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_ROOT", "/opt/AgentCore")
+    monkeypatch.setenv("AGENTCORE_GRAPH_CLI_BACKEND", "memory")
+    sample = "/opt/AgentCore/samples/e2e-graph-probe/src"
+    assert (
+        main(
+            [
+                "graph",
+                "smoke",
+                "--tenant",
+                "t",
+                "--workspace",
+                "w",
+                "--project",
+                "p",
+                "--path",
+                sample,
+                "--query",
+                "login password",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["hybrid_hits"] >= 1
+    assert payload["explore_sections"] >= 1
+
+
+def test_graph_watch_once(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_ROOT", "/opt/AgentCore")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("x=1\n", encoding="utf-8")
+    assert (
+        main(
+            [
+                "graph",
+                "watch",
+                "--tenant",
+                "t",
+                "--workspace",
+                "w",
+                "--project",
+                "p",
+                "--path",
+                str(src),
+                "--interval",
+                "0.05",
+                "--debounce",
+                "0.01",
+                "--max-wait",
+                "0.1",
+                "--once",
+            ]
+        )
+        == 0
+    )
+
+
+def test_doctor_imports_mcp_gateway(capsys, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_ROOT", "/opt/AgentCore")
+    assert main(["doctor"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["venv_python"] is True
+    assert payload["import_mcp_gateway_service"] is True
+

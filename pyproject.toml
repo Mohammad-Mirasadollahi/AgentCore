@@ -22,6 +22,7 @@ dependencies = [
   "tree-sitter-rust==0.24.0",
   "litellm>=1.40.0,<2",
   "rank-bm25==0.2.2",
+  "PyYAML>=6.0.2,<7",
 ]
 
 [project.optional-dependencies]
@@ -49,3 +50,6 @@ packages = ["agentcore_cli", "usage_profile", "outbox_relay", "llm_gateway", "po
 testpaths = ["tests"]
 # So Test Explorer / bare `pytest` can import code_graph_service without exporting PYTHONPATH.
 pythonpath = ["backend/services/code-graph-service/src"]
+markers = [
+  "live: requires Compose Neo4j/Postgres (skips when unavailable)",
+]

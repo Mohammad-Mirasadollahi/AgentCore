@@ -85,14 +85,41 @@ Thumbs.db
 .pip-*.txt
 
 # Agent / IDE local wiring (never sync)
+# Installed Cursor / Claude / Codex / other agent tooling — never commit
+
+# Cursor
 .cursor/
+**/.cursor/
 .cursorrules
 **/.cursorrules
+.cursorignore
+**/.cursorignore
 **/ponytail-stack-cursor.mdc
 docs/agents/cursor-*.md
 backend/integrations/agents/cursor/
 backend/integrations/ides/cursor/
+
+# Claude Code / Anthropic
+.claude/
+**/.claude/
+CLAUDE.md
+**/CLAUDE.md
+.claudeignore
+**/.claudeignore
+
+# OpenAI Codex
+.codex/
+**/.codex/
+codex.md
+**/codex.md
+
+# Generic agent entry + sessions
+AGENTS.md
+**/AGENTS.md
 .agents/
+**/.agents/
+.agent/
+**/.agent/
 .agent-runs/
 .agent-sessions/
 .agent-cache/
@@ -101,9 +128,74 @@ agent-workspaces/
 agent_logs/
 agent-memory-dumps/
 project_docs/
-.codex/
+
+# Other AI coding assistants / IDE agents
+.aider/
+**/.aider/
+.aider.conf.yml
+.aider*
+**/.aider*
+.continue/
+**/.continue/
+.windsurf/
+**/.windsurf/
+.codeium/
+**/.codeium/
+.gemini/
+**/.gemini/
+GEMINI.md
+**/GEMINI.md
+.opencode/
+**/.opencode/
+.goose/
+**/.goose/
+.crush/
+**/.crush/
+.roo/
+**/.roo/
+.roo-code/
+**/.roo-code/
+.kilocode/
+**/.kilocode/
+.augment/
+**/.augment/
+.factory/
+**/.factory/
+.amp/
+**/.amp/
+.junie/
+**/.junie/
+.amazonq/
+**/.amazonq/
+.tabnine/
+**/.tabnine/
+.sourcegraph/
+**/.sourcegraph/
+.specstory/
+**/.specstory/
+.copilot/
+**/.copilot/
+.github/copilot-instructions.md
+**/copilot-instructions.md
+
+# MCP local state
 .mcp-memory
 .mcp-memory/
+.mcp.json
+**/.mcp.json
+mcp-lazy-servers.json
+**/mcp-lazy-servers.local.json
+
+# Cursor rules / skills sources (install → .cursor/ / .agents/). Product docs stay tracked.
+ai-toolstack/rules/
+ai-toolstack/skills/
+ai-toolstack/cursor-agent-config/
+ai-toolstack/cursor-agent-backup/
+ai-toolstack/cursor-agent-backup-test.txt
+
+# ai-toolstack runtime / local state (RTK history.db, mcp-lazy, headroom, node bins).
+# Must stay untracked — verify_install fails if any path under here is in the index.
+ai-toolstack/data/
 
 # Generated evidence and exports (track only redacted hackathon real reports)
 evidence/
@@ -184,11 +276,10 @@ models--*/
 .idea/
 .vscode/settings.json
 .vscode/launch.json
+.vscode/*.code-workspace
+*.code-workspace
 *.swp
 *.swo
-
-# Local agent entrypoints (IDE-vendor tooling — never sync)
-AGENTS.md
-**/AGENTS.md
-.cursorrules
-**/.cursorrules
+*~
+.history/
+**/.history/

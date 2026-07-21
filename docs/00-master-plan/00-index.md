@@ -13,9 +13,9 @@ Product positioning starts with a wedge: AgentCore connects to a codebase and im
 - 03-global-architecture-hld.md provides the system-wide high-level architecture.
 - 04-cross-cutting-challenges.md captures challenges that affect multiple phases.
 - 05-complete-system-blueprint.md provides the full product and architecture narrative.
-- 06-professional-documentation-standard.md defines the professional documentation standard for writing implementation-grade engineering and product design specifications.
+- 06-professional-documentation-standard.md defines the professional documentation standard for writing implementation-grade engineering and product design specifications, including designed-vs-shipped honesty (unimplemented design may be in git; it must not read as product-ready).
 - 08-documentation-structure-and-machine-ingest-standard.md defines tree numbering, titles, frontmatter, RAG/LLMIndex/GraphRAG authoring shape, and fallback ingest tiers.
-- 09-documentation-classification-and-lanes.md defines documentation lanes: lifecycle (initial/current/future), concern (design/problem/gap/cross-team/…), audience, authority, and visibility.
+- 09-documentation-classification-and-lanes.md defines documentation lanes: lifecycle (initial/current/future), concern (design/problem/gap/cross-team/…), audience, authority, and visibility — including honest voice for future design.
 
 ## Phase Folders
 

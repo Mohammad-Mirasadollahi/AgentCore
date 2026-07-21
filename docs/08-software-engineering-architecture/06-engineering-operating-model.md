@@ -81,7 +81,7 @@ Documentation-only changes should include:
 - index updates.
 - link validation.
 - affected module references.
-- explicit note when documentation describes a future state and not an implemented state.
+- explicit Implementation status when documentation describes designed-but-unimplemented behavior (allowed in-repo; must not read as shipped / product-ready). See `../00-master-plan/06-professional-documentation-standard.md` Designed Vs Shipped Honesty.
 
 ## Ownership Model
 
@@ -171,7 +171,8 @@ A work item is done when:
 
 - behavior is implemented behind the correct module boundary.
 - public contracts are versioned and tested.
-- domain, application, integration, and contract tests pass as applicable.
+- required tests ship **in the same change** as the behavior (concurrent code-and-tests law in `37-test-authoring-standard.md`); reviewers reject material code without the mandated family.
+- domain, application, integration, contract, fuzz, live, and security tests pass as applicable for the change type.
 - documentation and indexes are updated.
 - configuration is typed and does not hard-code environment values.
 - development ports are configurable and validated.

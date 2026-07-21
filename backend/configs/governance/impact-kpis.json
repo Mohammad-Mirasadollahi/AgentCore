@@ -72,6 +72,18 @@
       "sample_size": "min_100_model_calls",
       "caveats": "Must pair with quality and correction metrics.",
       "evidence_drilldown": "run_id, model_tier, tokens_in, tokens_out, cache_hit"
+    },
+    {
+      "kpi_id": "KPI-DEAD-CODE-CLEANUP",
+      "name": "dead_code_cleanup",
+      "definition": "Share of replace/retire coding tasks that resolve proven unused candidates in the task neighborhood without verification regressions.",
+      "instrumentation": "unused_candidate.query, activity.cleanup, worklog.cleanup, and linked verification outcomes",
+      "baseline": "cleanup-guidance-disabled or pre-adoption window",
+      "scope": "project",
+      "time_range": "rolling_28d",
+      "sample_size": "min_30_coding_tasks",
+      "caveats": "Dynamic dispatch and public APIs inflate uncertain skips; blind deletes must not count as resolved.",
+      "evidence_drilldown": "task_id, candidate_refs, deleted_paths, blockers, verify_refs, freshness"
     }
   ]
 }

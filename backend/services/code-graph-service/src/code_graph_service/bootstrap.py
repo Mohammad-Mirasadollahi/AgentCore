@@ -112,9 +112,12 @@ def build_llm_gateway():
 
 
 def build_service(settings: Settings | None = None) -> CodeGraphService:
+    from .llm_wiring import maybe_preload_embeddings
+
     resolved = settings or Settings.from_environment()
     gateway = build_llm_gateway()
     embeddings = build_embeddings(gateway, settings=gateway.settings)
+    maybe_preload_embeddings(embeddings)
     return CodeGraphService(
         build_store(resolved),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),

@@ -140,6 +140,13 @@ class HybridEmbeddings:
         self.model = getattr(local, "model", None) or self.stub.model
         self._backend = "local_bge" if local is not None else "stub"
 
+    def preload(self) -> None:
+        """Force local BGE (or no-op stub) load at process start when configured."""
+        if self.local is not None:
+            preload_fn = getattr(self.local, "preload", None)
+            if callable(preload_fn):
+                preload_fn()
+
     @property
     def backend_name(self) -> str:
         if self.local is not None:
@@ -238,3 +245,13 @@ def build_embeddings(
         local=local,
         stub=LocalEmbeddingStub(dims=dims),
     )
+
+
+def maybe_preload_embeddings(embeddings: HybridEmbeddings, environ: dict[str, str] | None = None) -> bool:
+    """If AGENTCORE_EMBEDDING_PRELOAD is set, load BGE at process start. Returns whether preload ran."""
+    from .local_embeddings import embedding_settings_from_env
+
+    if not embedding_settings_from_env(environ).get("preload"):
+        return False
+    embeddings.preload()
+    return True

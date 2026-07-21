@@ -43,6 +43,36 @@ Avoid:
 - unsupported claims such as easy, smart, seamless, or powerful without defined behavior.
 - feature descriptions that do not map to modules, contracts, states, or tests.
 - UI descriptions that ignore empty, loading, error, permission, degraded, and recovery states.
+- writing unimplemented design as if the product already ships that behavior (see Designed Vs Shipped Honesty).
+
+## Designed Vs Shipped Honesty
+
+Publishing design documentation for work that is **not yet implemented** is allowed and expected. Open-source and engineering practice put HLD, LLD, proposals, and roadmaps in the repository before code exists. That is not a documentation defect.
+
+The defect is **voice and classification**: prose that reads as if the capability is already product-ready when it is only designed, proposed, or partially built.
+
+### Allowed
+
+- Implementation-grade specs (contracts, states, ownership, acceptance) for not-yet-built work, clearly marked as design intent.
+- Roadmaps, spikes, and proposals with `lifecycle_lane: future` (and usually `authority: speculative` or `informative`) per `09-documentation-classification-and-lanes.md`.
+- Present-tense **as-built** descriptions only for behavior that exists in code, config, or verified gates.
+
+### Required
+
+- Match body voice to truth: planned work uses design language (`will`, `must when implemented`, `target behavior`, `proposed`); shipped behavior uses present tense for what the system does now.
+- Set `lifecycle_lane` (and `authority`) so retrieval and readers do not treat future design as current truth.
+- Put an explicit **Implementation status** (or equivalent) near the top when a design file is ahead of the codebase: what exists, what is partial, what is not started.
+- External-facing summaries (root README, release notes, partner briefs) must not imply readiness beyond what tests, gates, or runbooks prove.
+- When a `current` document still contains planned work, either split a `future` sibling or label those sections so they cannot be mistaken for shipped behavior.
+
+### Anti-patterns
+
+- Present-tense “the system does X” / “operators can Y” for code paths that do not exist.
+- Marketing or release wording (`ready`, `production`, `customers use`, `ships with`) for unimplemented capabilities.
+- `lifecycle_lane: current` on a file whose body is mostly aspirational design.
+- Omitting status so humans, agents, or RAG treat design docs as evidence of shipped product.
+
+Lane metadata alone is not enough: the **prose** must stay honest. Metadata rules live in `09-documentation-classification-and-lanes.md`.
 
 ## Required Perspective
 
@@ -257,6 +287,8 @@ Before a document is considered complete, reviewers should verify:
 - tests and acceptance criteria are verifiable.
 - unresolved assumptions are linked to gap analysis.
 - the document uses precise technical language.
+- designed-but-unimplemented work is labeled and voiced as design intent, not as shipped product readiness.
+- `lifecycle_lane` / `authority` match the body (future or speculative material is not presented as current as-built truth).
 
 ## Acceptance Criteria
 
@@ -267,3 +299,4 @@ This documentation standard is satisfied when:
 - technical docs include ownership, contracts, data, state, failure, and verification detail.
 - product design docs include roles, workflows, interaction states, permissions, recovery paths, and metrics.
 - vague or beginner-level descriptions are replaced with implementation-grade specifications.
+- unpublished or partial capabilities are documented without implying product readiness they do not have.

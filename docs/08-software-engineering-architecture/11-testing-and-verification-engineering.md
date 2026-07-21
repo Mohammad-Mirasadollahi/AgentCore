@@ -4,6 +4,8 @@
 
 This document defines the testing and verification strategy for AgentCore from a Software Engineering perspective. It explains what should be tested at each layer, which tests belong inside modules, which tests belong at repository level, and how tests prove that the design is implementable.
 
+**How to author tests (concurrent code-and-tests law, decision matrix, doubles, markers):** `37-test-authoring-standard.md`. **Fuzz / property-based:** `38-fuzzing-and-property-based-testing.md`. **Unit vs Live safety:** `25-live-and-unit-test-strategy.md`. **Seams:** `33-testing-seams-and-contract-boundary-standards.md`.
+
 ## Testing Philosophy
 
 AgentCore should use layered testing. Each layer should prove a different kind of correctness.

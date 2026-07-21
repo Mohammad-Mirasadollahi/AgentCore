@@ -27,6 +27,9 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 17-engineering-governance-and-change-control.md defines decision records, change classification, shared package governance, contract change control, architecture change control, gap management, documentation governance, and approval matrix.
 - 18-developer-onboarding-and-delivery-workflow.md defines the practical reading path, repository discovery checklist, and workflows for new features, services, contracts, adapters, rules, documentation updates, and delivery readiness.
 - 19-zero-touch-installation-and-bootstrap-automation.md defines one-command installation goals, preflight checks, dependency provisioning, config generation, automated store and broker bootstrap, service registry creation, first-run readiness, evidence reports, and resumable failure handling.
+- 39-local-install-runbook.md is the operator runbook for the shipped modular root `install.sh` (prerequisites, `.venv`, Compose, verify).
+- 40-remote-dev-client-mcp-wiring.md is the cross-platform Python runbook for wiring a remote dev host to AgentCore MCP over SSH stdio.
+- 41-one-command-cross-platform-agent-onboarding.md specifies the target single-command, API-first, cross-platform onboarding UX (with phased delivery from today's wire-remote).
 - 20-agent-and-resource-connectivity-automation.md defines connector registry, agent onboarding, capability discovery, generated connection profiles, authentication automation, validation, self-service UI and CLI, dynamic discovery, connector health, and failure handling.
 - 21-automation-control-plane-and-self-service-operations.md defines the automation control plane, self-service action catalog, automation jobs, safe defaults, drift detection, automated repair, upgrade automation, diagnostics bundles, and approval boundaries.
 - 22-product-design-and-engineering-specification-discipline.md defines how professional product design and software engineering specifications should map roles, workflows, interaction states, information architecture, contracts, data, permissions, diagnostics, metrics, and acceptance criteria.
@@ -44,6 +47,8 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 34-phase8-verification-and-acceptance.md defines the port-profile feature gate, ownership checks, and named verification commands under `tests/backend/gates/port-profile-verification/`.
 - 35-usage-profile-and-cursor-mcp-onboarding.md defines Usage Profiles (org/person configuration compositions) and Cursor MCP connection materialization via the MCP gateway.
 - 36-agentcore-cli.md defines the `agentcore` CLI, PATH install, and project/MCP management commands.
+- 37-test-authoring-standard.md is the normative test-authoring playbook: concurrent code-and-tests law, family taxonomy (unit, contract, integration, e2e, live, fuzz, security, performance, regression), doubles, placement, markers, CI selection, and Definition of Done for humans and coding agents.
+- 38-fuzzing-and-property-based-testing.md defines property-based and fuzz suites: invariants, bounded generators, schema/API fuzz, corpus, shrinking, and when fuzz is mandatory with implementation.
 
 ## Implementation Slice
 
@@ -73,8 +78,10 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 10. Read 09-data-and-persistence-engineering.md before adding stores, migrations, graph data, memory persistence, indexes, retention, or backups.
 11. Read 10-quality-attributes-and-nfrs.md to understand non-functional requirements and tradeoffs.
 12. Read 11-testing-and-verification-engineering.md before implementing tests or CI gates.
+12a. Read 37-test-authoring-standard.md before writing or generating any tests with implementation; read 38-fuzzing-and-property-based-testing.md when changing parsers, schemas, scorers, query builders, or redaction.
 13. Read 12-ci-cd-and-release-engineering.md before designing pipelines, releases, migrations, rollbacks, or release notes.
 14. Read 19-zero-touch-installation-and-bootstrap-automation.md before designing installation, deployment bootstrap, dependency provisioning, generated configuration, first-run readiness, or installation evidence reports.
+14a. Read 39-local-install-runbook.md before changing root `install.sh` or `scripts/install/` modules.
 15. Read 20-agent-and-resource-connectivity-automation.md before designing agent onboarding, connector registration, capability discovery, connection profiles, or resource integration.
 16. Read 21-automation-control-plane-and-self-service-operations.md before designing self-service operations, automated repair, drift detection, upgrades, or diagnostics bundles.
 17. Read 22-product-design-and-engineering-specification-discipline.md before writing feature specifications, product experience specifications, operator workflows, or implementation-ready technical designs.
@@ -107,8 +114,13 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | persistence, migrations, graph, memory storage | 09-data-and-persistence-engineering.md |
 | quality attributes and NFRs | 10-quality-attributes-and-nfrs.md |
 | tests and verification | 11-testing-and-verification-engineering.md |
+| test authoring, concurrent code-and-tests, doubles usage | 37-test-authoring-standard.md |
+| fuzzing and property-based tests | 38-fuzzing-and-property-based-testing.md |
 | CI, release, rollback | 12-ci-cd-and-release-engineering.md |
 | zero-touch installation and bootstrap | 19-zero-touch-installation-and-bootstrap-automation.md |
+| local modular install (`install.sh`) | 39-local-install-runbook.md |
+| remote dev client MCP (SSH) | 40-remote-dev-client-mcp-wiring.md |
+| one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |
 | agent and resource connectivity | 20-agent-and-resource-connectivity-automation.md |
 | self-service automation and repair | 21-automation-control-plane-and-self-service-operations.md |
 | product design and engineering specification discipline | 22-product-design-and-engineering-specification-discipline.md |

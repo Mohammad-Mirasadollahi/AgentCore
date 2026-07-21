@@ -25,10 +25,11 @@ Thank you for helping improve AgentCore. This guide covers how to propose change
 ## Development setup
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/pip install -r requirements-dev.txt
+bash install.sh
+# or venv only: bash install.sh --skip-infra
 ```
+
+See [39-local-install-runbook.md](docs/08-software-engineering-architecture/39-local-install-runbook.md).
 
 Run the suite that owns your change (examples):
 
@@ -45,6 +46,7 @@ See the root [README.md](README.md) for the full phase map and named commands.
 - No hard-coded ports, credentials, tenant IDs, project IDs, model names, or provider endpoints.
 - Prefer stdlib and existing packages; do not add dependencies without a clear need.
 - Put executable tests under `tests/backend/<owner>/`, not under service-local `tests/` trees.
+- Ship required tests in the **same change** as production behavior (see [37-test-authoring-standard.md](docs/08-software-engineering-architecture/37-test-authoring-standard.md)).
 - Keep diffs minimal and aligned with the service’s existing `core.py` / `api.py` / `testing.py` pattern.
 - Update the relevant API contract or phase acceptance doc when behavior changes.
 

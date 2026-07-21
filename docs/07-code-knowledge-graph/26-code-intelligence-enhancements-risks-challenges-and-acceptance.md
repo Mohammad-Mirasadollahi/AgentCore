@@ -108,15 +108,20 @@ License rules are normative in [`21`](21-code-intelligence-prior-art-ideas-and-l
 - [x] Rationale nodes from `# WHY:` / `NOTE:` / `HACK:` comments.
 - [x] Agent skill prefers explore first.
 - [ ] License re-check if any vendoring ADR opens.
-- [ ] Full filesystem watcher sidecar (optional ops follow-up).
+- [x] Optional filesystem poll sidecar for pending-sync (`watch_pending_sync.py` / `agentcore graph watch`) — **batched** (debounce + max-wait); not per-edit; not continuous index.
 
 ## Open Gaps
 
 | Gap | Owner | Notes |
 | --- | --- | --- |
-| Co-change eval harness | code-graph-lead | Required before publishing F1 |
-| Community quality eval vs co-change | code-graph-lead | Leiden/Louvain in-process |
-| Watcher deployment model | platform-ops | Sidecar vs poll; session freshness shipped |
+| Watcher deployment model | platform-ops | Poll sidecar shipped (`graph watch`); v1 still markets explicit ingest + pending-sync |
+| Full DI / framework import matrix | code-graph-lead | Package-manager aliases shipped (F3); DI graph still deferred |
+
+## Honesty eval (Phase A — durable)
+
+- [x] Co-change eval harness for explore & change-risk (`tests/.../ckg_eval/`, ADR 19 non-circular labels). Explore packs include `file_path` on symbols/sections.
+- [x] Community quality vs co-change scored report (`community-vs-cochange-latest.json`).
+- Do **not** publish F1 / community-quality marketing without these harness reports.
 
 ## Related Documents
 

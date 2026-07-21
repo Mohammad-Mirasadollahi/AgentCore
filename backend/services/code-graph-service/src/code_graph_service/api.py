@@ -75,7 +75,8 @@ class HybridSearchRequest(BaseModel):
 class PendingSyncRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    file_path: str
+    file_path: str | None = None
+    file_paths: list[str] | None = None
 
 
 class GenerationContextRequest(BaseModel):
@@ -331,7 +332,16 @@ def app(service: CodeGraphService | None = None) -> FastAPI:
         x_project_group_id: str | None = Header(default=None),
     ) -> dict[str, Any]:
         _ = scope_from(project_id, x_tenant_id, x_workspace_id, x_project_group_id)
-        return service.mark_file_pending(body.file_path)
+        paths = list(body.file_paths or [])
+        if body.file_path:
+            paths.append(body.file_path)
+        if len(paths) > 1:
+            return service.mark_files_pending(paths)
+        if len(paths) == 1:
+            return service.mark_file_pending(paths[0])
+        from .domain.errors import ValidationError
+
+        raise ValidationError("file_path or file_paths is required")
 
     @api.get("/api/v1/projects/{project_id}/graph/freshness")
     async def freshness(

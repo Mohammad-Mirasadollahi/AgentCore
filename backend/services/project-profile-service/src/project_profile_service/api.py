@@ -112,6 +112,62 @@ def app(service: ProjectProfileService | None = None) -> FastAPI:
         effective = service.get_effective_usage_profile(Scope(x_tenant_id, x_workspace_id, project_id))
         return {"effective": effective}
 
+    @api.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok", "service": "project-profile-service"}
+
+    @api.post("/api/v1/projects/{project_id}/connect/bootstrap")
+    async def connect_bootstrap(
+        project_id: str,
+        body: dict[str, Any],
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+        x_correlation_id: str | None = Header(default=None),
+        idempotency_key: str = Header(alias="Idempotency-Key", default=""),
+    ) -> dict[str, Any]:
+        scope = Scope(x_tenant_id, x_workspace_id, project_id)
+        return service.connect_bootstrap(
+            scope,
+            x_actor_id,
+            x_correlation_id or str(uuid4()),
+            idempotency_key or str(uuid4()),
+            body,
+        )
+
+    @api.post("/api/v1/projects/{project_id}/connect/sources")
+    async def connect_sources(
+        project_id: str,
+        body: dict[str, Any],
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        scope = Scope(x_tenant_id, x_workspace_id, project_id)
+        project = service.register_code_source(scope, x_actor_id, body)
+        return {"project": project}
+
+    @api.post("/api/v1/projects/{project_id}/connect/ingest")
+    async def connect_ingest(
+        project_id: str,
+        body: dict[str, Any] | None = None,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        scope = Scope(x_tenant_id, x_workspace_id, project_id)
+        return service.request_ingest(scope, x_actor_id, body or {})
+
+    @api.get("/api/v1/projects/{project_id}/connect/status")
+    async def connect_status(
+        project_id: str,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        return service.connect_status(Scope(x_tenant_id, x_workspace_id, project_id))
+
     @api.get("/api/v1/projects/{project_id}/usage-profile/cursor-mcp")
     async def export_cursor_mcp(
         project_id: str,

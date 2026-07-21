@@ -8,7 +8,7 @@ owner: platform-product
 summary: >-
   Normative always-on rule and on-demand skills that instruct Cursor and other
   coding agents to route AgentCore-capable work through MCP tools instead of
-  inventing local-only substitutes.
+  inventing local-only substitutes, including same-change dead-code cleanup.
 tags:
   - agent-workspace-guidance
   - mcp
@@ -23,6 +23,7 @@ related_docs:
   - ac.doc.awg.feature-specification
   - ac.doc.awg.data-contracts
   - ac.doc.sea.usage-profile-cursor-mcp
+  - ac.doc.ckg.dead-code-cleanup-loop
 doc_version: "1.0.0"
 audience:
   - engineer
@@ -107,10 +108,10 @@ When this workspace is connected to AgentCore over MCP:
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
 4. Do not skip code-graph search when locating symbols AgentCore can index.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
-6. If a needed capability is missing from `tools/list`, call `agentcore_get_effective_profile` (if available), report the gap, and ask before bypassing with unmanaged workflows.
-7. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
+6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
+7. If a needed capability is missing from `tools/list`, call `agentcore_get_effective_profile` (if available), report the gap, and ask before bypassing with unmanaged workflows.
+8. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 ```
-
 ## Agents Entry Pointers
 
 The project `agents_entry` body **must** list high-signal MCP skills (at minimum the seed catalog below) so agents discover them after resolve/export.
@@ -133,11 +134,11 @@ The project `agents_entry` body **must** list high-signal MCP skills (at minimum
 | `agentcore-session-bootstrap` | Starting a coding session on an AgentCore-connected project |
 | `agentcore-memory` | Need prior decisions, facts, or task context from AgentCore |
 | `agentcore-code-graph` | Finding symbols, call paths, or ownership via the code graph |
+| `agentcore-remove-dead-code` | After replace/retire: prove and delete orphaned symbols, imports, tests |
 | `agentcore-durable-write` | Persisting memory, task, activity, or decision records |
 | `agentcore-docs-sync` | Docs drift, coverage, validate, note, draft, or index |
 | `agentcore-create-task` | Creating a durable follow-up Task in AgentCore |
 ```
-
 ## Skill Catalog
 
 Each skill is a Common Context `skill` item. Bodies below are normative seed text (English). Tool names are stable MCP names; if a profile omits a tool, the skill must fail closed or report the gap per the always-on rule.
@@ -149,6 +150,7 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | `agentcore-session-bootstrap` | Connect / guidance / profile | `agentcore_ping`, `agentcore_get_effective_profile`, `agentcore_guidance_resolve`, `agentcore_guidance_list_skills`, `agentcore_guidance_get_skill` | Session start; before first substantive edit |
 | `agentcore-memory` | Memory retrieve / recall | `agentcore_memory_retrieve`; optional write via `agentcore_write` (`resource=memory`) | Need prior facts, decisions, or task context |
 | `agentcore-code-graph` | Code knowledge graph | `agentcore_code_graph_explore` (primary), hybrid search, detect_changes, architecture/path | Locate symbols, flows, review impact, and architecture before wide filesystem search |
+| `agentcore-remove-dead-code` | Unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (when listed); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
 | `agentcore-docs-sync` | Docs-as-code sync | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, validate, note, draft, index |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
@@ -232,11 +234,45 @@ description: Search AgentCore code knowledge graph before wide local search.
 3. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
 4. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
 5. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, or empty graph; report degraded mode when tools fail.
+6. After replacing or retiring symbols, open `agentcore-remove-dead-code` for orphan cleanup in the same change.
 
 ## Do not
 
 - Prefer exhaustive workspace crawl when graph explore/search is available and healthy.
 - Re-verify explore results with wide Grep when the pack already returned verbatim source.
+```
+
+### Skill body: `agentcore-remove-dead-code`
+
+```markdown
+---
+name: agentcore-remove-dead-code
+description: Prove and delete orphaned symbols, imports, and exclusive tests after a replace or retire.
+---
+
+# AgentCore remove dead code
+
+## When
+
+- You implemented, replaced, or retired behavior and old symbols, imports, re-exports, or exclusive tests may remain.
+- User asks to clean unused code in the scope you already touched.
+- Unused-candidate MCP or graph explore shows safe-to-delete items in the task neighborhood.
+
+## How
+
+1. Prefer `agentcore_code_graph_unused_candidates` when listed (`scope_mode=changed_symbols` or task neighborhood). If missing, use explore + repository search (`rg`) for bare names and import paths.
+2. Treat each candidate as **live until proven** otherwise: check dynamic loaders, string registries, public HTTP/IAM/SDK exports, tests-only refs, entrypoints, and `tsoc-defer` stopgaps.
+3. Delete only what you can prove unused. Remove the symbol **and** its exclusive tests, fixtures, barrels, and docs that only described it.
+4. Do not widen into unrelated refactors or repo-wide deletion hunts.
+5. Verify with the smallest check that would fail if the delete were wrong.
+6. Optionally `agentcore_write` Activity/WorkLog fields for paths removed so cleanup KPIs can attribute the task.
+7. List skipped uncertain symbols with blockers in the chat summary.
+
+## Do not
+
+- Ask AgentCore to delete files; AgentCore only surfaces candidates and guidance.
+- Delete public APIs, plugin hooks, or deferred stopgaps without an explicit root-cause fix.
+- Count blind deletes (no proof, no verify) as successful cleanup.
 ```
 
 ### Skill body: `agentcore-durable-write`
@@ -333,9 +369,9 @@ Suggested seed pack id: `awg-seed-mcp-first-programming`.
 MCP connect
   → agentcore-session-bootstrap skill (ping, profile, guidance_resolve)
   → apply always_rule mcp-first-agentcore
-  → pick capability skill (memory | code-graph | docs-sync | durable-write | create-task)
+  → pick capability skill (memory | code-graph | remove-dead-code | docs-sync | durable-write | create-task)
   → call matching MCP tool(s)
-  → then local code edits as needed
+  → then local code edits as needed (including proven dead-code deletes)
 ```
 
 ## Interaction With Usage Profiles
@@ -343,18 +379,21 @@ MCP connect
 - `programming-cursor-mcp` (and successors) **should** advertise the tools referenced above as they are implemented.
 - When guidance MCP tools are not yet implemented, seed skills still document the intended names; session bootstrap degrades to ping + effective profile until guidance tools ship.
 - Adding a new AgentCore MCP capability requires: tool catalog entry, skill (or always-on update), agents_entry row, and contract tests.
+- `agentcore_code_graph_unused_candidates` is normative in [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md); advertise only when implemented. Until then the remove-dead-code skill fails closed to explore + local proof.
 
 ## Acceptance Criteria
 
-- Seed pack defines `mcp-first-agentcore` plus the six skills in the matrix.
+- Seed pack defines `mcp-first-agentcore` (including same-change dead-code cleanup) plus the seven skills in the matrix.
 - Exported Cursor layout yields always-apply rule + skill folders an agent can load.
 - Feature/product docs state that coding agents must route in-scope work through MCP per this document.
 - New MCP tools cannot ship in a programming profile without an owning skill or an explicit always-on clause update.
+- Dead-code cleanup skill instructs agents to prove before delete and never asks AgentCore to mutate the repository.
 
 ## Open Gaps
 
 | Gap | Notes |
 | --- | --- |
 | Guidance MCP tools not yet in `programming-cursor-mcp.json` | Specified in phase 15 contracts; add at implementation |
+| `agentcore_code_graph_unused_candidates` not yet implemented | Contract in phase 7 doc `36`; skill degrades to explore + `rg` |
 | Hard enforcement of “resolve before write” | Soft via this rule/skill; optional gateway gate later |
 | Non-Cursor agents | Same skill/rule bodies; layout profile maps paths |

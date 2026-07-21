@@ -30,6 +30,13 @@ class FreshnessState:
     def mark_pending(self, file_path: str, *, now: float | None = None) -> None:
         self.pending[file_path.replace("\\", "/")] = float(now if now is not None else time())
 
+    def mark_pending_many(self, file_paths: list[str], *, now: float | None = None) -> None:
+        stamp = float(now if now is not None else time())
+        for path in file_paths:
+            cleaned = (path or "").strip().replace("\\", "/")
+            if cleaned:
+                self.pending[cleaned] = stamp
+
     def clear_pending(self, file_path: str | None = None) -> None:
         if file_path is None:
             self.pending.clear()

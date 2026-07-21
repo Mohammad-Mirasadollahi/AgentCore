@@ -71,6 +71,7 @@ Classification exists so:
 | Filter-first retrieval | Context packs apply lane filters before semantic search |
 | Modular placement | Lane differences that would confuse readers become **separate files**, not mixed H2 dumps |
 | Honest speculation | Future and problem lanes are explicit; never silently presented as current |
+| Honest voice | Unimplemented design may live in git; prose must not read as shipped product readiness |
 | Fallback | Missing lane fields degrade to Body-tier heuristics; body stays readable |
 
 ## Non-Goals
@@ -104,7 +105,7 @@ Answers: *Is this initial intent, current truth, or future intent?*
 | Value | Meaning | Retrieval default |
 | --- | --- | --- |
 | `initial` | Early / foundational design that established direction; may be partially historical | Include when asking “why was it designed this way?”; demote for “how does it work now?” |
-| `current` | Normative description of **as-designed / as-built** behavior that authors treat as true now | **Default include** for implementation and ops questions |
+| `current` | Normative description of behavior authors treat as **true for implementation/ops now** (prefer as-built; as-designed only when binding and not aspirational) | **Default include** for implementation and ops questions |
 | `future` | Planned, proposed, or roadmap design **not yet** binding for implementation | **Exclude by default** from implementation context packs unless the query is about roadmap/future |
 | `transition` | Migration, dual-run, or deprecation bridge between current and future | Include for upgrade/migration queries; pair with `current` |
 | `historical` | Superseded record kept for audit; not for new work | Exclude by default; include only for archaeology / incident history |
@@ -115,6 +116,10 @@ Answers: *Is this initial intent, current truth, or future intent?*
 - Do not bury a large `## Future ideas` inside a `current` doc. Move to a `future` sibling.
 - When future work ships, either: (a) move content into the `current` doc and set the old file to `historical` + `superseded_by`, or (b) flip `lifecycle_lane` to `current` only if the whole file became truth.
 - `initial` is for founding specs that remain useful as intent; if they still govern implementation, prefer `current` and mention origin in Purpose.
+- **Publishing unimplemented design is fine.** Putting HLD/LLD/proposals on the repository before code exists is normal. The failure mode is presenting that design as **shipped / product-ready** (see `06-professional-documentation-standard.md` Designed Vs Shipped Honesty).
+- Body voice **must** match the lane: `future` (and unfinished slices of `transition`) use design intent language; only `current` as-built behavior uses unqualified present-tense product claims.
+- Every `future` design file **must** state Implementation status near the top (not started / partial / blocked) so humans and agents cannot treat it as live product truth.
+- Never claim “ready”, “production”, or “customers can …” for capabilities that lack verified code paths or release gates.
 
 ### Examples
 
@@ -125,6 +130,8 @@ Answers: *Is this initial intent, current truth, or future intent?*
 | Proposed GraphRAG ranking v2 not approved | `future` |
 | Dual-write memory migration plan | `transition` |
 | Old broker payload format after cutover | `historical` |
+| Full LLD for a feature with no code yet (honest design) | `future` |
+| Same LLD written as if operators already run it in prod | **invalid** — fix voice + lane |
 
 ---
 
@@ -330,6 +337,7 @@ Additional rules:
 
 - Prefer **lane filter → hybrid search → rerank** over unconstrained semantic search across all Markdown.
 - Never treat `future` + `speculative` chunks as evidence of shipped behavior in judge/eval prompts.
+- Never treat present-tense design prose as shipped evidence when `lifecycle_lane` is `future` or Implementation status says not implemented.
 - GraphRAG edges should label lifecycle on Document nodes so traversals can avoid jumping from current code symbols into future-only docs without an explicit edge type such as `planned_for`.
 - Fallback when lanes are missing: infer `lifecycle_lane: current` only if `status: active` and path is not under gap-analysis; otherwise leave unset and demote confidence.
 
@@ -350,6 +358,8 @@ Additional rules:
 
 - [ ] `lifecycle_lane`, `concern_lane`, `audience_lane`, `authority`, `visibility` set and consistent with body.
 - [ ] Future material not mixed into a `current` normative file.
+- [ ] Unimplemented design is allowed in-repo, but body voice does not read as shipped / product-ready.
+- [ ] `future` (and partial) docs include Implementation status near the top.
 - [ ] Problems/gaps use `problem` / `gap` (or live under gap-analysis) rather than only a footnote in a happy-path design.
 - [ ] Cross-team docs avoid internal-only algorithms and secrets.
 - [ ] `authority` matches how strongly the prose uses must/should.
@@ -367,6 +377,7 @@ This classification standard is satisfied when:
 - Problem and gap knowledge has an explicit concern lane and modular home.
 - Other-team / partner docs are marked `cross_team` / `cross-team` and stay interface-focused.
 - RAG/context packs can exclude speculative future content from implementation answers by default.
+- Design-ahead-of-code docs remain honest in prose (no false product-ready voice), not only in metadata.
 - Missing lane metadata does not make the Markdown unreadable; ingest falls back per `08-…`.
 
 ## Related Documents

@@ -79,12 +79,37 @@ def resolve_import_target(
     indexes: SymbolIndexes,
     *,
     source_language: str,
+    package_aliases: dict[str, str] | None = None,
 ) -> tuple[str | None, CallConfidence, dict[str, object]]:
     """Resolve an import path/name to a project symbol or file across languages."""
+    from .package_manifests import rewrite_import
+
     raw = (import_text or "").strip().strip("\"'")
     if not raw:
         return None, CallConfidence.UNRESOLVED, {}
 
+    candidates_raw = [raw]
+    rewritten = rewrite_import(raw, package_aliases or {})
+    if rewritten != raw:
+        candidates_raw.append(rewritten)
+
+    for attempt in candidates_raw:
+        hit = _resolve_one_import(attempt, indexes, source_language=source_language)
+        if hit[0] is not None or hit[1] == CallConfidence.AMBIGUOUS:
+            meta = dict(hit[2])
+            if rewritten != raw and attempt == rewritten:
+                meta["resolved_via"] = meta.get("resolved_via") or "package_manifest"
+                meta["import_rewritten_from"] = raw
+            return hit[0], hit[1], meta
+    return None, CallConfidence.UNRESOLVED, {}
+
+
+def _resolve_one_import(
+    raw: str,
+    indexes: SymbolIndexes,
+    *,
+    source_language: str,
+) -> tuple[str | None, CallConfidence, dict[str, object]]:
     if raw in indexes.by_qualified:
         target_id = indexes.by_qualified[raw]
         return target_id, CallConfidence.EXACT, _cross_meta(source_language, indexes, target_id)
@@ -111,6 +136,7 @@ def resolve_import_target(
     file_matches: list[str] = []
     for candidate in stem_candidates:
         file_matches.extend(indexes.by_file_stem.get(candidate, []))
+        file_matches.extend(indexes.by_file_stem.get(normalize_symbol_key(candidate), []))
     file_matches = list(dict.fromkeys(file_matches))
     if len(file_matches) == 1:
         return (

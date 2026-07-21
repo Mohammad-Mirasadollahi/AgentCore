@@ -108,6 +108,18 @@ PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages:backend/ser
 
 `agentcore cursor export` forwards `AGENTCORE_DATABASE_URL` / `AGENTCORE_MCP_STORE_MODE` into the generated MCP env when present.
 
+## Run (HTTP — Phase B, concurrent agents)
+
+```bash
+export AGENTCORE_MCP_TOKEN_SECRET='long-random-secret'
+export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://127.0.0.1:32500'
+export AGENTCORE_MCP_STORE_MODE=memory   # or postgres when Compose is up
+agentcore mcp serve-http --host 0.0.0.0 --port 32500
+# POST /mcp with Authorization: Bearer <scoped-or-shared-token>
+```
+
+Or: `python -m mcp_gateway_service --http --port 32500`
+
 ## Tests
 
 ```bash
@@ -115,4 +127,5 @@ PYTHONPATH=backend/services/mcp-gateway-service/src:backend/packages \
   .venv/bin/python -m pytest tests/backend/services/mcp-gateway-service -q
 ```
 
-Design: `docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md`
+Design: `docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md`  
+One-command connect: `docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md`

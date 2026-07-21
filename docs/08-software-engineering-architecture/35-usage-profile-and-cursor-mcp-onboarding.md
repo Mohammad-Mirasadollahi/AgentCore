@@ -93,6 +93,29 @@ Each MCP tool entry:
 4. Restart MCP / reload window.
 5. Verify tools appear and a smoke `tools/call` succeeds.
 
+### ≤30 minute checklist (`programming-cursor-mcp`, backlog 34 C2)
+
+Stable env (export or Cursor `mcpServers.env`):
+
+| Variable | Purpose |
+| --- | --- |
+| `AGENTCORE_ROOT` | Repo root |
+| `AGENTCORE_USAGE_PROFILE` | `programming-cursor-mcp` |
+| `AGENTCORE_TENANT_ID` / `AGENTCORE_WORKSPACE_ID` / `AGENTCORE_PROJECT_ID` | Scope |
+| `PYTHONPATH` | Absolute paths as written by `agentcore cursor export` |
+
+Timed path (new machine):
+
+| Minute | Step |
+| --- | --- |
+| 0–10 | `bash scripts/ensure-venv.sh` · `agentcore doctor` · `agentcore path install` |
+| 10–15 | `agentcore project register/activate` with `programming-cursor-mcp` |
+| 15–20 | `agentcore cursor export --out …` · merge into Cursor MCP · reload |
+| 20–25 | Ingest sample (`agentcore graph smoke` or probe) |
+| 25–30 | Call **PRIMARY** tool `agentcore_code_graph_explore` (prefer before wide Read/Grep); confirm pack sections |
+
+**Exit:** explore returns sections for a known query (e.g. login) within 30 minutes of a clean checkout.
+
 Example generated fragment (shape):
 
 ```json

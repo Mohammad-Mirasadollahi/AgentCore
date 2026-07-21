@@ -80,12 +80,12 @@
       "category": "Security",
       "severity": "Critical",
       "owner": "Security Architect",
-      "status": "UNDER_REVIEW",
+      "status": "CLOSED",
       "linked_phase_gates": [3, 4, 9],
       "proposed_resolution_artifact": "docs/09-platform-governance-operations/tenant-isolation-threat-model.md",
       "documentation_ref": "docs/10-gap-analysis/04-governance-operations-gaps.md",
       "decision_needed": "Define isolation enforcement strategy per storage and service boundary.",
-      "resolution_path": "Create tenant isolation threat model and test plan."
+      "resolution_path": "Threat model + code-graph/MCP isolation tests; single-tenant v1 mode."
     },
     {
       "gap_id": "GAP-006",

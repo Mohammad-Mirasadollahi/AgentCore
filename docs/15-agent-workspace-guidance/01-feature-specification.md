@@ -83,7 +83,7 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 - Make selection explainable: why each rule or skill was included, suppressed, or deferred.
 - Preserve tenant / workspace / project isolation and precedence (task override > project > org).
 - Ship a platform seed pack of always-on rules and skills that instruct coding agents to route AgentCore-capable work through MCP (see [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
-
+- Include dead-code cleanup in that seed pack: always-on same-change orphan removal plus on-demand `agentcore-remove-dead-code`, aligned with the graph cleanup loop ([`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md)).
 ## Non-Goals
 
 - Not a replacement for the platform rule engine; policy *execution* stays in rule-engine-service.
@@ -237,8 +237,8 @@ Ship docs and contracts first. Implementation adds kinds to Common Context, then
 - A Cursor (or equivalent) agent connected via MCP can resolve that guidance and follow it before coding.
 - An operator can optionally export the same guidance to IDE-native paths and see conflicts instead of silent clobber.
 - Developers can explain, from audit UI, which guidance applied to a session.
-- Seeded MCP-first rule/skills instruct the agent to call AgentCore MCP tools for memory, graph, docs-sync, durable writes, tasks, and guidance bootstrap (normative catalog in [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
-
+- Seeded MCP-first rule/skills instruct the agent to call AgentCore MCP tools for memory, graph, docs-sync, durable writes, tasks, guidance bootstrap, and dead-code cleanup (normative catalog in [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
+- Connected coding agents are instructed to remove proven-dead predecessors in the same change after replace/retire; AgentCore does not delete repository files.
 ## Open Gaps
 
 Tracked in [`05-risks-challenges-and-acceptance.md`](05-risks-challenges-and-acceptance.md). Design closes the documentation side of GAP-A06 for connect-time context injection shape; IDE plugin UX details remain follow-on.

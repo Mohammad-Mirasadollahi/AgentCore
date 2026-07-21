@@ -204,6 +204,7 @@ def build_explore_pack(
                     "name": sym.name,
                     "qualified_name": sym.qualified_name,
                     "kind": sym.kind,
+                    "file_path": sym.file_path,
                     "signature": sym.signature,
                     "body": body,
                     "render": render,

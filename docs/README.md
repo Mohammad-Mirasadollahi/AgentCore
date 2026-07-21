@@ -8,9 +8,9 @@ This documentation is written for experienced software engineers, software archi
 
 ## Implementation status
 
-Executable vertical slices and **feature/service gates** live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. Suites are grouped by owning service or feature (for example `tests/backend/services/memory-service/`, `tests/backend/gates/port-profile-verification/`), not by roadmap phase number. The repository root [README.md](../README.md) lists the roadmap map and named pytest commands. Product design docs in this tree remain the normative specification; gates prove slice completeness, not full production depth (for example Neo4j runtime remains a design target for the code graph).
+Executable vertical slices and **feature/service gates** live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. Suites are grouped by owning service or feature (for example `tests/backend/services/memory-service/`, `tests/backend/gates/port-profile-verification/`), not by roadmap phase number. Named pytest commands and suite layout live in [tests/README.md](../tests/README.md). The repository root [README.md](../README.md) is a minimal entry (install + doc map). Product design docs in this tree are the normative specification; many describe target architecture ahead of code. That is allowed. Docs must not imply product readiness beyond what gates and tests prove (for example Neo4j runtime remains a design target for the code graph). See `00-master-plan/06-professional-documentation-standard.md` (Designed Vs Shipped Honesty) and `00-master-plan/09-documentation-classification-and-lanes.md`.
 
-**Usage Profiles** (org/person configuration + Cursor MCP): see [08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md).
+**Usage Profiles** (org/person configuration + Cursor MCP): see [08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md). **One-command remote connect (SSH + HTTP, operator examples):** [41-one-command-cross-platform-agent-onboarding.md](08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md).
 
 ## Documentation Map
 
@@ -36,7 +36,7 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 ## Reading Order
 
 1. Start with 00-master-plan/00-index.md.
-2. Read 00-master-plan/01-product-scope-and-feature-catalog.md for the wedge promise (connect to code, improve AI outputs) and control-plane expansion.
+2. Read 00-master-plan/01-product-scope-and-feature-catalog.md for the wedge promise (connect to code, improve AI outputs including measured dead-code cleanup) and control-plane expansion.
 3. Read 00-master-plan/05-complete-system-blueprint.md for the full product narrative.
 4. Read 00-master-plan/06-professional-documentation-standard.md, 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md, and 00-master-plan/09-documentation-classification-and-lanes.md before writing or reviewing new documents.
 5. Read each phase folder in numeric order.
@@ -59,6 +59,7 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 22. Read 08-software-engineering-architecture/23-project-isolation-and-composition-architecture.md before designing multi-project, project-group, memory scope, graph scope, report scope, or connector scope behavior.
 23. Read 08-software-engineering-architecture/24-admin-web-interface-and-agent-control-surface.md before designing the web interface, agent control surface, memory management, task management, rule management, feedback, or tracking workflows.
 24. Read 08-software-engineering-architecture/25-live-and-unit-test-strategy.md before designing Unit Tests, Live Tests, release validation, real-data safety, or test evidence workflows.
+24a. Read 08-software-engineering-architecture/37-test-authoring-standard.md before writing tests with implementation (concurrent code-and-tests law, taxonomy, mocks/fakes, placement). Read 38-fuzzing-and-property-based-testing.md for fuzz and property-based suites.
 25. Read 08-software-engineering-architecture/26-domain-customization-and-feature-control.md before designing domain packs, feature profiles, user-defined rules, feature hiding, or conversation-based rule suggestions.
 26. Read 08-software-engineering-architecture/13-local-development-and-environment-engineering.md before running local or remote development stacks.
 27. Read 08-software-engineering-architecture/18-developer-onboarding-and-delivery-workflow.md when onboarding or preparing a delivery checklist.

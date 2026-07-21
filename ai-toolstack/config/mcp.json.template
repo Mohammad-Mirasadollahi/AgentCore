@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mcp-lazy": {
+      "command": "@MCP_LAZY_SERVE@",
+      "args": []
+    }
+  }
+}

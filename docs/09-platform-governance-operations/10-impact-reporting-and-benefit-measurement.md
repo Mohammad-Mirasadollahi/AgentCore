@@ -2,7 +2,7 @@
 
 ## Purpose
 
-AgentCore must prove its value with measurable, auditable, scope-aware reporting. The platform should help teams compare engineering outcomes with AgentCore enabled versus disabled, or with specific AgentCore capabilities enabled versus disabled. Reports must show whether the platform improves initial code generation speed, bug reduction, architecture quality, rework reduction, and token consumption.
+AgentCore must prove its value with measurable, auditable, scope-aware reporting. The platform should help teams compare engineering outcomes with AgentCore enabled versus disabled, or with specific AgentCore capabilities enabled versus disabled. Reports must show whether the platform improves initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup after AI coding changes.
 
 This document defines the measurement framework, KPI definitions, event instrumentation, baseline strategy, comparison methodology, dashboard requirements, evidence model, interpretation rules, and acceptance criteria.
 
@@ -10,7 +10,7 @@ This document defines the measurement framework, KPI definitions, event instrume
 
 The raw user requirement can be formalized as follows:
 
-AgentCore must include an impact reporting system that measures the practical difference between using and not using the platform. The system should not only show activity counts. It should measure outcome quality and engineering efficiency across defined scopes. The required metrics are initial code generation speed, bug reduction, architecture quality, rework reduction, and token consumption. Each metric must have a clear definition, data source, baseline, time range, project scope, confidence caveat, and evidence drilldown.
+AgentCore must include an impact reporting system that measures the practical difference between using and not using the platform. The system should not only show activity counts. It should measure outcome quality and engineering efficiency across defined scopes. The required metrics are initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup. Each metric must have a clear definition, data source, baseline, time range, project scope, confidence caveat, and evidence drilldown.
 
 The reporting system should be useful for engineering leaders, product owners, platform operators, and architects who need to decide whether AgentCore is improving real delivery outcomes or only adding process overhead.
 
@@ -54,6 +54,7 @@ The reporting system should answer:
 - Did repeated questions decrease after FAQ memory and documentation generation.
 - Did agent work become easier to audit.
 - Did project context retrieval become more accurate.
+- Did dead-code cleanup increase after coding tasks (orphans removed, not only code added).
 - Did automation overhead exceed measured benefit.
 
 ## Metric Families
@@ -62,10 +63,10 @@ The reporting system should answer:
 | --- | --- | --- |
 | Initial Code Generation Speed | How fast does a task reach first useful implementation | duration, percentile, baseline delta, evidence |
 | Bug Reduction | Are fewer defects introduced or escaping | defect counts, severity, phase found, baseline delta |
-| Architecture Quality | Is the system becoming structurally healthier | boundary violations, coupling, contract drift, decisions |
+| Architecture Quality | Is the system becoming structurally healthier | boundary violations, coupling, contract drift, decisions, orphaned symbols |
 | Rework Reduction | Is repeated work decreasing | reopen rate, duplicate work, repeated fixes, repeated questions |
 | Token Consumption | Is context and model usage more efficient | tokens, cost, cache hit, useful context ratio, quality guardrail |
-
+| Dead-Code Cleanup | Are AI coding changes leaving less orphaned code | candidates resolved, orphans remaining, evidence |
 ## Scope Model
 
 Every report must declare scope.
@@ -225,6 +226,8 @@ Recommended KPIs:
 - service_ownership_coverage.
 - docs_to_symbol_coverage.
 - migration_risk_score.
+- orphaned_symbols_remaining (task-neighborhood unused candidates still present after coding tasks that enabled cleanup guidance).
+- dead_code_candidates_resolved (unused candidates removed after proof in the same agent task; see dead-code cleanup loop).
 
 ### Architecture Health Dimensions
 
@@ -238,10 +241,12 @@ Dimensions:
 - ownership clarity.
 - migration safety.
 - project isolation compliance.
+- orphan debt (proven-unused symbols left after AI replace/retire).
 
 ### Data Sources
 
 - code graph snapshots.
+- unused-candidate query results (`agentcore_code_graph_unused_candidates` when implemented).
 - dependency boundary checks.
 - docs graph.
 - contract registry.
@@ -249,6 +254,7 @@ Dimensions:
 - gap analysis.
 - CI architecture checks.
 - review outcomes.
+- Activity / WorkLog cleanup fields (paths removed, candidate ids).
 
 ### Interpretation Rules
 
@@ -256,6 +262,7 @@ Dimensions:
 - Composite scores must show component metrics.
 - Boundary violations should be normalized by repository size and change volume.
 - A temporary increase in gaps can be positive if it means hidden risks became visible.
+- Dead-code cleanup counts only when proof + verification occurred; blind deletes do not improve architecture quality scores.
 
 ## KPI 4: Rework Reduction
 
@@ -275,6 +282,7 @@ Recommended KPIs:
 - repeated_connector_failure_count.
 - correction_rate_for_agent_outputs.
 - time_spent_on_clarification.
+- orphaned_predecessor_left_behind_rate (replace/retire tasks that leave unused candidates in the changed neighborhood).
 
 ### Data Sources
 
@@ -287,11 +295,13 @@ Recommended KPIs:
 - rule feedback.
 - connector validation history.
 - human correction records.
+- dead-code cleanup Activity fields (candidates surfaced vs resolved).
 
 ### Interpretation Rules
 
 - Rework should decrease after memory consolidation, QuestionMemory, FAQ memory, docs sync, and stronger contracts become active.
 - Reopened tasks should be separated into legitimate scope changes versus quality failures.
+- Leaving orphaned predecessors after AI replace/retire counts as rework debt even when the new behavior works.
 - Repeated questions should be segmented by unanswered, answered, stale, and FAQ-promoted status.
 
 ## KPI 5: Token Consumption
@@ -345,6 +355,47 @@ Pair token metrics with:
 - Lower tokens are not automatically better.
 - Token savings should be compared against task success and defect outcomes.
 - Reports should separate deterministic context reduction from model quality degradation.
+
+## KPI 6: Dead-Code Cleanup
+
+### Definition
+
+Dead-code cleanup measures whether AgentCore-guided coding sessions remove orphaned predecessors when agents replace or retire behavior — not only whether they add new code. AgentCore surfaces candidates and records evidence; external agents perform deletes. Normative loop: [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md).
+
+Recommended KPIs:
+
+- dead_code_candidates_surfaced.
+- dead_code_candidates_resolved (removed after proof in the same task).
+- dead_code_candidates_skipped_uncertain.
+- orphaned_symbols_remaining (delta in task neighborhood after coding tasks with cleanup guidance).
+- unused_loc_removed_net (optional; unused LOC removed vs LOC added in the same task).
+- cleanup_verify_pass_rate (smallest verification passed after delete).
+
+### Instrumentation
+
+- Graph unused-candidate query before/after task scope (when MCP tool is implemented).
+- Activity / WorkLog fields: paths removed, candidate ids, blockers skipped.
+- Test or acceptance outcome linked to the same task id.
+- Freshness / pending-sync flags on the candidate snapshot.
+
+### Data Sources
+
+- Code-Knowledge Graph snapshots.
+- `agentcore_code_graph_unused_candidates` results (or explore + agent-reported proof until the tool ships).
+- Activity and WorkLog cleanup payloads.
+- CI / smallest verification commands recorded on the task.
+- Guidance resolve evidence that cleanup skill/rule applied.
+
+### Interpretation Rules
+
+- Cleanup without regressions (tests/acceptance) counts as positive benefit.
+- Blind deletes without proof do **not** count toward `dead_code_candidates_resolved`.
+- Uncertain skips are healthy when blockers are dynamic/public; they are not failures.
+- Compare with and without cleanup guidance / unused-candidate capability using feature_flag_split or agent_workflow_comparison.
+
+### Evidence Drilldown
+
+- task_id, candidate symbol/path, confidence, blockers, deleted paths, verify command, freshness.
 
 ## Reporting Data Model
 

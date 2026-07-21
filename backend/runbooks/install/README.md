@@ -4,7 +4,21 @@ Path: `backend/runbooks/install`
 
 ## Purpose
 
-Installation and bootstrap runbooks.
+Installation and bootstrap runbooks for AgentCore operators and developers.
+
+## Canonical operator guide
+
+Use the modular root installer and its runbook:
+
+- Entrypoint: [`install.sh`](../../../install.sh) at the repository root
+- Modules: [`scripts/install/`](../../../scripts/install/)
+- Runbook: [`docs/08-software-engineering-architecture/39-local-install-runbook.md`](../../../docs/08-software-engineering-architecture/39-local-install-runbook.md)
+- Design target (broader zero-touch): [`docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md`](../../../docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md)
+
+```bash
+bash install.sh
+bash install.sh --check
+```
 
 ## Modular Boundary
 
@@ -26,4 +40,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Operator path is implemented at repository root (`install.sh` + `scripts/install/`). This folder remains the runbook index pointer for backend-layout discovery.
