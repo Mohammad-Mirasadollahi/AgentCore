@@ -10,6 +10,7 @@ Entrypoint: repository root [`../../install.sh`](../../install.sh) → [`load.sh
 | [`03_compose_env.sh`](03_compose_env.sh) | Seed repo templates; create `backend/deployments/compose/.env.local` with generated secrets |
 | [`04_docker_infra.sh`](04_docker_infra.sh) | `docker compose --profile core up` for Postgres + Neo4j, wait healthy |
 | [`05_verify.sh`](05_verify.sh) | `agentcore doctor` + infra re-check; optional ai-toolstack |
+| [`06_runtime_bringup.sh`](06_runtime_bringup.sh) | Prompted/flagged runtime: host MCP or Docker `mcp-gateway`; always re-ensure PATH |
 | [`load.sh`](load.sh) | Source order + stage orchestration |
 
 Add new install steps in the smallest matching module. Keep root `install.sh` as flags + exit codes only.

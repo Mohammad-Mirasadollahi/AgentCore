@@ -18,13 +18,11 @@ backend/packages/agentcore_cli/local_mcp.py
 backend/packages/agentcore_cli/main.py
 backend/packages/agentcore_cli/markdown_frontmatter.py
 backend/packages/agentcore_cli/mcp_client_targets.py
-backend/packages/agentcore_cli/parser.py
 backend/packages/agentcore_cli/remote_client.py
 backend/packages/agentcore_cli/remote_mcp_serve.py
 backend/packages/agentcore_cli/software_paths.py
 backend/packages/agentcore_cli/state.py
 backend/packages/agentcore_cli/sync_config.py
-backend/packages/agentcore_cli/sync_progress.py
 backend/packages/agentcore_cli/sync_usage_log.py
 backend/packages/agentcore_cli/ui.py
 backend/packages/agentcore_cli/util.py

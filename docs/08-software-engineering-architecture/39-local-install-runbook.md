@@ -21,6 +21,7 @@ related_docs:
   - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
   - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
   - docs/08-software-engineering-architecture/36-agentcore-cli.md
+  - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 doc_version: "1.0.0"
 audience:
   - engineer
@@ -53,32 +54,52 @@ From the repository root:
 bash install.sh
 ```
 
-Then open a new shell (so `~/.local/bin` is on `PATH`) and run:
+The installer **asks** whether to bring AgentCore up as:
+
+1. **host** — Compose Postgres/Neo4j + MCP HTTP from the host `.venv` (`agentcore service start`)
+2. **docker** — Compose Postgres/Neo4j + MCP HTTP in the `mcp-gateway` container (wheels from `/opt/agentcore-wheelhouse`)
+
+Both choices **always** install OS prerequisites (when interactive), create `.venv`, and put `agentcore` on `PATH` (`~/.local/bin` + shell rc).
+
+Non-interactive / CI:
+
+```bash
+bash install.sh --non-interactive --runtime host
+bash install.sh --non-interactive --runtime docker
+```
+
+Then open a new shell if needed (so `~/.local/bin` is on `PATH`) and run:
 
 ```bash
 agentcore doctor
 agentcore --help
 ```
 
+App Docker details: [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-and-wheelhouse-runbook.md).
+
 ## Install flow
 
 ```mermaid
 flowchart TD
-  start[bash install.sh] --> s01[01 prerequisites]
-  s01 --> s02[02 venv]
+  start[bash install.sh] --> ask[Choose runtime host or docker]
+  ask --> s01[01 prerequisites]
+  s01 --> s02[02 venv plus PATH]
   s02 --> s03[03 compose env]
   s03 --> s04[04 docker infra]
   s04 --> s05[05 verify]
-  s05 --> done[Ready: agentcore CLI + healthy Postgres/Neo4j]
+  s05 --> s06[06 runtime bring-up]
+  s06 --> done[Ready: agentcore on PATH plus selected runtime]
 ```
 
 | Step | Stage | What it checks | What it does if missing |
 | --- | --- | --- | --- |
-| 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker |
-| 2 | `02_venv` | `.venv/bin/python`, `.venv/bin/agentcore`, core imports | Runs `scripts/ensure-venv.sh`; seeds repo-root `.env` and `agentcore.sync.yaml` from `*.example` if missing |
-| 3 | `03_compose_env` | `backend/deployments/compose/.env.local` with real secrets | Re-seeds repo-root templates; copies `neo4j.example.env`, generates random passwords |
-| 4 | `04_docker_infra` | Postgres + Neo4j containers `healthy` | `docker compose --profile core up -d`, then `wait-healthy.sh` |
-| 5 | `05_verify` | `agentcore doctor` (+ infra unless skipped) | Fails with a clear stage hint; optional ai-toolstack |
+| 0 | runtime choice | `--runtime` / prompt / default `host` | Persists `runtime=` in `.agentcore/install-state.env` |
+| 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker (interactive installs always run this) |
+| 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore` |
+| 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates |
+| 4 | `04_docker_infra` | Postgres + Neo4j `healthy` | `docker compose --profile core up -d` + `wait-healthy.sh` |
+| 5 | `05_verify` | `agentcore doctor` + PATH + infra | Fail with stage hint; optional ai-toolstack |
+| 6 | `06_runtime_bringup` | Host MCP or `mcp-gateway` healthy | `agentcore service start` **or** wheelhouse + Compose `--profile app` |
 
 Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
@@ -86,10 +107,12 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
 | Flag | Meaning |
 | --- | --- |
+| `--runtime MODE` | `host` or `docker` (skips interactive prompt) |
+| `--non-interactive` | No prompts; default runtime `host` if `--runtime` omitted |
 | `--check` | Verify only; do not install packages or change Compose |
-| `--prerequisites-only` | Stop after OS deps |
-| `--skip-prerequisites` | Do not apt-install; fail if tools are missing |
-| `--skip-infra` | Skip Compose env + containers (venv/CLI only); also skips Docker daemon checks in stage 01 |
+| `--prerequisites-only` | Stop after OS deps (always installs/checks prerequisites) |
+| `--skip-prerequisites` | Do not apt-install (CI/non-interactive only; ignored for interactive full installs) |
+| `--skip-infra` | Skip Compose env + containers + runtime bring-up (venv/CLI/PATH only) |
 | `--with-frontend` | Also ensure Node.js 18+ for `frontend/` |
 | `--with-ai-toolstack` | After verify, run `ai-toolstack/scripts/install-agentcore.sh` |
 | `--stage NAME` | Run one stage (see `--list-stages`) |
@@ -99,8 +122,11 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 Examples:
 
 ```bash
-bash install.sh --check
-bash install.sh --skip-infra
+bash install.sh
+bash install.sh --runtime docker
+bash install.sh --non-interactive --runtime host
+bash install.sh --check --non-interactive --runtime host
+bash install.sh --skip-infra --non-interactive --runtime host
 bash install.sh --prerequisites-only
 bash install.sh --stage 02_venv
 bash install.sh --with-frontend --with-ai-toolstack
@@ -181,4 +207,5 @@ Do not use archived `archives/hackathon/install.sh` for the active product path.
 - [13-local-development-and-environment-engineering.md](./13-local-development-and-environment-engineering.md)
 - [36-agentcore-cli.md](./36-agentcore-cli.md)
 - [backend/deployments/compose/README.md](../../backend/deployments/compose/README.md)
+- [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-and-wheelhouse-runbook.md) — application container + `/opt` wheelhouse
 - [scripts/install/README.md](../../scripts/install/README.md)

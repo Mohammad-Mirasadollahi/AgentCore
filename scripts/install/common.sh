@@ -20,12 +20,15 @@ REPO_SYNC_FILE="${AGENTCORE_ROOT}/agentcore.sync.yaml"
 REPO_SYNC_EXAMPLE="${AGENTCORE_ROOT}/agentcore.sync.yaml.example"
 
 INSTALL_CHECK_ONLY="${INSTALL_CHECK_ONLY:-0}"
-INSTALL_NONINTERACTIVE="${INSTALL_NONINTERACTIVE:-1}"
+INSTALL_NONINTERACTIVE="${INSTALL_NONINTERACTIVE:-0}"
 INSTALL_SKIP_PREREQS="${INSTALL_SKIP_PREREQS:-0}"
 INSTALL_SKIP_INFRA="${INSTALL_SKIP_INFRA:-0}"
 INSTALL_WITH_FRONTEND="${INSTALL_WITH_FRONTEND:-0}"
 INSTALL_WITH_AI_TOOLSTACK="${INSTALL_WITH_AI_TOOLSTACK:-0}"
 INSTALL_COMPOSE_TIMEOUT="${INSTALL_COMPOSE_TIMEOUT:-300}"
+# Runtime bring-up: host (venv MCP) | docker (mcp-gateway container). Empty until resolved.
+INSTALL_RUNTIME="${INSTALL_RUNTIME:-}"
+AGENTCORE_WHEELHOUSE="${AGENTCORE_WHEELHOUSE:-/opt/agentcore-wheelhouse}"
 
 log() { printf '%s %s\n' "${INSTALL_LOG_PREFIX}" "$*"; }
 info() { log "INFO  $*"; }
@@ -193,4 +196,80 @@ install_cli_on_path() {
 user_cli_on_path() {
   local link="${HOME}/.local/bin/agentcore"
   [[ -e "${link}" || -L "${link}" ]]
+}
+
+# Normalize and validate INSTALL_RUNTIME (host|docker).
+normalize_install_runtime() {
+  local raw="${1:-}"
+  case "${raw}" in
+    host|docker) printf '%s\n' "${raw}" ;;
+    *) return 1 ;;
+  esac
+}
+
+prompt_install_runtime() {
+  local choice=""
+  banner "Choose how to bring AgentCore up"
+  cat <<'EOF'
+  1) host   — Compose Postgres/Neo4j + MCP HTTP from host .venv (agentcore service start)
+  2) docker — Compose Postgres/Neo4j + MCP HTTP in the mcp-gateway container (wheelhouse image)
+
+Both options install OS prerequisites, create .venv, and put `agentcore` on your PATH
+(~/.local/bin + shell rc).
+EOF
+  while true; do
+    printf 'Select runtime [1=host / 2=docker] (default: 1): ' >&2
+    read -r choice || true
+    choice="${choice:-1}"
+    case "${choice}" in
+      1|host|HOST) printf '%s\n' "host"; return 0 ;;
+      2|docker|DOCKER) printf '%s\n' "docker"; return 0 ;;
+      *) warn "Enter 1/host or 2/docker" ;;
+    esac
+  done
+}
+
+# Resolve INSTALL_RUNTIME from flag, TTY prompt, or default host.
+# Persists choice to install-state.env as runtime=<value>.
+resolve_install_runtime() {
+  local resolved=""
+  local persisted=""
+
+  if [[ -n "${INSTALL_RUNTIME}" ]]; then
+    resolved="$(normalize_install_runtime "${INSTALL_RUNTIME}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid --runtime '${INSTALL_RUNTIME}' (want: host|docker)"
+  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+    resolved="$(prompt_install_runtime)"
+  else
+    if [[ -f "${INSTALL_STATE_FILE}" ]]; then
+      persisted="$(grep -E '^runtime=' "${INSTALL_STATE_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+    fi
+    if resolved="$(normalize_install_runtime "${persisted}" 2>/dev/null)"; then
+      info "Using persisted runtime=${resolved}"
+    else
+      resolved="host"
+      info "Non-interactive install: default runtime=host (pass --runtime docker to override)"
+    fi
+  fi
+
+  if [[ "${resolved}" == "docker" && "${INSTALL_SKIP_INFRA}" == "1" ]]; then
+    fail "runtime=docker requires Compose infra (remove --skip-infra)"
+  fi
+
+  INSTALL_RUNTIME="${resolved}"
+  export INSTALL_RUNTIME
+  ensure_state_dir
+  mark_stage "runtime" "${INSTALL_RUNTIME}"
+  ok "Install runtime: ${INSTALL_RUNTIME}"
+}
+
+# Always ensure ~/.local/bin is exported for this process and present on disk.
+ensure_agentcore_on_path() {
+  local venv_cli
+  venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+  export PATH="${HOME}/.local/bin:${PATH}"
+  [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
+  install_cli_on_path "${venv_cli}"
+  user_cli_on_path || fail "agentcore still not on user PATH after install"
+  ok "PATH ready: ${HOME}/.local/bin/agentcore"
 }

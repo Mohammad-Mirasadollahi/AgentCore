@@ -100,6 +100,7 @@ These values are documentation defaults only. They must remain configurable and 
 Docker Compose must be profile-driven. Example profiles:
 
 - `core`: PostgreSQL with pgvector, Neo4j, and object storage required for normal backend integration.
+- `app`: MCP HTTP gateway application container (built from `/opt/agentcore-wheelhouse`; see [43-app-docker-and-wheelhouse-runbook.md](../08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md)).
 - `cache`: Redis for cache, coordination, rate limits, locks, and ephemeral job state.
 - `broker`: durable message broker when asynchronous workflow execution requires one beyond Redis coordination.
 - `observability`: OpenTelemetry collector, metrics, logs, dashboards.
