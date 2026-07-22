@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.master.professional-documentation-standard
+title: 06 - Professional Documentation Standard
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore documentation is not intended for a casual reader or a non-technical audience.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/06-professional-documentation-standard.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 06 - Professional Documentation Standard
 
 ## Purpose

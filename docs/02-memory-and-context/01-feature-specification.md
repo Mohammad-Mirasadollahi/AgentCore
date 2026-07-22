@@ -1,4 +1,48 @@
+---
+doc_id: ac.doc.memory.feature-specification
+title: Memory and Context - Feature Specification
+doc_type: feature_spec
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: The Memory and Context phase gives agents the right context at the right time while
+  keeping prompts current, low-noise, secure, and cost-efficient.
+tags:
+- feature-spec
+- memory
+phase: 02-memory-and-context
+canonical_path: docs/02-memory-and-context/01-feature-specification.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Memory and Context - Feature Specification
+
+
+## Purpose
+
+The Memory and Context phase gives agents the right context at the right time while keeping prompts current, low-noise, secure, and cost-efficient.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

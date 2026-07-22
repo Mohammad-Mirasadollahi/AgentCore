@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.ops.phase9-verification-and-acceptance
+title: Phase 9 - Verification and Acceptance
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Phase 9 completes operational governance. Its executable gate proves that security,
+  observability, release, retention, contract versioning, runbooks, automated deployment/connectivity
+  procedures, impact KPIs, risks, decisions, and glossary artifacts exist and that machine-readabl.
+tags:
+- standard
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/11-phase9-verification-and-acceptance.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/governance-catalog-verification/run_gate.py::main
+---
+
 # Phase 9 - Verification and Acceptance
 
 ## Purpose

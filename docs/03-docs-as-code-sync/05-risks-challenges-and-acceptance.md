@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.docs-sync.risks-challenges-and-acceptance
+title: Docs-as-Code and Synchronization - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- AST hashes must ignore formatting noise but catch behavior-changing edits. - Bloom
+  filters can have false positives; positive hits need graph verification. - Inline doc flags
+  are cheap but can become stale unless CI reconciles them. - Docs should remain readable
+  by humans while.'
+tags:
+- gap
+- docs-sync
+phase: 03-docs-as-code-sync
+canonical_path: docs/03-docs-as-code-sync/05-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Docs-as-Code and Synchronization - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- AST hashes must ignore formatting noise but catch behavior-changing edits. - Bloom filters can have false positives; positive hits need graph verification. - Inline doc flags are cheap but can become stale unless CI reconciles them. - Docs should remain readable by humans while.
 
 ## Challenges
 

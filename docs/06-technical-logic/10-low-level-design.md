@@ -1,8 +1,47 @@
+---
+doc_id: ac.doc.tech.low-level-design
+title: Technical Logic and Verification - Low-Level Design
+doc_type: lld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This low-level design defines how Phase 6 packages technical logic and verification
+  work so engineers can implement checks without inventing hidden rules.
+tags:
+- lld
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/10-low-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Technical Logic and Verification - Low-Level Design
 
 ## Purpose
 
 This low-level design defines how Phase 6 packages technical logic and verification work so engineers can implement checks without inventing hidden rules.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Implementation Boundary
 

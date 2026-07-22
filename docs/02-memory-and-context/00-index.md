@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.memory.index
+title: 02 - Memory and Context Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Give agents the right context at the right time while keeping prompts fast, cheap,
+  current, scoped, and low-noise.
+tags:
+- index
+- memory
+phase: 02-memory-and-context
+canonical_path: docs/02-memory-and-context/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 02 - Memory and Context Index
+
+
+## Purpose
+
+Give agents the right context at the right time while keeping prompts fast, cheap, current, scoped, and low-noise.
 
 ## Mission
 

@@ -6,6 +6,7 @@ from typing import Any
 
 from ..domain.enums import SymbolKind
 from ..domain.errors import NotFoundError, ValidationError
+from ..domain.hybrid_doc_coverage import build_symbol_doc_coverage
 from ..domain.languages import detect_language_from_path
 from ..domain.models import Scope
 from ..domain.parsing import builtin_names, defined_names, extract_call_refs
@@ -20,6 +21,7 @@ class GenerationUseCases(GraphServiceSupport):
         max_symbols: int = 12,
     ) -> dict[str, Any]:
         seed = self.store.get_symbol(seed_symbol_id, scope)
+        hybrid = build_symbol_doc_coverage(self.store, scope, seed, max_neighbors=max_symbols)
         related_ids = {seed.id}
         expansion = "one_hop"
         expand = getattr(self.store, "expand_neighborhood", None)
@@ -66,7 +68,15 @@ class GenerationUseCases(GraphServiceSupport):
         prompt_parts = [
             "Use only the following graph context. Do not assume repository-wide source.",
             f"Seed: {seed.qualified_name}",
+            (
+                "Hybrid documentation coverage "
+                f"(preferred={hybrid['preferred_layer']}; "
+                f"active={','.join(hybrid['active_layers'])}): "
+                "prefer human docs, else living docs, else rationale, else AST neighbors."
+            ),
         ]
+        for snippet in hybrid.get("preferred_snippets") or []:
+            prompt_parts.append(f"Preferred doc: {snippet}")
         polyglot = self.get_polyglot_profile(scope)  # type: ignore[attr-defined]
         if polyglot.is_polyglot:
             prompt_parts.append(f"Polyglot project profile: {polyglot.summary}")
@@ -90,6 +100,7 @@ class GenerationUseCases(GraphServiceSupport):
             "prompt_context": "\n".join(prompt_parts),
             "symbols": [self._symbol_view(symbol) for symbol in symbols],
             "polyglot": polyglot.to_dict(),
+            "hybrid_documentation": hybrid,
         }
 
     def validate_generated_code(self, scope: Scope, source: str) -> dict[str, Any]:

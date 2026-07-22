@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.rules.detailed-section-design
+title: Rule Engine and Orchestration - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Agents can write code, but organizations need judgment. Some changes are syntactically
+  correct but business-dangerous. A pricing change, permissions change, authentication change,
+  database migration, or production deployment may require policy evaluation and human approval.
+tags:
+- standard
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/06-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine and Orchestration - Detailed Section Design
+
+
+## Purpose
+
+Agents can write code, but organizations need judgment. Some changes are syntactically correct but business-dangerous. A pricing change, permissions change, authentication change, database migration, or production deployment may require policy evaluation and human approval.
 
 ## Why This Phase Exists
 

@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.tech.docs-sync-technical-logic
+title: Docs-as-Code Synchronization Technical Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Docs-as-Code layer must detect when documentation is missing, stale, or incorrectly
+  linked to code. It does this through code indexing, documentation indexing, graph linking,
+  AST anchors, Bloom filter lookup, and CI enforcement.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/03-docs-sync-technical-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Docs-as-Code Synchronization Technical Logic
+
+
+## Purpose
+
+The Docs-as-Code layer must detect when documentation is missing, stale, or incorrectly linked to code. It does this through code indexing, documentation indexing, graph linking, AST anchors, Bloom filter lookup, and CI enforcement.
 
 ## Technical Goal
 

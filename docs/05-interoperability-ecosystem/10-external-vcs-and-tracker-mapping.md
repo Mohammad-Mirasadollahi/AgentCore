@@ -1,49 +1,48 @@
 ---
 doc_id: ac.doc.interop.external-vcs-tracker-mapping
-title: "10 - External VCS And Tracker Mapping"
-doc_type: design
-status: proposed
-schema_version: "1.0"
+title: 10 - External VCS And Tracker Mapping
+doc_type: hld
+status: draft
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Anti-corruption mapping from GitHub/GitLab/Jira/Linear into AgentCore Issue,
-  Task, ChangeSet, Review, and Approval aggregates. External systems are
-  projections, never the agent collaboration SoR.
+summary: Define how external VCS and issue trackers relate to AgentCore’s **native** agent
+  collaboration surface.
 tags:
-  - github
-  - gitlab
-  - jira
-  - linear
-  - adapter
-  - changeset
-  - anti-corruption
-phase: "05-interoperability-ecosystem"
+- github
+- gitlab
+- jira
+- linear
+- adapter
+- changeset
+- anti-corruption
+phase: 05-interoperability-ecosystem
 canonical_path: docs/05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md
-related_docs:
-  - ac.doc.core.agent-collaboration-work-surface
-  - ac.doc.core.changeset-review-discussion-contracts
-  - ac.doc.master.agent-control-plane-boundary
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
-concern_lane: integration
+concern_lane: cross_team
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.core.agent-collaboration-work-surface
+- ac.doc.core.changeset-review-discussion-contracts
+- ac.doc.master.agent-control-plane-boundary
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - ChangeSet
-  - Issue
-  - AgentAdapter
+- ChangeSet
+- Issue
+- AgentAdapter
 relations_declared:
-  - type: depends_on
-    target: docs/01-core-data-model/07-agent-collaboration-work-surface.md
-  - type: depends_on
-    target: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
+- type: depends_on
+  target: docs/01-core-data-model/07-agent-collaboration-work-surface.md
+- type: depends_on
+  target: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -57,6 +56,21 @@ security_classification: internal
 ## Purpose
 
 Define how external VCS and issue trackers relate to AgentCore’s **native** agent collaboration surface. Agents write AgentCore Issues, Tasks, AgentTickets, and ChangeSets. Adapters may mirror to GitHub (or peers); they must not become the system of record for agent work.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Professional Audience
 

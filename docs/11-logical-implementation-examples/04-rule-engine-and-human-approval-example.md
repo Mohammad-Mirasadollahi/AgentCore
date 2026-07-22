@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.examples.rule-engine-and-human-approval-example
+title: Logical Example - Rule Engine and Human Approval
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: An agent changes pricing logic while refactoring tax code. The file name does not
+  include payment, but the change affects `base_price`. The Rule Engine must detect revenue
+  risk and require product approval.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/04-rule-engine-and-human-approval-example.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Logical Example - Rule Engine and Human Approval
+
+
+## Purpose
+
+An agent changes pricing logic while refactoring tax code. The file name does not include payment, but the change affects `base_price`. The Rule Engine must detect revenue risk and require product approval.
 
 ## Scenario
 

@@ -1,61 +1,60 @@
 ---
 doc_id: ac.doc.ckg.code-intel-feature-spec
-title: "22 - Code Intelligence Enhancements Feature Specification"
+title: 22 - Code Intelligence Enhancements Feature Specification
 doc_type: feature_spec
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Product requirements for AgentCore code-intelligence enhancements: surgical
-  explore packs, framework routes, TESTED_BY, risk-scored change review, and
-  Wave 2–3 architecture analytics — inspired by MIT prior art, clean-room
-  implemented on Neo4j.
+summary: 'Product requirements for AgentCore code-intelligence enhancements: surgical explore
+  packs, framework routes, TESTED_BY, risk-scored change review, and Wave 2–3 architecture
+  analytics — inspired by MIT prior art, clean-room implemented on Neo4j.'
 tags:
-  - code-intelligence
-  - explore
-  - code-review
-  - mcp
-  - feature-specification
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- explore
+- code-review
+- mcp
+- feature-specification
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/22-code-intelligence-enhancements-feature-specification.md
-related_docs:
-  - ac.doc.ckg.code-intel-prior-art-license
-  - ac.doc.ckg.code-intel-hld
-  - ac.doc.ckg.code-intel-lld
-  - ac.doc.ckg.code-intel-contracts
-  - ac.doc.ckg.code-intel-risks
-  - ac.doc.codegraph.competitive-intelligence-roadmap-adr
-external_refs:
-  - https://github.com/colbymchenry/codegraph
-  - https://github.com/tirth8205/code-review-graph
-  - https://github.com/Graphify-Labs/graphify
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.code-intel-prior-art-license
+- ac.doc.ckg.code-intel-hld
+- ac.doc.ckg.code-intel-lld
+- ac.doc.ckg.code-intel-contracts
+- ac.doc.ckg.code-intel-risks
+- ac.doc.codegraph.competitive-intelligence-roadmap-adr
+external_refs:
+- https://github.com/colbymchenry/codegraph
+- https://github.com/tirth8205/code-review-graph
+- https://github.com/Graphify-Labs/graphify
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - ExplorePack
-  - ChangeRiskReport
-  - FrameworkRoute
-  - ExecutionFlow
-  - CodeCommunity
+- ExplorePack
+- ChangeRiskReport
+- FrameworkRoute
+- ExecutionFlow
+- CodeCommunity
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-prior-art-license
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
-  - type: complements
-    target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
+- type: depends_on
+  target: ac.doc.ckg.code-intel-prior-art-license
+- type: depends_on
+  target: docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+- type: complements
+  target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -73,6 +72,21 @@ makes AgentCore’s Code-Knowledge Graph useful for coding agents and reviewers
 with fewer tool calls, clearer risk, and explainable edges. Prior art is MIT
 (CodeGraph, code-review-graph, graphify); AgentCore re-implements on Neo4j — see
 [`21`](21-code-intelligence-prior-art-ideas-and-license.md).
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Professional Audience
 

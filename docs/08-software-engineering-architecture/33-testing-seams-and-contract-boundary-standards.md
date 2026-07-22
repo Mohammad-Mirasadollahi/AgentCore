@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.testing-seams-and-contract-boundary-standards
+title: 33 - Testing Seams And Contract Boundary Standards
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore modules should be designed so they can be tested
+  without relying on real infrastructure, private internals, or unstable external services.
+tags:
+- contract
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/33-testing-seams-and-contract-boundary-standards.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- tests/backend/services/core-data-service/test_core_data_service.py::ApiClient
+---
+
 # 33 - Testing Seams And Contract Boundary Standards
 
 ## Purpose

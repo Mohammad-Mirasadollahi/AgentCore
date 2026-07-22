@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.ckg.token-optimization-and-model-routing
+title: Token Optimization and Model Routing
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Code-Knowledge Graph must reduce LLM cost while improving output quality. It
+  does this by avoiding full-repository prompting, processing only changed symbols, routing
+  tasks to the cheapest capable model, and using graph summaries instead of raw code where
+  possible.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Token Optimization and Model Routing
 
 ## Purpose

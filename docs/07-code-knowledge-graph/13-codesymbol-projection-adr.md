@@ -1,44 +1,44 @@
 ---
 doc_id: ac.doc.codegraph.codesymbol-projection-adr
-title: "13 - CodeSymbol + CODE_REL Projection ADR"
+title: 13 - CodeSymbol + CODE_REL Projection ADR
 doc_type: adr
-status: accepted
-schema_version: "1.0"
+status: active
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Accepts the Phase 7 unified CodeSymbol node and CODE_REL relationship
-  projection as the canonical Neo4j structural model for code-graph-service,
-  instead of immediately implementing per-kind labels from the design catalog.
+summary: Accepts the Phase 7 unified CodeSymbol node and CODE_REL relationship projection
+  as the canonical Neo4j structural model for code-graph-service, instead of immediately implementing
+  per-kind labels from the design catalog.
 tags:
-  - neo4j
-  - code-graph
-  - adr
-  - schema
-phase: "07-code-knowledge-graph"
+- neo4j
+- code-graph
+- adr
+- schema
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md
-related_docs:
-  - docs/07-code-knowledge-graph/02-neo4j-schema-design.md
-  - docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
-  - docs/10-gap-analysis/01-gap-register.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+- docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
+- docs/10-gap-analysis/01-gap-register.md
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
 primary_entities:
-  - CodeSymbol
-  - CODE_REL
-  - Neo4jStore
+- CodeSymbol
+- CODE_REL
+- Neo4jStore
 relations_declared:
-  - type: constrains
-    target: backend/services/code-graph-service/src/code_graph_service/neo4j_store.py
-  - type: complements
-    target: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+- type: constrains
+  target: backend/services/code-graph-service/src/code_graph_service/neo4j_store.py
+- type: complements
+  target: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -48,6 +48,11 @@ security_classification: internal
 ---
 
 # 13 - CodeSymbol + CODE_REL Projection ADR
+
+
+## Purpose
+
+Accepts the Phase 7 unified CodeSymbol node and CODE_REL relationship projection as the canonical Neo4j structural model for code-graph-service, instead of immediately implementing per-kind labels from the design catalog.
 
 ## Status
 

@@ -1,39 +1,39 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-lld
-title: "29 - Production Retrieval Stack Low Level Design"
-doc_type: design
+title: 29 - Production Retrieval Stack Low Level Design
+doc_type: hld
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Algorithms and schemas for BM25, Lucene/Postgres FTS queries, RRF, BGE
-  query prefix, APOC expand, and Leiden/Louvain community detection.
+summary: Algorithms and schemas for BM25, Lucene/Postgres FTS queries, RRF, BGE query prefix,
+  APOC expand, and Leiden/Louvain community detection.
 tags:
-  - retrieval
-  - lld
-  - bm25
-  - leiden
-phase: "07-code-knowledge-graph"
+- retrieval
+- lld
+- bm25
+- leiden
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/29-production-retrieval-stack-low-level-design.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-hld
-  - ac.doc.ckg.prod-retrieval-contracts
-doc_version: "1.0.0"
-audience:
-  - engineer
 lifecycle_lane: current
 concern_lane: design
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.prod-retrieval-hld
+- ac.doc.ckg.prod-retrieval-contracts
+doc_version: 1.0.0
+audience:
+- engineer
 primary_entities:
-  - BM25
-  - RRF
-  - FulltextIndex
+- BM25
+- RRF
+- FulltextIndex
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.prod-retrieval-hld
+- type: depends_on
+  target: ac.doc.ckg.prod-retrieval-hld
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -43,6 +43,26 @@ security_classification: internal
 ---
 
 # 29 - Production Retrieval Stack Low Level Design
+
+
+## Purpose
+
+Algorithms and schemas for BM25, Lucene/Postgres FTS queries, RRF, BGE query prefix, APOC expand, and Leiden/Louvain community detection.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## BM25 (in-process)
 

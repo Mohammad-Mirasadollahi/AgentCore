@@ -1,4 +1,50 @@
+---
+doc_id: ac.doc.common-context.feature-specification
+title: 01 - Common Context Feature Specification
+doc_type: feature_spec
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: 'Users repeatedly provide the same instructions: documentation language, architecture
+  style, port policies, project isolation rules, review expectations, naming conventions,
+  deployment constraints, and domain terminology. Repetition wastes time, increases token
+  usage, causes incon.'
+tags:
+- feature-spec
+- common-context
+phase: 12-common-context-reuse
+canonical_path: docs/12-common-context-reuse/01-feature-specification.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 01 - Common Context Feature Specification
+
+
+## Purpose
+
+Users repeatedly provide the same instructions: documentation language, architecture style, port policies, project isolation rules, review expectations, naming conventions, deployment constraints, and domain terminology. Repetition wastes time, increases token usage, causes incon.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Problem
 

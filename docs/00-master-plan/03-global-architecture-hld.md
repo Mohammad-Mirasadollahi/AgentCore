@@ -1,8 +1,46 @@
+---
+doc_id: ac.doc.master.global-architecture-hld
+title: Global Architecture HLD
+doc_type: hld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the system-wide high-level architecture for AgentCore.
+tags:
+- hld
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/03-global-architecture-hld.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Global Architecture HLD
 
 ## Purpose
 
 This document defines the system-wide high-level architecture for AgentCore. It explains the platform control plane, core services, data flows, boundaries, project isolation model, automation model, observability model, and quality attributes that all phase-level designs must respect.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Architectural Mission
 

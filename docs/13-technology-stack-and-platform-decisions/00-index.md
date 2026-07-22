@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.stack.index
+title: 13 - Technology Stack And Platform Decisions Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: 'This section defines the preferred technology stack for AgentCore. The goal is to
+  make implementation decisions explicit before code is written and to ensure that the selected
+  technologies match the documented architecture: modular backend services, admin web interface,
+  metadata-.'
+tags:
+- index
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 13 - Technology Stack And Platform Decisions Index
 
 ## Purpose

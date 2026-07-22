@@ -1,46 +1,48 @@
 ---
 doc_id: ac.doc.codegraph.language-support-policy
-title: "10 - Language Support Policy"
-doc_type: specification
+title: 10 - Language Support Policy
+doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Normative language matrix for Code-Knowledge Graph ingestion: Python is
-  required; TypeScript, JavaScript, Go, and Rust are supported via tree-sitter
-  adapters into a shared symbol schema.
+summary: 'Normative language matrix for Code-Knowledge Graph ingestion: Python is required;
+  TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters into a shared
+  symbol schema.'
 tags:
-  - code-graph
-  - parsers
-  - tree-sitter
-  - python
-  - rust
-phase: "07-code-knowledge-graph"
+- code-graph
+- parsers
+- tree-sitter
+- python
+- rust
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/10-language-support-policy.md
-related_docs:
-  - ac.doc.codegraph.neo4j-migration-plan
-  - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-doc_version: "1.1.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: implementation
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- backend/services/code-graph-service/src/code_graph_service/domain/languages.py::language_matrix
+- backend/services/code-graph-service/src/code_graph_service/domain/parsers/__init__.py::parse_source
+related_docs:
+- ac.doc.codegraph.neo4j-migration-plan
+- docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+doc_version: 1.1.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - LanguageMatrix
-  - ParserAdapter
-  - CodeSymbol
+- LanguageMatrix
+- ParserAdapter
+- CodeSymbol
 relations_declared:
-  - type: constrains
-    target: backend/services/code-graph-service/
-  - type: complements
-    target: docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
+- type: constrains
+  target: backend/services/code-graph-service/
+- type: complements
+  target: docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

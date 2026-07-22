@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.api.index
+title: 14 - API Design And Naming Standards Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This section defines the API design and naming standards for AgentCore. It gives
+  future implementers a consistent format for endpoint names, resource names, DTO names, error
+  contracts, pagination, filtering, idempotency, versioning, OpenAPI generation, and API catalogs.
+tags:
+- index
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 14 - API Design And Naming Standards Index
 
 ## Purpose

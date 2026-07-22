@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.extensibility-and-plugin-engineering
+title: 15 - Extensibility And Plugin Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should be engineered for extensibility. The platform
+  must integrate with many agents, IDEs, repositories, ticket systems, approval systems, model
+  providers, and internal tools without forcing core services to know every vendor or workflow.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/15-extensibility-and-plugin-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 15 - Extensibility And Plugin Engineering
 
 ## Purpose

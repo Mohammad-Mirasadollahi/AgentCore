@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.backend.engineering-standards
+title: Backend Engineering Standards
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Mandatory implementation standards for AgentCore backend modules (DI, ports, errors, tests).
+tags:
+- backend
+- engineering
+- standard
+phase: backend-docs
+canonical_path: backend/docs/ENGINEERING_STANDARDS.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+language: en
+security_classification: internal
+---
+
 # Backend Engineering Standards
 
 Path: `backend/docs/ENGINEERING_STANDARDS.md`
@@ -40,3 +66,9 @@ Every module must expose test seams through public contracts, ports, fake adapte
 ## Review Rule
 
 A code review must reject code that introduces service locator behavior, hidden hard-coded runtime settings, direct cross-service database access, unbounded retries, unstructured errors, or infrastructure dependencies inside domain logic.
+
+## Related Documents
+
+- [STRUCTURE_STANDARD.md](./STRUCTURE_STANDARD.md)
+- [API_NAMING_AND_CONTRACT_STANDARD.md](./API_NAMING_AND_CONTRACT_STANDARD.md)
+- [docs/08-software-engineering-architecture/00-index.md](../../docs/08-software-engineering-architecture/00-index.md)

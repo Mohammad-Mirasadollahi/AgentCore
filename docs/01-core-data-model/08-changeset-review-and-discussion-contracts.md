@@ -1,49 +1,49 @@
 ---
 doc_id: ac.doc.core.changeset-review-discussion-contracts
-title: "08 - ChangeSet Review And Discussion Contracts"
+title: 08 - ChangeSet Review And Discussion Contracts
 doc_type: contract
-status: proposed
-schema_version: "1.0"
+status: draft
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Entity fields, state machines, commands, queries, and events for ChangeSet,
-  ReviewThread, ReviewComment, DiscussionComment, WorkLabel, and WorkMilestone.
+summary: Entity fields, state machines, commands, queries, and events for ChangeSet, ReviewThread,
+  ReviewComment, DiscussionComment, WorkLabel, and WorkMilestone.
 tags:
-  - changeset
-  - review
-  - comment
-  - label
-  - contracts
-  - events
-phase: "01-core-data-model"
+- changeset
+- review
+- comment
+- label
+- contracts
+- events
+phase: 01-core-data-model
 canonical_path: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
-related_docs:
-  - ac.doc.core.agent-collaboration-work-surface
-  - ac.doc.core.contracts
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
 concern_lane: contract
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.core.agent-collaboration-work-surface
+- ac.doc.core.contracts
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - ChangeSet
-  - ReviewThread
-  - ReviewComment
-  - DiscussionComment
-  - WorkLabel
-  - WorkMilestone
+- ChangeSet
+- ReviewThread
+- ReviewComment
+- DiscussionComment
+- WorkLabel
+- WorkMilestone
 relations_declared:
-  - type: depends_on
-    target: docs/01-core-data-model/07-agent-collaboration-work-surface.md
-  - type: complements
-    target: docs/01-core-data-model/04-data-contracts-and-events.md
+- type: depends_on
+  target: docs/01-core-data-model/07-agent-collaboration-work-surface.md
+- type: complements
+  target: docs/01-core-data-model/04-data-contracts-and-events.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

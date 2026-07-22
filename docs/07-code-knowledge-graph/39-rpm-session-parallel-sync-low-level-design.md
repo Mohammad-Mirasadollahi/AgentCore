@@ -1,44 +1,45 @@
 ---
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-lld
-title: "39 - RPM Session Parallel Sync Low Level Design"
-doc_type: design
+title: 39 - RPM Session Parallel Sync Low Level Design
+doc_type: hld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Algorithms for RPM session lifecycle, dual capacity (window + in-flight),
-  file/LLM worker scheduling, serialized store writes, retries, and status API.
-  Designed ahead of implementation.
+summary: Algorithms for RPM session lifecycle, dual capacity (window + in-flight), file/LLM
+  worker scheduling, serialized store writes, retries, and status API. Designed ahead of implementation.
 tags:
-  - sync
-  - rpm
-  - lld
-  - algorithms
-  - llm-gateway
-phase: "07-code-knowledge-graph"
+- sync
+- rpm
+- lld
+- algorithms
+- llm-gateway
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/39-rpm-session-parallel-sync-low-level-design.md
-related_docs:
-  - ac.doc.ckg.rpm-session-parallel-sync-hld
-  - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
-  - ac.doc.ckg.rpm-session-parallel-sync-risks
-  - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-doc_version: "1.0.0"
-audience:
-  - engineer
 lifecycle_lane: current
 concern_lane: design
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols:
+- backend/packages/llm_gateway/rate_limit.py::RpmSession
+- backend/packages/llm_gateway/gateway.py::LlmGateway
+related_docs:
+- ac.doc.ckg.rpm-session-parallel-sync-hld
+- ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- ac.doc.ckg.rpm-session-parallel-sync-risks
+- docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
+doc_version: 1.0.0
+audience:
+- engineer
 primary_entities:
-  - RpmSession
-  - SessionRegistry
-  - RpmSessionGate
-  - SerializedStoreWriter
+- RpmSession
+- SessionRegistry
+- RpmSessionGate
+- SerializedStoreWriter
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.rpm-session-parallel-sync-hld
+- type: depends_on
+  target: ac.doc.ckg.rpm-session-parallel-sync-hld
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

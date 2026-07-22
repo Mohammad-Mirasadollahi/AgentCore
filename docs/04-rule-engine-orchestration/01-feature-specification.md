@@ -1,4 +1,48 @@
+---
+doc_id: ac.doc.rules.feature-specification
+title: Rule Engine and Orchestration - Feature Specification
+doc_type: feature_spec
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This phase coordinates agents and humans through semantic policies, risk detection,
+  escalation, dependency analysis, and task routing.
+tags:
+- feature-spec
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/01-feature-specification.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine and Orchestration - Feature Specification
+
+
+## Purpose
+
+This phase coordinates agents and humans through semantic policies, risk detection, escalation, dependency analysis, and task routing.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

@@ -236,6 +236,25 @@ def cmd_graph_hybrid(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_graph_generation_context(args: argparse.Namespace) -> int:
+    """Operator read path for hybrid_documentation on a seed symbol."""
+    svc = _graph_service()
+    scope = _graph_scope(args)
+    symbol_id = str(getattr(args, "symbol_id", "") or "").strip()
+    qn = str(getattr(args, "qualified_name", "") or "").strip()
+    if not symbol_id and qn:
+        hit = svc.store.get_symbol_by_qualified_name(scope, qn)
+        if hit is None:
+            raise SystemExit(f"error: qualified_name not found: {qn}")
+        symbol_id = hit.id
+    if not symbol_id:
+        raise SystemExit("error: pass --symbol-id or --qualified-name")
+    max_symbols = max(1, min(int(getattr(args, "max_symbols", 12) or 12), 64))
+    pack = svc.build_generation_context(scope, symbol_id, max_symbols=max_symbols)
+    print_json(pack)
+    return 0
+
+
 def cmd_graph_smoke(args: argparse.Namespace) -> int:
     """One-shot connect proxy: ingest → freshness → hybrid → explore (same process)."""
     svc = _graph_service()

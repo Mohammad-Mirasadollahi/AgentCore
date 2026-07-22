@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.interop.risks-challenges-and-acceptance
+title: Interoperability and Enterprise Ecosystem - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- Protocol design must be strict enough for automation and flexible enough for different
+  vendors. - Vendor adapters will drift as external tools change APIs and output formats.
+  - Pub/Sub requires delivery guarantees, replay, ordering strategy, and dead-letter handling.
+  - Cross-do.'
+tags:
+- gap
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/05-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Interoperability and Enterprise Ecosystem - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- Protocol design must be strict enough for automation and flexible enough for different vendors. - Vendor adapters will drift as external tools change APIs and output formats. - Pub/Sub requires delivery guarantees, replay, ordering strategy, and dead-letter handling. - Cross-do.
 
 ## Challenges
 

@@ -1,57 +1,56 @@
 ---
 doc_id: ac.doc.memory.chat-quality-prior-art-license
-title: "10 - Chat Quality Prior Art License And Method"
+title: 10 - Chat Quality Prior Art License And Method
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  License-verified open-source chat/RAG prior-art sources, study method,
-  clean-room policy, and index of quality idea catalogs for improving
-  AgentCore Chat accuracy.
+summary: License-verified open-source chat/RAG prior-art sources, study method, clean-room
+  policy, and index of quality idea catalogs for improving AgentCore Chat accuracy.
 tags:
-  - chat
-  - rag
-  - prior-art
-  - license
-  - quality
-  - compliance
-phase: "02-memory-and-context"
+- chat
+- rag
+- prior-art
+- license
+- quality
+- compliance
+phase: 02-memory-and-context
 canonical_path: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-related_docs:
-  - docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-  - docs/02-memory-and-context/11-chat-quality-retrieval-ranking-and-context-packing.md
-  - docs/02-memory-and-context/12-chat-quality-grounding-citations-refusal.md
-  - docs/02-memory-and-context/13-chat-quality-query-rewrite-memory-feedback.md
-external_refs:
-  - https://github.com/infiniflow/ragflow
-  - https://github.com/Mintplex-Labs/anything-llm
-  - https://github.com/danny-avila/LibreChat
-  - https://github.com/Cinnamon/kotaemon
-  - https://github.com/microsoft/graphrag
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - security
 lifecycle_lane: future
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- docs/02-memory-and-context/11-chat-quality-retrieval-ranking-and-context-packing.md
+- docs/02-memory-and-context/12-chat-quality-grounding-citations-refusal.md
+- docs/02-memory-and-context/13-chat-quality-query-rewrite-memory-feedback.md
+external_refs:
+- https://github.com/infiniflow/ragflow
+- https://github.com/Mintplex-Labs/anything-llm
+- https://github.com/danny-avila/LibreChat
+- https://github.com/Cinnamon/kotaemon
+- https://github.com/microsoft/graphrag
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- security
 primary_entities:
-  - PriorArtIdea
-  - LicenseObligation
-  - ChatQualityLever
+- PriorArtIdea
+- LicenseObligation
+- ChatQualityLever
 relations_declared:
-  - type: complements
-    target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-  - type: complements
-    target: docs/07-code-knowledge-graph/20-repository-code-wiki-prior-art-ideas-and-license.md
+- type: complements
+  target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- type: complements
+  target: docs/07-code-knowledge-graph/20-repository-code-wiki-prior-art-ideas-and-license.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

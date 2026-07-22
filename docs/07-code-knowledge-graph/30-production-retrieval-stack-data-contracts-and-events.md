@@ -1,41 +1,41 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-contracts
-title: "30 - Production Retrieval Stack Data Contracts And Events"
+title: 30 - Production Retrieval Stack Data Contracts And Events
 doc_type: contract
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  HTTP/MCP payload contracts for hybrid BM25+RRF search, path method, architecture
+summary: HTTP/MCP payload contracts for hybrid BM25+RRF search, path method, architecture
   algorithm, and retrieval transparency fields.
 tags:
-  - contracts
-  - retrieval
-  - mcp
-  - api
-phase: "07-code-knowledge-graph"
+- contracts
+- retrieval
+- mcp
+- api
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/30-production-retrieval-stack-data-contracts-and-events.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-feature-spec
-  - backend/services/code-graph-service/docs/phase-7-api-contract.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - agent
 lifecycle_lane: current
 concern_lane: contract
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.prod-retrieval-feature-spec
+- backend/services/code-graph-service/docs/phase-7-api-contract.md
+doc_version: 1.0.0
+audience:
+- engineer
+- agent
 primary_entities:
-  - HybridSearchResult
-  - ArchitectureOverview
-  - SymbolPathResult
+- HybridSearchResult
+- ArchitectureOverview
+- SymbolPathResult
 relations_declared:
-  - type: complements
-    target: backend/services/code-graph-service/docs/phase-7-api-contract.md
+- type: complements
+  target: backend/services/code-graph-service/docs/phase-7-api-contract.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -45,6 +45,11 @@ security_classification: internal
 ---
 
 # 30 - Production Retrieval Stack Data Contracts And Events
+
+
+## Purpose
+
+HTTP/MCP payload contracts for hybrid BM25+RRF search, path method, architecture algorithm, and retrieval transparency fields.
 
 ## HTTP
 

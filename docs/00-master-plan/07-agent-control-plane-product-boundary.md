@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.master.agent-control-plane-product-boundary
+title: Agent Control Plane Product Boundary
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Accepted and normative. This document resolves whether AgentCore is itself an agent.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/07-agent-control-plane-product-boundary.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Agent Control Plane Product Boundary
+
+
+## Purpose
+
+Accepted and normative. This document resolves whether AgentCore is itself an agent.
 
 ## Status
 

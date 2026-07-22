@@ -1,47 +1,46 @@
 ---
 doc_id: ac.doc.awg.index
-title: "15 - Agent Workspace Guidance Index"
+title: 15 - Agent Workspace Guidance Index
 doc_type: index
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-docs
-summary: >-
-  Phase index for Agent Workspace Guidance: governed AGENTS entry, always-on
-  rules, and on-demand skills (including MCP-first routing to AgentCore tools)
-  delivered primarily over MCP with optional filesystem export, stored as typed
-  Common Context items.
+summary: 'Phase index for Agent Workspace Guidance: governed AGENTS entry, always-on rules,
+  and on-demand skills (including MCP-first routing to AgentCore tools) delivered primarily
+  over MCP with optional filesystem export, stored as typed Common Context items.'
 tags:
-  - agent-workspace-guidance
-  - skills
-  - rules
-  - agents-md
-  - mcp
-  - common-context
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- skills
+- rules
+- agents-md
+- mcp
+- common-context
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/00-index.md
-related_docs:
-  - ac.doc.awg.feature-specification
-  - ac.doc.awg.mcp-first-skills-rules
-  - ac.doc.common_context.index
-  - ac.doc.sea.usage-profile-cursor-mcp
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.feature-specification
+- ac.doc.awg.mcp-first-skills-rules
+- ac.doc.common_context.index
+- ac.doc.sea.usage-profile-cursor-mcp
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - AgentWorkspaceGuidanceBundle
-  - AgentsEntry
-  - AlwaysRule
-  - Skill
+- AgentWorkspaceGuidanceBundle
+- AgentsEntry
+- AlwaysRule
+- Skill
 language: en
 security_classification: internal
 ---

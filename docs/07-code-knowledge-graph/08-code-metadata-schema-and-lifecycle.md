@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ckg.code-metadata-schema-and-lifecycle
+title: 08 - Code Metadata Schema And Lifecycle
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the low-level metadata model and lifecycle for metadata-first
+  code understanding.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/08-code-metadata-schema-and-lifecycle.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 08 - Code Metadata Schema And Lifecycle
 
 ## Purpose

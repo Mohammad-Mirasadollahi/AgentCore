@@ -1,49 +1,49 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-hld
-title: "15 - Repository Code Wiki High-Level Design"
+title: 15 - Repository Code Wiki High-Level Design
 doc_type: hld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  System-level architecture for Repository Code Wiki generation, publish,
-  browse, and MCP delivery on top of the Code-Knowledge Graph and LiteLLM.
+summary: System-level architecture for Repository Code Wiki generation, publish, browse, and
+  MCP delivery on top of the Code-Knowledge Graph and LiteLLM.
 tags:
-  - repository-code-wiki
-  - hld
-  - code-knowledge-graph
-  - litellm
-  - docs-sync
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- hld
+- code-knowledge-graph
+- litellm
+- docs-sync
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/15-repository-code-wiki-high-level-design.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-feature-spec
-  - ac.doc.ckg.repository-code-wiki-lld
-  - ac.doc.ckg.repository-code-wiki-contracts
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-feature-spec
+- ac.doc.ckg.repository-code-wiki-lld
+- ac.doc.ckg.repository-code-wiki-contracts
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - WikiGenerationJob
-  - WikiModuleTree
-  - WikiPage
-  - WikiPublisher
+- WikiGenerationJob
+- WikiModuleTree
+- WikiPage
+- WikiPublisher
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.repository-code-wiki-feature-spec
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/06-technical-implementation-logic.md
-  - type: complements
-    target: docs/03-docs-as-code-sync/02-high-level-design.md
+- type: depends_on
+  target: ac.doc.ckg.repository-code-wiki-feature-spec
+- type: depends_on
+  target: docs/07-code-knowledge-graph/06-technical-implementation-logic.md
+- type: complements
+  target: docs/03-docs-as-code-sync/02-high-level-design.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -57,6 +57,21 @@ security_classification: internal
 ## Purpose
 
 This document defines the system-level architecture for Repository Code Wiki: how generation jobs, hierarchical module trees, publish, browse, and MCP delivery fit into AgentCore. Algorithms and field-level models live in the low-level design; product requirements live in the feature specification.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Architectural Decision
 

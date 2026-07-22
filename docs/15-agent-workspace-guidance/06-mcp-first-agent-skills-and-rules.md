@@ -1,53 +1,53 @@
 ---
 doc_id: ac.doc.awg.mcp-first-skills-rules
-title: "06 - MCP-First Agent Skills And Rules"
-doc_type: feature-specification
+title: 06 - MCP-First Agent Skills And Rules
+doc_type: feature_spec
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Normative always-on rule and on-demand skills that instruct Cursor and other
-  coding agents to route AgentCore-capable work through MCP tools instead of
-  inventing local-only substitutes, including same-change dead-code cleanup.
+summary: Normative always-on rule and on-demand skills that instruct Cursor and other coding
+  agents to route AgentCore-capable work through MCP tools instead of inventing local-only
+  substitutes, including same-change dead-code cleanup.
 tags:
-  - agent-workspace-guidance
-  - mcp
-  - skills
-  - rules
-  - cursor
-  - coding-agents
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- mcp
+- skills
+- rules
+- cursor
+- coding-agents
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md
-related_docs:
-  - ac.doc.awg.index
-  - ac.doc.awg.feature-specification
-  - ac.doc.awg.data-contracts
-  - ac.doc.sea.usage-profile-cursor-mcp
-  - ac.doc.ckg.dead-code-cleanup-loop
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - agents
-  - product
+- platform-engineering
+- agents
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.index
+- ac.doc.awg.feature-specification
+- ac.doc.awg.data-contracts
+- ac.doc.sea.usage-profile-cursor-mcp
+- ac.doc.ckg.dead-code-cleanup-loop
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - AlwaysRule
-  - Skill
-  - AgentWorkspaceGuidanceBundle
-  - UsageProfile
+- AlwaysRule
+- Skill
+- AgentWorkspaceGuidanceBundle
+- UsageProfile
 relations_declared:
-  - type: complements
-    target: ac.doc.awg.feature-specification
-  - type: depends_on
-    target: ac.doc.awg.data-contracts
+- type: complements
+  target: ac.doc.awg.feature-specification
+- type: depends_on
+  target: ac.doc.awg.data-contracts
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -63,6 +63,21 @@ security_classification: internal
 This document specifies the **platform-seeded** always-on rule and on-demand skills that coding agents (Cursor, Claude Code–style clients, and other MCP clients) must follow so that work AgentCore can perform is requested **through MCP** against AgentCore—not reinvented with ad-hoc local scripts, unmanaged chat-only notes, or bypass of governed stores.
 
 These artifacts are first-class `always_rule` / `skill` / `agents_entry` content under Agent Workspace Guidance. They ship as a default seed pack for Usage Profiles such as `programming-cursor-mcp` and may be exported to IDE-native paths.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Problem Statement
 
@@ -99,8 +114,7 @@ MCP tools alone are insufficient: agents often ignore them unless rules and skil
 ### Normative body
 
 ```markdown
-# MCP-first AgentCore
-
+## MCP-first AgentCore
 When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search_tools` → `mcp_execute_tool`):
 
 1. Search then execute `agentcore_guidance_resolve` before substantive coding.
@@ -109,16 +123,16 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 4. Do not skip code-graph search when locating symbols AgentCore can index.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
 6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
-7. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
-8. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
+7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance.
+8. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
+9. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 ```
 ## Agents Entry Pointers
 
 The project `agents_entry` body **must** list high-signal MCP skills (at minimum the seed catalog below) so agents discover them after resolve/export.
 
 ```markdown
-# Agent entry
-
+## Agent entry
 **Law:** MCP-first AgentCore (always-on rule `mcp-first-agentcore`).
 
 ## Session start
@@ -136,7 +150,8 @@ The project `agents_entry` body **must** list high-signal MCP skills (at minimum
 | `agentcore-code-graph` | Finding symbols, call paths, or ownership via the code graph |
 | `agentcore-remove-dead-code` | After replace/retire: prove and delete orphaned symbols, imports, tests |
 | `agentcore-durable-write` | Persisting memory, task, activity, or decision records |
-| `agentcore-docs-sync` | Docs drift, coverage, validate, note, draft, or index |
+| `agentcore-documentation-authoring` | How to write docs; Full-tier Markdown law (required before product doc edits) |
+| `agentcore-docs-sync` | Docs drift, coverage, Body-tier validate, note, draft, or index |
 | `agentcore-create-task` | Creating a durable follow-up Task in AgentCore |
 ```
 ## Skill Catalog
@@ -152,7 +167,8 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | `agentcore-code-graph` | Code knowledge graph | `agentcore_code_graph_explore` (primary), hybrid search, detect_changes, architecture/path | Locate symbols, flows, review impact, and architecture before wide filesystem search |
 | `agentcore-remove-dead-code` | Unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (when listed); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
-| `agentcore-docs-sync` | Docs-as-code sync | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, validate, note, draft, index |
+| `agentcore-documentation-authoring` | Full-tier Markdown authoring law | `agentcore_docs_authoring_standards`; optional Read of `docs/agents/documentation-authoring.md` | How documentation works; before writing/remediating product docs |
+| `agentcore-docs-sync` | Docs-as-code sync (Body-tier) | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, Body-tier validate, note, draft, index |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
 
 Guidance tools (`agentcore_guidance_*`) are specified in phase 15 contracts; other tools match the `programming-cursor-mcp` catalog (and successors).
@@ -165,8 +181,7 @@ name: agentcore-session-bootstrap
 description: Bootstrap an AgentCore MCP session—ping, profile, resolve guidance, then code.
 ---
 
-# AgentCore session bootstrap
-
+## AgentCore session bootstrap
 ## When
 
 - Starting work on a project connected to AgentCore via MCP.
@@ -194,8 +209,7 @@ name: agentcore-memory
 description: Retrieve or persist project memory through AgentCore MCP.
 ---
 
-# AgentCore memory
-
+## AgentCore memory
 ## When
 
 - Need prior decisions, conventions, or facts for this project.
@@ -220,8 +234,7 @@ name: agentcore-code-graph
 description: Search AgentCore code knowledge graph before wide local search.
 ---
 
-# AgentCore code graph
-
+## AgentCore code graph
 ## When
 
 - Locating symbols, owners, callers, or related modules for a coding task.
@@ -250,8 +263,7 @@ name: agentcore-remove-dead-code
 description: Prove and delete orphaned symbols, imports, and exclusive tests after a replace or retire.
 ---
 
-# AgentCore remove dead code
-
+## AgentCore remove dead code
 ## When
 
 - You implemented, replaced, or retired behavior and old symbols, imports, re-exports, or exclusive tests may remain.
@@ -283,8 +295,7 @@ name: agentcore-durable-write
 description: Write memory, task, activity, or decision records via AgentCore MCP.
 ---
 
-# AgentCore durable write
-
+## AgentCore durable write
 ## When
 
 - Persisting a decision, activity note, memory, or task the project should retain.
@@ -300,31 +311,42 @@ description: Write memory, task, activity, or decision records via AgentCore MCP
 - Fake success if the tool fails; surface the error and ask how to proceed.
 ```
 
+### Skill body: `agentcore-documentation-authoring`
+
+Normative body is the seed text from
+`common_context_service.documentation_authoring_law.SKILL_MARKDOWN` (kept in sync with
+this document). Agents **must** call `agentcore_docs_authoring_standards` for the structured
+checklist; do not rely on docs-sync Body-tier validate alone.
+
 ### Skill body: `agentcore-docs-sync`
 
 ```markdown
 ---
 name: agentcore-docs-sync
-description: Run AgentCore docs-sync drift, status, validate, note, draft, and index via MCP.
+description: Run AgentCore docs-sync drift, status, Body-tier validate, note, draft, and index via MCP.
 ---
 
-# AgentCore docs sync
-
+## AgentCore docs sync
 ## When
 
-- Checking documentation drift or coverage.
-- Validating frontmatter, indexing a note, or drafting docs for a symbol.
+- Checking documentation drift or coverage (docs-as-code sync).
+- Body-tier validate / note / draft / index via MCP.
 
 ## How
 
-1. Coverage / gaps: `agentcore_docs_status`.
-2. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
-3. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index` and required fields for that mode.
-4. Keep committed documentation English per project laws.
+1. Before writing or explaining product Markdown under `docs/` (or other normative trees):
+   execute `agentcore_docs_authoring_standards` and skill `agentcore-documentation-authoring`.
+2. Coverage / gaps: `agentcore_docs_status`.
+3. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
+4. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
+5. Keep committed documentation English per project laws.
+6. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`.
 
 ## Do not
 
-- Bypass docs-sync for governed doc changes when these tools are on the profile.
+- Treat `agentcore_docs_write` mode=`validate` as Full-tier compliance for product docs.
+- Bypass docs-sync for governed docs-as-code changes when these tools are on the profile.
+- Skip `agentcore_docs_authoring_standards` when the user asks how documentation writing works.
 ```
 
 ### Skill body: `agentcore-create-task`
@@ -335,8 +357,7 @@ name: agentcore-create-task
 description: Create a durable AgentCore Task for follow-up engineering work.
 ---
 
-# AgentCore create task
-
+## AgentCore create task
 ## When
 
 - User or plan needs a durable follow-up Task tracked in AgentCore.
@@ -369,7 +390,8 @@ Suggested seed pack id: `awg-seed-mcp-first-programming`.
 MCP connect
   → agentcore-session-bootstrap skill (ping, profile, guidance_resolve)
   → apply always_rule mcp-first-agentcore
-  → pick capability skill (memory | code-graph | remove-dead-code | docs-sync | durable-write | create-task)
+  → pick capability skill (memory | code-graph | remove-dead-code | documentation-authoring | docs-sync | durable-write | create-task)
+  → for documentation questions / product Markdown: agentcore_docs_authoring_standards first
   → call matching MCP tool(s)
   → then local code edits as needed (including proven dead-code deletes)
 ```

@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.developer-onboarding-and-delivery-workflow
+title: 18 - Developer Onboarding And Delivery Workflow
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how a new engineer should understand AgentCore and deliver
+  changes safely. It connects architecture documents, repository structure, local development,
+  testing, review, and release into one practical workflow.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/18-developer-onboarding-and-delivery-workflow.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 18 - Developer Onboarding And Delivery Workflow
 
 ## Purpose

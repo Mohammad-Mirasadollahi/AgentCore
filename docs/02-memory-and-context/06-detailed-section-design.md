@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.memory.detailed-section-design
+title: Memory and Context - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Agents fail when they remember too little or too much. Too little memory causes repeated
+  mistakes. Too much memory causes contradiction, hallucination, slow prompts, and high cost.
+  The Memory and Context layer gives agents the right knowledge at the right moment.
+tags:
+- standard
+- memory
+phase: 02-memory-and-context
+canonical_path: docs/02-memory-and-context/06-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Memory and Context - Detailed Section Design
+
+
+## Purpose
+
+Agents fail when they remember too little or too much. Too little memory causes repeated mistakes. Too much memory causes contradiction, hallucination, slow prompts, and high cost. The Memory and Context layer gives agents the right knowledge at the right moment.
 
 ## Why This Phase Exists
 

@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.ops.data-retention-backup-and-disaster-recovery
+title: Data Retention, Backup, and Disaster Recovery
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore stores operational evidence, code graph data, memory, documentation links,
+  rules, approvals, and broker events. The platform must define how long data is retained,
+  how it is backed up, and how it is restored after failure.
+tags:
+- standard
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/04-data-retention-backup-and-disaster-recovery.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Data Retention, Backup, and Disaster Recovery
 
 ## Purpose

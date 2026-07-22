@@ -1,47 +1,47 @@
 ---
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-hld
-title: "38 - RPM Session Parallel Sync High Level Design"
-doc_type: design
+title: 38 - RPM Session Parallel Sync High Level Design
+doc_type: hld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Runtime topology for RPM-session-gated parallel sync: file worker pool,
-  LLM work queue, session registry, serialized store writer, CLI/HTTP observe.
-  Designed ahead of implementation.
+summary: 'Runtime topology for RPM-session-gated parallel sync: file worker pool, LLM work
+  queue, session registry, serialized store writer, CLI/HTTP observe. Designed ahead of implementation.'
 tags:
-  - sync
-  - rpm
-  - hld
-  - llm-gateway
-  - code-graph
-phase: "07-code-knowledge-graph"
+- sync
+- rpm
+- hld
+- llm-gateway
+- code-graph
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/38-rpm-session-parallel-sync-high-level-design.md
-related_docs:
-  - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
-  - ac.doc.ckg.rpm-session-parallel-sync-lld
-  - ac.doc.ckg.rpm-session-parallel-sync-risks
-  - ac.doc.stack.litellm-llm-gateway
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
 lifecycle_lane: current
 concern_lane: design
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: informative
 visibility: internal
+linked_symbols:
+- backend/packages/llm_gateway/gateway.py::LlmGateway
+related_docs:
+- ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- ac.doc.ckg.rpm-session-parallel-sync-lld
+- ac.doc.ckg.rpm-session-parallel-sync-risks
+- ac.doc.stack.litellm-llm-gateway
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
 primary_entities:
-  - RpmSessionGate
-  - SessionRegistry
-  - FileWorkerPool
-  - SerializedStoreWriter
+- RpmSessionGate
+- SessionRegistry
+- FileWorkerPool
+- SerializedStoreWriter
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
-  - type: complements
-    target: ac.doc.stack.litellm-llm-gateway
+- type: depends_on
+  target: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- type: complements
+  target: ac.doc.stack.litellm-llm-gateway
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

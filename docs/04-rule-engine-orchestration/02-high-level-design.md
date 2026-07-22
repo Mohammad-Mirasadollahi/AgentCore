@@ -1,8 +1,46 @@
+---
+doc_id: ac.doc.rules.high-level-design
+title: Rule Engine And Orchestration - High-Level Design
+doc_type: hld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This HLD defines the system-level architecture for Rule Engine And Orchestration.
+tags:
+- hld
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/02-high-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine And Orchestration - High-Level Design
 
 ## Purpose
 
 This HLD defines the system-level architecture for Rule Engine And Orchestration. It explains the architectural intent, actors, components, data ownership, runtime flows, integration boundaries, operational expectations, and acceptance criteria. It is written for architects, senior engineers, product designers, reviewers, and operators who need enough context to implement the phase without relying on hidden assumptions.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

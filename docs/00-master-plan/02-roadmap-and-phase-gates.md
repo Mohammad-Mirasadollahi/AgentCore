@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.master.roadmap-and-phase-gates
+title: Roadmap and Phase Gates
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore should be delivered in dependency order. Later phases rely on stable identifiers,
+  records, memory, and graph links created by earlier phases.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/02-roadmap-and-phase-gates.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Roadmap and Phase Gates
+
+
+## Purpose
+
+AgentCore should be delivered in dependency order. Later phases rely on stable identifiers, records, memory, and graph links created by earlier phases.
 
 AgentCore should be delivered in dependency order. Later phases rely on stable identifiers, records, memory, and graph links created by earlier phases.
 

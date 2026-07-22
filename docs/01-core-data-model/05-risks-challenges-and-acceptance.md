@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.core.risks-challenges-and-acceptance
+title: Core Data Model - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- Avoid logging secrets or sensitive terminal output while preserving enough evidence
+  for audits.'
+tags:
+- gap
+- core
+phase: 01-core-data-model
+canonical_path: docs/01-core-data-model/05-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Core Data Model - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- Avoid logging secrets or sensitive terminal output while preserving enough evidence for audits. - Prevent Activity records from becoming noisy chat transcripts. - Keep Issue and Task semantics strict so orchestration does not confuse risk discovery with execution. - Preserve De.
 
 ## Challenges
 

@@ -1,3 +1,32 @@
+---
+doc_id: ac.doc.ckg.ingestion-and-living-documentation-workflow
+title: Ingestion and Living Documentation Workflow
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This workflow updates the Code-Knowledge Graph whenever code changes. It parses code,
+  detects changed symbols, generates or refreshes documentation for changed nodes, and upserts
+  nodes and relationships into Neo4j.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
+- backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
+- backend/services/code-graph-service/src/code_graph_service/domain/symbol_resolve.py::resolve_linked_symbol
+- backend/services/code-graph-service/src/code_graph_service/domain/doc_discovery.py::discover_documentation_files
+---
+
 # Ingestion and Living Documentation Workflow
 
 ## Purpose
@@ -109,6 +138,25 @@ After Phase 1 code ingest, `agentcore sync` runs a second phase when `docs.match
 5. Register docs-sync anchors for resolved links so drift can compare code hashes later.
 
 Living AI docs (`doc:{project}:{qualified_name}`) remain separate from human projections. Body-tier Markdown without Full-tier frontmatter is still indexed in docs-sync via provisional fields, but receives no `DOCUMENTED_BY` edges until `linked_symbols` resolve.
+
+### Hybrid coverage pack (agent read path)
+
+`build_generation_context` merges layers for the seed symbol via
+`code_graph_service.domain.hybrid_doc_coverage.build_symbol_doc_coverage`:
+
+| Layer | Source | When missing |
+| --- | --- | --- |
+| AST | neighbors (`CALLS` / `IMPORTS` / …) | (always present after Phase 1 for ingested symbols) |
+| Living | symbol `ai_documentation` + living `DOCUMENTED_BY` | fall back to AST |
+| Human | `doc:human:…` via resolved `linked_symbols` | fall back to living |
+| Rationale | `# WHY:` / `NOTE` / `HACK` nodes | optional enrichment |
+
+Preference for prompt snippets: **human → living → rationale → AST**. No edges are invented on read.
+
+Evidence-only link suggestions (write path): `agentcore docs-suggest-links` proposes
+`path::Symbol` tokens from Markdown path citations; `--apply` updates frontmatter only.
+Phase 2 sync remains the sole edge writer for resolved tokens. Full normative detail
+(including optional flags and deferred LLM pairing): [`41-hybrid-documentation-coverage.md`](./41-hybrid-documentation-coverage.md).
 
 Orchestration lives in `agentcore_cli.docs_link_sync` (in-process clients; no cross-service DB reads). Disable Phase 2 with `docs.match: []` or `docs.enabled: false`.
 

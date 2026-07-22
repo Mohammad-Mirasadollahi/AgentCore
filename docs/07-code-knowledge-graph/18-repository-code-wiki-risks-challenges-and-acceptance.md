@@ -1,47 +1,47 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-risks
-title: "18 - Repository Code Wiki Risks Challenges And Acceptance"
+title: 18 - Repository Code Wiki Risks Challenges And Acceptance
 doc_type: gap
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Risks, mitigations, acceptance gates, and open gaps for Repository Code Wiki
-  (documentation phase; implementation follow-on).
+summary: Risks, mitigations, acceptance gates, and open gaps for Repository Code Wiki (documentation
+  phase; implementation follow-on).
 tags:
-  - repository-code-wiki
-  - risks
-  - acceptance
-  - security
-  - cost
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- risks
+- acceptance
+- security
+- cost
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/18-repository-code-wiki-risks-challenges-and-acceptance.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-feature-spec
-  - ac.doc.ckg.repository-code-wiki-contracts
-  - ac.doc.ckg.repository-code-wiki-hld
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - security
 lifecycle_lane: future
-concern_lane: risk
+concern_lane: problem
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-feature-spec
+- ac.doc.ckg.repository-code-wiki-contracts
+- ac.doc.ckg.repository-code-wiki-hld
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- security
 primary_entities:
-  - WikiGenerationJob
-  - WikiPage
+- WikiGenerationJob
+- WikiPage
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.repository-code-wiki-feature-spec
-  - type: complements
-    target: docs/10-gap-analysis/00-index.md
+- type: depends_on
+  target: ac.doc.ckg.repository-code-wiki-feature-spec
+- type: complements
+  target: docs/10-gap-analysis/00-index.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

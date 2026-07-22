@@ -1,59 +1,60 @@
 ---
 doc_id: ac.doc.core.agent-collaboration-work-surface
-title: "07 - Agent Collaboration Work Surface"
-doc_type: feature
-status: proposed
-schema_version: "1.0"
+title: 07 - Agent Collaboration Work Surface
+doc_type: feature_spec
+status: draft
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Defines AgentCore's own Issue/Task/AgentTicket/ChangeSet/Review/Comment/Label
-  collaboration surface for agents. GitHub-like in role, not a GitHub clone or SoR.
+summary: Answer whether AgentCore supports GitHub-like Issues, pull-request style change proposals,
+  reviews, comments, and labels **as its own specialized model for agents** — and define the
+  completed surface when those constructs must exist inside AgentCore rather than inside GitHub.
 tags:
-  - issue
-  - task
-  - agent-ticket
-  - changeset
-  - review
-  - comment
-  - label
-  - collaboration
-  - control-plane
-phase: "01-core-data-model"
+- issue
+- task
+- agent-ticket
+- changeset
+- review
+- comment
+- label
+- collaboration
+- control-plane
+phase: 01-core-data-model
 canonical_path: docs/01-core-data-model/07-agent-collaboration-work-surface.md
-related_docs:
-  - ac.doc.master.agent-control-plane-boundary
-  - ac.doc.core.contracts
-  - ac.doc.interop.external-vcs-tracker-mapping
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: future
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.master.agent-control-plane-boundary
+- ac.doc.core.contracts
+- ac.doc.interop.external-vcs-tracker-mapping
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - Issue
-  - Task
-  - AgentTicket
-  - ChangeSet
-  - ReviewThread
-  - DiscussionComment
-  - WorkLabel
+- Issue
+- Task
+- AgentTicket
+- ChangeSet
+- ReviewThread
+- DiscussionComment
+- WorkLabel
 relations_declared:
-  - type: complements
-    target: docs/01-core-data-model/01-feature-specification.md
-  - type: complements
-    target: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
-  - type: depends_on
-    target: docs/00-master-plan/07-agent-control-plane-product-boundary.md
-  - type: complements
-    target: docs/05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md
+- type: complements
+  target: docs/01-core-data-model/01-feature-specification.md
+- type: complements
+  target: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
+- type: depends_on
+  target: docs/00-master-plan/07-agent-control-plane-product-boundary.md
+- type: complements
+  target: docs/05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -67,6 +68,21 @@ security_classification: internal
 ## Purpose
 
 Answer whether AgentCore supports GitHub-like Issues, pull-request style change proposals, reviews, comments, and labels **as its own specialized model for agents** — and define the completed surface when those constructs must exist inside AgentCore rather than inside GitHub.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Direct Answer
 

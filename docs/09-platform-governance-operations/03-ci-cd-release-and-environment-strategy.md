@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ops.ci-cd-release-and-environment-strategy
+title: CI/CD, Release, and Environment Strategy
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore needs a release process that protects contracts, data, policy behavior,
+  indexing correctness, prompt safety, and operational reliability.
+tags:
+- standard
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/03-ci-cd-release-and-environment-strategy.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # CI/CD, Release, and Environment Strategy
 
 ## Purpose

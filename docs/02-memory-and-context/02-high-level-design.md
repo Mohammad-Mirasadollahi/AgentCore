@@ -1,8 +1,49 @@
+---
+doc_id: ac.doc.memory.high-level-design
+title: Memory And Context - High-Level Design
+doc_type: hld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This HLD defines the system-level architecture for Memory And Context. It explains
+  the architectural intent, actors, components, data ownership, runtime flows, integration
+  boundaries, operational expectations, and acceptance criteria. It is written for architects,
+  senior engineer.
+tags:
+- hld
+- memory
+phase: 02-memory-and-context
+canonical_path: docs/02-memory-and-context/02-high-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Memory And Context - High-Level Design
 
 ## Purpose
 
 This HLD defines the system-level architecture for Memory And Context. It explains the architectural intent, actors, components, data ownership, runtime flows, integration boundaries, operational expectations, and acceptance criteria. It is written for architects, senior engineers, product designers, reviewers, and operators who need enough context to implement the phase without relying on hidden assumptions.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

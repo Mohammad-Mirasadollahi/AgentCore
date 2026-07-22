@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.tech.index
+title: 06 - Technical Logic and Verification Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Phase 6 makes Phases 1 through 5 implementation-ready and verifiable.
+tags:
+- index
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 06 - Technical Logic and Verification Index
+
+
+## Purpose
+
+Phase 6 makes Phases 1 through 5 implementation-ready and verifiable. Earlier phase folders define product features and service designs. This folder owns the algorithms, invariants, runtime stitching, failure handling, and technical test strategy that prove those designs can be b.
 
 ## Mission
 

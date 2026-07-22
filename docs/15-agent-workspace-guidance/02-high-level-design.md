@@ -1,46 +1,45 @@
 ---
 doc_id: ac.doc.awg.high-level-design
-title: "02 - Agent Workspace Guidance High-Level Design"
-doc_type: high-level-design
+title: 02 - Agent Workspace Guidance High-Level Design
+doc_type: hld
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  System-level architecture for MCP-primary Agent Workspace Guidance resolve,
-  optional filesystem materialize, and ownership boundaries with Common Context
-  and the MCP gateway.
+summary: System-level architecture for MCP-primary Agent Workspace Guidance resolve, optional
+  filesystem materialize, and ownership boundaries with Common Context and the MCP gateway.
 tags:
-  - agent-workspace-guidance
-  - hld
-  - mcp
-  - common-context
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- hld
+- mcp
+- common-context
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/02-high-level-design.md
-related_docs:
-  - ac.doc.awg.feature-specification
-  - ac.doc.awg.low-level-design
-  - ac.doc.common_context.high-level-design
-  - ac.doc.sea.usage-profile-cursor-mcp
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.feature-specification
+- ac.doc.awg.low-level-design
+- ac.doc.common_context.high-level-design
+- ac.doc.sea.usage-profile-cursor-mcp
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - AgentWorkspaceGuidanceBundle
-  - GuidanceProjection
+- AgentWorkspaceGuidanceBundle
+- GuidanceProjection
 relations_declared:
-  - type: depends_on
-    target: ac.doc.awg.feature-specification
-  - type: depends_on
-    target: ac.doc.common_context.high-level-design
+- type: depends_on
+  target: ac.doc.awg.feature-specification
+- type: depends_on
+  target: ac.doc.common_context.high-level-design
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -54,6 +53,21 @@ security_classification: internal
 ## Purpose
 
 This document defines the system-level architecture for Agent Workspace Guidance: how connect-time resolve, MCP exposure, and optional filesystem export fit into AgentCore. Algorithms and field-level models live in the low-level design.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Architecture Overview
 

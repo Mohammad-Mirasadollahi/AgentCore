@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.ckg.neo4j-migration-plan
+title: Code-Knowledge Graph — Neo4j Migration Plan
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Plan and record the cutover from the Phase 7 PostgreSQL `code_graph` projection to
+  Neo4j as the **default** structural graph store, without regressing mandatory Python language
+  support.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/neo4j-python-ingest/run_gate.py::main
+---
+
 # Code-Knowledge Graph — Neo4j Migration Plan
 
 ## Purpose

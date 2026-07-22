@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.service-boundaries-and-modules
+title: Service Boundaries and Modules
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the recommended service and module boundaries for AgentCore.
+  The goal is to keep the system maintainable, testable, and scalable while preventing unrelated
+  concerns from collapsing into one large service.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/02-service-boundaries-and-modules.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Service Boundaries and Modules
 
 ## Purpose

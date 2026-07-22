@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.ckg.metadata-first-code-understanding
+title: 07 - Metadata-First Code Understanding
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore should use a metadata-first code understanding strategy.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/07-metadata-first-code-understanding.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 07 - Metadata-First Code Understanding
+
+
+## Purpose
+
+AgentCore should use a metadata-first code understanding strategy. The system should not read the full source code as the default first step. It should first inspect compact, structured, indexed metadata and then read source code only when the metadata is insufficient, stale, low.
 
 ## Position
 

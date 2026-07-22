@@ -8,6 +8,16 @@ from . import _paths  # noqa: F401 — side effect: service path bootstrap
 from .platform import PlatformBackends
 
 
+def docs_authoring_standards(
+    *,
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Return Full-tier documentation authoring law (not Body-tier docs-sync validate)."""
+    from common_context_service.documentation_authoring_law import authoring_law_payload
+
+    return {**base, "authoring_standards": authoring_law_payload()}
+
+
 def docs_status(
     backends: PlatformBackends,
     *,

@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.ckg.technical-implementation-logic
+title: Code-Knowledge Graph - Technical Implementation Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the implementation logic for a Neo4j-backed Code-Knowledge
+  Graph with pgvector-backed semantic retrieval that supports live documentation and graph-guided
+  code generation.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/06-technical-implementation-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Code-Knowledge Graph - Technical Implementation Logic
+
+
+## Purpose
+
+This document defines the implementation logic for a Neo4j-backed Code-Knowledge Graph with pgvector-backed semantic retrieval that supports live documentation and graph-guided code generation.
 
 ## Technical Goal
 

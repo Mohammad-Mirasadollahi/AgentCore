@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ops.api-versioning-and-contract-governance
+title: API Versioning and Contract Governance
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore depends on stable contracts between services, agents, adapters, IDE plugins,
+  CI systems, and external tools. Contract governance prevents hidden breaking changes.
+tags:
+- contract
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/05-api-versioning-and-contract-governance.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # API Versioning and Contract Governance
 
 ## Purpose

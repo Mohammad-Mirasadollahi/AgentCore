@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.master.cross-cutting-challenges
+title: Cross-Cutting Challenges
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: These challenges affect multiple phases and must be treated as architectural requirements,
+  not implementation details.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/04-cross-cutting-challenges.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Cross-Cutting Challenges
+
+
+## Purpose
+
+These challenges affect multiple phases and must be treated as architectural requirements, not implementation details.
 
 These challenges affect multiple phases and must be treated as architectural requirements, not implementation details.
 

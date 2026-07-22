@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.quality-attributes-and-nfrs
+title: 10 - Quality Attributes And Non-Functional Requirements
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the quality attributes and non-functional requirements that
+  should guide AgentCore engineering. These requirements help engineers make tradeoffs consistently
+  when designing services, contracts, storage, workflows, and operations.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/10-quality-attributes-and-nfrs.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 10 - Quality Attributes And Non-Functional Requirements
 
 ## Purpose

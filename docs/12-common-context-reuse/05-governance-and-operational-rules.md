@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.common-context.governance-and-operational-rules
+title: 05 - Common Context Governance And Operational Rules
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Common Context changes how agents behave, so it must be governed like product and
+  architecture policy.
+tags:
+- standard
+- common-context
+phase: 12-common-context-reuse
+canonical_path: docs/12-common-context-reuse/05-governance-and-operational-rules.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 05 - Common Context Governance And Operational Rules
+
+
+## Purpose
+
+Common Context changes how agents behave, so it must be governed like product and architecture policy. The system must never silently turn every repeated phrase into an enforced rule.
 
 ## Governance Principles
 

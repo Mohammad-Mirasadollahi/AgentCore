@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.examples.end-to-end-password-migration-example
+title: End-to-End Example - Password Hashing Migration
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: A backend agent changes password hashing from SHA256 to Argon2. The system must record
+  the work, preserve the reason, detect migration risk, create follow-up tasks, update memory,
+  check documentation drift, evaluate security policy, and request approval if required.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/01-end-to-end-password-migration-example.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # End-to-End Example - Password Hashing Migration
+
+
+## Purpose
+
+A backend agent changes password hashing from SHA256 to Argon2. The system must record the work, preserve the reason, detect migration risk, create follow-up tasks, update memory, check documentation drift, evaluate security policy, and request approval if required.
 
 ## Scenario
 

@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.sea.agent-and-resource-connectivity-automation
+title: 20 - Agent And Resource Connectivity Automation
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must make it easy for agents, IDEs, tools, repositories, ticket systems,
+  approval systems, model providers, and internal resources to connect. A new integration
+  should not require manual endpoint hunting, undocumented tokens, custom payload guessing,
+  or one-off configur.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/20-agent-and-resource-connectivity-automation.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 20 - Agent And Resource Connectivity Automation
 
 ## Purpose

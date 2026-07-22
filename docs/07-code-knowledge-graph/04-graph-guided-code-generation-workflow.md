@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.ckg.graph-guided-code-generation-workflow
+title: Graph-Guided Code Generation Workflow
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Graph-guided code generation lets AI write new code using real project context from
+  the Code-Knowledge Graph. Instead of sending the full repository to the model, the system
+  retrieves relevant symbols, signatures, documentation, and relationships.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/04-graph-guided-code-generation-workflow.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Graph-Guided Code Generation Workflow
 
 ## Purpose

@@ -1,48 +1,48 @@
 ---
 doc_id: ac.doc.ckg.code-intel-lld
-title: "24 - Code Intelligence Enhancements Low-Level Design"
+title: 24 - Code Intelligence Enhancements Low-Level Design
 doc_type: lld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Algorithms for route extraction, TESTED_BY linking, execution flows,
-  risk scoring, explore budget/skeletonization, and Wave 2 community/RRF
-  sketches for AgentCore code intelligence.
+summary: Algorithms for route extraction, TESTED_BY linking, execution flows, risk scoring,
+  explore budget/skeletonization, and Wave 2 community/RRF sketches for AgentCore code intelligence.
 tags:
-  - code-intelligence
-  - lld
-  - algorithms
-  - leiden
-  - risk
-  - explore
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- lld
+- algorithms
+- leiden
+- risk
+- explore
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/24-code-intelligence-enhancements-low-level-design.md
-related_docs:
-  - ac.doc.ckg.code-intel-hld
-  - ac.doc.ckg.code-intel-feature-spec
-  - ac.doc.ckg.code-intel-contracts
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - agent
 lifecycle_lane: current
 concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- tests/backend/services/code-graph-service/test_wave1_intelligence.py::test_extract_fastapi_routes
+related_docs:
+- ac.doc.ckg.code-intel-hld
+- ac.doc.ckg.code-intel-feature-spec
+- ac.doc.ckg.code-intel-contracts
+doc_version: 1.0.0
+audience:
+- engineer
+- agent
 primary_entities:
-  - ExplorePack
-  - RiskFactors
-  - ExecutionFlow
-  - ExtractedRoute
+- ExplorePack
+- RiskFactors
+- ExecutionFlow
+- ExtractedRoute
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-hld
-  - type: constrains
-    target: backend/services/code-graph-service/src/code_graph_service/domain/
+- type: depends_on
+  target: ac.doc.ckg.code-intel-hld
+- type: constrains
+  target: backend/services/code-graph-service/src/code_graph_service/domain/
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -60,6 +60,21 @@ explore packing). Wave 2+ retrieval and communities: see docs `27`–`29`
 (BM25/FTS/BGE/APOC/Leiden). Do not reintroduce token-overlap lexical search.
 Inspired by MIT prior art; clean-room code under `code_graph_service.domain.*`.
 License: [`21`](21-code-intelligence-prior-art-ideas-and-license.md).
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Rel Types And Kinds
 

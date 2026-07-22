@@ -33,6 +33,15 @@ def register(sub: argparse._SubParsersAction) -> None:
     ghy.add_argument("--top-k", type=int, default=10)
     ghy.add_argument("--allow-cloud-llm", action="store_true")
 
+    ggc = graph_sub.add_parser(
+        "generation-context",
+        help="Build generation context pack (includes hybrid_documentation layers)",
+    )
+    add_scope_args(ggc)
+    ggc.add_argument("--symbol-id", default="", help="Seed symbol id")
+    ggc.add_argument("--qualified-name", default="", help="Seed qualified_name (if no --symbol-id)")
+    ggc.add_argument("--max-symbols", type=int, default=12)
+
     gsm = graph_sub.add_parser("smoke", help="Ingest + freshness + hybrid + explore in one process")
     add_scope_args(gsm)
     gsm.add_argument("--path", required=True)

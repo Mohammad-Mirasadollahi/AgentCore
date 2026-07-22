@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.api.api-design-principles
+title: 01 - API Design Principles
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the principles that all AgentCore APIs must follow. APIs are
+  long-lived contracts between the admin console, SDKs, agents, adapters, services, and external
+  tools. They must be stable, versioned, understandable, and testable.
+tags:
+- standard
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/01-api-design-principles.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 01 - API Design Principles
 
 ## Purpose

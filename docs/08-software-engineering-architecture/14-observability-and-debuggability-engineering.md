@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.observability-and-debuggability-engineering
+title: 14 - Observability And Debuggability Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should be made observable and debuggable. Observability
+  is required because the platform coordinates services, agents, documents, code graphs, rules,
+  adapters, and humans. Engineers must be able to understand system behavior without guessing.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/14-observability-and-debuggability-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 14 - Observability And Debuggability Engineering
 
 ## Purpose

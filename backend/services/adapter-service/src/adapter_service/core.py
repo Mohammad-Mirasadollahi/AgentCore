@@ -814,7 +814,7 @@ class AdapterService:
                 continue
             if subscription.filter_domains and domain not in subscription.filter_domains:
                 continue
-            # ponytail: fail_mode=unauthorized denies without schema column; upgrade to ACL table if needed
+            # fail_mode=unauthorized denies without a schema ACL column; upgrade to ACL table if needed.
             if subscription.fail_mode == "unauthorized":
                 continue
             delivery = Delivery(str(uuid4()), scope, event.id, subscription.id, DeliveryState.PENDING, 1, None, timestamp, timestamp)

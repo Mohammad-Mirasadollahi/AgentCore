@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.sea.architecture-principles
+title: Software Engineering Architecture Principles
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore should be designed as a maintainable software platform, not as a collection
+  of scripts.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/01-architecture-principles.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Software Engineering Architecture Principles
 
 ## Purpose

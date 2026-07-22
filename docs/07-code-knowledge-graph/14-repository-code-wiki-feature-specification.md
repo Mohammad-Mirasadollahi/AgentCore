@@ -1,62 +1,61 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-feature-spec
-title: "14 - Repository Code Wiki Feature Specification"
+title: 14 - Repository Code Wiki Feature Specification
 doc_type: feature_spec
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Product requirements for AgentCore Repository Code Wiki: holistic,
-  architecture-aware, repository-level documentation generation with
-  hierarchical decomposition, incremental refresh, Mermaid visuals, and
-  human/agent browse surfaces — inspired by CodeWiki / Google Code Wiki.
+summary: 'This document specifies **Repository Code Wiki**: AgentCore’s capability to generate
+  and maintain holistic, structured, architecture-aware documentation for an entire connected
+  repository — not only per-symbol living docs. It owns product requirements, workflows, permissions.'
 tags:
-  - repository-code-wiki
-  - living-documentation
-  - code-knowledge-graph
-  - feature-specification
-  - mermaid
-  - hierarchical-decomposition
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- living-documentation
+- code-knowledge-graph
+- feature-specification
+- mermaid
+- hierarchical-decomposition
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/14-repository-code-wiki-feature-specification.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-hld
-  - ac.doc.ckg.repository-code-wiki-lld
-  - ac.doc.ckg.repository-code-wiki-contracts
-  - ac.doc.ckg.repository-code-wiki-risks
-external_refs:
-  - https://codewiki.google/
-  - https://github.com/FSoft-AI4Code/CodeWiki
-  - https://arxiv.org/abs/2510.24428
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: future
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-hld
+- ac.doc.ckg.repository-code-wiki-lld
+- ac.doc.ckg.repository-code-wiki-contracts
+- ac.doc.ckg.repository-code-wiki-risks
+external_refs:
+- https://codewiki.google/
+- https://github.com/FSoft-AI4Code/CodeWiki
+- https://arxiv.org/abs/2510.24428
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - RepositoryCodeWiki
-  - WikiGenerationJob
-  - WikiModuleTree
-  - WikiPage
-  - WikiArtifact
+- RepositoryCodeWiki
+- WikiGenerationJob
+- WikiModuleTree
+- WikiPage
+- WikiArtifact
 relations_declared:
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/01-vision-and-scope.md
-  - type: complements
-    target: docs/03-docs-as-code-sync/01-feature-specification.md
-  - type: complements
-    target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- type: depends_on
+  target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+- type: depends_on
+  target: docs/07-code-knowledge-graph/01-vision-and-scope.md
+- type: complements
+  target: docs/03-docs-as-code-sync/01-feature-specification.md
+- type: complements
+  target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -72,6 +71,14 @@ security_classification: internal
 This document specifies **Repository Code Wiki**: AgentCore’s capability to generate and maintain holistic, structured, architecture-aware documentation for an entire connected repository — not only per-symbol living docs. It owns product requirements, workflows, permissions, and acceptance criteria. Runtime topology lives in the high-level design; algorithms live in the low-level design; wire shapes live in the contracts document.
 
 Prior art (external): [Google Code Wiki](https://codewiki.google/) and the open-source [CodeWiki](https://github.com/FSoft-AI4Code/CodeWiki) framework ([paper](https://arxiv.org/abs/2510.24428)). AgentCore does **not** vendor those products; it adopts the same job-to-be-done — repository-level wiki generation with hierarchy, cross-module analysis, and visual artifacts — as a governed platform capability on top of the Code-Knowledge Graph, LiteLLM routing, and Docs-as-Code sync.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
 
 ## Professional Audience
 

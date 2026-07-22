@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.memory.risks-challenges-and-acceptance
+title: Memory and Context - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- Over-consolidation can erase important evidence. - Old history can confuse agents
+  if injected as current state. - Prompt caching requires stable ordering and versioning;
+  small unnecessary changes can destroy cache hit rates. - RAG retrieval can miss critical
+  rules unless graph .'
+tags:
+- gap
+- memory
+phase: 02-memory-and-context
+canonical_path: docs/02-memory-and-context/05-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Memory and Context - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- Over-consolidation can erase important evidence. - Old history can confuse agents if injected as current state. - Prompt caching requires stable ordering and versioning; small unnecessary changes can destroy cache hit rates. - RAG retrieval can miss critical rules unless graph .
 
 ## Challenges
 

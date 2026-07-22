@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.sea.zero-touch-installation-and-bootstrap-automation
+title: 19 - Zero Touch Installation And Bootstrap Automation
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must be installable and deployable with minimal manual work.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 19 - Zero Touch Installation And Bootstrap Automation
 
 ## Purpose

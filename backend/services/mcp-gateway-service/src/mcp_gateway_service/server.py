@@ -13,6 +13,12 @@ if str(_PACKAGES) not in sys.path:
 
 from usage_profile import resolve_effective_profile  # noqa: E402
 
+from agentcore_cli.mcp_usage_log import (  # noqa: E402
+    append_mcp_usage_event,
+    approx_tokens_from_chars,
+    approx_tokens_from_obj,
+)
+
 from .backends import PlatformBackends, dispatch_capability  # noqa: E402
 from .lazy_facade import (  # noqa: E402
     LAZY_EXECUTE_TOOL,
@@ -26,6 +32,34 @@ from .lazy_facade import (  # noqa: E402
 
 
 PROTOCOL_VERSION = "2024-11-05"
+
+
+def _log_mcp_tokens(
+    gateway: "McpGateway",
+    *,
+    event: str,
+    tool: str,
+    tokens_in: int,
+    tokens_out: int,
+) -> None:
+    scope = gateway.effective.get("scope") or {}
+    scope_id = (
+        f"{scope.get('tenant_id') or ''}/"
+        f"{scope.get('workspace_id') or ''}/"
+        f"{scope.get('project_id') or ''}"
+    ).strip("/")
+    append_mcp_usage_event(
+        {
+            "event": event,
+            "tool": tool,
+            "tokens_in": int(tokens_in),
+            "tokens_out": int(tokens_out),
+            "client_id": (os.environ.get("AGENTCORE_MCP_CLIENT_ID") or "unknown").strip()
+            or "unknown",
+            "scope": scope_id or "unknown",
+            "usage_profile": str(gateway.effective.get("profile_id") or ""),
+        }
+    )
 
 
 class McpGatewayError(Exception):
@@ -196,12 +230,38 @@ def handle_message(gateway: McpGateway, message: dict[str, Any]) -> dict[str, An
                     "version": gateway.effective["version"],
                 },
             }
+            _log_mcp_tokens(
+                gateway,
+                event="initialize",
+                tool="initialize",
+                tokens_in=approx_tokens_from_obj(params),
+                tokens_out=approx_tokens_from_obj(result),
+            )
         elif method == "tools/list":
-            result = {"tools": gateway.tools_list()}
+            tools = gateway.tools_list()
+            result = {"tools": tools}
+            _log_mcp_tokens(
+                gateway,
+                event="tools/list",
+                tool="tools/list",
+                tokens_in=0,
+                tokens_out=approx_tokens_from_obj(result),
+            )
         elif method == "tools/call":
             name = str(params.get("name") or "")
             arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
             result = gateway.call_tool(name, arguments)
+            out_text = ""
+            for block in result.get("content") or []:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    out_text += str(block.get("text") or "")
+            _log_mcp_tokens(
+                gateway,
+                event="tools/call",
+                tool=name,
+                tokens_in=approx_tokens_from_obj(arguments),
+                tokens_out=approx_tokens_from_chars(len(out_text.encode("utf-8"))),
+            )
         elif method == "ping":
             result = {}
         else:

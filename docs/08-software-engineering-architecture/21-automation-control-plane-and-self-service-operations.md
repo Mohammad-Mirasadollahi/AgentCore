@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.sea.automation-control-plane-and-self-service-operations
+title: 21 - Automation Control Plane And Self-Service Operations
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore should automate not only first installation, but also ongoing operations.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/21-automation-control-plane-and-self-service-operations.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 21 - Automation Control Plane And Self-Service Operations
 
 ## Purpose

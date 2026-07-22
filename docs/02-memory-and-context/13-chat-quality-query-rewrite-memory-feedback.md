@@ -1,55 +1,54 @@
 ---
 doc_id: ac.doc.memory.chat-quality-query-memory-feedback
-title: "13 - Chat Quality Query Rewrite Memory Feedback"
+title: 13 - Chat Quality Query Rewrite Memory Feedback
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Transferable ideas for question rewriting, keyword expansion, conversation
-  memory fitting, chunk-level feedback into rank features, and conversation
-  branching — to improve chat quality over time.
+summary: Catalog mechanisms that improve **question understanding**, **multi-turn context**,
+  and **closed-loop quality** (feedback → better future retrieval).
 tags:
-  - chat
-  - query-rewrite
-  - memory
-  - feedback
-  - prior-art
-phase: "02-memory-and-context"
+- chat
+- query-rewrite
+- memory
+- feedback
+- prior-art
+phase: 02-memory-and-context
 canonical_path: docs/02-memory-and-context/13-chat-quality-query-rewrite-memory-feedback.md
-related_docs:
-  - docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-  - docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-  - docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
-external_refs:
-  - https://github.com/infiniflow/ragflow
-  - https://github.com/Cinnamon/kotaemon
-  - https://github.com/danny-avila/LibreChat
-  - https://github.com/Mintplex-Labs/anything-llm
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: future
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
+external_refs:
+- https://github.com/infiniflow/ragflow
+- https://github.com/Cinnamon/kotaemon
+- https://github.com/danny-avila/LibreChat
+- https://github.com/Mintplex-Labs/anything-llm
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - QueryRewrite
-  - ChunkFeedback
-  - ConversationMemoryFit
-  - ChatBranch
+- QueryRewrite
+- ChunkFeedback
+- ConversationMemoryFit
+- ChatBranch
 relations_declared:
-  - type: depends_on
-    target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-  - type: complements
-    target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- type: depends_on
+  target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- type: complements
+  target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

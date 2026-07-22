@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.master.index
+title: 00 - Master Plan Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This folder describes the complete AgentCore plan at product and architecture level.
+tags:
+- index
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 00 - Master Plan Index
 
 ## Purpose
@@ -16,6 +39,7 @@ Product positioning starts with a wedge: AgentCore connects to a codebase and im
 - 06-professional-documentation-standard.md defines the professional documentation standard for writing implementation-grade engineering and product design specifications, including designed-vs-shipped honesty (unimplemented design may be in git; it must not read as product-ready).
 - 08-documentation-structure-and-machine-ingest-standard.md defines tree numbering, titles, frontmatter, RAG/LLMIndex/GraphRAG authoring shape, and fallback ingest tiers.
 - 09-documentation-classification-and-lanes.md defines documentation lanes: lifecycle (initial/current/future), concern (design/problem/gap/cross-team/…), audience, authority, and visibility — including honest voice for future design.
+- 10-documentation-standardization-procedure.md is the normative audit → remediate → split → link → accept method that keeps `docs/` Full-tier and machine-green.
 
 ## Phase Folders
 

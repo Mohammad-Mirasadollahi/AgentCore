@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.rules.risks-challenges-and-acceptance
+title: Rule Engine and Orchestration - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- Semantic rules can be inconsistent; policies need owners, examples, and precedence.'
+tags:
+- gap
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/05-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine and Orchestration - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- Semantic rules can be inconsistent; policies need owners, examples, and precedence. - LLM judges must not be used for every small event because latency and cost will spike. - Human escalation must provide concise evidence, not raw logs, or approval queues will stall. - Impact a.
 
 ## Challenges
 

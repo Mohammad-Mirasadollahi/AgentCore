@@ -209,16 +209,22 @@ normalize_install_runtime() {
 
 prompt_install_runtime() {
   local choice=""
-  banner "Choose how to bring AgentCore up"
+  banner "Choose AgentCore SERVER runtime (clients are never Dockerized)"
   cat <<'EOF'
-  1) host   — Compose Postgres/Neo4j + MCP HTTP from host .venv (agentcore service start)
-  2) docker — Compose Postgres/Neo4j + MCP HTTP in the mcp-gateway container (wheelhouse image)
+  This choice applies only to the AgentCore SERVER host.
 
-Both options install OS prerequisites, create .venv, and put `agentcore` on your PATH
-(~/.local/bin + shell rc).
+  1) host   — Server: Compose Postgres/Neo4j + MCP HTTP from server .venv
+  2) docker — Server: Compose Postgres/Neo4j + MCP HTTP in mcp-gateway container
+
+  Coding-agent CLIENTS (Cursor / remote laptop / agentcore connect) stay on the
+  client machine: no client Docker image, no client Compose stack. Clients only
+  talk to this server over MCP (HTTP or SSH stdio).
+
+  Both server options still: install OS prerequisites, create .venv, and put
+  `agentcore` on the SERVER PATH (~/.local/bin + shell rc).
 EOF
   while true; do
-    printf 'Select runtime [1=host / 2=docker] (default: 1): ' >&2
+    printf 'Select SERVER runtime [1=host / 2=docker] (default: 1): ' >&2
     read -r choice || true
     choice="${choice:-1}"
     case "${choice}" in

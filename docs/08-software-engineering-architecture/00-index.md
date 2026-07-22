@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.sea.index
+title: 08 - Software Engineering Architecture Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This section describes AgentCore from a Software Engineering architecture perspective.
+  It defines how the system should be engineered, modularized, built, tested, released, operated,
+  extended, secured, automated, installed, connected, isolated, measured, and maintained.
+tags:
+- index
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/port-profile-verification/run_gate.py::main
+---
+
 # 08 - Software Engineering Architecture Index
 
 ## Purpose
@@ -49,6 +75,7 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 35-usage-profile-and-cursor-mcp-onboarding.md defines Usage Profiles (org/person configuration compositions) and Cursor MCP connection materialization via the MCP gateway.
 - 36-agentcore-cli.md defines the `agentcore` CLI install, PATH, and overview; points to the full command catalog.
 - 42-agentcore-cli-command-reference.md is the operator reference for every `agentcore` subcommand (why, required flags, examples, what changes), including mandatory sync filters and wildcards.
+- 44-mcp-token-accounting.md is the feature spec for MCP connect-cost estimates, client/scope usage attribution, and `agentcore mcp tokens`.
 - 37-test-authoring-standard.md is the normative test-authoring playbook: concurrent code-and-tests law, family taxonomy (unit, contract, integration, e2e, live, fuzz, security, performance, regression), doubles, placement, markers, CI selection, and Definition of Done for humans and coding agents.
 - 38-fuzzing-and-property-based-testing.md defines property-based and fuzz suites: invariants, bounded generators, schema/API fuzz, corpus, shrinking, and when fuzz is mandatory with implementation.
 
@@ -92,6 +119,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 20. Read 25-live-and-unit-test-strategy.md before designing module test suites, release validation, real-data test workflows, connector validation, or production-like test evidence.
 21. Read 26-domain-customization-and-feature-control.md before designing domain packs, feature profiles, user-defined rules, feature hiding, or conversation-based rule suggestions.
 21a. Read 35-usage-profile-and-cursor-mcp-onboarding.md before designing org/person Usage Profiles or Cursor MCP onboarding.
+21b. Read 44-mcp-token-accounting.md before changing MCP connect-cost estimates, usage JSONL, or `agentcore mcp tokens`.
 22. Read 13-local-development-and-environment-engineering.md before running services locally or adding development configuration.
 23. Read 14-observability-and-debuggability-engineering.md before adding logs, metrics, traces, diagnostics, alerts, or workflow explanations.
 24. Read 15-extensibility-and-plugin-engineering.md before adding adapters, plugins, rule packs, memory profiles, or parser extensions.
@@ -126,6 +154,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |
 | agentcore CLI install / overview | 36-agentcore-cli.md |
 | agentcore CLI full command reference | 42-agentcore-cli-command-reference.md |
+| MCP token accounting (`mcp tokens`) | 44-mcp-token-accounting.md |
 | agent and resource connectivity | 20-agent-and-resource-connectivity-automation.md |
 | self-service automation and repair | 21-automation-control-plane-and-self-service-operations.md |
 | product design and engineering specification discipline | 22-product-design-and-engineering-specification-discipline.md |

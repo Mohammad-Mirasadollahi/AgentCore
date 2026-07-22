@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.data-and-persistence-engineering
+title: 09 - Data And Persistence Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should engineer persistence, storage ownership,
+  migrations, indexes, graph data, retention, and data access. The goal is to keep data reliable,
+  auditable, and owned by the correct module.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/09-data-and-persistence-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 09 - Data And Persistence Engineering
 
 ## Purpose

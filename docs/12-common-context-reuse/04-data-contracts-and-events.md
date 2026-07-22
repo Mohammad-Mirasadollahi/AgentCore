@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.common-context.data-contracts-and-events
+title: 04 - Common Context Data Contracts And Events
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Contracts should be published through `backend/packages/common-context/contracts`
+  and versioned through the schema registry.
+tags:
+- contract
+- common-context
+phase: 12-common-context-reuse
+canonical_path: docs/12-common-context-reuse/04-data-contracts-and-events.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 04 - Common Context Data Contracts And Events
+
+
+## Purpose
+
+Contracts should be published through `backend/packages/common-context/contracts` and versioned through the schema registry.
 
 ## Contract Families
 

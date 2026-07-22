@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.agents.issue-tracker
+title: 'Issue tracker: GitHub'
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+tags:
+- standard
+- agents
+phase: agents
+canonical_path: docs/agents/issue-tracker.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Issue tracker: GitHub
+
+
+## Purpose
+
+Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 

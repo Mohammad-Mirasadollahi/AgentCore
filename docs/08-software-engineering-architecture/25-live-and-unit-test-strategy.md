@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.sea.live-and-unit-test-strategy
+title: 25 - Live And Unit Test Strategy
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must have both Unit Tests and Live Tests.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/25-live-and-unit-test-strategy.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 25 - Live And Unit Test Strategy
 
 ## Purpose

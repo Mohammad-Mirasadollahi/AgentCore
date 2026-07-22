@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.security-and-threat-modeling-engineering
+title: 16 - Security And Threat Modeling Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how security should be engineered into AgentCore. The platform
+  handles code context, work evidence, agent actions, memory, external integrations, approvals,
+  and audit data. Security must be part of design and implementation, not a final checklist.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/16-security-and-threat-modeling-engineering.md
+lifecycle_lane: current
+concern_lane: security
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 16 - Security And Threat Modeling Engineering
 
 ## Purpose

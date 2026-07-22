@@ -1,31 +1,38 @@
 ---
-doc_id: tsoc.doc.agents.documentation-authoring
-title: "Documentation Authoring (All Agents)"
+doc_id: ac.doc.agents.documentation-authoring
+title: Documentation Authoring (All Agents)
 doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-docs
-summary: >-
-  IDE-agnostic law for writing and reviewing ThinkingSOC Markdown. Applies to
-  Cursor, Claude Code, Codex, and any agent that reads docs/agents or AGENTS.md.
+summary: IDE-agnostic law for writing and reviewing ThinkingSOC Markdown. Applies to Cursor,
+  Claude Code, Codex, and any agent that reads docs/agents or AGENTS.md.
 tags:
-  - documentation
-  - agents
-  - authoring
+- documentation
+- agents
+- authoring
 phase: agents
 canonical_path: docs/agents/documentation-authoring.md
 lifecycle_lane: current
 concern_lane: standard
 audience_lane:
-  - agents
-  - platform-engineering
+- agents
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/commands/docs_standards/check.py::check_markdown_doc
+- backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
 language: en
 security_classification: internal
 ---
 
 # Documentation Authoring (All Agents)
+
+
+## Purpose
+
+IDE-agnostic law for writing and reviewing ThinkingSOC Markdown. Applies to Cursor, Claude Code, Codex, and any agent that reads docs/agents or AGENTS.md.
 
 **Scope:** Every coding agent working in this repository (Cursor, Claude Code, Codex, Copilot workspace agents, and others). This file is the **portable law**. Cursor also loads a mirror as `documentation-authoring.mdc` after `./ai-toolstack/install.sh`.
 
@@ -63,14 +70,15 @@ Whenever you **read or review** a documentation file on disk as part of the task
 
 ## Hard requirements (new docs)
 
-1. Correct folder (service/topic under `backend/docs/standards/` unless another tree owns it).
-2. Full YAML frontmatter: `doc_id` (`tsoc.doc.<domain>.<slug>`), `title`, `doc_type`, `status`, `schema_version`, `owner`, `summary`, `tags`, `phase`, `canonical_path`, plus all five **lane** fields.
+1. Correct folder (phase folder under `docs/` or service/topic under `backend/docs/standards/` unless another tree owns it).
+2. Full YAML frontmatter: `doc_id` (`ac.doc.<domain>.<slug>` for AgentCore `docs/`; do not use `tsoc.doc.*` there), `title`, `doc_type`, `status`, `schema_version`, `owner`, `summary`, `tags`, `phase`, `canonical_path`, plus all five **lane** fields with closed-set enums from `09-…`.
 3. Exactly one H1 matching `title`; Purpose H2; chunkable H2s; Related Documents for normative types.
-4. Modular: soft ≤ ~400 body lines, hard ≤ ~800 or split; one concern per file.
+4. Modular: soft ≤ ~400 body lines, hard ≤ ~800 or split; one concern per file. Soft-budget warnings **must** be cleared when standardizing.
 5. Implementation-grade content per `01-…` / `06-professional-documentation-standard.md` (contracts, ownership, failure, verification — not marketing). Unimplemented design may be published; it **must not** read as shipped / product-ready (`lifecycle_lane` + Implementation status + honest voice).
 6. **Design docs (`hld` / `lld` / `feature_spec` / `service_design`):** Mermaid + matching agent-readable flow table in the same H2 (`04-…`). Not Mermaid-only, not image-only.
 7. Link from folder `README.md` / index. No secrets or customer data in examples.
 8. Search for existing canonical doc first — extend or split; do not duplicate.
+9. **Standardization method:** when fixing nonconformance or bulk-remediating `docs/`, follow `docs/00-master-plan/10-documentation-standardization-procedure.md` (machine gate issue codes, remediator, size splits, evidence-only `linked_symbols`). Verify with `agentcore docs-standards` until zero issues. **Team brief / reading list:** `docs/agents/team-documentation-playbook-for-agentcore.md`.
 
 ## Edit / review obligation (structure wrong → fix whole doc)
 
@@ -93,6 +101,8 @@ Read `backend/docs/standards/documentation/README.md` (or the four standards). P
 | Rules mirror | `.agents/rules/documentation-authoring.md` |
 | Entry | `AGENTS.md` |
 | Cursor-only mirror | `ai-toolstack/rules/documentation-authoring.mdc` → `.cursor/rules/` via `install.sh` |
+| MCP coding agents | Tool `agentcore_docs_authoring_standards` + seed skill `agentcore-documentation-authoring` (payload SSOT: `common_context_service.documentation_authoring_law`) |
+| Teams (human brief) | [`team-documentation-playbook-for-agentcore.md`](./team-documentation-playbook-for-agentcore.md) |
 
 ## Anti-patterns
 

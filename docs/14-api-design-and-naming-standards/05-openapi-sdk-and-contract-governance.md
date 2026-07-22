@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.api.openapi-sdk-and-contract-governance
+title: 05 - OpenAPI, SDK, And Contract Governance
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore API contracts should be generated, versioned,
+  tested, published, and consumed by frontend clients, SDKs, agents, and external integrations.
+tags:
+- contract
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/05-openapi-sdk-and-contract-governance.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 05 - OpenAPI, SDK, And Contract Governance
 
 ## Purpose

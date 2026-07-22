@@ -1,57 +1,57 @@
 ---
 doc_id: ac.doc.ckg.core-product-readiness-phased-backlog
-title: "34 - Core Product Readiness Phased Backlog"
-doc_type: roadmap
+title: 34 - Core Product Readiness Phased Backlog
+doc_type: gap
 status: archived
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  ARCHIVED 2026-07-21. Temporary phased backlog for AgentCore wedge readiness.
-  Phases A–E complete; durable gates live in docs 19/26/31/33, product scope,
-  gap register, and runbook 35. Do not reuse doc_id.
+summary: ARCHIVED 2026-07-21. Temporary phased backlog for AgentCore wedge readiness. Phases
+  A–E complete; durable gates live in docs 19/26/31/33, product scope, gap register, and runbook
+  35. Do not reuse doc_id.
 tags:
-  - roadmap
-  - product-readiness
-  - backlog
-  - temporary
-  - archived
-  - wedge
-  - mcp
-phase: "07-code-knowledge-graph"
+- roadmap
+- product-readiness
+- backlog
+- temporary
+- archived
+- wedge
+- mcp
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/34-core-product-readiness-phased-backlog.md
-related_docs:
-  - docs/00-master-plan/01-product-scope-and-feature-catalog.md
-  - ac.doc.codegraph.competitive-intelligence-roadmap-adr
-  - ac.doc.ckg.code-intel-risks
-  - ac.doc.ckg.prod-retrieval-risks
-  - ac.doc.ckg.prod-retrieval-live-test-gates
-  - docs/07-code-knowledge-graph/18-repository-code-wiki-risks-challenges-and-acceptance.md
-  - docs/10-gap-analysis/01-gap-register.md
-doc_version: "1.2.0"
-audience:
-  - product
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: roadmap
+concern_lane: gap
 audience_lane:
-  - platform-product
-  - platform-engineering
-  - agents
+- platform-product
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/00-master-plan/01-product-scope-and-feature-catalog.md
+- ac.doc.codegraph.competitive-intelligence-roadmap-adr
+- ac.doc.ckg.code-intel-risks
+- ac.doc.ckg.prod-retrieval-risks
+- ac.doc.ckg.prod-retrieval-live-test-gates
+- docs/07-code-knowledge-graph/18-repository-code-wiki-risks-challenges-and-acceptance.md
+- docs/10-gap-analysis/01-gap-register.md
+doc_version: 1.2.0
+audience:
+- product
+- engineer
+- architect
+- agent
 primary_entities:
-  - CoreProductReadiness
-  - ProductPhase
-  - WedgeLaunch
+- CoreProductReadiness
+- ProductPhase
+- WedgeLaunch
 relations_declared:
-  - type: depends_on
-    target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
-  - type: complements
-    target: ac.doc.ckg.prod-retrieval-live-test-gates
-  - type: complements
-    target: docs/10-gap-analysis/01-gap-register.md
+- type: depends_on
+  target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
+- type: complements
+  target: ac.doc.ckg.prod-retrieval-live-test-gates
+- type: complements
+  target: docs/10-gap-analysis/01-gap-register.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 750
@@ -60,12 +60,10 @@ language: en
 security_classification: internal
 retirement:
   policy: delete_or_archive_when_complete
-  when: >-
-    All phase exit criteria below are checked AND durable acceptance has been
-    copied into permanent docs (26, 31, 33, product scope, gap register).
-  action: >-
-    Set status archived OR delete this file; remove index bullet from
-    00-index.md; never reuse doc_id.
+  when: All phase exit criteria below are checked AND durable acceptance has been copied into
+    permanent docs (26, 31, 33, product scope, gap register).
+  action: Set status archived OR delete this file; remove index bullet from 00-index.md; never
+    reuse doc_id.
 ---
 
 # 34 - Core Product Readiness Phased Backlog

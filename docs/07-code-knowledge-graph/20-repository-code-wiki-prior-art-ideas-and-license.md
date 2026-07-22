@@ -1,54 +1,54 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-prior-art-license
-title: "20 - Repository Code Wiki Prior Art Ideas And License"
+title: 20 - Repository Code Wiki Prior Art Ideas And License
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Transferable product and engineering ideas from CodeWiki / Google Code Wiki
-  for AgentCore improvement, plus mandatory license and IP compliance rules.
+summary: Transferable product and engineering ideas from CodeWiki / Google Code Wiki for AgentCore
+  improvement, plus mandatory license and IP compliance rules.
 tags:
-  - repository-code-wiki
-  - prior-art
-  - license
-  - mit
-  - compliance
-  - inspiration
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- prior-art
+- license
+- mit
+- compliance
+- inspiration
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/20-repository-code-wiki-prior-art-ideas-and-license.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-feature-spec
-  - ac.doc.ckg.repository-code-wiki-hld
-  - ac.doc.ckg.repository-code-wiki-risks
-external_refs:
-  - https://github.com/FSoft-AI4Code/CodeWiki
-  - https://codewiki.google/
-  - https://arxiv.org/abs/2510.24428
-  - https://opensource.org/licenses/MIT
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - security
 lifecycle_lane: future
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-feature-spec
+- ac.doc.ckg.repository-code-wiki-hld
+- ac.doc.ckg.repository-code-wiki-risks
+external_refs:
+- https://github.com/FSoft-AI4Code/CodeWiki
+- https://codewiki.google/
+- https://arxiv.org/abs/2510.24428
+- https://opensource.org/licenses/MIT
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- security
 primary_entities:
-  - RepositoryCodeWiki
-  - PriorArtIdea
-  - LicenseObligation
+- RepositoryCodeWiki
+- PriorArtIdea
+- LicenseObligation
 relations_declared:
-  - type: complements
-    target: ac.doc.ckg.repository-code-wiki-feature-spec
-  - type: complements
-    target: ac.doc.ckg.repository-code-wiki-risks
+- type: complements
+  target: ac.doc.ckg.repository-code-wiki-feature-spec
+- type: complements
+  target: ac.doc.ckg.repository-code-wiki-risks
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

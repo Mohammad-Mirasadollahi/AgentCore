@@ -35,7 +35,7 @@ list_install_stages() {
     name="${entry%%:*}"
     echo "  - ${name}"
   done
-  echo "Runtime modes: host | docker (prompted unless --runtime / --non-interactive)"
+  echo "Runtime modes (SERVER only): host | docker — clients are never Dockerized"
 }
 
 run_install_stage() {

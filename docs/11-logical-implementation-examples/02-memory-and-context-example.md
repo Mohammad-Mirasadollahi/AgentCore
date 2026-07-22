@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.examples.memory-and-context-example
+title: Logical Example - Memory and Context
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: An agent is asked to fix a PayPal timeout bug. The project previously used Stripe,
+  but PayPal is the current gateway. The memory system must retrieve current PayPal context
+  and avoid injecting obsolete Stripe history unless requested.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/02-memory-and-context-example.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Logical Example - Memory and Context
+
+
+## Purpose
+
+An agent is asked to fix a PayPal timeout bug. The project previously used Stripe, but PayPal is the current gateway. The memory system must retrieve current PayPal context and avoid injecting obsolete Stripe history unless requested.
 
 ## Scenario
 

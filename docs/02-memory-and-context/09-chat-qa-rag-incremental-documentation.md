@@ -1,60 +1,60 @@
 ---
 doc_id: ac.doc.memory.chat-qa-rag-incremental-documentation
-title: "09 - Chat Q&A RAG Incremental Documentation"
+title: 09 - Chat Q&A RAG Incremental Documentation
 doc_type: feature_spec
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Product requirements for incremental documentation growth from chat Q&A:
-  persist questions and answers into project RAG, never discard successful
-  answer artifacts, refresh docs when linked code changes, and handle
-  code-vs-doc contradiction with code-first disclosure plus optional doc view.
+summary: This document specifies how AgentCore **must** turn successful chat questions and
+  answers into durable, project-scoped RAG knowledge, keep derived documentation across sessions,
+  refresh it when linked code changes, and disclose **code-versus-documentation contradictions**
+  with a code-first default and optional documentation view.
 tags:
-  - chat
-  - qa
-  - rag
-  - faq-memory
-  - living-documentation
-  - contradiction
-  - feature-specification
-phase: "02-memory-and-context"
+- chat
+- qa
+- rag
+- faq-memory
+- living-documentation
+- contradiction
+- feature-specification
+phase: 02-memory-and-context
 canonical_path: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-related_docs:
-  - docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
-  - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-  - docs/07-code-knowledge-graph/07-metadata-first-code-understanding.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: future
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
+- docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+- docs/07-code-knowledge-graph/07-metadata-first-code-understanding.md
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - ChatQuestionObservation
-  - QaDerivedDocument
-  - CodeDocContradiction
-  - RagQuestionChunk
-  - ChatSessionBranch
-  - ChatTurnReceipt
-  - ChatStreamEvent
+- ChatQuestionObservation
+- QaDerivedDocument
+- CodeDocContradiction
+- RagQuestionChunk
+- ChatSessionBranch
+- ChatTurnReceipt
+- ChatStreamEvent
 relations_declared:
-  - type: complements
-    target: docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/07-metadata-first-code-understanding.md
-  - type: complements
-    target: docs/03-docs-as-code-sync/01-feature-specification.md
+- type: complements
+  target: docs/02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md
+- type: depends_on
+  target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+- type: depends_on
+  target: docs/07-code-knowledge-graph/07-metadata-first-code-understanding.md
+- type: complements
+  target: docs/03-docs-as-code-sync/01-feature-specification.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

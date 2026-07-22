@@ -1,54 +1,54 @@
 ---
 doc_id: ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
-title: "32 - Intentional Fallbacks And Neo4j Plugin Licensing"
+title: 32 - Intentional Fallbacks And Neo4j Plugin Licensing
 doc_type: adr
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Why AgentCore keeps LocalEmbeddingStub, in-process Louvain, Cypher degree
-  ranking, and legacy fulltext query fallback — plus Neo4j APOC/GDS Community
-  vs Enterprise licensing and AGENTCORE_NEO4J_GDS_* env toggles (default on,
-  concurrency capped at 4 Community cores; verified 2026-07-20).
+summary: Why AgentCore keeps LocalEmbeddingStub, in-process Louvain, Cypher degree ranking,
+  and legacy fulltext query fallback — plus Neo4j APOC/GDS Community vs Enterprise licensing
+  and AGENTCORE_NEO4J_GDS_* env toggles (default on, concurrency capped at 4 Community cores;
+  verified 2026-07-20).
 tags:
-  - licensing
-  - neo4j
-  - gds
-  - apoc
-  - fallback
-  - adr
-phase: "07-code-knowledge-graph"
+- licensing
+- neo4j
+- gds
+- apoc
+- fallback
+- adr
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/32-intentional-fallbacks-and-neo4j-plugin-licensing.md
-related_docs:
-  - docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
-  - ac.doc.ckg.prod-retrieval-feature-spec
-  - ac.doc.ckg.prod-retrieval-risks
-external_refs:
-  - https://neo4j.com/docs/graph-data-science/current/introduction/
-  - https://neo4j.com/docs/graph-data-science/current/installation/installation-enterprise-edition/
-  - https://neo4j.com/docs/graph-data-science/current/algorithms/degree-centrality/
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
 lifecycle_lane: current
 concern_lane: decision
 audience_lane:
-  - platform-engineering
-  - operators
+- platform-engineering
+- operators
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
+- ac.doc.ckg.prod-retrieval-feature-spec
+- ac.doc.ckg.prod-retrieval-risks
+external_refs:
+- https://neo4j.com/docs/graph-data-science/current/introduction/
+- https://neo4j.com/docs/graph-data-science/current/installation/installation-enterprise-edition/
+- https://neo4j.com/docs/graph-data-science/current/algorithms/degree-centrality/
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
 primary_entities:
-  - LocalEmbeddingStub
-  - LouvainFallback
-  - CypherDegreeFallback
-  - GdsCommunityEdition
+- LocalEmbeddingStub
+- LouvainFallback
+- CypherDegreeFallback
+- GdsCommunityEdition
 relations_declared:
-  - type: complements
-    target: docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
-  - type: complements
-    target: ac.doc.ckg.prod-retrieval-risks
+- type: complements
+  target: docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
+- type: complements
+  target: ac.doc.ckg.prod-retrieval-risks
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

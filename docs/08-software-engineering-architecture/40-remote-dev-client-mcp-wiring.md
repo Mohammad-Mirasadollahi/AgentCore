@@ -1,38 +1,41 @@
 ---
 doc_id: ac.doc.sea.remote-dev-client-mcp-wiring
-title: "40 - Remote Dev Client MCP Wiring"
+title: 40 - Remote Dev Client MCP Wiring
 doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-engineering
-summary: >-
-  Cross-platform Python workflow to connect a dev machine (Windows, macOS, or Linux)
+summary: Cross-platform Python workflow to connect a dev machine (Windows, macOS, or Linux)
   running any MCP-capable coding agent to AgentCore on a remote server via SSH stdio.
 tags:
-  - mcp
-  - cursor
-  - ssh
-  - client
-  - runbook
-  - cross-platform
-phase: "08-software-engineering-architecture"
+- mcp
+- cursor
+- ssh
+- client
+- runbook
+- cross-platform
+phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
-related_docs:
-  - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
-  - docs/08-software-engineering-architecture/36-agentcore-cli.md
-  - docs/08-software-engineering-architecture/39-local-install-runbook.md
-  - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - operator
 lifecycle_lane: current
-concern_lane: runbook
+concern_lane: ops
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/mcp_client_targets.py::McpClientTarget
+- scripts/client/wire-remote-mcp.py::main
+related_docs:
+- docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
+- docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
+- docs/08-software-engineering-architecture/44-mcp-token-accounting.md
+doc_version: 1.0.0
+audience:
+- engineer
+- operator
 language: en
 security_classification: internal
 ---

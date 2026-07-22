@@ -25,7 +25,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_code_graph_freshness` | read | Pending-sync / stale banners |
 | `agentcore_code_graph_sync` | write | **Preferred:** auto full vs incremental repo sync |
 | `agentcore_code_graph_purge` | write | Wipe project graph (`confirm=true`); then sync |
-| `agentcore_code_graph_generation_context` | read | Generation context pack for coding agents |
+| `agentcore_code_graph_generation_context` | read | Generation context pack for coding agents (includes `hybrid_documentation`) |
 | `agentcore_code_graph_ingest_file` | write | Index one source file (power users) |
 | `agentcore_code_graph_ingest_repo` | write | Walk a repo root (prefer `sync`) |
 | `agentcore_code_graph_language_profile` | read | Polyglot language stats for the project graph |

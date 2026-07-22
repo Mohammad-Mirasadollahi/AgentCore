@@ -40,6 +40,8 @@ env/
 sync-usage.jsonl
 **/sync-usage.jsonl
 *.sync-usage.jsonl
+# MCP token usage JSONL (default .agentcore/mcp-usage/)
+**/mcp-usage/
 
 # Sync filter copy (operator-owned; template stays tracked)
 agentcore.sync.yaml

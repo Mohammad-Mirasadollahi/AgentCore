@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.core.data-contracts-and-events
+title: Core Data Model - Data Contracts and Events
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: '- `Agent(id, vendor, model, capabilities, trust_level, owner)` - `Activity(id, agent_id,
+  task_id, timestamp, action_summary, files_changed, command_refs, test_refs, artifact_refs)`
+  - `WorkLog(id, session_id, agent_id, summary, blockers, followups, confidence)` - `Decision(id,
+  tit.'
+tags:
+- contract
+- core
+phase: 01-core-data-model
+canonical_path: docs/01-core-data-model/04-data-contracts-and-events.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Core Data Model - Data Contracts and Events
+
+
+## Purpose
+
+- `Agent(id, vendor, model, capabilities, trust_level, owner)` - `Activity(id, agent_id, task_id, timestamp, action_summary, files_changed, command_refs, test_refs, artifact_refs)` - `WorkLog(id, session_id, agent_id, summary, blockers, followups, confidence)` - `Decision(id, tit.
 
 ## Core Entities
 

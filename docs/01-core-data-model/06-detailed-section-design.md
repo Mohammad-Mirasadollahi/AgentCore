@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.core.detailed-section-design
+title: Core Data Model - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Core Data Model is the foundation of AgentCore. Without it, every later feature
+  becomes unreliable. Memory cannot be trusted if raw work is not structured. Documentation
+  cannot be synchronized if decisions and tasks are not linkable. Orchestration cannot route
+  work if Issues .
+tags:
+- standard
+- core
+phase: 01-core-data-model
+canonical_path: docs/01-core-data-model/06-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Core Data Model - Detailed Section Design
+
+
+## Purpose
+
+The Core Data Model is the foundation of AgentCore. Without it, every later feature becomes unreliable. Memory cannot be trusted if raw work is not structured. Documentation cannot be synchronized if decisions and tasks are not linkable. Orchestration cannot route work if Issues .
 
 ## Why This Phase Exists
 

@@ -1,46 +1,47 @@
 ---
 doc_id: ac.doc.master.documentation-classification-lanes
-title: "09 - Documentation Classification And Lanes"
+title: 09 - Documentation Classification And Lanes
 doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-docs
-summary: >-
-  Multi-axis classification for AgentCore docs: lifecycle, concern, audience,
-  authority, and visibility lanes so humans and retrieval stacks filter the right module.
+summary: 'Multi-axis classification for AgentCore docs: lifecycle, concern, audience, authority,
+  and visibility lanes so humans and retrieval stacks filter the right module.'
 tags:
-  - documentation
-  - classification
-  - lanes
-  - audience
-  - rag
-  - authoring
-phase: "00-master-plan"
+- documentation
+- classification
+- lanes
+- audience
+- rag
+- authoring
+phase: 00-master-plan
 canonical_path: docs/00-master-plan/09-documentation-classification-and-lanes.md
-related_docs:
-  - ac.doc.master.documentation-structure-machine-ingest
-  - ac.doc.master.professional-documentation
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
 concern_lane: standard
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/commands/docs_standards/check.py::check_markdown_doc
+related_docs:
+- ac.doc.master.documentation-structure-machine-ingest
+- ac.doc.master.professional-documentation
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - DocLane
-  - LifecycleLane
-  - ConcernLane
-  - AudienceLane
+- DocLane
+- LifecycleLane
+- ConcernLane
+- AudienceLane
 relations_declared:
-  - type: complements
-    target: ac.doc.master.documentation-structure-machine-ingest
-  - type: complements
-    target: ac.doc.master.professional-documentation
+- type: complements
+  target: ac.doc.master.documentation-structure-machine-ingest
+- type: complements
+  target: ac.doc.master.professional-documentation
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -346,11 +347,12 @@ Additional rules:
 ## 11. Authoring Workflow
 
 1. Decide if this is a **new modular file** (`08-…` §1.4) rather than a section dump.
-2. Set the five lane fields before writing long prose.
+2. Set the five lane fields before writing long prose. Use **only** the closed concern set in §3; normalize forbidden aliases using `10-documentation-standardization-procedure.md` §4.
 3. If lanes conflict inside one draft (e.g. current design + future brainstorm), split files first.
 4. For partner/other-team docs, write the external contract module first; link internal design second.
 5. For problems/gaps, file under the gap process when they need tracking; keep the Markdown as the durable explanation.
-6. Pass the checklist in §12.
+6. When bringing a file or tree to Full-tier compliance, follow **`10-documentation-standardization-procedure.md`** end-to-end (machine audit → remediate → soft-budget split → evidence `linked_symbols` → re-audit).
+7. Pass the checklist in §12 and the standardization acceptance checklist in `10-…` §10.
 
 ---
 
@@ -383,6 +385,7 @@ This classification standard is satisfied when:
 ## Related Documents
 
 - `08-documentation-structure-and-machine-ingest-standard.md` — structure, modularity, frontmatter base, RAG chunking, fallbacks.
+- `10-documentation-standardization-procedure.md` — mandatory audit/remediate/split/link acceptance method for Full-tier `docs/`.
 - `06-professional-documentation-standard.md` — professional content sections and tone.
 - `../10-gap-analysis/00-index.md` — gap triage home for unresolved assumptions and open decisions.
 - `../03-docs-as-code-sync/00-index.md` — docs graph and validation pipelines.

@@ -1,5 +1,33 @@
+---
+doc_id: ac.doc.interop.sdk-and-developer-platform
+title: 07 - SDK And Developer Platform
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must provide a first-class SDK layer. The SDK is not a convenience wrapper
+  around HTTP endpoints. It is the supported developer interface for agents, adapters, IDE
+  integrations, automation scripts, admin tools, test harnesses, and external systems that
+  need to interact .
+tags:
+- standard
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/07-sdk-and-developer-platform.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+placeholder: 1
+---
+
 # 07 - SDK And Developer Platform
 
+## 07 - SDK And Developer Platform
 ## Purpose
 
 AgentCore must provide a first-class SDK layer. The SDK is not a convenience wrapper around HTTP endpoints. It is the supported developer interface for agents, adapters, IDE integrations, automation scripts, admin tools, test harnesses, and external systems that need to interact with AgentCore safely.
@@ -372,37 +400,6 @@ packages/
 
 Package names should be stable and language-appropriate. Internal generated clients may live under a generated namespace, while public domain clients should remain stable facade classes.
 
-## Documentation Requirements
+## Related Documents
 
-SDK documentation should include:
-
-- installation.
-- authentication.
-- configuration.
-- project scoping.
-- command examples.
-- query examples.
-- event subscription examples.
-- agent run examples.
-- adapter implementation examples.
-- admin workflows.
-- test fixtures.
-- error handling.
-- migration guides.
-- version compatibility matrix.
-
-Examples must use public SDK methods only. They must not import service internals.
-
-## Acceptance Criteria
-
-The SDK platform is acceptable when:
-
-- developers can integrate agents, adapters, admin tools, and tests without importing service internals.
-- every SDK call carries explicit or derived organization, workspace, project, actor, and correlation context.
-- SDKs expose typed errors, idempotency support, retry behavior, and audit-safe logging.
-- SDK behavior is generated or validated from public contracts.
-- TypeScript and Python SDKs have contract tests, examples, and test fakes.
-- adapter developers can register capabilities and validate payload mappings through the SDK.
-- agents can report work, request context, submit evidence, and finish runs through the SDK.
-- admin tooling can manage domain packs, feature profiles, rule suggestions, and audits through privileged SDK methods.
-- SDK documentation is sufficient for a developer to build a first integration without reading service internals.
+- Continued in `docs/05-interoperability-ecosystem/07-sdk-and-developer-platform-continued.md`

@@ -1,59 +1,59 @@
 ---
 doc_id: ac.doc.stack.turbovec-ann-acceleration
-title: "08 - TurboVec ANN Acceleration Integration"
+title: 08 - TurboVec ANN Acceleration Integration
 doc_type: adr
-status: proposed
-schema_version: "1.0"
+status: draft
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Optional in-process TurboQuant ANN acceleration via turbovec beside the
-  PostgreSQL+pgvector baseline. Defines ownership, hybrid allowlist retrieval,
-  adapter ports, sync, security, and acceptance without replacing the SoR.
+summary: This ADR defines how AgentCore may combine with [turbovec](https://github.com/RyanCodrai/turbovec)
+  — a Rust TurboQuant vector index with Python bindings — as an **optional in-process ANN
+  acceleration layer**.
 tags:
-  - turbovec
-  - turboquant
-  - rag
-  - ann
-  - pgvector
-  - memory
-  - code-graph
-  - adr
-phase: "13-technology-stack-and-platform-decisions"
+- turbovec
+- turboquant
+- rag
+- ann
+- pgvector
+- memory
+- code-graph
+- adr
+phase: 13-technology-stack-and-platform-decisions
 canonical_path: docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md
-related_docs:
-  - ac.doc.stack.data-rag-analytics-storage
-  - ac.doc.stack.service-product-standard
-  - ac.doc.gap.technical-implementation
-  - ac.doc.stack.turbovec-for-rag
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.stack.data-rag-analytics-storage
+- ac.doc.stack.service-product-standard
+- ac.doc.gap.technical-implementation
+- ac.doc.stack.turbovec-for-rag
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - VectorIndexPort
-  - TurboVecReplica
-  - HybridRetrievalPlan
+- VectorIndexPort
+- TurboVecReplica
+- HybridRetrievalPlan
 relations_declared:
-  - type: depends_on
-    target: docs/13-technology-stack-and-platform-decisions/04-data-rag-analytics-and-storage-stack.md
-  - type: depends_on
-    target: docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
-  - type: complements
-    target: docs/02-memory-and-context/
-  - type: complements
-    target: docs/07-code-knowledge-graph/
-  - type: complements
-    target: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
-  - type: complements
-    target: docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
+- type: depends_on
+  target: docs/13-technology-stack-and-platform-decisions/04-data-rag-analytics-and-storage-stack.md
+- type: depends_on
+  target: docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
+- type: complements
+  target: docs/02-memory-and-context/
+- type: complements
+  target: docs/07-code-knowledge-graph/
+- type: complements
+  target: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
+- type: complements
+  target: docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -61,8 +61,8 @@ chunk_hints:
 language: en
 security_classification: internal
 external_refs:
-  - https://github.com/RyanCodrai/turbovec
-  - https://arxiv.org/abs/2504.19874
+- https://github.com/RyanCodrai/turbovec
+- https://arxiv.org/abs/2504.19874
 ---
 
 # 08 - TurboVec ANN Acceleration Integration

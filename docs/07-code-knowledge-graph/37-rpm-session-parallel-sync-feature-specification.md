@@ -1,54 +1,54 @@
 ---
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
-title: "37 - RPM Session Parallel Sync Feature Specification"
+title: 37 - RPM Session Parallel Sync Feature Specification
 doc_type: feature_spec
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Requirements for parallel agentcore sync gated by tracked LiteLLM RPM
-  sessions (start and end), with process-local observability via CLI and HTTP.
+summary: '**Implemented** in `llm_gateway.RpmSessionGate`, parallel `ingest_repo` / `_ingest_pending_paths`
+  with `LockedStore`, `GET /api/v1/llm/sessions`, and `agentcore llm sessions`.'
 tags:
-  - sync
-  - rpm
-  - llm
-  - parallelism
-  - observability
-  - feature-specification
-phase: "07-code-knowledge-graph"
+- sync
+- rpm
+- llm
+- parallelism
+- observability
+- feature-specification
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
-related_docs:
-  - ac.doc.ckg.rpm-session-parallel-sync-hld
-  - ac.doc.ckg.rpm-session-parallel-sync-lld
-  - ac.doc.ckg.rpm-session-parallel-sync-risks
-  - ac.doc.stack.litellm-llm-gateway
-  - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-  - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - operators
-  - agents
+- platform-engineering
+- operators
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.rpm-session-parallel-sync-hld
+- ac.doc.ckg.rpm-session-parallel-sync-lld
+- ac.doc.ckg.rpm-session-parallel-sync-risks
+- ac.doc.stack.litellm-llm-gateway
+- docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
+- docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
+- agent
 primary_entities:
-  - RpmSession
-  - SessionRegistry
-  - ParallelSyncPipeline
+- RpmSession
+- SessionRegistry
+- ParallelSyncPipeline
 relations_declared:
-  - type: constrains
-    target: backend/packages/llm_gateway/
-  - type: constrains
-    target: backend/services/code-graph-service/
-  - type: complements
-    target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
+- type: constrains
+  target: backend/packages/llm_gateway/
+- type: constrains
+  target: backend/services/code-graph-service/
+- type: complements
+  target: docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -73,6 +73,21 @@ exceeding that budget or corrupting the graph store. Parallelism is gated by
 **tracked LLM request sessions** (explicit start and end), not by “send one file
 then peek RPM.” Operators and agents can observe in-flight sessions and a short
 recent history through CLI and HTTP.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Goals
 

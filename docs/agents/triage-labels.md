@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.agents.triage-labels
+title: Triage Labels
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The skills speak in terms of five canonical triage roles. This file maps those roles
+  to the actual label strings used in this repo's issue tracker.
+tags:
+- standard
+- agents
+phase: agents
+canonical_path: docs/agents/triage-labels.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Triage Labels
+
+
+## Purpose
+
+The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
 
 The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
 

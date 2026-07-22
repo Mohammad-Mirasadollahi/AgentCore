@@ -1,45 +1,45 @@
 ---
 doc_id: ac.doc.awg.risks-acceptance
-title: "05 - Agent Workspace Guidance Risks Challenges And Acceptance"
-doc_type: risks-acceptance
+title: 05 - Agent Workspace Guidance Risks Challenges And Acceptance
+doc_type: gap
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Risks, mitigations, engineering and product acceptance gates, and open gaps
-  for Agent Workspace Guidance (docs phase; implementation follow-on).
+summary: Risks, mitigations, engineering and product acceptance gates, and open gaps for Agent
+  Workspace Guidance (docs phase; implementation follow-on).
 tags:
-  - agent-workspace-guidance
-  - risks
-  - acceptance
-  - security
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- risks
+- acceptance
+- security
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/05-risks-challenges-and-acceptance.md
-related_docs:
-  - ac.doc.awg.feature-specification
-  - ac.doc.awg.data-contracts
-  - ac.doc.gap.architecture-gaps
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - security
 lifecycle_lane: current
-concern_lane: risk
+concern_lane: problem
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.feature-specification
+- ac.doc.awg.data-contracts
+- ac.doc.gap.architecture-gaps
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- security
 primary_entities:
-  - AgentWorkspaceGuidanceBundle
+- AgentWorkspaceGuidanceBundle
 relations_declared:
-  - type: depends_on
-    target: ac.doc.awg.feature-specification
-  - type: complements
-    target: ac.doc.gap.architecture-gaps
+- type: depends_on
+  target: ac.doc.awg.feature-specification
+- type: complements
+  target: ac.doc.gap.architecture-gaps
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

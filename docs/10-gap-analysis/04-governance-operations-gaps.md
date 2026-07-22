@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.gap.governance-operations-gaps
+title: Governance and Operations Gaps
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This document captures governance, operational, compliance, and process gaps that
+  should be resolved before production adoption.
+tags:
+- gap
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/04-governance-operations-gaps.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Governance and Operations Gaps
 
 ## Purpose

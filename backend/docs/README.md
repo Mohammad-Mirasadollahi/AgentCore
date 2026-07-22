@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.backend.docs-readme
+title: Backend Documentation
+doc_type: readme
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Index for backend structure and engineering standards under backend/docs.
+tags:
+- backend
+- documentation
+- index
+phase: backend-docs
+canonical_path: backend/docs/README.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+language: en
+security_classification: internal
+---
+
 # Backend Documentation
 
 Path: `backend/docs`
@@ -23,3 +49,9 @@ Every backend folder must contain a `README.md`. A folder without a README is co
 Backend services and shared packages now include vertical-slice implementations with canonical tests under `tests/backend/`. Roadmap Phases 1–11 have executable slices and/or verification gates. See the repository root [README.md](../../README.md) for the phase map and named pytest commands.
 
 Scaffold-only language in older module READMEs should be treated as outdated when the module's Status section (or service `src/`) shows an implemented slice.
+
+## Related Documents
+
+- [STRUCTURE_STANDARD.md](./STRUCTURE_STANDARD.md)
+- [ENGINEERING_STANDARDS.md](./ENGINEERING_STANDARDS.md)
+- [docs/agents/TEAM-HANDOUT-agentcore-documentation-complete.md](../../docs/agents/TEAM-HANDOUT-agentcore-documentation-complete.md)

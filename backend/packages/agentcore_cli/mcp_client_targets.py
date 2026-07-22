@@ -239,11 +239,29 @@ def write_fragment_to_clients(
         project_dir, client_ids, include_user=include_user_clients
     ):
         target = MCP_CLIENT_BY_ID[cid]
+        tagged = _with_client_id_env(fragment, cid, server_name=server_name)
         merge_mcp_servers_file(
             path,
-            fragment,
+            tagged,
             server_names=(server_name,),
             target=target,
         )
         written.append(path)
     return written
+
+
+def _with_client_id_env(
+    fragment: dict[str, Any],
+    client_id: str,
+    *,
+    server_name: str,
+) -> dict[str, Any]:
+    """Stamp AGENTCORE_MCP_CLIENT_ID on stdio server env for usage attribution."""
+    import copy
+
+    out = copy.deepcopy(fragment)
+    servers = out.get("mcpServers") or {}
+    entry = servers.get(server_name)
+    if isinstance(entry, dict) and isinstance(entry.get("env"), dict):
+        entry["env"]["AGENTCORE_MCP_CLIENT_ID"] = client_id
+    return out

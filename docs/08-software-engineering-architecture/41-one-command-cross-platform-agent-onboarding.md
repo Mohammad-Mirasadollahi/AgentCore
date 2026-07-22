@@ -1,51 +1,37 @@
 ---
 doc_id: ac.doc.sea.one-command-agent-onboarding
-title: "41 - One-Command Cross-Platform Agent Onboarding"
-doc_type: specification
+title: 41 - One-Command Cross-Platform Agent Onboarding
+doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Operator guide and specification for connecting any MCP-capable coding agent
-  to a remote AgentCore server with one command. Covers SSH stdio and Streamable
-  HTTP transports, shared config, authentication, concurrency, and security.
+summary: Operator guide and specification for connecting any MCP-capable coding agent to a
+  remote AgentCore server with one command. Covers SSH stdio and Streamable HTTP transports,
+  shared config, authentication, concurrency, and security.
 tags:
-  - mcp
-  - onboarding
-  - cross-platform
-  - api
-  - coding-agent
-  - specification
-  - runbook
-phase: "08-software-engineering-architecture"
+- mcp
+- onboarding
+- cross-platform
+- api
+- coding-agent
+- specification
+- runbook
+phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
-related_docs:
-  - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
-  - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
-  - docs/08-software-engineering-architecture/20-agent-and-resource-connectivity-automation.md
-  - docs/08-software-engineering-architecture/36-agentcore-cli.md
-  - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md
-  - docs/08-software-engineering-architecture/39-local-install-runbook.md
-  - backend/services/project-profile-service/docs/usage-profile-api.md
-  - backend/services/mcp-gateway-service/README.md
-doc_version: "1.1.0"
-audience:
-  - engineer
-  - operator
-  - product
 lifecycle_lane: current
-concern_lane: specification
+concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
-language: en
-security_classification: internal
+linked_symbols: []
+placeholder: 1
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding
 
+## 41 - One-Command Cross-Platform Agent Onboarding
 ## Purpose
 
 Connect any **MCP-capable coding agent** (Cursor, Windsurf, VS Code, Claude Code, Continue, Claude Desktop, …) to **AgentCore on a remote server** with one command:
@@ -88,7 +74,7 @@ cd /opt/AgentCore
 agentcore init --tenant acme --workspace eng --path /opt/AgentCore   # you choose the IDs + roots
 agentcore connect --local
 agentcore status
-# Requires agentcore.sync.yaml at each sync root (see doc 42 § Sync filters)
+## Requires agentcore.sync.yaml at each sync root (see doc 42 § Sync filters)
 agentcore sync
 ```
 
@@ -140,7 +126,7 @@ Open a new shell so `agentcore` is on `PATH` ([36](./36-agentcore-cli.md)).
 ### B) Dev host (once)
 
 ```bash
-# Install CLI only (no need for Docker infra on the laptop)
+## Install CLI only (no need for Docker infra on the laptop)
 bash install.sh --skip-infra
 agentcore path install   # if needed
 agentcore connect --init
@@ -253,10 +239,9 @@ Use this when you want IDE config without SSH spawn. On private LAN without TLS,
 ```bash
 export AGENTCORE_MCP_TOKEN_SECRET='replace-with-a-long-random-secret'
 export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
-# When Compose Postgres is up:
-# export AGENTCORE_MCP_STORE_MODE=postgres
-# export AGENTCORE_DATABASE_URL=...
-
+## When Compose Postgres is up:
+## export AGENTCORE_MCP_STORE_MODE=postgres
+## export AGENTCORE_DATABASE_URL=...
 agentcore mcp serve-http --host 0.0.0.0 --port 32500
 ```
 
@@ -425,43 +410,6 @@ User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-
 5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.
 6. Prefer non-root SSH users on the AgentCore host.
 
-## APIs (when `server.url` is set)
+## Related Documents
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/v1/projects/{project_id}/connect/bootstrap` | Register + activate + MCP descriptor |
-| `POST` | `/api/v1/projects/{project_id}/connect/sources` | Register server path / git |
-| `POST` | `/api/v1/projects/{project_id}/connect/ingest` | Request ingest |
-| `GET` | `/api/v1/projects/{project_id}/connect/status` | Status |
-| `GET` | `/health` | Liveness |
-
-Details: [usage-profile-api.md](../../backend/services/project-profile-service/docs/usage-profile-api.md).
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| MCP hangs on connect | SSH password prompt | Install key; test `ssh -o BatchMode=yes … true` |
-| `HTTP smoke failed` | `serve-http` down or bad token | Start `agentcore mcp serve-http`; check `AGENTCORE_MCP_TOKEN_SECRET` |
-| Tools empty / wrong project | Wrong scope | Check `tenant` / `workspace` / project id (= cwd name unless set) |
-| Ingest skipped / failed | Path not on server | Set `source.server_path` to a path that exists on AgentCore host |
-| `agentcore: command not found` | PATH | New shell after install; `agentcore path install` |
-
-## Implementation status
-
-| Capability | Status |
-| --- | --- |
-| `agentcore connect` + `connect.yaml` | Shipped |
-| SSH stdio transport | Shipped |
-| HTTP MCP (`serve-http`, port `32500`) | Shipped |
-| Bootstrap / sources / ingest / status APIs | Shipped |
-| Multi-client MCP file merge | Shipped |
-| Prefer HTTP with SSH fallback | Shipped |
-
-## Related documents
-
-- [35-usage-profile-and-cursor-mcp-onboarding.md](./35-usage-profile-and-cursor-mcp-onboarding.md)
-- [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md)
-- [36-agentcore-cli.md](./36-agentcore-cli.md)
-- [39-local-install-runbook.md](./39-local-install-runbook.md)
-- [backend/services/mcp-gateway-service/README.md](../../backend/services/mcp-gateway-service/README.md)
+- Continued in `docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding-continued.md`

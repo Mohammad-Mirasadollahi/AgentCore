@@ -1,43 +1,43 @@
 ---
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-risks
-title: "40 - RPM Session Parallel Sync Risks Challenges And Acceptance"
-doc_type: specification
+title: 40 - RPM Session Parallel Sync Risks Challenges And Acceptance
+doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Risks, challenges, known limits, and acceptance gates for RPM-session-tracked
-  parallel sync. Designed ahead of implementation; gates unchecked until code.
+summary: Risks, challenges, known limits, and acceptance gates for RPM-session-tracked parallel
+  sync.
 tags:
-  - risks
-  - acceptance
-  - sync
-  - rpm
-  - concurrency
-phase: "07-code-knowledge-graph"
+- risks
+- acceptance
+- sync
+- rpm
+- concurrency
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md
-related_docs:
-  - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
-  - ac.doc.ckg.rpm-session-parallel-sync-lld
-  - ac.doc.stack.litellm-llm-gateway
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
 lifecycle_lane: current
-concern_lane: risk
+concern_lane: problem
 audience_lane:
-  - platform-engineering
-  - operators
+- platform-engineering
+- operators
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- ac.doc.ckg.rpm-session-parallel-sync-lld
+- ac.doc.stack.litellm-llm-gateway
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
 primary_entities:
-  - AcceptanceGate
-  - RpmSession
+- AcceptanceGate
+- RpmSession
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- type: depends_on
+  target: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 chunk_hints:
   strategy: heading_h2
   max_tokens: 600
@@ -47,6 +47,11 @@ security_classification: internal
 ---
 
 # 40 - RPM Session Parallel Sync Risks Challenges And Acceptance
+
+
+## Purpose
+
+Risks, challenges, known limits, and acceptance gates for RPM-session-tracked parallel sync. Designed ahead of implementation; gates unchecked until code.
 
 ## Implementation status
 

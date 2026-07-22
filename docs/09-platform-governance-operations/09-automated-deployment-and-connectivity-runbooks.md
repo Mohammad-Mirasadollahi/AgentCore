@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ops.automated-deployment-and-connectivity-runbooks
+title: 09 - Automated Deployment And Connectivity Runbooks
+doc_type: runbook
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines operational runbooks for automated installation, deployment,
+  connector onboarding, validation, repair, and upgrade workflows.
+tags:
+- runbook
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/09-automated-deployment-and-connectivity-runbooks.md
+lifecycle_lane: current
+concern_lane: ops
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 09 - Automated Deployment And Connectivity Runbooks
 
 ## Purpose

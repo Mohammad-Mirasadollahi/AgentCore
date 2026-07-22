@@ -1,59 +1,59 @@
 ---
 doc_id: ac.doc.ckg.code-intel-prior-art-license
-title: "21 - Code Intelligence Prior Art Ideas And License"
+title: 21 - Code Intelligence Prior Art Ideas And License
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Transferable product and engineering ideas from CodeGraph, code-review-graph,
-  and graphify for AgentCore code intelligence, plus mandatory MIT license and
-  IP compliance rules (clean-room default).
+summary: Transferable product and engineering ideas from CodeGraph, code-review-graph, and
+  graphify for AgentCore code intelligence, plus mandatory MIT license and IP compliance rules
+  (clean-room default).
 tags:
-  - code-intelligence
-  - prior-art
-  - license
-  - mit
-  - compliance
-  - codegraph
-  - graphify
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- prior-art
+- license
+- mit
+- compliance
+- codegraph
+- graphify
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/21-code-intelligence-prior-art-ideas-and-license.md
-related_docs:
-  - ac.doc.codegraph.competitive-intelligence-roadmap-adr
-  - ac.doc.ckg.code-intel-feature-spec
-  - ac.doc.ckg.code-intel-risks
-  - ac.doc.ckg.repository-code-wiki-prior-art-license
-external_refs:
-  - https://github.com/colbymchenry/codegraph
-  - https://github.com/tirth8205/code-review-graph
-  - https://github.com/Graphify-Labs/graphify
-  - https://opensource.org/licenses/MIT
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - security
 lifecycle_lane: current
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.codegraph.competitive-intelligence-roadmap-adr
+- ac.doc.ckg.code-intel-feature-spec
+- ac.doc.ckg.code-intel-risks
+- ac.doc.ckg.repository-code-wiki-prior-art-license
+external_refs:
+- https://github.com/colbymchenry/codegraph
+- https://github.com/tirth8205/code-review-graph
+- https://github.com/Graphify-Labs/graphify
+- https://opensource.org/licenses/MIT
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- security
 primary_entities:
-  - CodeIntelligenceEnhancement
-  - PriorArtIdea
-  - LicenseObligation
+- CodeIntelligenceEnhancement
+- PriorArtIdea
+- LicenseObligation
 relations_declared:
-  - type: complements
-    target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
-  - type: complements
-    target: ac.doc.ckg.code-intel-feature-spec
-  - type: complements
-    target: ac.doc.ckg.repository-code-wiki-prior-art-license
+- type: complements
+  target: ac.doc.codegraph.competitive-intelligence-roadmap-adr
+- type: complements
+  target: ac.doc.ckg.code-intel-feature-spec
+- type: complements
+  target: ac.doc.ckg.repository-code-wiki-prior-art-license
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

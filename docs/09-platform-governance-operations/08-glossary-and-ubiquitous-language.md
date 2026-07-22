@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.ops.glossary-and-ubiquitous-language
+title: Glossary and Ubiquitous Language
+doc_type: glossary
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore spans agents, memory, documentation, code graphs, rules, brokers, and operations.
+  A shared vocabulary prevents ambiguity between engineering, product, security, and business
+  teams.
+tags:
+- glossary
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/08-glossary-and-ubiquitous-language.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Glossary and Ubiquitous Language
 
 ## Purpose

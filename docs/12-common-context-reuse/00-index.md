@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.common-context.index
+title: 12 - Common Context Reuse Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This section defines the AgentCore Common Context capability.
+tags:
+- index
+- common-context
+phase: 12-common-context-reuse
+canonical_path: docs/12-common-context-reuse/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 12 - Common Context Reuse Index
 
 ## Purpose

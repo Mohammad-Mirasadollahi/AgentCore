@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.development-port-management
+title: Development Port Management
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore development environments must avoid port conflicts. Many tools use common
+  default ports. If AgentCore services also use those defaults, developers will hit conflicts
+  with databases, dashboards, local servers, IDE helpers, model runtimes, and other projects.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/04-development-port-management.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Development Port Management
 
 ## Purpose

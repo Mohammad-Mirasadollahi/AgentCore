@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ckg.context-pack-retrieval-and-agent-workflow
+title: 09 - Context Pack Retrieval And Agent Workflow
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore agents should use code metadata before reading
+  source code.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 09 - Context Pack Retrieval And Agent Workflow
 
 ## Purpose

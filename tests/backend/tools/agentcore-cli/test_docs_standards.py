@@ -14,7 +14,9 @@ from agentcore_cli.commands.docs_standards import (
 )
 from agentcore_cli.commands.docs_standards.check import check_markdown_doc
 from agentcore_cli.commands.docs_standards.collect import build_docs_standards_report
+from agentcore_cli.commands.docs_standards.remediate import remediate_markdown_doc
 from agentcore_cli.parser import build_parser
+from agentcore_cli.util import repo_root
 
 GOOD_DOC = """---
 doc_id: ac.doc.test.good
@@ -86,6 +88,84 @@ def test_check_markdown_doc_ok_and_fail():
     bad = check_markdown_doc(relative_path="docs/x.md", text="# Only H1\n\nNo frontmatter.\n")
     assert bad["ok"] is False
     assert "missing_or_invalid_frontmatter" in bad["issues"]
+
+
+def test_remediate_markdown_doc_makes_body_tier_conforming():
+    raw = "# 01 - Sample Topic\n\nThis sample owns a topic for remediation unit tests.\n"
+    rel = "docs/00-master-plan/01-sample-topic.md"
+    fixed = remediate_markdown_doc(relative_path=rel, text=raw)
+    row = check_markdown_doc(relative_path=rel, text=fixed)
+    assert row["ok"] is True, row["issues"]
+    assert "doc_id: ac.doc.master.sample-topic" in fixed
+    assert "## Purpose" in fixed
+
+
+def test_remediate_markdown_doc_adds_mermaid_for_design_types():
+    raw = """---
+doc_id: ac.doc.ckg.sample-hld
+title: Sample HLD
+doc_type: design
+status: proposed
+schema_version: "1.0"
+owner: platform-docs
+summary: Sample high-level design for remediation.
+tags: [test]
+phase: "07-code-knowledge-graph"
+canonical_path: docs/07-code-knowledge-graph/99-sample-hld.md
+---
+
+# Sample HLD
+
+Body without purpose or diagram.
+"""
+    rel = "docs/07-code-knowledge-graph/99-sample-hld.md"
+    fixed = remediate_markdown_doc(relative_path=rel, text=raw)
+    row = check_markdown_doc(relative_path=rel, text=fixed)
+    assert row["ok"] is True, row["issues"]
+    assert "```mermaid" in fixed.lower()
+    assert "| Step | Actor | Action | Outcome |" in fixed
+    assert "doc_type: hld" in fixed
+    assert "status: draft" in fixed
+
+
+def test_remediate_normalizes_concern_and_keeps_evidence_links(tmp_path: Path):
+    code = tmp_path / "backend" / "packages" / "demo" / "mod.py"
+    code.parent.mkdir(parents=True)
+    code.write_text("def sync_repo():\n    return 1\n", encoding="utf-8")
+    raw = """---
+doc_id: ac.doc.ckg.sample-link
+title: Sample Link Doc
+doc_type: standard
+status: active
+schema_version: "1.0"
+owner: platform-docs
+summary: Sample document that cites an implementation symbol for graph linking tests.
+tags: [test]
+phase: "07-code-knowledge-graph"
+canonical_path: docs/07-code-knowledge-graph/99-sample-link.md
+concern_lane: architecture
+---
+
+# Sample Link Doc
+
+## Purpose
+
+Sample document that cites an implementation symbol for graph linking tests.
+
+See `backend/packages/demo/mod.py` during ingest.
+"""
+    rel = "docs/07-code-knowledge-graph/99-sample-link.md"
+    fixed = remediate_markdown_doc(relative_path=rel, text=raw, repo=tmp_path)
+    assert "concern_lane: design" in fixed
+    assert "backend/packages/demo/mod.py::sync_repo" in fixed
+    row = check_markdown_doc(relative_path=rel, text=fixed)
+    assert row["ok"] is True, row["issues"]
+
+
+def test_repo_docs_tree_meets_docs_standards():
+    report = build_docs_standards_report(repo=repo_root())
+    assert report["summary"]["total"] > 0
+    assert report["summary"]["nonconforming_count"] == 0, report["top_nonconforming"][:20]
 
 
 def test_check_ignores_h1_inside_fences():

@@ -1,8 +1,47 @@
+---
+doc_id: ac.doc.docs-sync.low-level-design
+title: Docs As Code Sync - Low-Level Design
+doc_type: lld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This low-level design translates the Docs As Code Sync architecture into implementation-ready
+  technical design.
+tags:
+- lld
+- docs-sync
+phase: 03-docs-as-code-sync
+canonical_path: docs/03-docs-as-code-sync/03-low-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Docs As Code Sync - Low-Level Design
 
 ## Purpose
 
 This low-level design translates the Docs As Code Sync architecture into implementation-ready technical design. It defines internal modules, commands, queries, events, state machines, persistence rules, validation rules, algorithms, idempotency behavior, observability, tests, and edge cases.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Implementation Boundary
 

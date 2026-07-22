@@ -1,45 +1,46 @@
 ---
 doc_id: ac.doc.codegraph.neo4j-runtime-plugins
-title: "12 - Neo4j Runtime Plugins"
-doc_type: specification
+title: 12 - Neo4j Runtime Plugins
+doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Required Neo4j runtime plugins (APOC, Graph Data Science) for Code-Knowledge
-  Graph traversal, merge utilities, path expansion, and ranking algorithms.
+summary: Required Neo4j runtime plugins (APOC, Graph Data Science) for Code-Knowledge Graph
+  traversal, merge utilities, path expansion, and ranking algorithms.
 tags:
-  - neo4j
-  - apoc
-  - gds
-  - code-graph
-phase: "07-code-knowledge-graph"
+- neo4j
+- apoc
+- gds
+- code-graph
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
-related_docs:
-  - docs/07-code-knowledge-graph/02-neo4j-schema-design.md
-  - docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
-  - docs/07-code-knowledge-graph/32-intentional-fallbacks-and-neo4j-plugin-licensing.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
 lifecycle_lane: current
-concern_lane: implementation
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - operators
+- platform-engineering
+- operators
 authority: normative
 visibility: internal
+linked_symbols:
+- tests/backend/gates/neo4j-python-ingest/run_gate.py::main
+related_docs:
+- docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+- docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
+- docs/07-code-knowledge-graph/32-intentional-fallbacks-and-neo4j-plugin-licensing.md
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
 primary_entities:
-  - Neo4jRuntime
-  - APOC
-  - GraphDataScience
+- Neo4jRuntime
+- APOC
+- GraphDataScience
 relations_declared:
-  - type: depends_on
-    target: backend/deployments/compose/compose.yaml
-  - type: complements
-    target: backend/platform/persistence/neo4j/
+- type: depends_on
+  target: backend/deployments/compose/compose.yaml
+- type: complements
+  target: backend/platform/persistence/neo4j/
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

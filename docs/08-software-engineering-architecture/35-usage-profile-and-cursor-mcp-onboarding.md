@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.sea.usage-profile-and-cursor-mcp-onboarding
+title: Usage Profile and Cursor MCP Onboarding
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: A **Usage Profile** lets a person or organization shape AgentCore for a concrete
+  job (for example software engineering with Cursor) without forking the platform.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Usage Profile and Cursor MCP Onboarding
 
 ## Purpose
@@ -156,6 +180,7 @@ Example generated fragment (shape):
 - Docs path: `agentcore_docs_write` (`validate` / `note` / `draft` / `index`) and `agentcore_docs_status` wire Cursor documentation work into docs-sync.
 - Tests cover catalog validation, activation, materialization, MCP protocol handlers, and wired backend calls.
 - Project `.venv` is created via `scripts/ensure-venv.sh` / `requirements-dev.txt`.
+- Connect-cost and MCP usage attribution: [44-mcp-token-accounting.md](./44-mcp-token-accounting.md) (`agentcore mcp tokens`).
 
 ## Implementation home
 
@@ -165,3 +190,11 @@ Example generated fragment (shape):
 - Activation API: `backend/services/project-profile-service/`
 - MCP server: `backend/services/mcp-gateway-service/`
 - Tests: `tests/backend/tools/usage-profile/`, `tests/backend/services/mcp-gateway-service/`, extended project-profile tests
+
+## Related Documents
+
+- [44-mcp-token-accounting.md](./44-mcp-token-accounting.md) — MCP connect estimate and usage history
+- [36-agentcore-cli.md](./36-agentcore-cli.md) — CLI overview
+- [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md) — client wiring
+- [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) — connect UX
+- [26-domain-customization-and-feature-control.md](./26-domain-customization-and-feature-control.md) — domain packs and feature profiles

@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.docs.readme
+title: AgentCore Documentation Plan
+doc_type: readme
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This documentation tree replaces the legacy flat documents numbered 0 through 5 with
+  an indexed, phase-based English documentation set.
+tags:
+- readme
+- docs
+phase: docs
+canonical_path: docs/README.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # AgentCore Documentation Plan
+
+
+## Purpose
+
+This documentation tree replaces the legacy flat documents numbered 0 through 5 with an indexed, phase-based English documentation set.
 
 This documentation tree replaces the legacy flat documents numbered 0 through 5 with an indexed, phase-based English documentation set.
 
@@ -38,7 +67,7 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 1. Start with 00-master-plan/00-index.md.
 2. Read 00-master-plan/01-product-scope-and-feature-catalog.md for the wedge promise (connect to code, improve AI outputs including measured dead-code cleanup) and control-plane expansion.
 3. Read 00-master-plan/05-complete-system-blueprint.md for the full product narrative.
-4. Read 00-master-plan/06-professional-documentation-standard.md, 00-master-plan/08-documentation-structure-and-machine-ingest-standard.md, and 00-master-plan/09-documentation-classification-and-lanes.md before writing or reviewing new documents.
+4. Read `00-master-plan/06-professional-documentation-standard.md`, `00-master-plan/08-documentation-structure-and-machine-ingest-standard.md`, `00-master-plan/09-documentation-classification-and-lanes.md`, and **`00-master-plan/10-documentation-standardization-procedure.md`** before writing, reviewing, or bulk-standardizing documents. Use `agentcore docs-standards` as the machine gate.
 5. Read each phase folder in numeric order.
 6. Inside each phase, read the local index file first, then follow the phase-specific file order listed there.
 7. Read 02-memory-and-context/07-autonomous-question-discovery-and-faq-memory.md for repeated questions, curiosity scoring, FAQ memory, and missing documentation discovery.
@@ -78,6 +107,8 @@ Executable vertical slices and **feature/service gates** live under `backend/ser
 Configuring **IDE** rules, skills, and optional team workspace packs **for developing this repository** is documented separately from AgentCore product phases:
 
 - Start at [`docs/agents/00-index.md`](agents/00-index.md). Rules/skills live under `.cursor/rules/` and `.cursor/skills/`.
+- **Team documentation method for AgentCore quality:** [`docs/agents/team-documentation-playbook-for-agentcore.md`](agents/team-documentation-playbook-for-agentcore.md).
+- **Complete team handout (full lists):** [`docs/agents/TEAM-HANDOUT-agentcore-documentation-complete.md`](agents/TEAM-HANDOUT-agentcore-documentation-complete.md).
 - Workspace rule interview: [`docs/agents/ide-workspace-rule-discovery.md`](agents/ide-workspace-rule-discovery.md) (if present).
 
 **Product** Skills / Rules / `AGENTS.md` for customer projects connected via MCP: [`15-agent-workspace-guidance/00-index.md`](15-agent-workspace-guidance/00-index.md). That phase does not replace the platform rule engine under `04-rule-engine-orchestration/`.

@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.gap.gap-triage-and-resolution-process
+title: Gap Triage and Resolution Process
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: A gap register is only useful if gaps are reviewed and resolved.
+tags:
+- gap
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/05-gap-triage-and-resolution-process.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Gap Triage and Resolution Process
 
 ## Purpose

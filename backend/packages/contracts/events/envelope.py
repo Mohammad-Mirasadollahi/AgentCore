@@ -53,7 +53,7 @@ def make_event_envelope(
 def validate_event_envelope(payload: dict[str, Any]) -> list[str]:
     if not isinstance(payload, dict):
         return ["event envelope must be an object"]
-    # ponytail: accept legacy service emits that use event_version instead of schema_version
+    # Accept legacy service emits that use event_version instead of schema_version.
     if "schema_version" not in payload and "event_version" in payload:
         payload = {**payload, "schema_version": payload["event_version"]}
     errors: list[str] = []

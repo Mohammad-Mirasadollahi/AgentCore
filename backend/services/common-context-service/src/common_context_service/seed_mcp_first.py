@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from common_context_service.documentation_authoring_law import SKILL_MARKDOWN as DOCUMENTATION_AUTHORING_SKILL_BODY
+
 # Normative bodies aligned with docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md
 
 MCP_FIRST_RULE_BODY = """# MCP-first AgentCore
@@ -15,8 +17,10 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
 4. Do not skip code-graph search when locating symbols AgentCore can index.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
-6. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
-7. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
+6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
+7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance.
+8. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
+9. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 """
 
 AGENTS_ENTRY_BODY = """# Agent entry
@@ -37,7 +41,8 @@ AGENTS_ENTRY_BODY = """# Agent entry
 | `agentcore-memory` | Need prior decisions, facts, or task context from AgentCore |
 | `agentcore-code-graph` | Finding symbols, call paths, or ownership via the code graph |
 | `agentcore-durable-write` | Persisting memory, task, activity, or decision records |
-| `agentcore-docs-sync` | Docs drift, coverage, validate, note, draft, or index |
+| `agentcore-documentation-authoring` | How to write docs; Full-tier Markdown law (required before product doc edits) |
+| `agentcore-docs-sync` | Docs drift, coverage, Body-tier validate, note, draft, or index |
 | `agentcore-create-task` | Creating a durable follow-up Task in AgentCore |
 """
 
@@ -65,7 +70,8 @@ description: Bootstrap an AgentCore MCP session—ping, profile, resolve guidanc
 2. Execute `agentcore_get_effective_profile` to see allowed capability tools.
 3. Search/execute `agentcore_guidance_resolve` and apply `agents_entry` + `always_rules`.
 4. If a catalog skill matches the user task, execute `agentcore_guidance_get_skill` before improvising.
-5. Only then start memory/graph/docs/write tools or local edits.
+5. For documentation questions or product Markdown work: `agentcore_docs_authoring_standards` + skill `agentcore-documentation-authoring`.
+6. Only then start memory/graph/docs/write tools or local edits.
 
 ## Do not
 
@@ -160,32 +166,57 @@ description: Write memory, task, activity, or decision records via AgentCore MCP
 """,
     },
     {
+        "name": "agentcore-documentation-authoring",
+        "description": (
+            "Full-tier ThinkingSOC/AgentCore Markdown authoring law — call before writing "
+            "or explaining product documentation."
+        ),
+        "when_to_use": [
+            "documentation",
+            "docs",
+            "authoring",
+            "standards",
+            "frontmatter",
+            "how-to-write-docs",
+        ],
+        "title": "AgentCore documentation authoring",
+        "body": DOCUMENTATION_AUTHORING_SKILL_BODY,
+    },
+    {
         "name": "agentcore-docs-sync",
-        "description": "Run AgentCore docs-sync drift, status, validate, note, draft, and index via MCP.",
-        "when_to_use": ["docs", "drift", "documentation"],
+        "description": (
+            "Run AgentCore docs-sync drift, status, Body-tier validate, note, draft, and index via MCP. "
+            "For Full-tier product docs, load agentcore-documentation-authoring first."
+        ),
+        "when_to_use": ["docs-sync", "drift", "coverage", "docs-index"],
         "title": "AgentCore docs sync",
         "body": """---
 name: agentcore-docs-sync
-description: Run AgentCore docs-sync drift, status, validate, note, draft, and index via MCP.
+description: Run AgentCore docs-sync drift, status, Body-tier validate, note, draft, and index via MCP.
 ---
 
 # AgentCore docs sync
 
 ## When
 
-- Checking documentation drift or coverage.
-- Validating frontmatter, indexing a note, or drafting docs for a symbol.
+- Checking documentation drift or coverage (docs-as-code sync).
+- Body-tier validate / note / draft / index via MCP.
 
 ## How
 
-1. Coverage / gaps: `agentcore_docs_status`.
-2. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
-3. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index` and required fields for that mode.
-4. Keep committed documentation English per project laws.
+1. **Before writing or explaining product Markdown** under `docs/` (or other normative trees):
+   execute `agentcore_docs_authoring_standards` and skill `agentcore-documentation-authoring`.
+2. Coverage / gaps: `agentcore_docs_status`.
+3. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
+4. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
+5. Keep committed documentation English per project laws.
+6. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`.
 
 ## Do not
 
-- Bypass docs-sync for governed doc changes when these tools are on the profile.
+- Treat `agentcore_docs_write` mode=`validate` as Full-tier compliance for product docs.
+- Bypass docs-sync for governed docs-as-code changes when these tools are on the profile.
+- Skip `agentcore_docs_authoring_standards` when the user asks how documentation writing works.
 """,
     },
     {

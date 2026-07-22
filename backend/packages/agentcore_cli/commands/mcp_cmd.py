@@ -8,8 +8,11 @@ import subprocess
 import sys
 
 from agentcore_cli import state
+from agentcore_cli.commands.mcp_tokens import cmd_mcp_tokens
 from agentcore_cli.util import repo_root, require_scope
 from usage_profile import load_usage_profile
+
+__all__ = ["cmd_mcp_tools", "cmd_mcp_serve", "cmd_mcp_serve_http", "cmd_mcp_tokens"]
 
 
 def cmd_mcp_tools(args: argparse.Namespace) -> int:

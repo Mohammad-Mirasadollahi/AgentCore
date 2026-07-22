@@ -1,47 +1,47 @@
 ---
 doc_id: ac.doc.stack.litellm-model-routing-profiles
-title: "10 - Model Routing Profiles With LiteLLM"
-doc_type: specification
+title: 10 - Model Routing Profiles With LiteLLM
+doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: ai-platform-lead
-summary: >-
-  Specifies how ModelRoutingProfile maps task class and risk to LiteLLM model
-  aliases, fallbacks, and offline stub behavior for AgentCore services.
+summary: Specifies how ModelRoutingProfile maps task class and risk to LiteLLM model aliases,
+  fallbacks, and offline stub behavior for AgentCore services.
 tags:
-  - litellm
-  - model-routing
-  - llm
-  - configuration
-phase: "13-technology-stack-and-platform-decisions"
+- litellm
+- model-routing
+- llm
+- configuration
+phase: 13-technology-stack-and-platform-decisions
 canonical_path: docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
-related_docs:
-  - docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
-  - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-  - docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
-  - docs/10-gap-analysis/01-gap-register.md
-  - .env.example
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
 lifecycle_lane: current
-concern_lane: implementation
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - operators
+- platform-engineering
+- operators
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
+- docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
+- docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- docs/10-gap-analysis/01-gap-register.md
+- .env.example
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
 primary_entities:
-  - ModelRoutingProfile
-  - LiteLLMGateway
-  - LlmCompletionPort
+- ModelRoutingProfile
+- LiteLLMGateway
+- LlmCompletionPort
 relations_declared:
-  - type: depends_on
-    target: docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
-  - type: complements
-    target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- type: depends_on
+  target: docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
+- type: complements
+  target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

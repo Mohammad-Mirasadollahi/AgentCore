@@ -1,47 +1,47 @@
 ---
 doc_id: ac.doc.awg.low-level-design
-title: "03 - Agent Workspace Guidance Low-Level Design"
-doc_type: low-level-design
+title: 03 - Agent Workspace Guidance Low-Level Design
+doc_type: lld
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Artifact model for agents_entry, always_rule, and skill; resolve pipeline;
-  token budgets; precedence; and filesystem export layout mapping.
+summary: Artifact model for agents_entry, always_rule, and skill; resolve pipeline; token
+  budgets; precedence; and filesystem export layout mapping.
 tags:
-  - agent-workspace-guidance
-  - lld
-  - skills
-  - rules
-  - agents-md
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- lld
+- skills
+- rules
+- agents-md
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/03-low-level-design.md
-related_docs:
-  - ac.doc.awg.high-level-design
-  - ac.doc.awg.data-contracts
-  - ac.doc.common_context.low-level-design
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.high-level-design
+- ac.doc.awg.data-contracts
+- ac.doc.common_context.low-level-design
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - AgentsEntry
-  - AlwaysRule
-  - Skill
-  - GuidanceExportLayout
+- AgentsEntry
+- AlwaysRule
+- Skill
+- GuidanceExportLayout
 relations_declared:
-  - type: depends_on
-    target: ac.doc.awg.high-level-design
-  - type: depends_on
-    target: ac.doc.common_context.low-level-design
+- type: depends_on
+  target: ac.doc.awg.high-level-design
+- type: depends_on
+  target: ac.doc.common_context.low-level-design
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -55,6 +55,14 @@ security_classification: internal
 ## Purpose
 
 This document defines the typed artifact model, resolve pipeline specialization, precedence, token budgets, and filesystem export layouts for Agent Workspace Guidance.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
 
 ## Typed Guidance Kinds
 
@@ -100,8 +108,7 @@ On-demand procedure analogous to `SKILL.md`.
 ### Sample agents_entry body
 
 ```markdown
-# Agent entry
-
+## Agent entry
 **Law:** reply language and docs standards as linked skills/rules.
 
 ## High-signal skills
@@ -115,8 +122,7 @@ On-demand procedure analogous to `SKILL.md`.
 ### Sample always_rule body
 
 ```markdown
-# Reply language law
-
+## Reply language law
 - Persian chat → Persian reply.
 - Committed docs and code identifiers stay English.
 ```
@@ -129,8 +135,7 @@ name: api-contract-check
 description: Validate public API changes against naming and DTO standards.
 ---
 
-# API contract check
-
+## API contract check
 ## When
 
 - Editing OpenAPI, DTOs, or public REST paths.

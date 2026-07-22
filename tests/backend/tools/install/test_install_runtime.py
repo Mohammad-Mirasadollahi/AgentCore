@@ -89,6 +89,15 @@ def test_install_help_mentions_runtime() -> None:
     assert proc.returncode == 0
     assert "--runtime" in proc.stdout
     assert "host" in proc.stdout and "docker" in proc.stdout
+    assert "SERVER" in proc.stdout or "server" in proc.stdout
+    assert "client" in proc.stdout.lower()
+    assert "never" in proc.stdout.lower() or "not" in proc.stdout.lower()
+
+
+def test_prompt_copy_says_clients_not_dockerized() -> None:
+    text = (LIB / "common.sh").read_text(encoding="utf-8")
+    assert "clients are never Dockerized" in text or "Clients are never Dockerized" in text
+    assert "SERVER runtime" in text or "server" in text.lower()
 
 
 def test_list_stages_includes_runtime_bringup() -> None:

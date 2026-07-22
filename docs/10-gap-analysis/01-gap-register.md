@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.gap.gap-register
+title: Master Gap Register
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This register lists the most important gaps currently visible in the AgentCore design.
+  Each gap should eventually become a Decision, Task, Risk, or accepted non-goal.
+tags:
+- gap
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/01-gap-register.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Master Gap Register
 
 ## Purpose
