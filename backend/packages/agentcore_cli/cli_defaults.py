@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import stat
 
 # Dogfood defaults when nothing else is configured (AgentCore developing AgentCore).
 DEFAULT_TENANT = "agentcore"
@@ -27,17 +26,14 @@ def _parse_env_file(path: Path) -> dict[str, str]:
     return out
 
 
-def load_dotenv_files(
-    *,
-    root: Path | None = None,
-    include_code_graph: bool = False,
-) -> list[Path]:
+def load_dotenv_files(*, root: Path | None = None) -> list[Path]:
     """Merge known env files into ``os.environ`` without overwriting existing keys.
+
+    Source of truth: repository-root ``.env`` (template: ``.env.example``).
 
     Order (later files only fill missing keys — first wins after process env):
     process env already set > repo ``.env`` > repo ``.env.local`` > compose
-    ``.env.local``. Graph commands may opt into the secret-bearing code-graph
-    service ``config/.env`` after its ownership and mode are validated.
+    ``.env.local``.
     """
     from agentcore_cli.util import repo_root
 
@@ -48,15 +44,6 @@ def load_dotenv_files(
         base / ".env.local",
         base / "backend" / "deployments" / "compose" / ".env.local",
     ]
-    if include_code_graph:
-        service_env = base / "backend" / "services" / "code-graph-service" / "config" / ".env"
-        if service_env.is_file():
-            metadata = service_env.stat()
-            if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
-                raise PermissionError(f"code-graph env must be owned by the current user: {service_env}")
-            if stat.S_IMODE(metadata.st_mode) & 0o077:
-                raise PermissionError(f"code-graph env must have mode 0600: chmod 600 {service_env}")
-        candidates.insert(2, service_env)
     for path in candidates:
         values = _parse_env_file(path)
         if not values:

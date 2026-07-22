@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from agentcore_cli import ui
-from agentcore_cli.commands.inventory.util import TOP_N, sort_done, sort_remaining, top
+from agentcore_cli.commands.inventory.util import (
+    TOP_N,
+    edited_percent_line,
+    sort_done,
+    sort_remaining,
+    top,
+)
 
 
 def format_file_line(row: dict[str, Any], *, detail: bool) -> str:
@@ -48,7 +54,7 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
             f"edited {docs.get('edited_count', 0)}/{docs['total']} ({docs.get('percent_edited', 0)}%)  "
             f"remaining {docs['remaining_count']}/{docs['total']} ({docs.get('percent_remaining', 0)}%)"
         ),
-        f"LLM:   {llm['done_count']}/{llm['total']} symbols  ({llm['percent_done']}%)",
+        f"LLM:   {llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
         f"Docs model: {processing.get('docs_model_label') or '-'}",
         f"Embed model: {processing.get('active_embed_model') or '-'}",
         f"Models used: {', '.join(report.get('models_used') or []) or '-'}",
@@ -149,14 +155,8 @@ def print_file_top(
         ui.bullet(f"{idx}. {format_file_line(row, detail=detail)}")
 
 
-def _edited_percent_line(block: dict[str, Any]) -> str:
-    edited = int(block.get("edited_count") or 0)
-    total = int(block.get("total") or 0)
-    pct_val = block.get("percent_edited", 0)
-    line = f"{edited}/{total}  ({pct_val}%)"
-    if edited > 0:
-        line += "  ← needs sync"
-    return line
+# Back-compat alias for tests.
+_edited_percent_line = edited_percent_line
 
 
 def print_human(report: dict[str, Any], *, detail: bool) -> None:
@@ -181,7 +181,7 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         "Code done",
         f"{code['done_count']}/{code['total']}  ({code['percent_done']}%)",
     )
-    ui.kv("Code edited", _edited_percent_line(code))
+    ui.kv("Code edited", edited_percent_line(code))
     ui.kv(
         "Code remaining",
         f"{code['remaining_count']}/{code['total']}  ({code.get('percent_remaining', 0)}%)",
@@ -190,12 +190,15 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         "Docs done",
         f"{docs['done_count']}/{docs['total']}  ({docs['percent_done']}%)",
     )
-    ui.kv("Docs edited", _edited_percent_line(docs))
+    ui.kv("Docs edited", edited_percent_line(docs))
     ui.kv(
         "Docs remaining",
         f"{docs['remaining_count']}/{docs['total']}  ({docs.get('percent_remaining', 0)}%)",
     )
-    ui.kv("LLM", f"{llm['done_count']}/{llm['total']} symbols  ({llm['percent_done']}%)")
+    ui.kv(
+        "LLM",
+        f"{llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
+    )
 
     ui.blank()
     ui.section("Models")

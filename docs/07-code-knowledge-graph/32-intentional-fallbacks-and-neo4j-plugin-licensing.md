@@ -129,7 +129,7 @@ never call GDS.
 | `AGENTCORE_NEO4J_GDS_ENABLED` | `true` | App opt-in for optional `gds.degree` |
 | `AGENTCORE_NEO4J_GDS_CONCURRENCY` | `4` | Clamped to `1..4` (Community Edition core limit) |
 
-Documented also in `code-graph-service.example.env` and
+Documented also in repo-root `.env.example` and
 `docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md`.
 
 ## Consequences

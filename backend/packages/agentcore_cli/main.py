@@ -23,7 +23,7 @@ from agentcore_cli.commands.stats import cmd_stats
 from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
 from agentcore_cli.commands.list_profiles import cmd_list_profiles
 from agentcore_cli.commands.sync import cmd_purge, cmd_sync
-from agentcore_cli.commands.llm_cmd import cmd_llm_sessions
+from agentcore_cli.commands.llm_cmd import cmd_llm_sessions, cmd_llm_test
 from agentcore_cli.commands.graph import (
     cmd_graph_explore,
     cmd_graph_freshness,
@@ -57,6 +57,14 @@ __all__ = ["build_parser", "main", "repo_root"]
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _dispatch(argv)
+    except KeyboardInterrupt:
+        print("\nInterrupted — check: agentcore service status", flush=True)
+        return 130
+
+
+def _dispatch(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.version and not args.command:
@@ -102,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "llm":
         if args.llm_command == "sessions":
             return cmd_llm_sessions(args)
+        if args.llm_command == "test":
+            return cmd_llm_test(args)
     if args.command == "purge":
         return cmd_purge(args)
     if args.command == "destroy-profile":

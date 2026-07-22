@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from .gateway import FakeLlmGateway, LiteLlmGateway, LlmGateway
+from .gateway import (
+    FakeLlmGateway,
+    LiteLlmGateway,
+    LlmGateway,
+    ProviderQuotaTripped,
+    provider_quota_tripped,
+    reset_provider_quota_trip,
+)
 from .providers import list_providers
 from .rate_limit import HISTORY_SIZE, RpmLimiter, RpmSession, RpmSessionGate, SessionMeta
 from .routing import RouteDecision, docs_generation_enabled, embeddings_generation_enabled, resolve_route
@@ -20,6 +27,7 @@ __all__ = [
     "LlmGateway",
     "LlmGatewaySettings",
     "ProviderInfo",
+    "ProviderQuotaTripped",
     "RouteDecision",
     "RpmLimiter",
     "RpmSession",
@@ -29,6 +37,8 @@ __all__ = [
     "docs_generation_enabled",
     "embeddings_generation_enabled",
     "list_providers",
+    "provider_quota_tripped",
+    "reset_provider_quota_trip",
     "resolve_api_base",
     "resolve_route",
 ]

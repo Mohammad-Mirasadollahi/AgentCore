@@ -26,7 +26,7 @@ def _graph_service():
     """In-process code-graph service (auto neo4j when password set; else memory)."""
     from agentcore_cli.cli_defaults import load_dotenv_files
 
-    load_dotenv_files(include_code_graph=True)
+    load_dotenv_files()
     _ensure_code_graph_import()
     backend = os.environ.get("AGENTCORE_GRAPH_CLI_BACKEND", "").strip().lower()
     if not backend:

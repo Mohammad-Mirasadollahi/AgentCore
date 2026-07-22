@@ -154,6 +154,67 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     assert stale == []
 
 
+def test_sync_human_docs_emits_progress_excluding_unchanged(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "src" / "auth.py").write_text(AUTH_SOURCE, encoding="utf-8")
+    (tmp_path / "docs" / "login.md").write_text(LINKED_DOC, encoding="utf-8")
+    (tmp_path / "docs" / "overview.md").write_text(UNLINKED_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    graph.ingest_file(
+        SCOPE,
+        "test",
+        "c1",
+        "k1",
+        {"file_path": "src/auth.py", "source": AUTH_SOURCE, "language": "python"},
+    )
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-seed",
+        repo_name="fixture",
+    )
+    (tmp_path / "docs" / "new.md").write_text(UNLINKED_DOC.replace("doc-overview", "doc-new"), encoding="utf-8")
+    events: list[dict] = []
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-progress",
+        repo_name="fixture",
+        on_progress=events.append,
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["phase"] == "docs"
+    assert started["queue_new"] == 1
+    assert started["queue_unchanged"] == 2
+    assert started["total"] == 1  # excludes already-indexed unchanged docs
+    finished = next(e for e in events if e.get("status") == "finished")
+    assert finished["done"] == finished["total"] == 1
+
+
 def test_resolve_sync_filters_docs_vs_code(tmp_path: Path, monkeypatch):
     from agentcore_cli.sync_config import resolve_sync_filters
 

@@ -9,6 +9,10 @@ from typing import Any
 from agentcore_cli.service_runtime.paths import COMPOSE_SERVICES, compose_dir, compose_env_file, compose_file
 from agentcore_cli.service_runtime.progress import format_docker_started_at, progress, wall_clock_now
 
+# Graceful stop wait (docker SIGTERM→SIGKILL). Hard ceiling for the CLI itself.
+COMPOSE_STOP_TIMEOUT_SEC = 20
+COMPOSE_STOP_WAIT_SEC = 45
+
 
 def compose_base_cmd(root: Path) -> list[str]:
     env_file = compose_env_file(root)
@@ -27,13 +31,20 @@ def compose_base_cmd(root: Path) -> list[str]:
     ]
 
 
-def run_cmd(cmd: list[str], *, cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_cmd(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    check: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         cwd=str(cwd),
         check=check,
         text=True,
         capture_output=True,
+        timeout=timeout,
     )
 
 
@@ -74,7 +85,10 @@ def start_compose(root: Path) -> dict[str, Any]:
             service_started_at[service] = compose_started_at
             progress(f"Databases: {service} did not appear after start")
     if wait.is_file() and names:
-        progress("Databases: waiting until healthy (up to 5 minutes)")
+        progress(
+            "Databases: waiting until healthy (up to 5 minutes; "
+            "neo4j may download plugins on first start)"
+        )
         subprocess.run(
             ["bash", str(wait), "--timeout", "300", *names],
             cwd=str(root),
@@ -105,10 +119,26 @@ def start_compose(root: Path) -> dict[str, Any]:
 def stop_compose(root: Path) -> dict[str, Any]:
     services = ", ".join(COMPOSE_SERVICES)
     progress(f"Databases: stopping {services}")
-    cmd = compose_base_cmd(root) + ["stop", *COMPOSE_SERVICES]
-    proc = run_cmd(cmd, cwd=root, check=False)
+    cmd = compose_base_cmd(root) + [
+        "stop",
+        "--timeout",
+        str(COMPOSE_STOP_TIMEOUT_SEC),
+        *COMPOSE_SERVICES,
+    ]
+    forced = False
+    try:
+        proc = run_cmd(cmd, cwd=root, check=False, timeout=COMPOSE_STOP_WAIT_SEC)
+    except subprocess.TimeoutExpired:
+        forced = True
+        progress("Databases: stop timed out — forcing kill")
+        proc = run_cmd(
+            compose_base_cmd(root) + ["kill", *COMPOSE_SERVICES],
+            cwd=root,
+            check=False,
+            timeout=30,
+        )
     if proc.returncode == 0:
-        progress("Databases: stopped")
+        progress("Databases: stopped" + (" (forced)" if forced else ""))
     else:
         err = (proc.stderr or proc.stdout or "").strip()
         progress(
@@ -120,6 +150,7 @@ def stop_compose(root: Path) -> dict[str, Any]:
         "action": "compose_stop",
         "services": list(COMPOSE_SERVICES),
         "returncode": proc.returncode,
+        "forced": forced,
     }
 
 

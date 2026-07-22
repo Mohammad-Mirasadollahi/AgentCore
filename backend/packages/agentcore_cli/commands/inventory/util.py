@@ -38,6 +38,16 @@ def pct(done: int, total: int) -> float:
     return round(100.0 * done / total, 1)
 
 
+def edited_percent_line(block: dict[str, Any]) -> str:
+    """Format edited count; append needs-sync only when edited > 0."""
+    edited = int(block.get("edited_count") or 0)
+    total = int(block.get("total") or 0)
+    line = f"{edited}/{total}  ({block.get('percent_edited', 0)}%)"
+    if edited > 0:
+        line += "  ← needs sync"
+    return line
+
+
 def bucket(done: list[str], remaining: list[str]) -> dict[str, Any]:
     total = len(done) + len(remaining)
     return {

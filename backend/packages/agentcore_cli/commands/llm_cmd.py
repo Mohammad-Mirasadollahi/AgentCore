@@ -1,4 +1,4 @@
-"""LLM session observability commands."""
+"""LLM gateway CLI commands (sessions + connectivity test)."""
 
 from __future__ import annotations
 
@@ -50,4 +50,62 @@ def cmd_llm_sessions(_: argparse.Namespace) -> int:
         print_json({"ok": False, "error": str(exc)})
         return 1
     print_json({"ok": True, "source": source, "sessions": snap})
+    return 0
+
+
+def cmd_llm_test(args: argparse.Namespace) -> int:
+    """One-shot completion against the configured LiteLLM model (default prompt: Hi)."""
+    load_dotenv_files()
+    from llm_gateway import ChatMessage, CompletionRequest, LiteLlmGateway, LlmGatewaySettings
+
+    settings = LlmGatewaySettings.from_environment()
+    configured = (getattr(args, "model", None) or settings.default_model or "").strip()
+    prompt = (getattr(args, "prompt", None) or "Hi").strip() or "Hi"
+    public = settings.public_dict()
+    base_payload = {
+        "configured_model": configured,
+        "api_base": public.get("api_base"),
+        "enabled": public.get("enabled"),
+        "api_key_configured": public.get("api_key_configured"),
+        "prompt": prompt,
+    }
+    if not settings.enabled:
+        print_json({**base_payload, "ok": False, "error": "LiteLLM disabled (AGENTCORE_LITELLM_ENABLED=false)"})
+        return 1
+    if not configured:
+        print_json(
+            {
+                **base_payload,
+                "ok": False,
+                "error": "No model set: AGENTCORE_LITELLM_DEFAULT_MODEL or --model",
+            }
+        )
+        return 1
+
+    gateway = LiteLlmGateway(settings)
+    try:
+        result = gateway.complete(
+            CompletionRequest(
+                messages=(
+                    ChatMessage(role="system", content="Reply briefly."),
+                    ChatMessage(role="user", content=prompt),
+                ),
+                model=configured,
+                max_tokens=64,
+            )
+        )
+    except Exception as exc:
+        print_json({**base_payload, "ok": False, "error": str(exc)})
+        return 1
+
+    print_json(
+        {
+            **base_payload,
+            "ok": True,
+            "model": result.model,
+            "provider": result.provider,
+            "reply": (result.content or "").strip(),
+            "usage": result.usage,
+        }
+    )
     return 0

@@ -4,18 +4,11 @@ Path: `backend/services/code-graph-service/config`
 
 ## Purpose
 
-Service-specific configuration templates for `code-graph-service` (structural store + LiteLLM).
-
-## Files
-
-| File | Role |
-| --- | --- |
-| `code-graph-service.example.env` | Copy template; every variable has inline comments (purpose + change impact) |
-| This README | Boundary notes |
+Placeholder directory for future non-env service assets. **Operator environment
+(LiteLLM, Neo4j, embeddings, scope) is not here** — use the repository-root
+`.env` (template: `.env.example`).
 
 ## Operator reference (normative)
-
-Full behavioral contract with worked examples (“if you change X, Y happens”):
 
 `docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md`
 
@@ -26,24 +19,17 @@ Related ADRs:
 
 ## How to use
 
-1. Copy `code-graph-service.example.env` to an untracked local env file (do not commit secrets), or use `config/.env` (gitignored).
-2. Set `AGENTCORE_NEO4J_PASSWORD` and optional LiteLLM / OpenRouter keys.
-3. Load into the process environment before start, for example:
+1. Copy repo-root `.env.example` to `.env` (or let `install.sh` / `agentcore init` create it).
+2. Edit models, keys, and store settings in that root `.env`.
+3. CLI loads root `.env` automatically:
 
 ```bash
-set -a && source backend/services/code-graph-service/config/.env && set +a
+set -a && source .env && set +a
 ```
 
-4. Verify public settings: `PYTHONPATH=backend/packages python -m llm_gateway config` or `GET /api/v1/llm/config`.
-
-## Modular Boundary
-
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+4. Verify: `PYTHONPATH=backend/packages python -m llm_gateway config` or `GET /api/v1/llm/config`.
 
 ## Rules
 
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior in application code when an env knob exists.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives (`backend/packages/llm_gateway`).
-- When adding a new env variable, update both the example env comments and `12-litellm-environment-configuration.md`.
+- Do not add a service-local `.env` template here; keep a single operator env at the repo root.
+- When adding a new env variable, update root `.env.example` and `12-litellm-environment-configuration.md`.

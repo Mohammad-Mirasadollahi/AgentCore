@@ -73,7 +73,7 @@ Last verified: 2026-07-22
 | C-12 | Progress races | Unsynchronized counters mislead ETA | Lock/queue in `SyncProgressTracker` |
 | C-13 | Observability secrets | Status API could leak prompts/keys | Snapshot fields allowlist only |
 | C-14 | Test flakiness | Real 60s sleeps | Fake clock / injected time; never sleep a full minute in unit CI |
-| C-15 | CLI/service config drift | In-process sync silently falls back when the service model env is absent | Graph CLI opts into `code-graph-service/config/.env`; process/repo env retains precedence; file ownership and mode `0600` are mandatory |
+| C-15 | CLI/service config drift | In-process sync silently falls back when model env is absent | Graph CLI loads repo-root `.env` (single source of truth); process env retains precedence |
 | C-16 | Silent cloud code egress | A configured provider may receive symbol bodies without per-run consent | Non-private/uncertain routes fail closed before ingest; interactive TTY consent (tenant/workspace/project/paths shown) or `--allow-cloud-llm` |
 
 ## Risks
@@ -130,11 +130,9 @@ Uncheck → check only when proven in code + tests.
   `test_llm_sessions_reads_running_service_snapshot`; live HTTP/CLI verified 2026-07-22).
 - [x] Live CLI progress observes non-zero concurrent sessions instead of only
   configured capacity (`test_cli_progress_reports_nonzero_live_rpm`).
-- [x] CLI loads the code-graph runtime model configuration
-  (`test_load_dotenv_files_includes_code_graph_runtime_config`,
-  `test_graph_cli_builds_gateway_from_code_graph_runtime_config`).
-- [x] Secret-bearing service env requires current-user ownership and mode `0600`
-  (`test_code_graph_runtime_config_requires_private_permissions`).
+- [x] CLI loads LiteLLM / model configuration from repo-root `.env`
+  (`test_load_dotenv_files_reads_root_litellm_config`,
+  `test_graph_cli_builds_gateway_from_root_env`).
 - [x] Cloud/uncertain LLM routes require explicit per-run consent before sync,
   graph explore, or hybrid search — interactive TTY (tenant/workspace/project/paths)
   or `--allow-cloud-llm` (`test_sync_cloud_llm_requires_explicit_per_run_consent`,

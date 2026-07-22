@@ -175,7 +175,149 @@ def test_fake_gateway_releases_rpm_session():
     assert snap["history"][0]["status"] == "ok"
 
 
+def test_settings_debug_defaults_off(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_LITELLM_DEBUG", raising=False)
+    monkeypatch.setenv("AGENTCORE_LITELLM_PORT", "32400")
+    settings = LlmGatewaySettings.from_environment()
+    assert settings.debug is False
+    assert settings.public_dict()["debug"] is False
+
+
+def test_settings_debug_enabled(monkeypatch):
+    monkeypatch.setenv("AGENTCORE_LITELLM_PORT", "32400")
+    monkeypatch.setenv("AGENTCORE_LITELLM_DEBUG", "true")
+    settings = LlmGatewaySettings.from_environment()
+    assert settings.debug is True
+
+
+def test_litellm_gateway_turns_on_debug_when_configured(monkeypatch):
+    calls: list[str] = []
+
+    class DebugLiteLlm:
+        drop_params = False
+        set_verbose = False
+        suppress_debug_info = False
+
+        @staticmethod
+        def _turn_on_debug():
+            calls.append("debug")
+
+        @staticmethod
+        def completion(**_kwargs):
+            return type(
+                "R",
+                (),
+                {
+                    "choices": [
+                        type(
+                            "C",
+                            (),
+                            {"message": type("M", (), {"content": "ok"})()},
+                        )()
+                    ],
+                    "usage": None,
+                    "model": "fake/model",
+                    "id": "1",
+                },
+            )()
+
+        @staticmethod
+        def embedding(**_kwargs):
+            raise RuntimeError("not used")
+
+    monkeypatch.setitem(sys.modules, "litellm", DebugLiteLlm())
+    base = FakeLlmGateway().settings
+    debug_settings = LlmGatewaySettings(
+        enabled=True,
+        api_base=base.api_base,
+        api_base_override=base.api_base_override,
+        api_base_is_auto=base.api_base_is_auto,
+        api_key=base.api_key,
+        default_model=base.default_model,
+        timeout_seconds=base.timeout_seconds,
+        num_retries=base.num_retries,
+        rpm=base.rpm,
+        host=base.host,
+        port=base.port,
+        drop_params=base.drop_params,
+        debug=True,
+        reasoning_enabled=base.reasoning_enabled,
+        reasoning_effort=base.reasoning_effort,
+    )
+    import llm_gateway.gateway as gw_mod
+
+    monkeypatch.setattr(gw_mod, "_litellm_debug_on", False)
+    gateway = LiteLlmGateway(settings=debug_settings)
+    result = gateway.complete(
+        CompletionRequest(messages=(ChatMessage(role="user", content="hi"),), model="fake/model")
+    )
+    assert result.content == "ok"
+    assert calls == ["debug"]
+    assert sys.modules["litellm"].suppress_debug_info is True
+
+
+def test_litellm_gateway_trips_quota_circuit_on_rate_limit(monkeypatch, capsys):
+    import llm_gateway.gateway as gw_mod
+    from llm_gateway import ProviderQuotaTripped, provider_quota_tripped, reset_provider_quota_trip
+
+    reset_provider_quota_trip()
+    monkeypatch.setattr(gw_mod, "_litellm_debug_on", False)
+
+    class RateLimitedLiteLlm:
+        drop_params = False
+        suppress_debug_info = False
+        calls = 0
+
+        @staticmethod
+        def completion(**_kwargs):
+            RateLimitedLiteLlm.calls += 1
+            raise RuntimeError("Rate limit exceeded: free-models-per-day-high-balance. 429")
+
+        @staticmethod
+        def embedding(**_kwargs):
+            raise RuntimeError("not used")
+
+    monkeypatch.setitem(sys.modules, "litellm", RateLimitedLiteLlm())
+    gateway = LiteLlmGateway(settings=FakeLlmGateway().settings)
+
+    with pytest.raises(RuntimeError, match="Rate limit"):
+        gateway.complete(
+            CompletionRequest(
+                messages=(ChatMessage(role="user", content="hi"),),
+                model="fake/model",
+            )
+        )
+    assert provider_quota_tripped() is True
+    out = capsys.readouterr().out
+    assert "provider quota/rate-limit" in out
+
+    with pytest.raises(ProviderQuotaTripped):
+        gateway.complete(
+            CompletionRequest(
+                messages=(ChatMessage(role="user", content="again"),),
+                model="fake/model",
+            )
+        )
+    assert RateLimitedLiteLlm.calls == 1
+    reset_provider_quota_trip()
+
+
+def test_effective_num_retries_zero_without_tenacity(monkeypatch):
+    import importlib.util
+
+    import llm_gateway.gateway as gw_mod
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    assert gw_mod._effective_num_retries(3) == 0
+    assert gw_mod._effective_num_retries(0) == 0
+
+
 def test_litellm_gateway_releases_sessions_on_failures(monkeypatch):
+    import llm_gateway.gateway as gw_mod
+    from llm_gateway import reset_provider_quota_trip
+
+    reset_provider_quota_trip()
+    monkeypatch.setattr(gw_mod, "_litellm_debug_on", False)
     class FailingLiteLlm:
         drop_params = False
 

@@ -21,6 +21,7 @@ dependencies = [
   "tree-sitter-go==0.25.0",
   "tree-sitter-rust==0.24.0",
   "litellm>=1.40.0,<2",
+  "tenacity>=8.2.0,<10",
   "rank-bm25==0.2.2",
   "PyYAML>=6.0.2,<7",
 ]

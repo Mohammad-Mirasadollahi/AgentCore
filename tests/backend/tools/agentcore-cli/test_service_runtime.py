@@ -152,6 +152,78 @@ def test_stop_all_logs_shutdown_steps(tmp_path: Path, monkeypatch, capsys):
     assert "AgentCore is stopped" in out
 
 
+def test_stop_compose_passes_docker_timeout(tmp_path: Path, monkeypatch, capsys):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+
+    compose = tmp_path / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True)
+    (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
+    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+
+    seen: list[list[str]] = []
+
+    def fake_run(cmd, *, cwd, check=False, timeout=None):
+        seen.append(list(cmd))
+        assert timeout == compose_mod.COMPOSE_STOP_WAIT_SEC
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(compose_mod, "run_cmd", fake_run)
+    report = compose_mod.stop_compose(tmp_path)
+    assert report["ok"] is True
+    assert report["forced"] is False
+    assert "stop" in seen[0]
+    t_idx = seen[0].index("--timeout")
+    assert seen[0][t_idx + 1] == str(compose_mod.COMPOSE_STOP_TIMEOUT_SEC)
+    out = capsys.readouterr().out
+    assert "Databases: stopping" in out
+    assert "Databases: stopped" in out
+
+
+def test_stop_compose_force_kills_on_timeout(tmp_path: Path, monkeypatch, capsys):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+
+    compose = tmp_path / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True)
+    (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
+    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+
+    calls: list[str] = []
+
+    def fake_run(cmd, *, cwd, check=False, timeout=None):
+        if "stop" in cmd:
+            calls.append("stop")
+            raise subprocess.TimeoutExpired(cmd, timeout or 0)
+        calls.append("kill")
+        assert "kill" in cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(compose_mod, "run_cmd", fake_run)
+    report = compose_mod.stop_compose(tmp_path)
+    assert report["ok"] is True
+    assert report["forced"] is True
+    assert calls == ["stop", "kill"]
+    out = capsys.readouterr().out
+    assert "forcing kill" in out
+    assert "stopped (forced)" in out
+
+
+def test_main_keyboard_interrupt_is_clean(monkeypatch, capsys):
+    from agentcore_cli import main as main_mod
+
+    def boom(_argv=None):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(main_mod, "_dispatch", boom)
+    assert main_mod.main([]) == 130
+    out = capsys.readouterr().out
+    assert "Interrupted" in out
+    assert "service status" in out
+
+
 def test_unit_body_contains_start_stop(tmp_path: Path):
     venv = tmp_path / ".venv" / "bin"
     venv.mkdir(parents=True)

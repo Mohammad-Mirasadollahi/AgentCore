@@ -283,9 +283,8 @@ No API keys, raw prompts, or completion bodies.
 
 ### CLI
 
-- The in-process graph CLI loads the code-graph service `config/.env` after repo
-  dotenv files, so LiteLLM routing uses the same model configuration as the service.
-  The file must be owned by the current user with mode `0600`.
+- The in-process graph CLI loads the repository-root `.env` (single source of
+  truth for LiteLLM / Neo4j / embeddings).
 - Before ingest, non-private or uncertain routes fail closed unless the operator
   consents for that run: interactive TTY yes (after showing tenant, workspace,
   project, and software path(s)), or `--allow-cloud-llm` to skip the prompt.
@@ -327,9 +326,9 @@ to avoid huge CPU queues behind a tiny LLM gate (warn, do not hard-fail).
 | Gate + registry | `backend/packages/llm_gateway/rate_limit.py` |
 | Wire acquire/release | `backend/packages/llm_gateway/gateway.py` |
 | Parallel ingest + writer | `.../application/ingest/repo_ingest.py`, `sync.py`, possibly new helper module |
-| Progress lock | `backend/packages/agentcore_cli/sync_progress.py` |
+| Progress lock | `backend/packages/agentcore_cli/sync_progress/` |
 | HTTP | `code_graph_service/api.py` |
-| CLI | `agentcore_cli/parser.py` + new command module |
+| CLI | `agentcore_cli/parser/` + new command module |
 | Tests | `tests/backend/packages/llm_gateway/`, code-graph ingest unit tests |
 
 ## Test plan (normative for implementation phase)

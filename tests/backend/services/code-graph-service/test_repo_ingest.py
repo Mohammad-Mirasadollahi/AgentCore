@@ -227,4 +227,44 @@ def test_ingest_repo_progress_reports_prior_vs_queue(tmp_path: Path):
     assert started["queue_changed"] == 0
     assert started["queue_unchanged"] == 2
     assert started["done"] == 0
+    # Recheck-only: denominator falls back to all selected files.
     assert started["total"] == 2
+
+
+def test_ingest_repo_progress_total_excludes_unchanged_recheck(tmp_path: Path):
+    """Progress done/total is new+changed only; inventory totals stay in preflight stats."""
+    _write_tree(tmp_path)
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "progress-need")
+    service.ingest_repo(
+        scope,
+        "tester",
+        "corr-a",
+        "repo-a",
+        {"root_path": str(tmp_path), "exclude_dirs": ["node_modules"]},
+    )
+    (tmp_path / "src" / "a.py").write_text(
+        "def alpha():\n    return 99\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "src" / "c.py").write_text("def gamma():\n    return 3\n", encoding="utf-8")
+    events: list[dict] = []
+    service.ingest_repo(
+        scope,
+        "tester",
+        "corr-b",
+        "repo-b",
+        {
+            "root_path": str(tmp_path),
+            "exclude_dirs": ["node_modules"],
+            "on_progress": events.append,
+        },
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["prior_indexed"] == 2
+    assert started["queue_new"] == 1
+    assert started["queue_changed"] == 1
+    assert started["queue_unchanged"] == 1
+    assert started["total"] == 2  # not 3 (unchanged recheck excluded)
+    finished = next(e for e in events if e.get("status") == "finished")
+    assert finished["done"] == finished["total"] == 2

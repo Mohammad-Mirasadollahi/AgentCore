@@ -51,7 +51,7 @@ Service-wide (not project-scoped) endpoints from `backend/packages/llm_gateway`:
 - `GET /api/v1/llm/sessions` — process-local RPM session snapshot (in-flight + short history; no secrets)
 - `POST /api/v1/llm/complete` — chat completion via LiteLLM (`prompt`, optional `model` / `system` / `reasoning_enabled` / `reasoning_effort`)
 
-Environment: `AGENTCORE_LITELLM_*` in `config/code-graph-service.example.env`. Base URL auto-resolves to `http://{HOST}:{PORT}` unless `AGENTCORE_LITELLM_API_BASE` overrides it. Defaults: timeout `180`s, retries `3`, RPM `30`.
+Environment: `AGENTCORE_LITELLM_*` in repo-root `.env` (template: `.env.example`). Base URL auto-resolves to `http://{HOST}:{PORT}` unless `AGENTCORE_LITELLM_API_BASE` overrides it. Defaults: timeout `180`s, retries `3`, RPM `30`.
 
 ## Event Types
 

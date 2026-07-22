@@ -9,7 +9,7 @@ def test_parser_has_sync_and_purge():
     parser = build_parser()
     sync = parser.parse_args(["sync"])
     assert sync.command == "sync"
-    assert sync.path == "."
+    assert sync.path is None  # pinned software paths from init
     assert sync.max_files == 2000
     purge = parser.parse_args(["purge", "--yes"])
     assert purge.command == "purge"

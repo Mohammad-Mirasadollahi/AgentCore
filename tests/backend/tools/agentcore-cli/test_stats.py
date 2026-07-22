@@ -189,5 +189,53 @@ def test_print_sync_preflight(capsys, monkeypatch):
     assert "Code edited" in out or "edited" in out.lower()
     assert "5/100" in out
     assert "needs sync" in out
+    assert "indexed symbols" in out
     assert "python" in out
     assert "agentcore stats detail" not in out
+
+
+def test_edited_percent_line_omits_needs_sync_when_zero():
+    from agentcore_cli.commands.inventory.util import edited_percent_line
+
+    assert edited_percent_line({"edited_count": 0, "total": 534, "percent_edited": 0.0}) == "0/534  (0.0%)"
+    assert "needs sync" in edited_percent_line(
+        {"edited_count": 4, "total": 237, "percent_edited": 1.7}
+    )
+
+
+def test_print_human_omits_needs_sync_for_zero_edited(capsys, monkeypatch):
+    from agentcore_cli.commands.stats.render import print_human
+
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    report = {
+        "scope": {"tenant": "t", "workspace": "w", "project": "p"},
+        "paths": ["/opt/App"],
+        "totals": {"code_files": 2, "code_bytes": 10, "docs_files": 2, "docs_bytes": 10},
+        "languages": [],
+        "summary": {
+            "code": {
+                "done_count": 1,
+                "edited_count": 0,
+                "remaining_count": 1,
+                "total": 2,
+                "percent_done": 50.0,
+                "percent_edited": 0.0,
+                "percent_remaining": 50.0,
+            },
+            "docs": {
+                "done_count": 2,
+                "edited_count": 0,
+                "remaining_count": 0,
+                "total": 2,
+                "percent_done": 100.0,
+                "percent_edited": 0.0,
+                "percent_remaining": 0.0,
+            },
+            "llm": {"done_count": 3, "remaining_count": 1, "total": 4, "percent_done": 75.0},
+        },
+    }
+    print_human(report, detail=False, show_hint=False)
+    out = capsys.readouterr().out
+    assert "needs sync" not in out
+    assert "indexed symbols" in out
+    assert "3/4" in out

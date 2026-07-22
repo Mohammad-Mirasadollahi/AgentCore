@@ -246,9 +246,29 @@ agentcore sync
 | **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |
 | **Before sync** | Prints the same **Totals / Processing / By language** snapshot as `agentcore stats` (code+docs counts, done/edited/remaining, LLM symbols) so you see the work before consent and ingest |
 | **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
-| **Progress** | While syncing, prints `%` / **this run** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior file symbols** and **queue** (`new` / `changed` / `unchanged_recheck`) so `0/N` is not confused with inventory “already done”. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
+| **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. **done/total** counts **new + changed** only (excludes already-indexed `unchanged_recheck`); full inventory totals stay in the Before sync stats. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior** counts and **queue** (`new` / `changed` / `unchanged_recheck`). **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
 | **Usage log** | Each sync writes one JSON file named by **execution time** (`YYYY-MM-DD_HH-MM-SS.json`) under `AGENTCORE_SYNC_USAGE_LOG_DIR` (default `.agentcore/sync-usage`). Record field `execution_at` is date+time to the second. Folder cap: `AGENTCORE_SYNC_USAGE_LOG_DIR_MAX_BYTES` (default **5 GiB**, FIFO deletes oldest files). Gitignored |
 | **Filters** | Mandatory YAML + wildcards + built-in language excludes — [Sync filters](#sync-filters) |
+
+### `agentcore llm test`
+
+| | |
+| --- | --- |
+| **Why** | Verify which LiteLLM model the root `.env` resolves and that a one-shot completion works |
+| **Required** | None (uses `AGENTCORE_LITELLM_*` from `.env`) |
+| **Optional** | `--prompt` (default `Hi`), `--model` (override `AGENTCORE_LITELLM_DEFAULT_MODEL`) |
+| **Example** | `agentcore llm test` |
+| **What you see** | JSON with `ok`, `configured_model`, `model`, `api_base`, `api_key_configured`, `reply`, `usage` (or `error` on failure) |
+| **What changes** | Nothing local; one provider completion request |
+
+### `agentcore llm sessions`
+
+| | |
+| --- | --- |
+| **Why** | Inspect in-flight / recent RPM LiteLLM sessions during sync or from the running code-graph service |
+| **Required** | None |
+| **Example** | `agentcore llm sessions` |
+| **What changes** | Nothing (read-only) |
 
 ### `agentcore purge`
 
@@ -597,7 +617,7 @@ Do not put secrets in docs or chat examples. MCP bearer secrets belong in env / 
 
 | Area | Path |
 | --- | --- |
-| Parser | `backend/packages/agentcore_cli/parser.py` |
+| Parser | `backend/packages/agentcore_cli/parser/` |
 | Dispatch | `backend/packages/agentcore_cli/main.py` |
 | Commands | `backend/packages/agentcore_cli/commands/` |
 | Sync filter merge | `backend/packages/agentcore_cli/sync_config.py` |

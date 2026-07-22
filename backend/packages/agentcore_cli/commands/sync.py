@@ -101,6 +101,13 @@ def _sync_one_root(
     session_monitor = threading.Thread(target=_monitor_sessions, daemon=True)
     session_monitor.start()
     ingest_timer = TimedPhase()
+    cancelled = False
+    ingest_sec = 0.0
+    payload: dict[str, Any] = {}
+    tokens_in = 0
+    docs_payload: dict[str, Any] = {}
+    docs_sec = 0.0
+    docs_tokens_in = 0
     try:
         result = svc.sync_repo(
             scope,
@@ -118,45 +125,49 @@ def _sync_one_root(
                 "on_progress": tracker,
             },
         )
+        ingest_sec = ingest_timer.stop()
+
+        payload = result.to_dict() if hasattr(result, "to_dict") else result
+        latest = getattr(tracker, "_latest", {}) or {}
+        tokens_in = int(latest.get("approx_tokens") or 0)
+        if not tokens_in:
+            tokens_in = approx_tokens_from_chars(int(latest.get("chars_read") or 0))
+
+        if filters.get("docs_enabled") and filters.get("doc_match_globs"):
+            ui.blank()
+            print(f"{ui.accent('→')}  Linking human documentation")
+            tracker.begin_phase()
+            docs_timer = TimedPhase()
+            docs_result = sync_human_docs(
+                graph_service=svc,
+                graph_scope=scope,
+                root_path=root_path,
+                filters={**filters, "max_files": int(args.max_files)},
+                actor="cli",
+                correlation_id=f"cli-docs-{now_iso()}",
+                repo_name=root_path.name,
+                on_progress=tracker,
+            )
+            docs_sec = docs_timer.stop()
+            docs_payload = docs_result.to_dict()
+            docs_tokens_in = approx_tokens_from_chars(
+                int(docs_payload.get("docs_indexed") or 0) * 2048
+            )
+            ui.kv(
+                "Docs",
+                f"indexed={docs_payload.get('docs_indexed')}  "
+                f"links={docs_payload.get('links_created')}  "
+                f"anchors={docs_payload.get('anchors_registered')}",
+            )
+            if docs_payload.get("unresolved_tokens"):
+                ui.kv("Unresolved", ", ".join(docs_payload["unresolved_tokens"][:8]))
+    except KeyboardInterrupt:
+        cancelled = True
+        raise
     finally:
         session_monitor_stop.set()
         session_monitor.join(timeout=1.0)
-        tracker.finish()
-    ingest_sec = ingest_timer.stop()
-
-    payload = result.to_dict() if hasattr(result, "to_dict") else result
-    latest = getattr(tracker, "_latest", {}) or {}
-    tokens_in = int(latest.get("approx_tokens") or 0)
-    if not tokens_in:
-        tokens_in = approx_tokens_from_chars(int(latest.get("chars_read") or 0))
-
-    docs_payload: dict = {}
-    docs_sec = 0.0
-    docs_tokens_in = 0
-    if filters.get("docs_enabled") and filters.get("doc_match_globs"):
-        ui.blank()
-        print(f"{ui.accent('→')}  Linking human documentation")
-        docs_timer = TimedPhase()
-        docs_result = sync_human_docs(
-            graph_service=svc,
-            graph_scope=scope,
-            root_path=root_path,
-            filters={**filters, "max_files": int(args.max_files)},
-            actor="cli",
-            correlation_id=f"cli-docs-{now_iso()}",
-            repo_name=root_path.name,
-        )
-        docs_sec = docs_timer.stop()
-        docs_payload = docs_result.to_dict()
-        docs_tokens_in = approx_tokens_from_chars(int(docs_payload.get("docs_indexed") or 0) * 2048)
-        ui.kv(
-            "Docs",
-            f"indexed={docs_payload.get('docs_indexed')}  "
-            f"links={docs_payload.get('links_created')}  "
-            f"anchors={docs_payload.get('anchors_registered')}",
-        )
-        if docs_payload.get("unresolved_tokens"):
-            ui.kv("Unresolved", ", ".join(docs_payload["unresolved_tokens"][:8]))
+        tracker.finish(cancelled=cancelled)
 
     tokens_out = estimate_output_tokens(
         symbols_documented=int(payload.get("symbols_documented") or 0),

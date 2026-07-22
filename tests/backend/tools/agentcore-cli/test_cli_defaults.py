@@ -62,20 +62,18 @@ def test_load_dotenv_files_fills_missing(monkeypatch, tmp_path: Path):
     assert os_environ_tenant() == "from-dotenv"
 
 
-def test_load_dotenv_files_includes_code_graph_runtime_config(monkeypatch, tmp_path: Path):
+def test_load_dotenv_files_reads_root_litellm_config(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("AGENTCORE_LITELLM_DEFAULT_MODEL", raising=False)
-    env_file = tmp_path / "backend" / "services" / "code-graph-service" / "config" / ".env"
-    env_file.parent.mkdir(parents=True)
+    env_file = tmp_path / ".env"
     env_file.write_text("AGENTCORE_LITELLM_DEFAULT_MODEL=local/test-model\n", encoding="utf-8")
-    env_file.chmod(0o600)
 
-    loaded = load_dotenv_files(root=tmp_path, include_code_graph=True)
+    loaded = load_dotenv_files(root=tmp_path)
 
     assert env_file in loaded
     assert os.environ["AGENTCORE_LITELLM_DEFAULT_MODEL"] == "local/test-model"
 
 
-def test_graph_cli_builds_gateway_from_code_graph_runtime_config(monkeypatch, tmp_path: Path):
+def test_graph_cli_builds_gateway_from_root_env(monkeypatch, tmp_path: Path):
     import code_graph_service.bootstrap as bootstrap
     from agentcore_cli.commands.graph import _graph_service
     from code_graph_service.testing import InMemoryStore
@@ -92,8 +90,7 @@ def test_graph_cli_builds_gateway_from_code_graph_runtime_config(monkeypatch, tm
     )
     for key in keys:
         monkeypatch.delenv(key, raising=False)
-    env_file = tmp_path / "backend" / "services" / "code-graph-service" / "config" / ".env"
-    env_file.parent.mkdir(parents=True)
+    env_file = tmp_path / ".env"
     env_file.write_text(
         "AGENTCORE_GRAPH_CLI_BACKEND=neo4j\n"
         "AGENTCORE_CODE_GRAPH_STORE=neo4j\n"
@@ -104,7 +101,6 @@ def test_graph_cli_builds_gateway_from_code_graph_runtime_config(monkeypatch, tm
         "AGENTCORE_EMBEDDING_PROVIDER=stub\n",
         encoding="utf-8",
     )
-    env_file.chmod(0o600)
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     monkeypatch.setattr(bootstrap, "build_store", lambda _settings: InMemoryStore())
     monkeypatch.setattr(bootstrap, "build_embedding_index", lambda _settings: None)
@@ -114,16 +110,6 @@ def test_graph_cli_builds_gateway_from_code_graph_runtime_config(monkeypatch, tm
     assert service.llm.settings.default_model == "local/live-model"
     assert service.llm.settings.rpm == 7
     assert service.llm_config()["route_docs"]["primary_model"] == "local/live-model"
-
-
-def test_code_graph_runtime_config_requires_private_permissions(tmp_path: Path):
-    env_file = tmp_path / "backend" / "services" / "code-graph-service" / "config" / ".env"
-    env_file.parent.mkdir(parents=True)
-    env_file.write_text("AGENTCORE_LITELLM_RPM=7\n", encoding="utf-8")
-    env_file.chmod(0o644)
-
-    with pytest.raises(PermissionError, match="mode 0600"):
-        load_dotenv_files(root=tmp_path, include_code_graph=True)
 
 
 def test_sync_cloud_llm_requires_explicit_per_run_consent():

@@ -97,6 +97,7 @@ class LlmGatewaySettings:
     host: str
     port: int
     drop_params: bool
+    debug: bool
     reasoning_enabled: bool
     reasoning_effort: str
 
@@ -115,6 +116,7 @@ class LlmGatewaySettings:
             "port": self.port,
             "api_key_configured": bool(self.api_key.strip()),
             "drop_params": self.drop_params,
+            "debug": self.debug,
             "reasoning_enabled": self.reasoning_enabled,
             "reasoning_effort": self.reasoning_effort,
         }
@@ -164,6 +166,7 @@ class LlmGatewaySettings:
         )
         default_model = os.environ.get("AGENTCORE_LITELLM_DEFAULT_MODEL", "").strip()
         drop_params = _env_bool("AGENTCORE_LITELLM_DROP_PARAMS", True)
+        debug = _env_bool("AGENTCORE_LITELLM_DEBUG", False)
         reasoning_enabled = _env_bool("AGENTCORE_LITELLM_REASONING_ENABLED", False)
         reasoning_effort = os.environ.get("AGENTCORE_LITELLM_REASONING_EFFORT", "").strip()
 
@@ -189,6 +192,7 @@ class LlmGatewaySettings:
             host=host,
             port=port,
             drop_params=drop_params,
+            debug=debug,
             reasoning_enabled=reasoning_enabled,
             reasoning_effort=reasoning_effort,
         )

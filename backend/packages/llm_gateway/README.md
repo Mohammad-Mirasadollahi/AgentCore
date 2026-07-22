@@ -12,8 +12,8 @@ Shared LiteLLM adapter for AgentCore services. Implements the stack ADR
 **Full operator reference (every variable, change impact, worked examples):**  
 [`docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md`](../../../docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md)
 
-**Copy template with inline comments:**  
-`backend/services/code-graph-service/config/code-graph-service.example.env`
+**Copy template (repo root):**  
+`.env.example` → `.env`
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -28,6 +28,7 @@ Shared LiteLLM adapter for AgentCore services. Implements the stack ADR
 | `AGENTCORE_LITELLM_NUM_RETRIES` | `3` | LiteLLM `num_retries` |
 | `AGENTCORE_LITELLM_RPM` | `30` | Max requests per rolling minute (client-side limiter) |
 | `AGENTCORE_LITELLM_DROP_PARAMS` | `true` | `litellm.drop_params` |
+| `AGENTCORE_LITELLM_DEBUG` | `false` | Calls `litellm._turn_on_debug()` once; tip spam always suppressed |
 | `AGENTCORE_LITELLM_REASONING_ENABLED` | `false` | Send OpenRouter-style `reasoning.enabled` via `extra_body` |
 | `AGENTCORE_LITELLM_REASONING_EFFORT` | _(empty)_ | Optional `reasoning.effort` when enabled |
 | `AGENTCORE_LITELLM_DOCS_ENABLED` | `true` | Use LiteLLM for symbol docs (heuristic fallback) |
@@ -42,6 +43,8 @@ Auto Base URL: `http://{HOST}:{PORT}` when no override is set.
 ## CLI
 
 ```bash
+agentcore llm test
+agentcore llm test --prompt "Hi" --model openai/gpt-oss-120b
 PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway providers
 PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway config
 PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway complete --prompt "ping"

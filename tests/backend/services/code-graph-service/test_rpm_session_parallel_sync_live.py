@@ -63,6 +63,7 @@ def _settings_rpm(rpm: int) -> LlmGatewaySettings:
         drop_params=True,
         reasoning_enabled=False,
         reasoning_effort="",
+        debug=False,
     )
 
 
@@ -294,7 +295,7 @@ def test_cli_progress_reports_nonzero_live_rpm(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "agentcore_cli.sync_progress.progress_path",
+        "agentcore_cli.sync_progress.tracker.progress_path",
         lambda root=None: tmp_path / "sync-progress.json",
     )
     args = SimpleNamespace(

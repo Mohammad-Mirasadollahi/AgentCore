@@ -241,7 +241,11 @@ def _print_human(report: dict[str, Any]) -> None:
         ui.section("Live sync")
         pct = float(live.get("percent") or 0)
         eta = live.get("eta_sec")
-        ui.kv("Progress", f"{pct:.1f}%  ({live.get('done')}/{live.get('total')} files)")
+        ui.kv(
+            "Progress",
+            f"{pct:.1f}%  ({live.get('done')}/{live.get('total')} "
+            f"{live.get('phase') or 'files'})",
+        )
         in_flight = int(live.get("files_in_flight") or 0)
         workers = int(live.get("file_workers") or 0)
         if workers or in_flight:

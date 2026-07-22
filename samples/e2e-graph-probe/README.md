@@ -23,7 +23,7 @@ docs/overview.md  human documentation (not parsed as code)
 ## Run the probe
 
 ```bash
-set -a && source backend/services/code-graph-service/config/.env && set +a
+set -a && source .env && set +a
 PYTHONPATH=backend/services/code-graph-service/src:backend/packages:backend/services/mcp-gateway-service/src:backend/services/core-data-service/src:backend/services/memory-service/src:backend/services/docs-sync-service/src:backend/services/common-context-service/src \
   .venv/bin/python samples/e2e-graph-probe/run_probe.py
 ```
