@@ -151,7 +151,7 @@ agentcore ports check
 
 - Package: `backend/packages/agentcore_cli/`
 - Entry point: `pyproject.toml` → `agentcore = agentcore_cli.main:main`
-- Layout: `main.py` · `parser.py` · `cli_defaults.py` · `identity.py` · `commands/`
+- Layout: `main.py` · `parser/` · `cli_defaults.py` · `identity.py` · `commands/`
 - Local state: `.agentcore/projects/<tenant>/<workspace>/<project>.json`
 - Identity: `~/.agentcore/identity.yaml`
 - Sync filters: local `agentcore.sync.yaml` (**gitignored**); template `agentcore.sync.yaml.example` (tracked)

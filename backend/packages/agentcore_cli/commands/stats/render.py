@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from agentcore_cli import ui
+from agentcore_cli.commands.inventory.util import edited_percent_line
 
 
 def format_bytes(n: int) -> str:
@@ -55,15 +56,15 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
         ),
         (
             f"Code:  done {code['done_count']}/{code['total']} ({code['percent_done']}%)  "
-            f"edited {code.get('edited_count', 0)}/{code['total']} ({code.get('percent_edited', 0)}%)  "
+            f"edited {edited_percent_line(code)}  "
             f"remaining {code['remaining_count']}/{code['total']} ({code.get('percent_remaining', 0)}%)"
         ),
         (
             f"Docs:  done {docs['done_count']}/{docs['total']} ({docs['percent_done']}%)  "
-            f"edited {docs.get('edited_count', 0)}/{docs['total']} ({docs.get('percent_edited', 0)}%)  "
+            f"edited {edited_percent_line(docs)}  "
             f"remaining {docs['remaining_count']}/{docs['total']} ({docs.get('percent_remaining', 0)}%)"
         ),
-        f"LLM:   {llm['done_count']}/{llm['total']} symbols  ({llm['percent_done']}%)",
+        f"LLM:   {llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
     ]
 
 
@@ -128,24 +129,21 @@ def print_human(
     docs = summary["docs"]
     llm = summary["llm"]
     ui.kv("Code done", f"{code['done_count']}/{code['total']}  ({code['percent_done']}%)")
-    ui.kv(
-        "Code edited",
-        f"{code.get('edited_count', 0)}/{code['total']}  ({code.get('percent_edited', 0)}%)  ← needs sync",
-    )
+    ui.kv("Code edited", edited_percent_line(code))
     ui.kv(
         "Code remaining",
         f"{code['remaining_count']}/{code['total']}  ({code.get('percent_remaining', 0)}%)",
     )
     ui.kv("Docs done", f"{docs['done_count']}/{docs['total']}  ({docs['percent_done']}%)")
-    ui.kv(
-        "Docs edited",
-        f"{docs.get('edited_count', 0)}/{docs['total']}  ({docs.get('percent_edited', 0)}%)  ← needs sync",
-    )
+    ui.kv("Docs edited", edited_percent_line(docs))
     ui.kv(
         "Docs remaining",
         f"{docs['remaining_count']}/{docs['total']}  ({docs.get('percent_remaining', 0)}%)",
     )
-    ui.kv("LLM", f"{llm['done_count']}/{llm['total']} symbols  ({llm['percent_done']}%)")
+    ui.kv(
+        "LLM",
+        f"{llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
+    )
 
     ui.blank()
     ui.section("By language")

@@ -6,10 +6,12 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter, provisional_frontmatter
 from agentcore_cli.util import repo_root
+
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 @dataclass
@@ -58,6 +60,26 @@ def _docs_sync_service():
     return DocsSyncService(InMemoryStore())
 
 
+def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
+    """Map relative doc path → body hash for existing DOCUMENTATION symbols."""
+    from code_graph_service.domain.enums import SymbolKind
+
+    out: dict[str, str] = {}
+    try:
+        symbols = graph_service.store.list_symbols(graph_scope)
+    except Exception:  # noqa: BLE001
+        return out
+    for sym in symbols:
+        kind = sym.kind.value if hasattr(sym.kind, "value") else str(sym.kind)
+        if kind != SymbolKind.DOCUMENTATION.value:
+            continue
+        rel = str(sym.file_path or "").replace("\\", "/").strip()
+        if not rel:
+            continue
+        out[rel] = str(getattr(sym, "hash_value", "") or "")
+    return out
+
+
 def sync_human_docs(
     *,
     graph_service: Any,
@@ -67,6 +89,7 @@ def sync_human_docs(
     actor: str = "cli",
     correlation_id: str = "",
     repo_name: str = "repo",
+    on_progress: ProgressCallback | None = None,
 ) -> DocsLinkSyncResult:
     """Discover Markdown via docs.match globs, index in docs-sync, project edges."""
     from code_graph_service.domain.doc_discovery import discover_documentation_files
@@ -95,6 +118,64 @@ def sync_human_docs(
     if not discovered:
         return result
 
+    prior_hashes = _indexed_doc_hashes(graph_service, graph_scope)
+    prior_indexed = len(prior_hashes)
+    # Classify against body hash (same digest upsert_human_documentation stores).
+    need_paths: set[str] = set()
+    queue_new = 0
+    queue_changed = 0
+    prepared: list[tuple[Any, str, str, dict[str, Any], str]] = []
+    for item in discovered:
+        abs_path = Path(item.absolute_path)
+        rel = item.relative_path.replace("\\", "/")
+        try:
+            text = abs_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            result.skipped += 1
+            result.errors.append(f"{rel}: read failed: {exc}")
+            continue
+        partial, body = parse_markdown_frontmatter(text)
+        frontmatter = provisional_frontmatter(rel, body, partial)
+        body_hash = digest(body)
+        previous = prior_hashes.get(rel)
+        if previous is None:
+            queue_new += 1
+            need_paths.add(rel)
+        elif previous != body_hash:
+            queue_changed += 1
+            need_paths.add(rel)
+        prepared.append((item, rel, body, frontmatter, body_hash))
+
+    queue_unchanged = max(0, len(prepared) - queue_new - queue_changed)
+    progress_total = len(need_paths) if need_paths else len(prepared)
+    progress_done = 0
+
+    def _emit(done: int, *, file: str = "", status: str = "") -> None:
+        if not callable(on_progress):
+            return
+        try:
+            on_progress(
+                {
+                    "phase": "docs",
+                    "done": done,
+                    "total": progress_total,
+                    "file": file,
+                    "status": status,
+                    "prior_indexed": prior_indexed,
+                    "queue_new": queue_new,
+                    "queue_changed": queue_changed,
+                    "queue_unchanged": queue_unchanged,
+                    "docs_indexed": result.docs_indexed,
+                    "links_created": result.links_created,
+                    "anchors_registered": result.anchors_registered,
+                    "files_in_flight": 1 if status == "active" else 0,
+                    "files_in_flight_paths": [file] if file and status == "active" else [],
+                    "file_workers": 1,
+                }
+            )
+        except Exception:  # noqa: BLE001 — progress must never break docs sync
+            return
+
     docs_svc = _docs_sync_service()
     docs_scope = DocsScope(
         graph_scope.tenant_id,
@@ -103,20 +184,14 @@ def sync_human_docs(
     )
     corr = correlation_id or f"docs-link-{graph_scope.project_id}"
 
-    for item in discovered:
-        abs_path = Path(item.absolute_path)
-        rel = item.relative_path
-        try:
-            text = abs_path.read_text(encoding="utf-8")
-        except OSError as exc:
-            result.skipped += 1
-            result.errors.append(f"{rel}: read failed: {exc}")
-            continue
-
-        partial, body = parse_markdown_frontmatter(text)
-        frontmatter = provisional_frontmatter(rel, body, partial)
+    _emit(0, status="started")
+    for _item, rel, body, frontmatter, _body_hash in prepared:
+        counts = rel in need_paths if need_paths else True
+        _emit(progress_done, file=rel, status="active")
         doc_id = str(frontmatter["doc_id"]).strip()
-        linked_tokens = [str(t).strip() for t in (frontmatter.get("linked_symbols") or []) if str(t).strip()]
+        linked_tokens = [
+            str(t).strip() for t in (frontmatter.get("linked_symbols") or []) if str(t).strip()
+        ]
         # Include content fingerprint so edits get a new key (same key + new body = ConflictError).
         doc_fp = digest(f"{rel}\n{doc_id}\n{linked_tokens}\n{body}")[:16]
 
@@ -132,6 +207,9 @@ def sync_human_docs(
         except Exception as exc:
             result.skipped += 1
             result.errors.append(f"{rel}: docs-sync index failed: {exc}")
+            if counts:
+                progress_done += 1
+            _emit(progress_done, file=rel, status="failed")
             continue
 
         projection = graph_service.upsert_human_documentation(
@@ -187,4 +265,9 @@ def sync_human_docs(
             except Exception as exc:
                 result.errors.append(f"{rel}: anchor failed for {symbol_graph_id}: {exc}")
 
+        if counts:
+            progress_done += 1
+        _emit(progress_done, file=rel, status="ok")
+
+    _emit(progress_total, status="finished")
     return result

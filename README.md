@@ -143,7 +143,7 @@ agentcore sync
 agentcore list-profiles                  # see local profiles + which scope is active
 ```
 
-After `bash install.sh`, repo-root `.env` and `agentcore.sync.yaml` are created from `.env.example` / `agentcore.sync.yaml.example` when missing (existing files are never overwritten; both copies are **gitignored**). After `init`, scope comes from `~/.agentcore/identity.yaml` and the repo-root `.env`. Override with `--tenant` / `--workspace` / `--project` only when needed.
+After `bash install.sh`, repo-root `.env` and `agentcore.sync.yaml` are created from `.env.example` / `agentcore.sync.yaml.example` when missing (existing files are never overwritten; both copies are **gitignored**). Root `.env` is the **single** operator file for scope, Neo4j, LiteLLM models/keys, and embeddings (see [12 - LiteLLM Environment Configuration](docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md)). After `init`, scope comes from `~/.agentcore/identity.yaml` and the repo-root `.env`. Override with `--tenant` / `--workspace` / `--project` only when needed.
 
 **Sync filters** (mandatory YAML, wildcards, built-in language excludes) → [42 § Sync filters](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md#sync-filters).
 

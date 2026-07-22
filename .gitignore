@@ -296,9 +296,8 @@ models--*/
 
 # IDE and OS local state
 .idea/
-.vscode/settings.json
-.vscode/launch.json
-.vscode/*.code-workspace
+.vscode/
+**/.vscode/
 *.code-workspace
 *.swp
 *.swo

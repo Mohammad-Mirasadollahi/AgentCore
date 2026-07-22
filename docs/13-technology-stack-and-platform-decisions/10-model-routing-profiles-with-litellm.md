@@ -20,7 +20,7 @@ related_docs:
   - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
   - docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
   - docs/10-gap-analysis/01-gap-register.md
-  - backend/services/code-graph-service/config/code-graph-service.example.env
+  - .env.example
 doc_version: "1.0.0"
 audience:
   - engineer

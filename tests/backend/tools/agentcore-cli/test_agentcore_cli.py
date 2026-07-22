@@ -141,6 +141,92 @@ def test_llm_sessions_prefers_active_sync_process(monkeypatch, capsys):
     assert payload["source"] == "sync-process:4321"
 
 
+def test_llm_test_reports_model_and_reply(monkeypatch, capsys):
+    import agentcore_cli.commands.llm_cmd as llm_cmd
+    from llm_gateway import CompletionResult
+    from llm_gateway.settings import LlmGatewaySettings
+
+    settings = LlmGatewaySettings(
+        enabled=True,
+        host="127.0.0.1",
+        port=32400,
+        api_base="https://example.test/v1",
+        api_base_override="https://example.test/v1",
+        api_base_is_auto=False,
+        api_key="k",
+        default_model="openai/gpt-oss-120b",
+        timeout_seconds=30.0,
+        num_retries=0,
+        rpm=30,
+        drop_params=True,
+        debug=False,
+        reasoning_enabled=False,
+        reasoning_effort="",
+    )
+
+    class FakeGateway:
+        def __init__(self, _settings):
+            self.settings = _settings
+
+        def complete(self, request):
+            assert request.messages[-1].content == "Hi"
+            assert request.model == "openai/gpt-oss-120b"
+            return CompletionResult(
+                content="Hello!",
+                model="openai/gpt-oss-120b",
+                provider="openai",
+                usage={"total_tokens": 3},
+            )
+
+    monkeypatch.setattr(llm_cmd, "load_dotenv_files", lambda: [])
+    monkeypatch.setattr(
+        "llm_gateway.LlmGatewaySettings.from_environment",
+        staticmethod(lambda: settings),
+    )
+    monkeypatch.setattr("llm_gateway.LiteLlmGateway", FakeGateway)
+
+    assert main(["llm", "test"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["configured_model"] == "openai/gpt-oss-120b"
+    assert payload["model"] == "openai/gpt-oss-120b"
+    assert payload["reply"] == "Hello!"
+    assert payload["prompt"] == "Hi"
+
+
+def test_llm_test_fails_when_disabled(monkeypatch, capsys):
+    import agentcore_cli.commands.llm_cmd as llm_cmd
+    from llm_gateway.settings import LlmGatewaySettings
+
+    settings = LlmGatewaySettings(
+        enabled=False,
+        host="127.0.0.1",
+        port=32400,
+        api_base="http://127.0.0.1:32400",
+        api_base_override="",
+        api_base_is_auto=True,
+        api_key="",
+        default_model="openai/gpt-oss-120b",
+        timeout_seconds=30.0,
+        num_retries=0,
+        rpm=30,
+        drop_params=True,
+        debug=False,
+        reasoning_enabled=False,
+        reasoning_effort="",
+    )
+    monkeypatch.setattr(llm_cmd, "load_dotenv_files", lambda: [])
+    monkeypatch.setattr(
+        "llm_gateway.LlmGatewaySettings.from_environment",
+        staticmethod(lambda: settings),
+    )
+
+    assert main(["llm", "test"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert "disabled" in payload["error"].lower()
+
+
 def test_path_install(tmp_path, monkeypatch):
     root = Path("/opt/AgentCore")
     monkeypatch.setenv("AGENTCORE_ROOT", str(root))

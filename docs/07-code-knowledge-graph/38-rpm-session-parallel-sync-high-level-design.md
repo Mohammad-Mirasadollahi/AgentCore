@@ -100,7 +100,7 @@ flowchart LR
 | LiteLlmGateway | Call gate around every network complete/embed | `backend/packages/llm_gateway/gateway.py` |
 | Parallel ingest scheduler | File workers, LLM queue, fairness | `code_graph_service/application/ingest/` |
 | SerializedStoreWriter | Single-writer store mutations for Postgres safety | Same ingest package (adapter over `Store`) |
-| Progress tracker | Thread-safe progress events | `agentcore_cli/sync_progress.py` |
+| Progress tracker | Thread-safe progress events | `agentcore_cli/sync_progress/` |
 | HTTP observe | Snapshot endpoint | `code_graph_service/api.py` (`/api/v1/llm/...`) |
 | CLI observe | Status command / sync enrichment | `agentcore_cli` |
 

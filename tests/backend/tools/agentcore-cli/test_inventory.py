@@ -30,6 +30,26 @@ def test_edited_percent_line_omits_needs_sync_when_zero():
     )
 
 
+def test_demote_edited_llm_moves_stale_symbols():
+    from agentcore_cli.commands.inventory.graph_index import demote_edited_llm
+
+    done, remaining = demote_edited_llm(
+        ["a.py::f", "b.py::g"],
+        ["c.py::h"],
+        {"b.py"},
+    )
+    assert done == ["a.py::f"]
+    assert remaining == ["c.py::h", "b.py::g"]
+
+
+def test_collect_facade_reexports():
+    from agentcore_cli.commands.inventory import collect
+
+    assert callable(collect.build_inventory_report)
+    assert callable(collect.inventory_one_root)
+    assert callable(collect.language_breakdown)
+
+
 def test_parser_inventory_word_modes():
     parser = build_parser()
     args = parser.parse_args(["inventory"])
@@ -265,6 +285,17 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
             language="python",
         ),
         SimpleNamespace(
+            id="fn:changed",
+            kind=SimpleNamespace(value="function"),
+            file_path="src/edited.py",
+            qualified_name="edited.changed",
+            name="changed",
+            doc_status=SimpleNamespace(value="generated"),
+            ai_documentation="stale docs",
+            hash_value="y",
+            language="python",
+        ),
+        SimpleNamespace(
             id="doc:guide",
             kind=SimpleNamespace(value="documentation"),
             file_path="docs/guide.md",
@@ -277,7 +308,12 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
         ),
     ]
     store = SimpleNamespace(list_symbols=lambda _scope: symbols)
-    index = SimpleNamespace(list_symbol_models=lambda _scope: {"fn:ok": "local_bge:test-model"})
+    index = SimpleNamespace(
+        list_symbol_models=lambda _scope: {
+            "fn:ok": "local_bge:test-model",
+            "fn:changed": "local_bge:test-model",
+        }
+    )
     svc = SimpleNamespace(
         store=store,
         freshness_status=lambda _scope: {"pending_files": []},
@@ -292,7 +328,7 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     scope = SimpleNamespace(tenant_id="t", workspace_id="w", project_id="p")
 
     monkeypatch.setattr(
-        "agentcore_cli.commands.inventory.collect.resolve_sync_filters",
+        "agentcore_cli.commands.inventory.root.resolve_sync_filters",
         lambda **_k: {
             "include_extensions": [".py"],
             "exclude_dirs": set(),
@@ -314,6 +350,10 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     assert row["code"]["edited_files"][0]["edit_reason"] == "content_changed"
     assert "docs/guide.md" in row["docs"]["done"]
     assert row["code"]["llm"]["done_count"] == 1
+    assert row["code"]["llm"]["remaining_count"] == 1
+    assert row["code"]["llm"]["total"] == 2
+    assert row["code"]["llm"]["percent_done"] == 50.0
+    assert any(label.startswith("src/edited.py::") for label in row["code"]["llm"]["remaining"])
     assert len(row["code"]["top_edited"]) <= TOP_N
     top = row["code"]["top_done"][0]
     assert top["file"] == "src/done.py"

@@ -34,7 +34,7 @@ code_graph_service/
 
 ## Config
 
-`config/code-graph-service.example.env` documents local development settings.
+Repo-root `.env.example` documents local development settings (LiteLLM, Neo4j, embeddings).
 
 - Default store: Neo4j (`AGENTCORE_CODE_GRAPH_STORE=neo4j` + `AGENTCORE_NEO4J_*`)
 - Rollback / parity store: PostgreSQL schema `code_graph` (`AGENTCORE_CODE_GRAPH_STORE=postgres`)

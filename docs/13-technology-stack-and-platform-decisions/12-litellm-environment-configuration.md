@@ -22,7 +22,7 @@ related_docs:
   - docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
   - docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
   - docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
-  - backend/services/code-graph-service/config/code-graph-service.example.env
+  - .env.example
   - backend/packages/llm_gateway/README.md
 doc_version: "1.0.0"
 audience:
@@ -46,7 +46,7 @@ relations_declared:
   - type: complements
     target: docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
   - type: documents
-    target: backend/services/code-graph-service/config/code-graph-service.example.env
+    target: .env.example
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -59,7 +59,7 @@ security_classification: internal
 
 ## Purpose
 
-This document is the normative **configuration contract** for AgentCore LiteLLM settings and the related code-graph store variables that operators copy from `backend/services/code-graph-service/config/code-graph-service.example.env`.
+This document is the normative **configuration contract** for AgentCore LiteLLM settings and the related code-graph store variables that operators copy from the repository-root `.env.example` into `.env`.
 
 It explains, for each variable:
 
@@ -88,15 +88,18 @@ Platform operators, backend engineers wiring `code-graph-service` or other consu
 
 | Artifact | Role |
 | --- | --- |
-| `code-graph-service.example.env` | Copy template with inline comments |
+| `.env.example` → `.env` (repo root) | **Single** operator template: scope, Neo4j, LiteLLM, embeddings |
 | This document | Behavioral contract + examples |
 | `09-litellm-llm-gateway.md` | Why LiteLLM is mandatory |
 | `10-model-routing-profiles-with-litellm.md` | Task/risk → model alias rules |
 | `backend/packages/llm_gateway/` | Runtime implementation |
 
+`install.sh` / `agentcore init` create root `.env` from `.env.example` when missing. CLI `load_dotenv_files()` loads root `.env` automatically.
+
 Inspect live public settings (no secrets):
 
 ```bash
+agentcore llm test
 PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway config
 # or GET /api/v1/llm/config on code-graph-service
 ```
@@ -112,7 +115,7 @@ PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway providers
 
 ## Service And Structural Store Variables
 
-These are not LiteLLM knobs, but they appear in the same example env and affect whether the HTTP service, embeddings/outbox, and Neo4j work together.
+These are not LiteLLM knobs, but they appear in the same root `.env.example` and affect whether the HTTP service, embeddings/outbox, and Neo4j work together.
 
 ### `AGENTCORE_CODE_GRAPH_PORT`
 
@@ -289,7 +292,7 @@ AGENTCORE_LITELLM_API_BASE=http://llm-proxy.internal:4100
 | | |
 | --- | --- |
 | **Purpose** | Default LiteLLM model alias when task-specific `MODEL_*` is empty. |
-| **Default** | empty in settings code; example env suggests `ollama/qwen2.5-coder` |
+| **Default** | empty in settings code; `.env.example` suggests `ollama/qwen2.5-coder` |
 | **If empty** | Routes for docs/embed have no primary model → stub/heuristic (`allow_stub`). |
 | **If set** | Used for docs (when docs enabled), complete CLI, and embed (when embeddings enabled) unless overridden. |
 
@@ -366,6 +369,20 @@ AGENTCORE_LITELLM_RPM=10
 | **Default** | `true` |
 | **If `true`** | Unsupported kwargs dropped; fewer cross-provider errors. |
 | **If `false`** | Stricter; e.g. `response_format` on a model that rejects it can fail the call. |
+
+### `AGENTCORE_LITELLM_DEBUG`
+
+| | |
+| --- | --- |
+| **Purpose** | Turns on LiteLLM SDK debug logging (`litellm._turn_on_debug()`). |
+| **Default** | `false` |
+| **If `true`** | First `complete`/`embed` call enables verbose LiteLLM traces so provider errors show root cause (request path, HTTP status, response body excerpts). Noisy — use while diagnosing sync or gateway failures. |
+| **If `false`** | Quiet LiteLLM logging (production default). |
+
+```bash
+AGENTCORE_LITELLM_DEBUG=true
+# then re-run: agentcore sync
+```
 
 ### `AGENTCORE_LITELLM_REASONING_ENABLED`
 
@@ -612,6 +629,9 @@ AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/
 | --- | --- | --- |
 | Startup: Neo4j password required | Empty `AGENTCORE_NEO4J_PASSWORD` with store=neo4j | Set password |
 | Connection refused to `:32400` | Auto Base URL but no proxy listening | Start proxy or set `AGENTCORE_LITELLM_API_BASE` |
+| Opaque LiteLLM error / “turn on debug” hint | Provider error mapped by LiteLLM; tip not suppressed | Gateway sets `suppress_debug_info`; use `AGENTCORE_LITELLM_DEBUG=true` for traces |
+| Sync hangs / Ctrl+C does not exit | Workers blocked in provider HTTP; pool waited forever | Cancel waits ≤15s then abandons stuck workers; quota circuit stops further LLM calls |
+| OpenRouter `429` / `free-models-per-day` | Free-tier daily quota exhausted | Wait for daily reset, switch model/key, or set `AGENTCORE_LITELLM_DOCS_ENABLED=false` |
 | Docs always heuristic | `DOCS_ENABLED=false`, or `ENABLED=false`, or empty models | Enable flags and set `DEFAULT_MODEL` / `MODEL_DOCS` |
 | Embeddings unchanged after enabling LLM | `EMBEDDINGS_ENABLED` still false or no DB URL | Set flag + model + database URL |
 | Calls stall under load | Low `RPM` | Raise RPM or batch fewer calls |
@@ -621,7 +641,7 @@ AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/
 
 ## Security And Privacy Constraints
 
-- Never commit real API keys; example env uses empty or placeholder values.
+- Never commit real API keys; `.env.example` uses empty or placeholder values.
 - `/api/v1/llm/config` and `python -m llm_gateway config` expose only `api_key_configured` boolean, not the secret.
 - Prefer proxy mode in shared environments so vendor keys stay on the proxy host.
 
@@ -639,21 +659,21 @@ AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/
 
 ## Rollout And Migration Notes
 
-1. Copy `code-graph-service.example.env` to an untracked env file.
-2. Start with `EMBEDDINGS_ENABLED=false` and local/default model.
+1. Copy repo-root `.env.example` to `.env` (or use `install.sh` / `agentcore init`).
+2. Start with `AGENTCORE_LITELLM_EMBEDDINGS_ENABLED=false` and local/default model.
 3. Enable docs LLM only after Base URL and keys work via `complete`.
 4. Enable embeddings only with Postgres URL and an embedding-capable model alias.
 
 ## Engineering Acceptance Criteria
 
-- Every variable in the example env is described in this document.
+- Every variable in `.env.example` is described in this document.
 - Changing Base URL override clearly disables auto host/port for request routing.
 - Defaults match runtime: timeout `180`, retries `3`, rpm `30`.
 - Disabling LiteLLM or docs/embeddings never breaks structural Neo4j/Postgres ingest.
 
 ## Product Acceptance Criteria
 
-- An operator can configure LiteLLM from the example env without reading Python source.
+- An operator can configure LiteLLM from the root `.env.example` without reading Python source.
 - Misconfiguration symptoms map to a recovery row in Failure Modes.
 
 ## Open Gaps

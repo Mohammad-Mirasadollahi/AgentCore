@@ -25,7 +25,7 @@ def test_format_duration_and_bar():
 def test_progress_log_has_blank_lines_and_timestamp(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
     monkeypatch.setattr(
-        "agentcore_cli.sync_progress.wall_clock_now",
+        "agentcore_cli.sync_progress.tracker.wall_clock_now",
         lambda: "2026-07-22 12:00:00",
     )
     tracker = SyncProgressTracker(
@@ -77,11 +77,66 @@ def test_progress_explains_this_run_vs_prior(tmp_path: Path, monkeypatch, capsys
         }
     )
     out = capsys.readouterr().out
-    assert "this run 0/237" in out
+    assert "code 0/237" in out
     assert "prior file symbols 40" in out
     assert "new=200" in out
     assert "changed=37" in out
-    assert "this run only" in out
+    assert "need-work files finished yet" in out
+    assert "excludes unchanged rechecks" in out
+    tracker.finish()
+
+
+def test_progress_shows_docs_phase_label(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "docs",
+            "done": 2,
+            "total": 10,
+            "status": "ok",
+            "prior_indexed": 5,
+            "queue_new": 8,
+            "queue_changed": 2,
+            "queue_unchanged": 5,
+            "docs_indexed": 2,
+            "links_created": 1,
+            "anchors_registered": 1,
+            "file": "docs/a.md",
+        }
+    )
+    out = capsys.readouterr().out
+    assert "docs 2/10" in out
+    assert "prior docs 5" in out
+    assert "links 1" in out
+    tracker.finish()
+
+
+def test_begin_phase_resets_rate_samples(tmp_path: Path, monkeypatch):
+    clock = {"t": 0.0}
+    monkeypatch.setattr("agentcore_cli.sync_progress.tracker.time.monotonic", lambda: clock["t"])
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker({"phase": "ingest", "done": 5, "total": 10, "status": "ok"})
+    clock["t"] = 10.0
+    tracker({"phase": "ingest", "done": 10, "total": 10, "status": "finished"})
+    tracker.begin_phase()
+    clock["t"] = 10.0
+    tracker({"phase": "docs", "done": 0, "total": 4, "status": "started"})
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["phase"] == "docs"
+    assert data["done"] == 0
+    assert data["total"] == 4
+    assert data["files_per_sec"] is None
     tracker.finish()
 
 
@@ -144,11 +199,11 @@ def test_tracker_writes_progress_and_adapts(tmp_path: Path, monkeypatch, capsys)
     assert not progress_file.is_file()
     out = capsys.readouterr().out
     assert "%" in out
-    assert "this run" in out
+    assert "code" in out
 
 
 def test_read_live_progress_fresh(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("agentcore_cli.sync_progress.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("agentcore_cli.sync_progress.store.repo_root", lambda: tmp_path)
     path = tmp_path / ".agentcore" / "sync-progress.json"
     path.parent.mkdir(parents=True)
     path.write_text(
@@ -234,7 +289,7 @@ def test_tracker_skips_unchanged_session_snapshot(tmp_path: Path, monkeypatch):
 def test_early_provisional_rate_within_ten_seconds(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
     clock = {"t": 0.0}
-    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", lambda: clock["t"])
+    monkeypatch.setattr("agentcore_cli.sync_progress.tracker.time.monotonic", lambda: clock["t"])
 
     tracker = SyncProgressTracker(
         scope="t/w/p",
@@ -277,7 +332,7 @@ def test_early_provisional_rate_within_ten_seconds(tmp_path: Path, monkeypatch, 
     assert abs(data["files_per_sec"] - (2 / 6)) < 0.05
     assert data.get("rate_basis") == "provisional"
     out = capsys.readouterr().out
-    progress_lines = [ln for ln in out.splitlines() if "ETA" in ln and "this run" in ln]
+    progress_lines = [ln for ln in out.splitlines() if "ETA" in ln and "code" in ln]
     assert progress_lines
     assert "rate …" not in progress_lines[-1]
     assert "provisional" in progress_lines[-1]
@@ -287,7 +342,7 @@ def test_early_provisional_rate_within_ten_seconds(tmp_path: Path, monkeypatch, 
 def test_eta_blend_uses_lifetime_and_recent(tmp_path: Path, monkeypatch):
     """Lifetime avg dominates; a short stall does not collapse ETA to near-zero rate."""
     clock = {"t": 0.0}
-    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", lambda: clock["t"])
+    monkeypatch.setattr("agentcore_cli.sync_progress.tracker.time.monotonic", lambda: clock["t"])
     tracker = SyncProgressTracker(
         scope="t/w/p",
         path=str(tmp_path),
@@ -325,7 +380,7 @@ def test_session_heartbeat_refreshes_eta_when_unchanged(tmp_path: Path, monkeypa
     def mono():
         return clock["t"]
 
-    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", mono)
+    monkeypatch.setattr("agentcore_cli.sync_progress.tracker.time.monotonic", mono)
     tracker = SyncProgressTracker(
         scope="t/w/p",
         path=str(tmp_path),
@@ -377,7 +432,7 @@ def test_tracker_snapshot_is_private_before_json_is_written(tmp_path: Path, monk
         modes_when_opened.append(stat.S_IMODE(os.fstat(fd).st_mode))
         return real_fdopen(fd, *args, **kwargs)
 
-    monkeypatch.setattr("agentcore_cli.sync_progress.os.fdopen", checked_fdopen)
+    monkeypatch.setattr("agentcore_cli.sync_progress.store.os.fdopen", checked_fdopen)
     tracker = SyncProgressTracker(
         scope="t/w/p",
         path=str(tmp_path),

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Protocol
 
 from .providers import list_providers
@@ -22,6 +23,10 @@ class LlmGateway(Protocol):
     def rpm_sessions_snapshot(self) -> dict[str, Any]: ...
 
 
+class ProviderQuotaTripped(RuntimeError):
+    """Provider rate/quota limit tripped for this process; stop calling the LLM."""
+
+
 def _provider_from_model(model: str) -> str:
     if "/" in model:
         return model.split("/", 1)[0]
@@ -34,8 +39,92 @@ def _is_timeout(exc: BaseException) -> bool:
     return "timeout" in name or "timeout" in text or "timed out" in text
 
 
+def _is_provider_quota_error(exc: BaseException) -> bool:
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    if "ratelimit" in name or "rate_limit" in name:
+        return True
+    markers = (
+        "rate limit",
+        "ratelimit",
+        "quota",
+        "free-models-per-day",
+        "tokens per day",
+        "429",
+    )
+    return any(m in text for m in markers)
+
+
 def _error_detail(exc: BaseException) -> str:
     return type(exc).__name__
+
+
+def _effective_num_retries(configured: int) -> int:
+    """LiteLLM retries need tenacity; without it, retries become a hard failure."""
+    if configured <= 0:
+        return 0
+    import importlib.util
+
+    if importlib.util.find_spec("tenacity") is None:
+        return 0
+    return int(configured)
+
+
+_litellm_debug_on = False
+_quota_lock = threading.Lock()
+_quota_tripped = False
+_quota_reason = ""
+
+
+def reset_provider_quota_trip() -> None:
+    """Test helper: clear the process-wide provider quota circuit breaker."""
+    global _quota_tripped, _quota_reason
+    with _quota_lock:
+        _quota_tripped = False
+        _quota_reason = ""
+
+
+def provider_quota_tripped() -> bool:
+    with _quota_lock:
+        return _quota_tripped
+
+
+def _raise_if_quota_tripped() -> None:
+    with _quota_lock:
+        if _quota_tripped:
+            raise ProviderQuotaTripped(_quota_reason or "provider quota tripped")
+
+
+def _maybe_trip_quota(exc: BaseException) -> None:
+    global _quota_tripped, _quota_reason
+    if isinstance(exc, ProviderQuotaTripped) or not _is_provider_quota_error(exc):
+        return
+    reason = str(exc).strip()[:300] or type(exc).__name__
+    with _quota_lock:
+        if _quota_tripped:
+            return
+        _quota_tripped = True
+        _quota_reason = reason
+    print(
+        f"   !  LiteLLM provider quota/rate-limit — skipping further LLM calls this run "
+        f"({reason})",
+        flush=True,
+    )
+
+
+def _apply_litellm_runtime(litellm: Any, settings: LlmGatewaySettings) -> None:
+    """Apply process-wide LiteLLM module knobs from gateway settings."""
+    global _litellm_debug_on
+    # Always suppress the noisy "Give Feedback / Get Help" tip; we log real errors.
+    litellm.suppress_debug_info = True
+    litellm.drop_params = settings.drop_params
+    if settings.debug and not _litellm_debug_on:
+        turn_on = getattr(litellm, "_turn_on_debug", None)
+        if callable(turn_on):
+            turn_on()
+        else:
+            litellm.set_verbose = True
+        _litellm_debug_on = True
 
 
 class LiteLlmGateway:
@@ -57,6 +146,7 @@ class LiteLlmGateway:
     def complete(self, request: CompletionRequest) -> CompletionResult:
         if not self.settings.enabled:
             raise RuntimeError("LiteLLM gateway is disabled (AGENTCORE_LITELLM_ENABLED=false)")
+        _raise_if_quota_tripped()
         model = (request.model or self.settings.default_model or "").strip()
         if not model:
             raise RuntimeError(
@@ -71,14 +161,14 @@ class LiteLlmGateway:
 
         session = self._rpm.acquire("complete", SessionMeta(model=model))
         try:
-            litellm.drop_params = self.settings.drop_params
+            _apply_litellm_runtime(litellm, self.settings)
             messages = [{"role": m.role, "content": m.content} for m in request.messages]
             kwargs: dict[str, Any] = {
                 "model": model,
                 "messages": messages,
                 "temperature": request.temperature,
                 "timeout": self.settings.timeout_seconds,
-                "num_retries": self.settings.num_retries,
+                "num_retries": _effective_num_retries(self.settings.num_retries),
                 "api_base": self.settings.api_base,
             }
             if self.settings.api_key:
@@ -115,6 +205,7 @@ class LiteLlmGateway:
                 raw={"id": getattr(response, "id", None)},
             )
         except Exception as exc:
+            _maybe_trip_quota(exc)
             status = "cancelled" if _is_timeout(exc) else "error"
             self._rpm.release(session, status, error_detail=_error_detail(exc))
             raise
@@ -122,6 +213,7 @@ class LiteLlmGateway:
     def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult:
         if not self.settings.enabled:
             raise RuntimeError("LiteLLM gateway is disabled (AGENTCORE_LITELLM_ENABLED=false)")
+        _raise_if_quota_tripped()
         resolved = (model or self.settings.default_model or "").strip()
         if not resolved:
             raise RuntimeError(
@@ -137,12 +229,12 @@ class LiteLlmGateway:
 
         session = self._rpm.acquire("embed", SessionMeta(model=resolved))
         try:
-            litellm.drop_params = self.settings.drop_params
+            _apply_litellm_runtime(litellm, self.settings)
             kwargs: dict[str, Any] = {
                 "model": resolved,
                 "input": [text],
                 "timeout": self.settings.timeout_seconds,
-                "num_retries": self.settings.num_retries,
+                "num_retries": _effective_num_retries(self.settings.num_retries),
                 "api_base": self.settings.api_base,
             }
             if self.settings.api_key:
@@ -173,6 +265,7 @@ class LiteLlmGateway:
                 usage={k: v for k, v in usage.items() if v is not None},
             )
         except Exception as exc:
+            _maybe_trip_quota(exc)
             status = "cancelled" if _is_timeout(exc) else "error"
             self._rpm.release(session, status, error_detail=_error_detail(exc))
             raise
@@ -215,6 +308,7 @@ class FakeLlmGateway:
             host="127.0.0.1",
             port=32400,
             drop_params=True,
+            debug=False,
             reasoning_enabled=False,
             reasoning_effort="",
         )

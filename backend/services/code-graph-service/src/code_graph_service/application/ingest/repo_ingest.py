@@ -102,6 +102,12 @@ class RepoIngestMixin:
         }
         truncated = not pending_paths.issubset(selected_paths)
         discovered = selected
+        need_paths = {
+            item.relative_path.replace("\\", "/")
+            for item in selected
+            if item.relative_path.replace("\\", "/") not in indexed_paths
+            or item.relative_path.replace("\\", "/") in changed_known_paths
+        }
         queue_new = sum(
             1
             for item in selected
@@ -136,8 +142,12 @@ class RepoIngestMixin:
         }
         on_progress = payload.get("on_progress")
         total_files = len(discovered)
+        # Progress bar: new+changed only. Unchanged rechecks still run but are
+        # excluded from done/total so "0/N" is not confused with a cold start.
+        # Recheck-only runs (no new/changed) fall back to all selected files.
+        progress_total = len(need_paths) if need_paths else total_files
         state_lock = threading.Lock()
-        done_count = 0
+        progress_done = 0
         active_files: set[str] = set()
         workers = min(sync_max_file_workers(), max(1, total_files or 1))
 
@@ -157,6 +167,17 @@ class RepoIngestMixin:
                 "rpm_starts_in_window": int(snap.get("starts_in_window") or 0),
             }
 
+        def _counts_for_progress(rel: str) -> bool:
+            if not need_paths:
+                return True
+            return rel.replace("\\", "/") in need_paths
+
+        def _bump_progress(rel: str) -> int:
+            nonlocal progress_done
+            if _counts_for_progress(rel):
+                progress_done += 1
+            return progress_done
+
         def _emit(done: int, *, file: str = "", status: str = "") -> None:
             if not callable(on_progress):
                 return
@@ -167,10 +188,10 @@ class RepoIngestMixin:
                 event = {
                     "phase": "ingest",
                     "done": done,
-                    "total": total_files,
+                    "total": progress_total,
                     "file": file,
                     "status": status,
-                    # Progress done/total is this run only (not inventory "already done").
+                    # done/total = new+changed this run (excludes unchanged rechecks).
                     "prior_indexed": int(queue_meta["prior_indexed"]),
                     "queue_new": int(queue_meta["queue_new"]),
                     "queue_changed": int(queue_meta["queue_changed"]),
@@ -193,18 +214,17 @@ class RepoIngestMixin:
                 return
 
         def _process_one(index: int, item: Any) -> None:
-            nonlocal done_count
             rel = item.relative_path
             with state_lock:
                 active_files.add(rel)
-            _emit(done_count, file=rel, status="active")
+                done_now = progress_done
+            _emit(done_now, file=rel, status="active")
             try:
                 text = Path(item.absolute_path).read_text(encoding="utf-8")
             except UnicodeDecodeError:
                 with state_lock:
                     totals["skipped"] += 1
-                    done_count += 1
-                    done = done_count
+                    done = _bump_progress(rel)
                     active_files.discard(rel)
                     if include_outcomes:
                         outcomes.append(
@@ -220,8 +240,7 @@ class RepoIngestMixin:
             except OSError as exc:
                 with state_lock:
                     totals["failed"] += 1
-                    done_count += 1
-                    done = done_count
+                    done = _bump_progress(rel)
                     active_files.discard(rel)
                     if include_outcomes:
                         outcomes.append(
@@ -252,8 +271,7 @@ class RepoIngestMixin:
             except Exception as exc:  # noqa: BLE001 — soft-fail per file for bulk jobs
                 with state_lock:
                     totals["failed"] += 1
-                    done_count += 1
-                    done = done_count
+                    done = _bump_progress(rel)
                     active_files.discard(rel)
                     if include_outcomes:
                         outcomes.append(
@@ -282,8 +300,7 @@ class RepoIngestMixin:
                 totals["symbols_changed"] += result.symbols_changed
                 totals["symbols_documented"] += result.symbols_documented
                 totals["edges_written"] += result.edges_written
-                done_count += 1
-                done = done_count
+                done = _bump_progress(rel)
                 active_files.discard(rel)
                 if include_outcomes:
                     outcomes.append(
@@ -304,7 +321,7 @@ class RepoIngestMixin:
         if total_files:
             run_parallel_file_jobs(workers=workers, items=discovered, fn=_process_one)
 
-        _emit(total_files, status="finished")
+        _emit(progress_total, status="finished")
 
         resolved_root = str(Path(root_path).expanduser().resolve())
         return RepoIngestResult(

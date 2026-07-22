@@ -63,3 +63,43 @@ def test_run_parallel_file_jobs_keyboard_interrupt_cancels_pending(capsys):
     out = capsys.readouterr().out
     assert "Stopping sync: cancelling" in out
     assert "workers finished" in out
+
+
+def test_run_parallel_file_jobs_abandon_stuck_workers(monkeypatch, capsys):
+    started = threading.Event()
+    block = threading.Event()
+    exited: list[int] = []
+
+    def fn(index: int, item: int) -> None:
+        if item == 0:
+            started.set()
+            block.wait(timeout=30)
+
+    original = mod.as_completed
+
+    def as_completed_then_interrupt(futures, timeout=None):
+        assert started.wait(timeout=5)
+        raise KeyboardInterrupt
+
+    def fake_exit(code: int) -> None:
+        exited.append(code)
+        raise SystemExit(code)
+
+    mod.as_completed = as_completed_then_interrupt
+    monkeypatch.setattr(mod.os, "_exit", fake_exit)
+    try:
+        with pytest.raises(SystemExit) as excinfo:
+            run_parallel_file_jobs(
+                workers=2,
+                items=[0, 1, 2],
+                fn=fn,
+                shutdown_grace_sec=0.05,
+            )
+        assert excinfo.value.code == 130
+    finally:
+        mod.as_completed = original
+        block.set()
+
+    assert exited == [130]
+    out = capsys.readouterr().out
+    assert "abandoning" in out
