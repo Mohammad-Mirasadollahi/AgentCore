@@ -65,6 +65,16 @@ class InMemoryEmbeddingIndex:
             del self._rows[key]
         return len(drop)
 
+    def list_symbol_models(self, scope: Scope) -> dict[str, str]:
+        """Return symbol_id → embedding model for one scope."""
+        out: dict[str, str] = {}
+        for (tenant, workspace, project, symbol_id), (_vec, model, _kind) in self._rows.items():
+            if (tenant, workspace, project) != (scope.tenant_id, scope.workspace_id, scope.project_id):
+                continue
+            if model:
+                out[symbol_id] = str(model)
+        return out
+
     def search(
         self,
         scope: Scope,
@@ -241,6 +251,26 @@ class PostgresEmbeddingIndex:
                 (scope.tenant_id, scope.workspace_id, scope.project_id),
             )
             return int(cur.rowcount or 0)
+
+    def list_symbol_models(self, scope: Scope) -> dict[str, str]:
+        """Return symbol_id → embedding model for one scope."""
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT symbol_id, model
+                FROM code_graph.symbol_embeddings
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                """,
+                (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            rows = cur.fetchall() or []
+        out: dict[str, str] = {}
+        for row in rows:
+            sid = str(row.get("symbol_id") or "").strip()
+            model = str(row.get("model") or "").strip()
+            if sid and model:
+                out[sid] = model
+        return out
 
     def search(
         self,

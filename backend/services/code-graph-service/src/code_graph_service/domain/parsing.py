@@ -141,18 +141,6 @@ def extract_call_refs(source: str) -> set[str]:
     return names
 
 
-def extract_identifier_refs(source: str) -> set[str]:
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", source))
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-            names.add(node.id)
-    return names
-
-
 def defined_names(source: str) -> set[str]:
     try:
         tree = ast.parse(source)

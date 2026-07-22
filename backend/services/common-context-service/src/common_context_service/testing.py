@@ -8,6 +8,10 @@ from typing import Any
 from .core import ConflictError, NotFoundError, Scope
 
 
+def _item_scope_kind(item: dict[str, Any]) -> str:
+    return str(item.get("scope_kind") or "project")
+
+
 class InMemoryStore:
     def __init__(self) -> None:
         self._items: dict[str, dict[str, Any]] = {}
@@ -16,15 +20,29 @@ class InMemoryStore:
 
     @staticmethod
     def _scope_key(scope: Scope) -> str:
-        return "|".join((scope.tenant_id, scope.workspace_id, scope.project_id))
+        return "|".join(
+            (
+                scope.tenant_id,
+                scope.workspace_id,
+                scope.project_id,
+                scope.scope_kind,
+                scope.user_id or "",
+            )
+        )
 
     @staticmethod
     def _same(scope: Scope, item: dict[str, Any]) -> bool:
-        return (item["tenant_id"], item["workspace_id"], item["project_id"]) == (
+        if (item["tenant_id"], item["workspace_id"], item["project_id"]) != (
             scope.tenant_id,
             scope.workspace_id,
             scope.project_id,
-        )
+        ):
+            return False
+        if _item_scope_kind(item) != scope.scope_kind:
+            return False
+        if scope.scope_kind == "user":
+            return str(item.get("user_id") or "") == str(scope.user_id or "")
+        return True
 
     def begin_idempotency(self, scope: Scope, key: str, resource: str) -> str | None:
         return self._idempotency.get((self._scope_key(scope), key, resource))

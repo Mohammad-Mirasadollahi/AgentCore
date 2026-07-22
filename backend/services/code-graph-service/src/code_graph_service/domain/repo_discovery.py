@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import fnmatch
+import os
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from .errors import ValidationError
 from .languages import EXTENSION_TO_LANGUAGE, detect_language_from_path
@@ -89,6 +90,15 @@ def _should_skip_parents(relative: Path, excluded: set[str]) -> bool:
     return False
 
 
+def _should_prune_dirname(name: str, excluded: set[str]) -> bool:
+    lower = name.lower()
+    if lower.startswith("."):
+        return True
+    if lower.endswith(".egg-info"):
+        return True
+    return lower in excluded
+
+
 def _matches_any_glob(relative_path: str, patterns: Iterable[str]) -> bool:
     return any(path_matches_glob(relative_path, p) for p in patterns if str(p).strip())
 
@@ -113,6 +123,65 @@ def _matches_include(relative: Path, patterns: list[str]) -> bool:
     return False
 
 
+def _split_excludes(
+    exclude_dirs: Iterable[str] | None,
+    exclude_globs: Iterable[str] | None,
+) -> tuple[set[str], list[str]]:
+    excluded = {
+        str(name).strip().lower()
+        for name in (exclude_dirs if exclude_dirs is not None else DEFAULT_EXCLUDE_DIRS)
+        if str(name).strip() and not _looks_like_glob(str(name))
+    }
+    globs = [
+        _normalize_glob(str(p))
+        for p in (exclude_globs if exclude_globs is not None else DEFAULT_EXCLUDE_GLOBS)
+        if str(p).strip()
+    ]
+    if exclude_dirs is not None:
+        for name in exclude_dirs:
+            text = str(name).strip()
+            if text and _looks_like_glob(text):
+                globs.append(_normalize_glob(text))
+    return excluded, globs
+
+
+def iter_repo_files(
+    root: Path,
+    *,
+    exclude_dirs: set[str],
+    exclude_globs: list[str],
+) -> Iterator[tuple[Path, str]]:
+    """Yield ``(absolute_path, relative_posix)`` using pruned ``os.walk``.
+
+    Prunes hidden dirs, ``*.egg-info``, bare exclude dir names, and directories that
+    themselves match an exclude glob — avoids the old ``sorted(rglob("*"))`` cost.
+
+    File-level exclude globs are **not** applied here so callers can filter by
+    extension first (much cheaper than fnmatch on every binary/asset path).
+    """
+    root_s = str(root)
+    for dirpath, dirnames, filenames in os.walk(root_s, topdown=True, followlinks=False):
+        rel_base = os.path.relpath(dirpath, root_s)
+        if rel_base == ".":
+            rel_base = ""
+        else:
+            rel_base = rel_base.replace("\\", "/")
+
+        kept: list[str] = []
+        for name in dirnames:
+            if _should_prune_dirname(name, exclude_dirs):
+                continue
+            rel_dir = f"{rel_base}/{name}" if rel_base else name
+            if exclude_globs and _matches_any_glob(rel_dir, exclude_globs):
+                continue
+            kept.append(name)
+        dirnames[:] = sorted(kept)
+
+        for name in sorted(filenames):
+            rel_s = f"{rel_base}/{name}" if rel_base else name
+            yield Path(dirpath) / name, rel_s.replace("\\", "/")
+
+
 def discover_source_files(
     root_path: str | Path,
     *,
@@ -120,7 +189,7 @@ def discover_source_files(
     exclude_dirs: Iterable[str] | None = None,
     exclude_globs: Iterable[str] | None = None,
     include_path_prefixes: Iterable[str] | None = None,
-    max_files: int = DEFAULT_MAX_FILES,
+    max_files: int | None = DEFAULT_MAX_FILES,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
 ) -> list[DiscoveredFile]:
     """Walk ``root_path`` and return supported source files (sorted by relative path).
@@ -134,29 +203,10 @@ def discover_source_files(
     if not root.is_dir():
         raise ValidationError(f"root_path is not a directory: {root}")
 
-    max_files = max(1, min(int(max_files), 20_000))
+    file_limit = None if max_files is None else max(1, min(int(max_files), 20_000))
     max_file_bytes = max(1, int(max_file_bytes))
     extensions = _normalize_extensions(include_extensions)
-    excluded = {
-        str(name).strip().lower()
-        for name in (exclude_dirs if exclude_dirs is not None else DEFAULT_EXCLUDE_DIRS)
-        if str(name).strip() and not _looks_like_glob(str(name))
-    }
-    globs = [
-        _normalize_glob(str(p))
-        for p in (
-            exclude_globs
-            if exclude_globs is not None
-            else DEFAULT_EXCLUDE_GLOBS
-        )
-        if str(p).strip()
-    ]
-    # Plain exclude_dirs entries that look like globs join the glob list.
-    if exclude_dirs is not None:
-        for name in exclude_dirs:
-            text = str(name).strip()
-            if text and _looks_like_glob(text):
-                globs.append(_normalize_glob(text))
+    excluded, globs = _split_excludes(exclude_dirs, exclude_globs)
     include_patterns = [
         str(p).strip().replace("\\", "/")
         for p in (include_path_prefixes or [])
@@ -164,26 +214,21 @@ def discover_source_files(
     ]
 
     discovered: list[DiscoveredFile] = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
-        try:
-            relative = path.relative_to(root)
-        except ValueError:
-            continue
-        rel_s = str(relative).replace("\\", "/")
-        if _should_skip_parents(relative, excluded):
-            continue
-        if _matches_any_glob(rel_s, globs):
-            continue
-        if not _matches_include(relative, include_patterns):
-            continue
-
-        language = detect_language_from_path(str(relative))
-        if language is None:
-            continue
+    for path, rel_s in iter_repo_files(root, exclude_dirs=excluded, exclude_globs=globs):
         name_lower = path.name.lower()
         if not any(name_lower.endswith(ext) for ext in extensions):
+            continue
+        if globs and _matches_any_glob(rel_s, globs):
+            continue
+        relative = Path(rel_s)
+        if include_patterns and not _matches_include(relative, include_patterns):
+            continue
+        # Keep parent-skip check for callers that only pass globs as dirs.
+        if _should_skip_parents(relative, excluded):
+            continue
+
+        language = detect_language_from_path(rel_s)
+        if language is None:
             continue
 
         try:
@@ -201,7 +246,8 @@ def discover_source_files(
                 size_bytes=size,
             )
         )
-        if len(discovered) >= max_files:
+        if file_limit is not None and len(discovered) >= file_limit:
             break
 
+    discovered.sort(key=lambda item: item.relative_path)
     return discovered

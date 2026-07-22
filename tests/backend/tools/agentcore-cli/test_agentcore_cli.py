@@ -88,6 +88,59 @@ def test_mcp_tools(capsys):
     assert "agentcore_memory_retrieve" in capsys.readouterr().out
 
 
+def test_llm_sessions_reads_running_service_snapshot(monkeypatch, capsys):
+    expected = {
+        "rpm": 4,
+        "inflight_cap": 4,
+        "starts_in_window": 3,
+        "inflight_count": 2,
+        "inflight": [{"session_id": "live-1", "status": "in_flight"}],
+        "history": [{"session_id": "done-1", "status": "ok"}],
+    }
+    import agentcore_cli.commands.llm_cmd as llm_cmd
+
+    monkeypatch.setattr(
+        llm_cmd,
+        "_fetch_sessions",
+        lambda: ("http://127.0.0.1:32140/api/v1/llm/sessions", expected),
+        raising=False,
+    )
+
+    assert main(["llm", "sessions"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["sessions"] == expected
+    assert payload["source"].endswith("/api/v1/llm/sessions")
+
+
+def test_llm_sessions_prefers_active_sync_process(monkeypatch, capsys):
+    expected = {
+        "rpm": 4,
+        "inflight_cap": 4,
+        "starts_in_window": 4,
+        "inflight_count": 3,
+        "inflight": [{"session_id": "sync-live"}],
+        "history": [],
+    }
+    import agentcore_cli.commands.llm_cmd as llm_cmd
+
+    monkeypatch.setattr(
+        llm_cmd,
+        "read_live_progress",
+        lambda: {"pid": 4321, "llm_sessions": expected},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        llm_cmd,
+        "_fetch_sessions",
+        lambda: (_ for _ in ()).throw(AssertionError("daemon must not win")),
+    )
+
+    assert main(["llm", "sessions"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["sessions"] == expected
+    assert payload["source"] == "sync-process:4321"
+
+
 def test_path_install(tmp_path, monkeypatch):
     root = Path("/opt/AgentCore")
     monkeypatch.setenv("AGENTCORE_ROOT", str(root))
@@ -103,6 +156,31 @@ def test_path_install(tmp_path, monkeypatch):
     target = home / ".local" / "bin" / "agentcore"
     assert target.is_symlink()
     assert os.path.realpath(target) == os.path.realpath(source)
+
+
+def test_path_install_shell_rc_even_when_local_bin_already_on_path(tmp_path, monkeypatch):
+    """install.sh exports ~/.local/bin temporarily; --shell-rc must still persist PATH."""
+    root = Path("/opt/AgentCore")
+    monkeypatch.setenv("AGENTCORE_ROOT", str(root))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    local_bin = home / ".local" / "bin"
+    monkeypatch.setenv("PATH", f"{local_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    source = root / ".venv" / "bin" / "agentcore"
+    if not source.is_file():
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("#!/bin/sh\necho agentcore\n", encoding="utf-8")
+        source.chmod(0o755)
+    bashrc = home / ".bashrc"
+    bashrc.write_text("# test bashrc\n", encoding="utf-8")
+    assert main(["path", "install", "--shell-rc", ".bashrc"]) == 0
+    text = bashrc.read_text(encoding="utf-8")
+    assert "# AgentCore CLI" in text
+    assert str(local_bin) in text
+    # Idempotent: second run does not duplicate
+    assert main(["path", "install", "--shell-rc", ".bashrc"]) == 0
+    assert bashrc.read_text(encoding="utf-8").count("# AgentCore CLI") == 1
 
 
 def _write_mini_profile(path: Path) -> None:
@@ -219,4 +297,3 @@ def test_doctor_imports_mcp_gateway(capsys, monkeypatch):
     payload = json.loads(capsys.readouterr().out)
     assert payload["venv_python"] is True
     assert payload["import_mcp_gateway_service"] is True
-

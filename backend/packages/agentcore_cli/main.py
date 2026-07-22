@@ -17,9 +17,13 @@ from agentcore_cli.commands.doctor import cmd_doctor, cmd_version
 from agentcore_cli.commands.init_cmd import cmd_init
 from agentcore_cli.commands.paths_cmd import cmd_paths_add, cmd_paths_list, cmd_paths_remove
 from agentcore_cli.commands.status import cmd_status
+from agentcore_cli.commands.inventory import cmd_inventory
+from agentcore_cli.commands.docs_standards import cmd_docs_standards
+from agentcore_cli.commands.stats import cmd_stats
 from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
 from agentcore_cli.commands.list_profiles import cmd_list_profiles
 from agentcore_cli.commands.sync import cmd_purge, cmd_sync
+from agentcore_cli.commands.llm_cmd import cmd_llm_sessions
 from agentcore_cli.commands.graph import (
     cmd_graph_explore,
     cmd_graph_freshness,
@@ -37,6 +41,15 @@ from agentcore_cli.commands.project import (
     cmd_project_effective,
     cmd_project_register,
     cmd_project_show,
+)
+from agentcore_cli.commands.service_cmd import (
+    cmd_boot_disable,
+    cmd_boot_enable,
+    cmd_service_detail,
+    cmd_service_restart,
+    cmd_service_start,
+    cmd_service_status,
+    cmd_service_stop,
 )
 from agentcore_cli.parser import build_parser
 
@@ -56,14 +69,39 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_version(args)
     if args.command == "doctor":
         return cmd_doctor(args)
+    if args.command == "service":
+        if args.service_command == "start":
+            return cmd_service_start(args)
+        if args.service_command == "stop":
+            return cmd_service_stop(args)
+        if args.service_command == "restart":
+            return cmd_service_restart(args)
+        if args.service_command == "status":
+            return cmd_service_status(args)
+        if args.service_command == "detail":
+            return cmd_service_detail(args)
+    if args.command == "boot":
+        if args.boot_command == "enable":
+            return cmd_boot_enable(args)
+        if args.boot_command == "disable":
+            return cmd_boot_disable(args)
     if args.command == "init":
         return cmd_init(args)
     if args.command == "status":
         return cmd_status(args)
+    if args.command == "inventory":
+        return cmd_inventory(args)
+    if args.command == "docs-standards":
+        return cmd_docs_standards(args)
+    if args.command == "stats":
+        return cmd_stats(args)
     if args.command == "connect":
         return cmd_connect(args)
     if args.command == "sync":
         return cmd_sync(args)
+    if args.command == "llm":
+        if args.llm_command == "sessions":
+            return cmd_llm_sessions(args)
     if args.command == "purge":
         return cmd_purge(args)
     if args.command == "destroy-profile":

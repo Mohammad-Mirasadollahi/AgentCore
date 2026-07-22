@@ -46,6 +46,16 @@ def test_overall_empty_vs_ready():
         )
         == "pending_sync"
     )
+    assert (
+        _overall(
+            {
+                "graph": {"ok": True, "symbol_count": 3, "pending_count": 0},
+                "postgres": {"configured": True, "reachable": False},
+                "neo4j": {"configured": True, "reachable": True},
+            }
+        )
+        == "Postgres unreachable"
+    )
 
 
 def test_build_status_report_smoke(monkeypatch, tmp_path: Path):

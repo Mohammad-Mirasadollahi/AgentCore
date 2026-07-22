@@ -107,6 +107,8 @@ def sync_repo(
     correlation_id: str,
     base: dict[str, Any],
 ) -> dict[str, Any]:
+    from pathlib import Path
+
     root_path = str(arguments.get("root_path") or "").strip()
     if not root_path:
         raise ValueError("root_path is required")
@@ -115,6 +117,21 @@ def sync_repo(
         payload["max_files"] = int(arguments["max_files"])
     if arguments.get("include_extensions") is not None:
         payload["include_extensions"] = arguments.get("include_extensions")
+    else:
+        # Same operator filters as CLI `agentcore sync` (agentcore.sync.yaml).
+        try:
+            from agentcore_cli.sync_config import SyncConfigError, resolve_sync_filters
+
+            filters = resolve_sync_filters(root=Path(root_path), require_config=False)
+            payload["include_extensions"] = filters["include_extensions"]
+            payload["exclude_dirs"] = filters["exclude_dirs"]
+            payload["exclude_globs"] = filters["exclude_globs"]
+            if filters.get("include_paths"):
+                payload["include_path_prefixes"] = filters["include_paths"]
+        except (SyncConfigError, SystemExit, OSError, ValueError) as exc:
+            payload.setdefault("_filter_warning", str(exc)[:200])
+        except Exception as exc:  # noqa: BLE001 — fall back to discovery defaults
+            payload.setdefault("_filter_warning", str(exc)[:200])
     idempotency_key = str(
         arguments.get("idempotency_key") or f"mcp-sync:{root_path}:{correlation_id}"
     ).strip()

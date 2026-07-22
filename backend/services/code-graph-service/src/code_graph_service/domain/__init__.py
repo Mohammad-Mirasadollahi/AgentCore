@@ -38,7 +38,6 @@ from .parsing import (
     builtin_names,
     defined_names,
     extract_call_refs,
-    extract_identifier_refs,
     parse_python_source,
     resolve_call_target,
 )
@@ -80,7 +79,6 @@ __all__ = [
     "discover_source_files",
     "embed_text",
     "extract_call_refs",
-    "extract_identifier_refs",
     "language_matrix",
     "normalize_source",
     "now_iso",

@@ -60,6 +60,7 @@ class HumanDocIngestMixin:
             version=(previous.version + 1) if previous else 1,
             created_at=previous.created_at if previous else stamp,
             updated_at=stamp,
+            language="",
         )
         self.store.put_symbol(doc_symbol)
         self._index_embedding(scope, symbol_id, embed.vector, kind=SymbolKind.DOCUMENTATION.value)
@@ -86,6 +87,22 @@ class HumanDocIngestMixin:
             )
             linked.append(target.id)
 
+        linked_set = set(linked)
+        removed = 0
+        for edge in self.store.list_edges(scope):
+            if edge.rel_type != RelType.DOCUMENTED_BY.value:
+                continue
+            if edge.target_id != symbol_id:
+                continue
+            if edge.metadata.get("origin") != "human":
+                continue
+            if edge.metadata.get("doc_id") != doc_id:
+                continue
+            if edge.source_id in linked_set:
+                continue
+            self.store.delete_edge(scope, edge.id)
+            removed += 1
+
         return {
             "doc_symbol_id": symbol_id,
             "doc_id": doc_id,
@@ -93,4 +110,5 @@ class HumanDocIngestMixin:
             "linked_symbol_ids": linked,
             "unresolved_tokens": unresolved,
             "edges_written": edges,
+            "edges_removed": removed,
         }

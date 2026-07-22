@@ -184,11 +184,3 @@ class TimedPhase:
         self.elapsed_sec = time.perf_counter() - self._t0
         return self.elapsed_sec
 
-
-# Back-compat names used by older imports/tests
-def usage_log_path(environ: dict[str, str] | None = None) -> Path:
-    return usage_log_dir(environ)
-
-
-def usage_log_max_bytes(environ: dict[str, str] | None = None) -> int:
-    return usage_log_dir_max_bytes(environ)

@@ -80,7 +80,7 @@ def _graph_snapshot(tenant: str, workspace: str, project: str) -> dict[str, Any]
         scope = Scope(tenant, workspace, project)
         symbols = svc.store.list_symbols(scope)
         edges = svc.store.list_edges(scope)
-        freshness = svc.freshness_status() if hasattr(svc, "freshness_status") else {}
+        freshness = svc.freshness_status(scope) if hasattr(svc, "freshness_status") else {}
         pwd = os.environ.get("AGENTCORE_NEO4J_PASSWORD", "").strip()
         backend = os.environ.get("AGENTCORE_GRAPH_CLI_BACKEND", "").strip() or (
             "neo4j"
@@ -106,15 +106,48 @@ def _overall(report: dict[str, Any]) -> str:
     neo4j = report.get("neo4j") or {}
     if not graph.get("ok"):
         return "error"
-    if postgres.get("configured") and postgres.get("reachable") is False:
-        return "degraded"
-    if neo4j.get("configured") and neo4j.get("reachable") is False:
-        return "degraded"
+    pg_down = postgres.get("configured") and postgres.get("reachable") is False
+    neo_down = neo4j.get("configured") and neo4j.get("reachable") is False
+    if pg_down and neo_down:
+        return "Postgres and Neo4j unreachable"
+    if pg_down:
+        return "Postgres unreachable"
+    if neo_down:
+        return "Neo4j unreachable"
     if int(graph.get("symbol_count") or 0) == 0:
         return "empty"  # connected but graph not synced yet
     if int(graph.get("pending_count") or 0) > 0:
         return "pending_sync"
     return "ready"
+
+
+def _rpm_status_snapshot() -> dict[str, Any]:
+    """Idle or in-process RPM view (sync process publishes live stats via progress file)."""
+    try:
+        from code_graph_service.locked_store import sync_max_file_workers
+
+        file_workers = sync_max_file_workers()
+    except Exception:  # noqa: BLE001
+        file_workers = None
+    try:
+        svc = _graph_service()
+        snap = svc.llm_sessions_snapshot() if hasattr(svc, "llm_sessions_snapshot") else {}
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "error": str(exc)[:300],
+            "file_workers_auto": file_workers,
+        }
+    return {
+        "ok": True,
+        "configured": bool(snap.get("configured", True)),
+        "rpm": int(snap.get("rpm") or 0),
+        "inflight_cap": int(snap.get("inflight_cap") or 0),
+        "inflight": int(snap.get("inflight_count") or 0),
+        "starts_in_window": int(snap.get("starts_in_window") or 0),
+        "history_len": len(snap.get("history") or []),
+        "file_workers_auto": file_workers,
+    }
 
 
 def build_status_report(
@@ -158,6 +191,7 @@ def build_status_report(
         "mcp_configs": _mcp_files(work),
         "graph": _graph_snapshot(tenant_id, workspace_id, project_id),
         "sync_progress": read_live_progress(root=root),
+        "rpm": _rpm_status_snapshot(),
     }
     report["status"] = _overall(report)
     hints: list[str] = []
@@ -165,12 +199,12 @@ def build_status_report(
         hints.append("run: agentcore sync")
     if report["status"] == "pending_sync":
         hints.append("run: agentcore sync")
-    if report["status"] == "degraded":
-        if report["postgres"].get("reachable") is False:
-            hints.append("start Compose postgres (install.sh / docker compose --profile core up -d)")
-        if report["neo4j"].get("reachable") is False:
-            hints.append("start Compose neo4j, then: agentcore sync")
-    if report["status"] == "error":
+    status = str(report["status"])
+    if "Postgres" in status:
+        hints.append("start Compose postgres (install.sh / agentcore service start)")
+    if "Neo4j" in status:
+        hints.append("start Compose neo4j, then: agentcore sync")
+    if status == "error":
         hints.append("check agentcore doctor and Neo4j/Postgres")
     if not any(report["mcp_configs"].values()):
         hints.append("run: agentcore connect --local")
@@ -184,7 +218,8 @@ def build_status_report(
 
 def _print_human(report: dict[str, Any]) -> None:
     scope = report["scope"]
-    okish = report["status"] not in {"error", "degraded"}
+    status = str(report["status"])
+    okish = status not in {"error"} and "unreachable" not in status
     ui.blank()
     ui.heading("Status", success=okish)
     ui.blank()
@@ -207,6 +242,24 @@ def _print_human(report: dict[str, Any]) -> None:
         pct = float(live.get("percent") or 0)
         eta = live.get("eta_sec")
         ui.kv("Progress", f"{pct:.1f}%  ({live.get('done')}/{live.get('total')} files)")
+        in_flight = int(live.get("files_in_flight") or 0)
+        workers = int(live.get("file_workers") or 0)
+        if workers or in_flight:
+            ui.kv(
+                "Parallel files",
+                f"{in_flight} active / {workers or '?'} workers",
+            )
+            paths = list(live.get("files_in_flight_paths") or [])
+            if paths:
+                ui.kv("Active", ", ".join(str(p) for p in paths[:6]))
+        rpm_cap = int(live.get("rpm_inflight_cap") or live.get("rpm") or 0)
+        if rpm_cap or live.get("rpm"):
+            ui.kv(
+                "RPM",
+                f"inflight {int(live.get('rpm_inflight') or 0)}/{rpm_cap or int(live.get('rpm') or 0)}  "
+                f"starts {int(live.get('rpm_starts_in_window') or 0)}/{int(live.get('rpm') or 0)} "
+                f"(rolling 60s)",
+            )
         ui.kv("Elapsed", format_duration(float(live.get("elapsed_sec") or 0)))
         ui.kv(
             "ETA",
@@ -219,6 +272,41 @@ def _print_human(report: dict[str, Any]) -> None:
         ui.kv("≈Tokens", str(live.get("approx_tokens") or 0))
         if live.get("file"):
             ui.kv("File", str(live["file"]))
+
+    rpm = report.get("rpm") or {}
+    live = report.get("sync_progress") if isinstance(report.get("sync_progress"), dict) else None
+    ui.blank()
+    ui.section("LLM RPM")
+    # Prefer stats published by an active sync process (separate PID).
+    if live and int(live.get("rpm") or 0) > 0:
+        cap = int(live.get("rpm_inflight_cap") or live.get("rpm") or 0)
+        limit = int(live.get("rpm") or 0)
+        ui.kv("Limit", f"{limit} req/min  (inflight cap {cap})")
+        ui.kv(
+            "Now",
+            f"inflight {int(live.get('rpm_inflight') or 0)}/{cap}  "
+            f"starts {int(live.get('rpm_starts_in_window') or 0)}/{limit}  "
+            f"(from live sync pid {live.get('pid')})",
+        )
+        workers = int(live.get("file_workers") or 0)
+        in_flight = int(live.get("files_in_flight") or 0)
+        if workers or in_flight:
+            ui.kv("Parallel files", f"{in_flight} active / {workers or '?'} workers")
+    elif rpm.get("ok"):
+        cap = int(rpm.get("inflight_cap") or rpm.get("rpm") or 0)
+        ui.kv(
+            "Limit",
+            f"{int(rpm.get('rpm') or 0)} req/min  (inflight cap {cap})",
+        )
+        ui.kv(
+            "Now",
+            f"inflight {int(rpm.get('inflight') or 0)}/{cap}  "
+            f"starts {int(rpm.get('starts_in_window') or 0)}/{int(rpm.get('rpm') or 0)}",
+        )
+        if rpm.get("file_workers_auto") is not None:
+            ui.kv("File workers", f"auto → {rpm.get('file_workers_auto')}")
+    else:
+        ui.kv("RPM", ui.warn(str(rpm.get("error") or "unavailable")))
 
     pg = report["postgres"]
     if pg.get("configured"):
@@ -272,7 +360,8 @@ def cmd_status(args: argparse.Namespace) -> int:
         if args.verbose:
             print("---")
             print_json(report)
+    status = str(report["status"])
     code = 0
-    if report["status"] in {"error", "degraded"}:
+    if status == "error" or "unreachable" in status:
         code = 1
     return code

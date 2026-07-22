@@ -1,3 +1,4 @@
+from ipaddress import ip_address
 from typing import Any
 from uuid import uuid4
 
@@ -7,6 +8,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .bootstrap import build_service
 from .core import CodeGraphError, CodeGraphService, Scope
+
+
+def _is_loopback_request(request: Request) -> bool:
+    if request.client is None:
+        return False
+    try:
+        return ip_address(request.client.host).is_loopback
+    except ValueError:
+        return False
 
 
 class IngestFileRequest(BaseModel):
@@ -393,6 +403,15 @@ def app(service: CodeGraphService | None = None) -> FastAPI:
     async def llm_config() -> dict[str, Any]:
         """Public LiteLLM settings (Base URL, timeout, retries — no secrets)."""
         return service.llm_config()
+
+    @api.get("/api/v1/llm/sessions")
+    async def llm_sessions(request: Request) -> dict[str, Any]:
+        """Return process-local RPM session details to local operators."""
+        if not _is_loopback_request(request):
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=403, detail="LLM session details are local-only")
+        return service.llm_sessions_snapshot()
 
     @api.post("/api/v1/llm/complete")
     async def llm_complete(body: LlmCompleteRequest) -> dict[str, Any]:

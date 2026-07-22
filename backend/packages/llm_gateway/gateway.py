@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from .providers import list_providers
-from .rate_limit import RpmLimiter
+from .rate_limit import RpmSessionGate, SessionMeta
 from .settings import LlmGatewaySettings
-from .types import ChatMessage, CompletionRequest, CompletionResult, EmbeddingResult, ProviderInfo
+from .types import CompletionRequest, CompletionResult, EmbeddingResult, ProviderInfo
 
 
 class LlmGateway(Protocol):
@@ -19,6 +19,8 @@ class LlmGateway(Protocol):
 
     def settings_public(self) -> dict[str, Any]: ...
 
+    def rpm_sessions_snapshot(self) -> dict[str, Any]: ...
+
 
 def _provider_from_model(model: str) -> str:
     if "/" in model:
@@ -26,15 +28,28 @@ def _provider_from_model(model: str) -> str:
     return "openai"
 
 
+def _is_timeout(exc: BaseException) -> bool:
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    return "timeout" in name or "timeout" in text or "timed out" in text
+
+
+def _error_detail(exc: BaseException) -> str:
+    return type(exc).__name__
+
+
 class LiteLlmGateway:
     """Infrastructure adapter: AgentCore LLM port → LiteLLM SDK."""
 
     def __init__(self, settings: LlmGatewaySettings | None = None) -> None:
         self.settings = settings or LlmGatewaySettings.from_environment()
-        self._rpm = RpmLimiter(self.settings.rpm)
+        self._rpm = RpmSessionGate(self.settings.rpm)
 
     def settings_public(self) -> dict[str, Any]:
         return self.settings.public_dict()
+
+    def rpm_sessions_snapshot(self) -> dict[str, Any]:
+        return self._rpm.snapshot()
 
     def list_providers(self) -> list[ProviderInfo]:
         return list_providers(include_litellm_dynamic=True)
@@ -54,52 +69,55 @@ class LiteLlmGateway:
                 "litellm package is required for LiteLlmGateway; install project dependencies"
             ) from exc
 
-        self._rpm.acquire()
-
-        litellm.drop_params = self.settings.drop_params
-        messages = [{"role": m.role, "content": m.content} for m in request.messages]
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "temperature": request.temperature,
-            "timeout": self.settings.timeout_seconds,
-            "num_retries": self.settings.num_retries,
-            "api_base": self.settings.api_base,
-        }
-        if self.settings.api_key:
-            kwargs["api_key"] = self.settings.api_key
-        if request.max_tokens is not None:
-            kwargs["max_tokens"] = request.max_tokens
-        if request.response_format_json:
-            kwargs["response_format"] = {"type": "json_object"}
-
-        # OpenRouter / gpt-oss style: top-level "reasoning": {"enabled": true}
-        # via extra_body so drop_params cannot strip it.
-        reasoning = self.settings.reasoning_payload(
-            enabled_override=request.reasoning_enabled,
-            effort_override=request.reasoning_effort,
-        )
-        if reasoning is not None:
-            kwargs["extra_body"] = {"reasoning": reasoning}
-
-        response = litellm.completion(**kwargs)
-        content = _message_content(response)
-        usage = {}
-        raw_usage = getattr(response, "usage", None)
-        if raw_usage is not None:
-            usage = {
-                "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
-                "completion_tokens": getattr(raw_usage, "completion_tokens", None),
-                "total_tokens": getattr(raw_usage, "total_tokens", None),
+        session = self._rpm.acquire("complete", SessionMeta(model=model))
+        try:
+            litellm.drop_params = self.settings.drop_params
+            messages = [{"role": m.role, "content": m.content} for m in request.messages]
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "temperature": request.temperature,
+                "timeout": self.settings.timeout_seconds,
+                "num_retries": self.settings.num_retries,
+                "api_base": self.settings.api_base,
             }
-        used_model = getattr(response, "model", None) or model
-        return CompletionResult(
-            content=content,
-            model=str(used_model),
-            provider=_provider_from_model(str(used_model)),
-            usage={k: v for k, v in usage.items() if v is not None},
-            raw={"id": getattr(response, "id", None)},
-        )
+            if self.settings.api_key:
+                kwargs["api_key"] = self.settings.api_key
+            if request.max_tokens is not None:
+                kwargs["max_tokens"] = request.max_tokens
+            if request.response_format_json:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            reasoning = self.settings.reasoning_payload(
+                enabled_override=request.reasoning_enabled,
+                effort_override=request.reasoning_effort,
+            )
+            if reasoning is not None:
+                kwargs["extra_body"] = {"reasoning": reasoning}
+
+            response = litellm.completion(**kwargs)
+            content = _message_content(response)
+            usage = {}
+            raw_usage = getattr(response, "usage", None)
+            if raw_usage is not None:
+                usage = {
+                    "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
+                    "completion_tokens": getattr(raw_usage, "completion_tokens", None),
+                    "total_tokens": getattr(raw_usage, "total_tokens", None),
+                }
+            used_model = getattr(response, "model", None) or model
+            self._rpm.release(session, "ok", model=str(used_model))
+            return CompletionResult(
+                content=content,
+                model=str(used_model),
+                provider=_provider_from_model(str(used_model)),
+                usage={k: v for k, v in usage.items() if v is not None},
+                raw={"id": getattr(response, "id", None)},
+            )
+        except Exception as exc:
+            status = "cancelled" if _is_timeout(exc) else "error"
+            self._rpm.release(session, status, error_detail=_error_detail(exc))
+            raise
 
     def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult:
         if not self.settings.enabled:
@@ -117,41 +135,47 @@ class LiteLlmGateway:
                 "litellm package is required for LiteLlmGateway; install project dependencies"
             ) from exc
 
-        self._rpm.acquire()
-        litellm.drop_params = self.settings.drop_params
-        kwargs: dict[str, Any] = {
-            "model": resolved,
-            "input": [text],
-            "timeout": self.settings.timeout_seconds,
-            "num_retries": self.settings.num_retries,
-            "api_base": self.settings.api_base,
-        }
-        if self.settings.api_key:
-            kwargs["api_key"] = self.settings.api_key
-        response = litellm.embedding(**kwargs)
-        data = getattr(response, "data", None) or []
-        if not data:
-            raise RuntimeError("LiteLLM embedding returned no data")
-        first = data[0]
-        vector = getattr(first, "embedding", None)
-        if vector is None and isinstance(first, dict):
-            vector = first.get("embedding")
-        if not isinstance(vector, list) or not vector:
-            raise RuntimeError("LiteLLM embedding vector missing")
-        used_model = getattr(response, "model", None) or resolved
-        usage: dict[str, Any] = {}
-        raw_usage = getattr(response, "usage", None)
-        if raw_usage is not None:
-            usage = {
-                "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
-                "total_tokens": getattr(raw_usage, "total_tokens", None),
+        session = self._rpm.acquire("embed", SessionMeta(model=resolved))
+        try:
+            litellm.drop_params = self.settings.drop_params
+            kwargs: dict[str, Any] = {
+                "model": resolved,
+                "input": [text],
+                "timeout": self.settings.timeout_seconds,
+                "num_retries": self.settings.num_retries,
+                "api_base": self.settings.api_base,
             }
-        return EmbeddingResult(
-            vector=[float(v) for v in vector],
-            model=str(used_model),
-            provider=_provider_from_model(str(used_model)),
-            usage={k: v for k, v in usage.items() if v is not None},
-        )
+            if self.settings.api_key:
+                kwargs["api_key"] = self.settings.api_key
+            response = litellm.embedding(**kwargs)
+            data = getattr(response, "data", None) or []
+            if not data:
+                raise RuntimeError("LiteLLM embedding returned no data")
+            first = data[0]
+            vector = getattr(first, "embedding", None)
+            if vector is None and isinstance(first, dict):
+                vector = first.get("embedding")
+            if not isinstance(vector, list) or not vector:
+                raise RuntimeError("LiteLLM embedding vector missing")
+            used_model = getattr(response, "model", None) or resolved
+            usage: dict[str, Any] = {}
+            raw_usage = getattr(response, "usage", None)
+            if raw_usage is not None:
+                usage = {
+                    "prompt_tokens": getattr(raw_usage, "prompt_tokens", None),
+                    "total_tokens": getattr(raw_usage, "total_tokens", None),
+                }
+            self._rpm.release(session, "ok", model=str(used_model))
+            return EmbeddingResult(
+                vector=[float(v) for v in vector],
+                model=str(used_model),
+                provider=_provider_from_model(str(used_model)),
+                usage={k: v for k, v in usage.items() if v is not None},
+            )
+        except Exception as exc:
+            status = "cancelled" if _is_timeout(exc) else "error"
+            self._rpm.release(session, status, error_detail=_error_detail(exc))
+            raise
 
 
 def _message_content(response: Any) -> str:
@@ -170,7 +194,7 @@ def _message_content(response: Any) -> str:
 
 
 class FakeLlmGateway:
-    """Deterministic gateway for unit tests (no network)."""
+    """Network-emulating gateway test double with RPM sessions but no external I/O."""
 
     def __init__(
         self,
@@ -196,34 +220,46 @@ class FakeLlmGateway:
         )
         self.canned = canned
         self.calls: list[CompletionRequest] = []
-        self._rpm = RpmLimiter(self.settings.rpm)
+        self._rpm = RpmSessionGate(self.settings.rpm)
 
     def settings_public(self) -> dict[str, Any]:
         return self.settings.public_dict()
+
+    def rpm_sessions_snapshot(self) -> dict[str, Any]:
+        return self._rpm.snapshot()
 
     def list_providers(self) -> list[ProviderInfo]:
         return list_providers(include_litellm_dynamic=False)
 
     def complete(self, request: CompletionRequest) -> CompletionResult:
-        self._rpm.acquire()
-        self.calls.append(request)
         model = request.model or self.settings.default_model
-        return CompletionResult(
-            content=self.canned,
-            model=model,
-            provider=_provider_from_model(model),
-            usage={"total_tokens": 1},
-        )
+        session = self._rpm.acquire("complete", SessionMeta(model=model))
+        try:
+            self.calls.append(request)
+            self._rpm.release(session, "ok", model=model)
+            return CompletionResult(
+                content=self.canned,
+                model=model,
+                provider=_provider_from_model(model),
+                usage={"total_tokens": 1},
+            )
+        except Exception as exc:
+            self._rpm.release(session, "error", error_detail=_error_detail(exc))
+            raise
 
     def embed(self, text: str, *, model: str | None = None) -> EmbeddingResult:
-        self._rpm.acquire()
         resolved = model or self.settings.default_model
-        # Deterministic tiny vector for tests.
-        seed = sum(ord(c) for c in text) % 97
-        vector = [((seed + i) % 10) / 10.0 for i in range(8)]
-        return EmbeddingResult(
-            vector=vector,
-            model=resolved,
-            provider=_provider_from_model(resolved),
-            usage={"total_tokens": 1},
-        )
+        session = self._rpm.acquire("embed", SessionMeta(model=resolved))
+        try:
+            seed = sum(ord(c) for c in text) % 97
+            vector = [((seed + i) % 10) / 10.0 for i in range(8)]
+            self._rpm.release(session, "ok", model=resolved)
+            return EmbeddingResult(
+                vector=vector,
+                model=resolved,
+                provider=_provider_from_model(resolved),
+                usage={"total_tokens": 1},
+            )
+        except Exception as exc:
+            self._rpm.release(session, "error", error_detail=_error_detail(exc))
+            raise

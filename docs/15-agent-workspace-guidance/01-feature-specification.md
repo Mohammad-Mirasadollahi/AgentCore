@@ -81,7 +81,7 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 - Deliver the authoritative bundle over MCP (Usage Profile tool surface).
 - Optionally materialize the same guidance into IDE-native files for clients that only read the filesystem.
 - Make selection explainable: why each rule or skill was included, suppressed, or deferred.
-- Preserve tenant / workspace / project isolation and precedence (task override > project > org).
+- Preserve tenant / workspace / project / user isolation and precedence (task override > user > project > org).
 - Ship a platform seed pack of always-on rules and skills that instruct coding agents to route AgentCore-capable work through MCP (see [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
 - Include dead-code cleanup in that seed pack: always-on same-change orphan removal plus on-demand `agentcore-remove-dead-code`, aligned with the graph cleanup loop ([`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md)).
 ## Non-Goals
@@ -97,9 +97,9 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 
 | Actor | Job | Permission notes |
 | --- | --- | --- |
-| Project admin | Approve, edit, retire guidance items; trigger export | Project-scoped write + approve |
-| Domain / platform operator | Publish org-default guidance templates | Org scope; audit required |
-| Developer | Consume guidance via IDE agent; may propose candidates | Read resolve; propose optional |
+| Project admin | Approve, edit, retire project guidance; trigger export | Project-scoped write + approve |
+| Domain / platform operator | Publish org-default guidance templates | `scope_kind=org`; audit required |
+| Developer | Maintain personal user-profile skills/rules; consume via IDE agent | `scope_kind=user` (skills + non-mandatory rules only); read resolve |
 | Coding agent (MCP client) | Resolve bundle, list skills, fetch skill bodies | Tool calls under active Usage Profile |
 | Reviewer | Audit what guidance applied to a change | Read audit / bundle evidence |
 
@@ -107,9 +107,10 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 
 ### Authoring
 
-1. Operator creates or imports an `agents_entry`, one or more `always_rule` items, and zero or more `skill` items into Common Context for a project.
-2. High-impact or cross-project items require human approval before they become resolvable.
-3. Admin UI shows lifecycle status, version, applicability, and last resolve evidence.
+1. Operator creates or imports guidance into Common Context at the appropriate layer: `org` (workspace defaults), `project`, or `user` (personal pack).
+2. Org and project layers may author `agents_entry`, `always_rule`, and `skill`. User layer may author `skill` and non-mandatory `always_rule` only.
+3. High-impact or cross-project items require human approval before they become resolvable.
+4. Admin UI shows lifecycle status, version, layer, applicability, and last resolve evidence.
 
 ### Connect-time / pre-run consume
 
@@ -148,9 +149,9 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 
 - Resolve must be deterministic given the same project scope, task fingerprint, profile, and item versions.
 - Always-on rules are included when applicable and within token budget; skills appear as catalog entries until fetched.
-- Exactly one active `agents_entry` per project scope (org may supply a fallback template when project entry is absent, if policy allows).
+- Exactly one active `agents_entry` in the merged bundle (project wins; org supplies fallback when project entry is absent).
 - Skill bodies are not dumped into every session by default.
-- Precedence: explicit authorized task instructions override project guidance; project overrides org defaults; mandatory governance flags may block unsafe overrides (recorded as conflicts).
+- Precedence: task overrides > user profile > project > org defaults. Same slug/name: higher layer replaces lower. Mandatory org/project items that a higher layer would replace with a different body produce a conflict and the mandatory item is kept.
 
 ## Owning Modules
 

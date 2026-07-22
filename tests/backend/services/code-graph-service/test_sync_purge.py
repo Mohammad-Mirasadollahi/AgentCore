@@ -73,8 +73,35 @@ def test_sync_with_symbols_no_pending_is_incremental_walk(tmp_path: Path):
         "key-b",
         {"root_path": str(tmp_path), "include_outcomes": True},
     )
-    assert result.mode == "incremental"
+    # Unchanged content → durable noop (hash short-circuit), not a full re-index.
+    assert result.mode == "noop"
     assert result.files_discovered == 2
+    assert result.files_ingested == 0
+    assert result.files_skipped >= 2
+
+
+def test_sync_detects_content_change(tmp_path: Path):
+    _write_tree(tmp_path, count=1)
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "p-change")
+    service.sync_repo(
+        scope,
+        "tester",
+        "corr-c1",
+        "key-c1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    (tmp_path / "src" / "f0.py").write_text("def f0():\n    return 99\n", encoding="utf-8")
+    result = service.sync_repo(
+        scope,
+        "tester",
+        "corr-c2",
+        "key-c2",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    assert result.mode == "incremental"
+    assert result.files_ingested == 1
+    assert result.symbols_changed >= 1
 
 
 def test_sync_truncated_hint_and_continue(tmp_path: Path):
@@ -99,7 +126,84 @@ def test_sync_truncated_hint_and_continue(tmp_path: Path):
         {"root_path": str(tmp_path), "max_files": 2, "include_outcomes": True},
     )
     assert second.mode == "incremental"
-    assert second.files_ingested >= 1
+    # Continuation must index the previously skipped files, not only re-walk the first N.
+    file_paths = {
+        s.file_path
+        for s in service.store.list_symbols(scope)
+        if s.kind.value == "file" and s.file_path.startswith("src/")
+    }
+    assert file_paths == {"src/f0.py", "src/f1.py", "src/f2.py", "src/f3.py"}
+    assert service.freshness_status(scope)["last_sync_at"]
+
+
+def test_sync_unchanged_files_are_fast_noop(tmp_path: Path):
+    _write_tree(tmp_path, count=2)
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "p-noop")
+    service.sync_repo(
+        scope,
+        "tester",
+        "corr-n1",
+        "key-n1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    again = service.sync_repo(
+        scope,
+        "tester",
+        "corr-n2",
+        "key-n2",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    assert again.mode == "noop"
+    assert again.files_ingested == 0
+    assert again.files_skipped >= 2
+
+
+def test_ingest_backfills_missing_language(tmp_path: Path):
+    src = tmp_path / "a.py"
+    src.write_text("def hello():\n    return 1\n", encoding="utf-8")
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "p-lang-bf")
+    service.ingest_file(
+        scope,
+        "tester",
+        "c1",
+        "k1",
+        {"file_path": "a.py", "source": src.read_text(), "language": "python"},
+    )
+    # Simulate legacy rows without language.
+    for sym in service.store.list_symbols(scope):
+        sym.language = ""
+        service.store.put_symbol(sym)
+    service.ingest_file(
+        scope,
+        "tester",
+        "c2",
+        "k2",
+        {"file_path": "a.py", "source": src.read_text(), "language": "python"},
+    )
+    assert all(
+        s.language == "python"
+        for s in service.store.list_symbols(scope)
+        if s.kind.value != "unresolved"
+    )
+
+
+def test_ingest_persists_language(tmp_path: Path):
+    src = tmp_path / "a.py"
+    src.write_text("def hello():\n    return 1\n", encoding="utf-8")
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "p-lang")
+    service.ingest_file(
+        scope,
+        "tester",
+        "c",
+        "k",
+        {"file_path": "a.py", "source": src.read_text(), "language": "python"},
+    )
+    langs = {s.language for s in service.store.list_symbols(scope) if s.kind.value != "unresolved"}
+    assert "python" in langs
+    assert all(lang == "python" for lang in langs)
 
 
 def test_purge_wipes_scope(tmp_path: Path):

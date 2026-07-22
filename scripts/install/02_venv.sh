@@ -9,7 +9,8 @@ _venv_path() {
   printf '%s/%s\n' "${AGENTCORE_ROOT}" "$(_venv_dir)"
 }
 
-stage_02_venv_check() {
+# Virtualenv + imports only (PATH shim checked separately).
+stage_02_venv_only_check() {
   local errors=0
   local venv_path py cli
   venv_path="$(_venv_path)"
@@ -42,6 +43,20 @@ stage_02_venv_check() {
   return "${errors}"
 }
 
+stage_02_venv_check() {
+  local errors=0
+  stage_02_venv_only_check || errors=1
+
+  if ! user_cli_on_path; then
+    warn "missing ${HOME}/.local/bin/agentcore (PATH shim)"
+    errors=1
+  else
+    ok "user PATH shim: ${HOME}/.local/bin/agentcore"
+  fi
+
+  return "${errors}"
+}
+
 stage_02_venv_run() {
   local venv_dir venv_path
   venv_dir="$(_venv_dir)"
@@ -54,30 +69,27 @@ stage_02_venv_run() {
     return 0
   fi
 
-  if stage_02_venv_check; then
-    ok "Virtualenv already ready"
-    if [[ -x "${venv_path}/bin/agentcore" ]]; then
-      "${venv_path}/bin/agentcore" path install >/dev/null 2>&1 || true
+  if ! stage_02_venv_only_check; then
+    require_file "${AGENTCORE_ROOT}/scripts/ensure-venv.sh" "repo scripts missing"
+    require_file "${AGENTCORE_ROOT}/pyproject.toml" "run install from AgentCore repo root"
+    require_file "${AGENTCORE_ROOT}/requirements-dev.txt"
+
+    local py
+    py="$(python_bin)" || fail "Python 3.12+ required before creating venv"
+
+    info "Creating/refreshing ${venv_dir} with ${py}…"
+    if [[ "${py}" == "python3.12" ]] && [[ ! -x "${venv_path}/bin/python" ]]; then
+      run "${py}" -m venv "${venv_path}"
     fi
-    seed_repo_operator_files
-    mark_stage "02_venv" "ok"
-    return 0
+    run env AGENTCORE_VENV_DIR="${venv_dir}" bash "${AGENTCORE_ROOT}/scripts/ensure-venv.sh"
+    stage_02_venv_only_check || fail "venv verification failed after ensure-venv.sh"
+  else
+    ok "Virtualenv already ready"
   fi
 
-  require_file "${AGENTCORE_ROOT}/scripts/ensure-venv.sh" "repo scripts missing"
-  require_file "${AGENTCORE_ROOT}/pyproject.toml" "run install from AgentCore repo root"
-  require_file "${AGENTCORE_ROOT}/requirements-dev.txt"
-
-  local py
-  py="$(python_bin)" || fail "Python 3.12+ required before creating venv"
-
-  info "Creating/refreshing ${venv_dir} with ${py}…"
-  if [[ "${py}" == "python3.12" ]] && [[ ! -x "${venv_path}/bin/python" ]]; then
-    run "${py}" -m venv "${venv_path}"
-  fi
-  run env AGENTCORE_VENV_DIR="${venv_dir}" bash "${AGENTCORE_ROOT}/scripts/ensure-venv.sh"
-
-  stage_02_venv_check || fail "venv verification failed after ensure-venv.sh"
+  # Always (re)install PATH shim + shell rc — never skip when venv was already OK.
+  install_cli_on_path "${venv_path}/bin/agentcore"
+  stage_02_venv_check || fail "venv/PATH verification failed after path install"
   seed_repo_operator_files
   mark_stage "02_venv" "ok"
   ok "Stage 02 complete"

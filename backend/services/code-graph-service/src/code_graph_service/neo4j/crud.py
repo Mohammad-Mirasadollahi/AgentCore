@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import Any
 
@@ -17,7 +16,7 @@ from ..core import (
     SymbolKind,
 )
 from .constants import REL as _REL
-from .lucene import lucene_query as _lucene_query
+
 
 class Neo4jCrudMixin:
     """Persistence port methods for CodeSymbol / CODE_REL."""
@@ -47,6 +46,7 @@ class Neo4jCrudMixin:
             version=int(node["version"]),
             created_at=str(node["created_at"]),
             updated_at=str(node["updated_at"]),
+            language=str(node.get("language") or ""),
         )
 
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
@@ -91,7 +91,8 @@ class Neo4jCrudMixin:
                     n.visibility = $visibility,
                     n.version = $version,
                     n.created_at = $created_at,
-                    n.updated_at = $updated_at
+                    n.updated_at = $updated_at,
+                    n.language = $language
                 """,
                 id=symbol.id,
                 tenant_id=scope.tenant_id,
@@ -112,6 +113,7 @@ class Neo4jCrudMixin:
                 version=symbol.version,
                 created_at=symbol.created_at,
                 updated_at=symbol.updated_at,
+                language=symbol.language or "",
             )
 
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:

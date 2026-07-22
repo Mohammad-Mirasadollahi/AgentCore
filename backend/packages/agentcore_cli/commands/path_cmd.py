@@ -45,7 +45,10 @@ def cmd_path_install(args: argparse.Namespace) -> int:
     if symlink_error is not None:
         payload["symlink_error"] = symlink_error
     print_json(payload)
-    if args.shell_rc and not on_path and symlink_error is None:
+    # Always append when --shell-rc is set. Do not gate on process PATH:
+    # install.sh exports ~/.local/bin temporarily, which would skip the rc update
+    # and leave new shells without agentcore.
+    if args.shell_rc and symlink_error is None:
         try:
             _ensure_path_export(Path(os.path.expanduser("~")) / args.shell_rc, local_bin)
         except OSError as exc:

@@ -75,12 +75,15 @@ Publish under a versioned contracts package (design target: `backend/packages/co
 {
   "bundle_id": "bnd_01HZX...",
   "project_id": "prj_123",
+  "user_id": "user_42",
+  "layers_considered": ["org", "project", "user"],
   "resolved_at": "2026-07-20T05:30:00Z",
   "agents_entry": {
     "item_id": "cci_entry_1",
     "version": 3,
     "title": "Agent entry",
     "body": "# Agent entry\n\n**Law:** ...\n",
+    "layer": "project",
     "token_estimate": 420
   },
   "always_rules": [
@@ -89,8 +92,10 @@ Publish under a versioned contracts package (design target: `backend/packages/co
       "version": 2,
       "title": "Reply language law",
       "body": "...",
+      "slug": "reply-language",
       "priority": 100,
       "mandatory": true,
+      "layer": "org",
       "reason_code": "applicability_match",
       "token_estimate": 180
     }
@@ -102,6 +107,7 @@ Publish under a versioned contracts package (design target: `backend/packages/co
       "description": "Validate public API changes against naming and DTO standards.",
       "version": 1,
       "when_to_use": ["openapi", "dto", "rest"],
+      "layer": "user",
       "reason_code": "catalog_match"
     }
   ],
@@ -140,8 +146,12 @@ Input (JSON Schema intent):
 | `workflow_type` | string | no | e.g. `coding` |
 | `include_skill_bodies` | boolean | no | Default `false`; prefer catalog + get-skill |
 | `budget_overrides` | object | no | Optional slice overrides |
+| `user_id` | string | no | User-layer overlay; MCP gateway supplies actor when available |
+| `task_overrides` | object | no | Optional `suppress_rule_slugs` / `suppress_skill_names` lists (highest precedence; mandatory rules blocked with conflict) |
 
 Output: `AgentWorkspaceGuidanceBundle`.
+
+Propose/write payloads may include `scope_kind` (`org` \| `project` \| `user`) and, for user layer, `user_id` (defaults to `X-Actor-Id`).
 
 ### agentcore_guidance_list_skills
 

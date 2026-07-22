@@ -32,6 +32,12 @@ The retriever builds ContextBundles from graph links, semantic search, access co
 
 Retrieval, decay, retention, and forgotten-memory handling use versioned WeightProfiles. No final weight or threshold should be hard-coded in application logic.
 
+## Feature 8 - Chat Q&A RAG Incremental Documentation
+
+Successful chat questions and answers grow project RAG: persist normalized questions and derived documentation, do not delete those artifacts when the turn ends, refresh linked docs when code hashes change (otherwise reuse existing docs), treat code as behavioral source of truth, and on code-vs-doc contradiction disclose the conflict, answer code-first, and show documentation only on explicit user request. Turns use an immutable session tree, durable write-back receipts, skill-eligible tools, and loop guards. Quality levers from license-verified OSS prior art are cataloged in `10`–`13`.
+
+Normative detail: `09-chat-qa-rag-incremental-documentation.md`.
+
 ## Functional Requirements
 
 - Classify memory as working, episodic, semantic, restricted, or deprecated.
@@ -40,3 +46,5 @@ Retrieval, decay, retention, and forgotten-memory handling use versioned WeightP
 - Build ContextBundles with source references and token budgets.
 - Apply WeightProfiles to retrieval and decay.
 - Preserve restricted memory boundaries.
+- After successful chat Q&A, index the question and retain derived documentation in project RAG.
+- On code-vs-doc contradiction, disclose conflict, explain from code first, and gate full doc explanation behind user opt-in.

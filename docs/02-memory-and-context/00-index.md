@@ -14,6 +14,11 @@ Give agents the right context at the right time while keeping prompts fast, chea
 - 06-detailed-section-design.md provides deep rationale, memory lifecycle, retrieval design, edge cases, and phase output.
 - 07-autonomous-question-discovery-and-faq-memory.md defines repeated question detection, curiosity scoring, missing documentation discovery, FAQ memory, evidence-backed answer promotion, and human-like knowledge gap handling.
 - 08-batched-memory-and-deferred-knowledge-workflows.md defines WorkBatch, deferred memory consolidation, deferred documentation generation, deferred code review, LLM batching decisions, and boundary detection.
+- 09-chat-qa-rag-incremental-documentation.md defines chat Q&A write-back into project RAG, retention of derived docs, freshness on code change, code-as-authority, and staged code-vs-doc contradiction disclosure.
+- 10-chat-quality-prior-art-license-and-method.md defines license-verified OSS chat/RAG study method, clean-room policy, and index of quality idea catalogs.
+- 11-chat-quality-retrieval-ranking-and-context-packing.md catalogs hybrid retrieval, rerank, RAPTOR/GraphRAG modes, thresholds, pins, and context budgets.
+- 12-chat-quality-grounding-citations-refusal.md catalogs grounding, citations, empty/query refusal, relevance warnings, and contradiction-stage alignment.
+- 13-chat-quality-query-rewrite-memory-feedback.md catalogs query rewrite, keyword expansion, history fitting, chunk feedback, and branching.
 
 ## Features Covered
 
@@ -31,6 +36,9 @@ Give agents the right context at the right time while keeping prompts fast, chea
 - Batched Memory Consolidation.
 - Deferred Documentation Generation.
 - Deferred Code Review.
+- Chat Q&A RAG Incremental Documentation.
+- Code-vs-Doc Contradiction Disclosure.
+- Chat Quality Prior Art (retrieval, grounding, rewrite/feedback).
 
 ## Related Technical Logic
 

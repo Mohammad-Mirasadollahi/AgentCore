@@ -4,4 +4,4 @@
 - Without graph (all `.py` chars): **1062**
 - With explore pack (`used_chars`): **1885**
 - Saved proxy: **0** (178% of naive size)
-- Artifact: `benefit-mvp-20260721T071901Z.json`
+- Artifact: `benefit-mvp-20260722T055004Z.json`

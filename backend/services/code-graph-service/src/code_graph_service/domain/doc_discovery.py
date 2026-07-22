@@ -8,14 +8,13 @@ from typing import Iterable
 
 from .errors import ValidationError
 from .repo_discovery import (
-    DEFAULT_EXCLUDE_DIRS,
-    DEFAULT_EXCLUDE_GLOBS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
-    _looks_like_glob,
     _matches_any_glob,
     _normalize_glob,
     _should_skip_parents,
+    _split_excludes,
+    iter_repo_files,
     path_matches_glob,
 )
 
@@ -84,40 +83,20 @@ def discover_documentation_files(
 
     max_files = max(1, min(int(max_files), 20_000))
     max_file_bytes = max(1, int(max_file_bytes))
-    excluded = {
-        str(name).strip().lower()
-        for name in (exclude_dirs if exclude_dirs is not None else DEFAULT_EXCLUDE_DIRS)
-        if str(name).strip() and not _looks_like_glob(str(name))
-    }
-    globs = [
-        _normalize_glob(str(p))
-        for p in (exclude_globs if exclude_globs is not None else DEFAULT_EXCLUDE_GLOBS)
-        if str(p).strip()
-    ]
-    if exclude_dirs is not None:
-        for name in exclude_dirs:
-            text = str(name).strip()
-            if text and _looks_like_glob(text):
-                globs.append(_normalize_glob(text))
+    excluded, globs = _split_excludes(exclude_dirs, exclude_globs)
 
     discovered: list[DiscoveredDocFile] = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
+    for path, rel_s in iter_repo_files(root, exclude_dirs=excluded, exclude_globs=globs):
+        if path.suffix.lower() not in DOC_EXTENSIONS:
             continue
-        try:
-            relative = path.relative_to(root)
-        except ValueError:
-            continue
-        rel_s = str(relative).replace("\\", "/")
-        if _should_skip_parents(relative, excluded):
-            continue
-        if _matches_any_glob(rel_s, globs):
+        if globs and _matches_any_glob(rel_s, globs):
             continue
         if prefixes and not any(rel_s == p or rel_s.startswith(p + "/") for p in prefixes):
             continue
         if not any(path_matches_glob(rel_s, pat) for pat in matches):
             continue
-        if path.suffix.lower() not in DOC_EXTENSIONS:
+        relative = Path(rel_s)
+        if _should_skip_parents(relative, excluded):
             continue
         try:
             size = path.stat().st_size
@@ -135,6 +114,7 @@ def discover_documentation_files(
         if len(discovered) >= max_files:
             break
 
+    discovered.sort(key=lambda item: item.relative_path)
     return discovered
 
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 import time
 from pathlib import Path
 
@@ -18,6 +20,69 @@ def test_format_duration_and_bar():
     assert format_duration(5) == "5s"
     assert format_duration(65) == "1m 5s"
     assert format_bar(50, width=10) == "[#####-----]"
+
+
+def test_progress_log_has_blank_lines_and_timestamp(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    monkeypatch.setattr(
+        "agentcore_cli.sync_progress.wall_clock_now",
+        lambda: "2026-07-22 12:00:00",
+    )
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 10,
+            "status": "started",
+            "files_in_flight": 1,
+        }
+    )
+    out = capsys.readouterr().out
+    assert "at 2026-07-22 12:00:00" in out
+    assert "elapsed" in out
+    # Blank line before and after each progress block
+    assert out.startswith("\n")
+    assert out.rstrip("\n").count("\n\n") >= 1 or out.endswith("\n\n")
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["logged_at"] == "2026-07-22 12:00:00"
+    tracker.finish()
+
+
+def test_progress_explains_this_run_vs_prior(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 237,
+            "status": "started",
+            "prior_indexed": 40,
+            "queue_new": 200,
+            "queue_changed": 37,
+            "queue_unchanged": 0,
+            "files_in_flight": 30,
+            "file_workers": 30,
+        }
+    )
+    out = capsys.readouterr().out
+    assert "this run 0/237" in out
+    assert "prior file symbols 40" in out
+    assert "new=200" in out
+    assert "changed=37" in out
+    assert "this run only" in out
+    tracker.finish()
 
 
 def test_tracker_writes_progress_and_adapts(tmp_path: Path, monkeypatch, capsys):
@@ -50,11 +115,36 @@ def test_tracker_writes_progress_and_adapts(tmp_path: Path, monkeypatch, capsys)
             data = json.loads(progress_file.read_text(encoding="utf-8"))
             assert data["done"] == 5
             assert data["total"] == 10
+            # Optional concurrency/RPM fields round-trip when present
+            tracker(
+                {
+                    "phase": "ingest",
+                    "done": 5,
+                    "total": total,
+                    "file": "f5.py",
+                    "status": "ok",
+                    "files_in_flight": 2,
+                    "files_in_flight_paths": ["a.py", "b.py"],
+                    "file_workers": 4,
+                    "rpm": 30,
+                    "rpm_inflight_cap": 30,
+                    "rpm_inflight": 3,
+                    "rpm_starts_in_window": 5,
+                    "symbols_indexed": 10,
+                    "edges_written": 5,
+                    "chars_read": 200,
+                    "approx_tokens": 50,
+                }
+            )
+            data2 = json.loads(progress_file.read_text(encoding="utf-8"))
+            assert data2["files_in_flight"] == 2
+            assert data2["rpm_inflight"] == 3
+            assert data2["file_workers"] == 4
     tracker.finish()
     assert not progress_file.is_file()
     out = capsys.readouterr().out
     assert "%" in out
-    assert "files" in out
+    assert "this run" in out
 
 
 def test_read_live_progress_fresh(tmp_path: Path, monkeypatch):
@@ -79,6 +169,228 @@ def test_read_live_progress_fresh(tmp_path: Path, monkeypatch):
     data = read_live_progress(root=tmp_path)
     assert data is not None
     assert data["percent"] == 40
+
+
+def test_tracker_publishes_full_session_snapshot(tmp_path: Path):
+    progress_file = tmp_path / "sync-progress.json"
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=progress_file,
+    )
+    tracker({"phase": "ingest", "done": 0, "total": 2, "status": "started"})
+    sessions = {
+        "rpm": 4,
+        "inflight_cap": 4,
+        "starts_in_window": 2,
+        "inflight_count": 2,
+        "inflight": [{"session_id": "a"}, {"session_id": "b"}],
+        "history": [],
+    }
+
+    tracker.update_sessions(sessions)
+    tracker({"phase": "ingest", "done": 1, "total": 2, "status": "ok"})
+
+    data = json.loads(progress_file.read_text(encoding="utf-8"))
+    assert data["llm_sessions"] == sessions
+    assert data["rpm_inflight"] == 2
+    tracker.finish()
+
+
+def test_tracker_skips_unchanged_session_snapshot(tmp_path: Path, monkeypatch):
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker({"phase": "ingest", "done": 0, "total": 1, "status": "started"})
+    sessions = {
+        "rpm": 4,
+        "inflight_cap": 4,
+        "starts_in_window": 1,
+        "inflight_count": 1,
+        "inflight": [{"session_id": "a"}],
+        "history": [],
+    }
+    writes = 0
+    original_write = tracker._write
+
+    def counted_write(snapshot):
+        nonlocal writes
+        writes += 1
+        original_write(snapshot)
+
+    monkeypatch.setattr(tracker, "_write", counted_write)
+
+    tracker.update_sessions(sessions)
+    tracker.update_sessions(dict(sessions))
+
+    assert writes == 1
+    tracker.finish()
+
+
+def test_early_provisional_rate_within_ten_seconds(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    clock = {"t": 0.0}
+    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", lambda: clock["t"])
+
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    # t=0: started, done=0 — no rate yet
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 10,
+            "status": "started",
+            "files_in_flight": 2,
+        }
+    )
+    data0 = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data0["files_per_sec"] is None
+    assert data0["eta_sec"] is None
+
+    # t=6 (>= EARLY_RATE_AFTER_SEC): provisional rate from in-flight / elapsed
+    clock["t"] = 6.0
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 10,
+            "status": "active",
+            "files_in_flight": 2,
+            "file": "slow.py",
+        }
+    )
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["files_per_sec"] is not None
+    assert data["files_per_sec"] > 0
+    assert data["eta_sec"] is not None
+    assert data["eta_sec"] > 0
+    # 2 in-flight / 6s elapsed ⇒ ~0.333/s; ETA for 10 remaining ≈ 30s
+    assert abs(data["files_per_sec"] - (2 / 6)) < 0.05
+    assert data.get("rate_basis") == "provisional"
+    out = capsys.readouterr().out
+    progress_lines = [ln for ln in out.splitlines() if "ETA" in ln and "this run" in ln]
+    assert progress_lines
+    assert "rate …" not in progress_lines[-1]
+    assert "provisional" in progress_lines[-1]
+    tracker.finish()
+
+
+def test_eta_blend_uses_lifetime_and_recent(tmp_path: Path, monkeypatch):
+    """Lifetime avg dominates; a short stall does not collapse ETA to near-zero rate."""
+    clock = {"t": 0.0}
+    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", lambda: clock["t"])
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker({"phase": "ingest", "done": 0, "total": 100, "status": "started"})
+
+    # Steady completions: 30 files in 30s → 1.0/s lifetime
+    for i in range(1, 31):
+        clock["t"] = float(i)
+        tracker({"phase": "ingest", "done": i, "total": 100, "status": "ok"})
+
+    data_fast = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data_fast["rate_basis"] in {"avg", "avg+recent"}
+    rate_fast = float(data_fast["files_per_sec"])
+    assert 0.7 < rate_fast < 1.2
+
+    # 30s stall with only +1 file → recent dips, but lifetime (~31/60) keeps ETA sane
+    clock["t"] = 60.0
+    tracker({"phase": "ingest", "done": 31, "total": 100, "status": "ok"})
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["rate_basis"] == "avg+recent"
+    rate = float(data["files_per_sec"])
+    # Pure recent over ~30s of stall would be ~0.03/s; blended must stay far above that.
+    assert rate > 0.25
+    assert data["eta_sec"] is not None
+    assert float(data["eta_sec"]) < 69 / 0.25  # remaining 69 at >0.25/s
+    tracker.finish()
+
+
+def test_session_heartbeat_refreshes_eta_when_unchanged(tmp_path: Path, monkeypatch):
+    clock = {"t": 0.0}
+
+    def mono():
+        return clock["t"]
+
+    monkeypatch.setattr("agentcore_cli.sync_progress.time.monotonic", mono)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    sessions = {
+        "rpm": 4,
+        "inflight_cap": 4,
+        "starts_in_window": 1,
+        "inflight_count": 1,
+        "inflight": [{"session_id": "a"}],
+        "history": [],
+    }
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 10,
+            "status": "started",
+            "files_in_flight": 1,
+            "llm_sessions": sessions,
+        }
+    )
+    clock["t"] = 5.0
+    tracker.update_sessions(dict(sessions))  # early rate kick
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["eta_sec"] is not None
+    eta1 = data["eta_sec"]
+
+    clock["t"] = 15.0
+    tracker.update_sessions(dict(sessions))  # interval heartbeat
+    data2 = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data2["elapsed_sec"] >= 15.0
+    # Longer wait with no completions ⇒ slower implied rate ⇒ ETA grows
+    assert data2["eta_sec"] >= eta1
+    tracker.finish()
+
+
+def test_tracker_snapshot_is_private_before_json_is_written(tmp_path: Path, monkeypatch):
+    progress_file = tmp_path / "sync-progress.json"
+    temp_file = progress_file.with_suffix(".tmp")
+    temp_file.write_text("stale", encoding="utf-8")
+    temp_file.chmod(0o644)
+    modes_when_opened: list[int] = []
+    real_fdopen = os.fdopen
+
+    def checked_fdopen(fd, *args, **kwargs):
+        modes_when_opened.append(stat.S_IMODE(os.fstat(fd).st_mode))
+        return real_fdopen(fd, *args, **kwargs)
+
+    monkeypatch.setattr("agentcore_cli.sync_progress.os.fdopen", checked_fdopen)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=progress_file,
+    )
+
+    tracker({"phase": "ingest", "done": 0, "total": 1, "status": "started"})
+
+    assert modes_when_opened == [0o600]
+    assert stat.S_IMODE(progress_file.stat().st_mode) == 0o600
+    assert temp_file.read_text(encoding="utf-8") == "stale"
+    tracker.finish()
 
 
 def test_ingest_calls_on_progress(tmp_path: Path):

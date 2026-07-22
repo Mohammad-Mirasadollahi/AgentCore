@@ -139,3 +139,61 @@ def test_unknown_flag_exits_nonzero() -> None:
         check=False,
     )
     assert proc.returncode != 0
+
+
+def test_install_cli_on_path_writes_shim_and_shell_rc(tmp_path: Path) -> None:
+    """Stage-02 helper must create ~/.local/bin/agentcore even if PATH already has it."""
+    home = tmp_path / "home"
+    local_bin = home / ".local" / "bin"
+    local_bin.mkdir(parents=True)
+    bashrc = home / ".bashrc"
+    bashrc.write_text("# pretest\n", encoding="utf-8")
+    # Fake venv agentcore that delegates to the real CLI for `path install`.
+    fake_venv = tmp_path / "venv" / "bin"
+    fake_venv.mkdir(parents=True)
+    real_cli = ROOT / ".venv" / "bin" / "agentcore"
+    if not real_cli.is_file():
+        pytest.skip("project .venv/bin/agentcore required")
+    fake_cli = fake_venv / "agentcore"
+    fake_cli.symlink_to(real_cli)
+
+    script = r"""
+set -euo pipefail
+export AGENTCORE_ROOT="%s"
+export HOME="%s"
+export PATH="%s:${PATH}"
+source "%s/common.sh"
+install_cli_on_path "%s"
+user_cli_on_path
+grep -q 'AgentCore CLI' "${HOME}/.bashrc"
+test -e "${HOME}/.local/bin/agentcore"
+echo OK
+""" % (
+        ROOT,
+        home,
+        local_bin,
+        INSTALL_LIB,
+        fake_cli,
+    )
+    proc = subprocess.run(
+        ["bash", "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "HOME": str(home), "AGENTCORE_ROOT": str(ROOT)},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+    assert (home / ".local" / "bin" / "agentcore").exists()
+    assert "AgentCore CLI" in bashrc.read_text(encoding="utf-8")
+
+
+def test_stage_02_requires_path_shim_in_check() -> None:
+    body = (INSTALL_LIB / "02_venv.sh").read_text(encoding="utf-8")
+    assert "user_cli_on_path" in body
+    assert "install_cli_on_path" in body
+    assert "|| true" not in body
+    common = (INSTALL_LIB / "common.sh").read_text(encoding="utf-8")
+    assert "install_cli_on_path()" in common
+    assert "user_cli_on_path()" in common

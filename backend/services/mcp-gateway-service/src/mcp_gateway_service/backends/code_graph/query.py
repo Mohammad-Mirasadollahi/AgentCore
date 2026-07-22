@@ -233,7 +233,7 @@ def freshness(
     if file_path:
         payload = backends.graph.mark_file_pending(file_path)
     else:
-        payload = backends.graph.freshness_status()
+        payload = backends.graph.freshness_status(backends.graph_scope(scope))
     return {**base, "graph_mode": backends.graph_mode, **payload}
 
 

@@ -3,12 +3,52 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from agentcore_cli.util import add_scope_args
 
+_SYNC_MAX_FILE_DASHED = frozenset({"-max-file", "--max-file", "-max-files", "--max-files"})
+_DEFAULT_SYNC_MAX_FILES = 2000
+
+
+def _peel_sync_max_file(argv: list[str], error) -> tuple[list[str], int | None]:
+    """Accept bare ``max-file N`` on sync; reject dashed spellings."""
+    if not argv or argv[0] != "sync":
+        return argv, None
+    out: list[str] = []
+    override: int | None = None
+    i = 0
+    while i < len(argv):
+        tok = argv[i]
+        if tok in _SYNC_MAX_FILE_DASHED:
+            error("use max-file <n> (no leading dashes)")
+        if tok == "max-file":
+            if i + 1 >= len(argv):
+                error("argument max-file: expected one integer argument")
+            try:
+                override = int(argv[i + 1])
+            except ValueError:
+                error(f"argument max-file: invalid int value: {argv[i + 1]!r}")
+            i += 2
+            continue
+        out.append(tok)
+        i += 1
+    return out, override
+
+
+class _AgentCoreArgumentParser(argparse.ArgumentParser):
+    def parse_known_args(self, args=None, namespace=None):
+        if args is None:
+            args = sys.argv[1:]
+        args, max_files_override = _peel_sync_max_file(list(args), self.error)
+        ns, rest = super().parse_known_args(args, namespace)
+        if max_files_override is not None:
+            ns.max_files = max_files_override
+        return ns, rest
+
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _AgentCoreArgumentParser(
         prog="agentcore",
         description="AgentCore CLI — manage Usage Profiles, projects, and Cursor MCP",
     )
@@ -17,6 +57,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("version", help="Show CLI version and repo root")
     sub.add_parser("doctor", help="Check venv, imports, profiles, and PATH")
+
+    service = sub.add_parser(
+        "service",
+        help="Start/stop/restart/status for Compose infra + MCP HTTP backend",
+    )
+    service_sub = service.add_subparsers(dest="service_command", required=True)
+    service_sub.add_parser("start", help="Start postgres/neo4j + MCP HTTP daemon")
+    service_sub.add_parser("stop", help="Stop MCP HTTP daemon + postgres/neo4j")
+    service_sub.add_parser("restart", help="Restart Compose infra + MCP HTTP")
+    service_status = service_sub.add_parser(
+        "status",
+        help="Show Compose + MCP HTTP + boot enablement",
+    )
+    service_status.add_argument("--json", action="store_true", help="Print JSON only")
+    service_detail = service_sub.add_parser(
+        "detail",
+        help="Status plus MCP HTTP / unhealthy Compose log tails (for failed starts)",
+    )
+    service_detail.add_argument("--json", action="store_true", help="Print JSON only")
+
+    boot = sub.add_parser("boot", help="Enable/disable AgentCore start on system boot")
+    boot_sub = boot.add_subparsers(dest="boot_command", required=True)
+    boot_enable = boot_sub.add_parser("enable", help="Install and enable systemd unit")
+    boot_enable.add_argument(
+        "--user",
+        action="store_true",
+        help="Use systemd --user unit (~/.config/systemd/user)",
+    )
+    boot_disable = boot_sub.add_parser("disable", help="Disable and remove systemd unit")
+    boot_disable.add_argument(
+        "--user",
+        action="store_true",
+        help="Target systemd --user unit",
+    )
 
     init = sub.add_parser(
         "init",
@@ -51,6 +125,42 @@ def build_parser() -> argparse.ArgumentParser:
     add_scope_args(status, required=False)
     status.add_argument("--json", action="store_true", help="Print full JSON only")
     status.add_argument("--verbose", action="store_true", help="Human summary + JSON")
+
+    inventory = sub.add_parser(
+        "inventory",
+        help="List code/docs done vs remaining for pinned client software roots",
+        epilog="Modes (no dashed flags): agentcore inventory | agentcore inventory detail | "
+        "agentcore inventory save <file> | agentcore inventory detail save <file>",
+    )
+    inventory.add_argument(
+        "words",
+        nargs="*",
+        help="Optional words: detail | save <path> | detail save <path>",
+    )
+
+    docs_standards = sub.add_parser(
+        "docs-standards",
+        help="Report which docs/ Markdown files fail AgentCore documentation standards",
+        epilog="Modes (no dashed flags): agentcore docs-standards | agentcore docs-standards detail | "
+        "agentcore docs-standards save <file> | agentcore docs-standards detail save <file>",
+    )
+    docs_standards.add_argument(
+        "words",
+        nargs="*",
+        help="Optional words: detail | save <path> | detail save <path>",
+    )
+
+    stats = sub.add_parser(
+        "stats",
+        help="Count code/docs, language mix, and processed vs remaining percents",
+        epilog="Modes (no dashed flags): agentcore stats | agentcore stats detail | "
+        "agentcore stats save <file> | agentcore stats detail save <file>",
+    )
+    stats.add_argument(
+        "words",
+        nargs="*",
+        help="Optional words: detail | save <path> | detail save <path>",
+    )
 
     connect = sub.add_parser("connect", help="One-command coding-agent onboarding (see connect.yaml)")
     connect.add_argument("--init", action="store_true", help="Write ~/.agentcore/connect.yaml template")
@@ -89,12 +199,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override: sync only these roots (repeatable). Default: paths from init / paths list",
     )
-    sync.add_argument("--max-files", type=int, default=2000)
+    sync.set_defaults(max_files=_DEFAULT_SYNC_MAX_FILES)
+    sync.epilog = "Limit file count with bare: max-file <n>  (example: agentcore sync max-file 50)"
     sync.add_argument(
         "--progress-interval",
         type=float,
-        default=10.0,
-        help="Seconds between progress lines (ETA adapts from observed file rate; default 10)",
+        default=30.0,
+        help="Seconds between progress lines (ETA adapts from observed file rate; default 30)",
+    )
+    sync.add_argument(
+        "--allow-cloud-llm",
+        action="store_true",
+        help=(
+            "Skip interactive cloud-LLM prompt: treat as explicit per-run consent "
+            "to send code-derived prompts through a non-local LLM route"
+        ),
     )
     sync.add_argument(
         "--exclude-dir",
@@ -113,6 +232,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="Override include extensions (repeatable, e.g. --include-ext .py)",
+    )
+
+    llm = sub.add_parser("llm", help="LiteLLM gateway observability")
+    llm_sub = llm.add_subparsers(dest="llm_command", required=True)
+    llm_sub.add_parser(
+        "sessions",
+        help="Show in-flight and recent RPM sessions (process-local snapshot)",
     )
 
     purge = sub.add_parser(
@@ -278,6 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_scope_args(gin)
     gin.add_argument("--path", required=True, help="Repository or source root to ingest")
     gin.add_argument("--max-files", type=int, default=200)
+    gin.add_argument("--allow-cloud-llm", action="store_true")
 
     gfr = graph_sub.add_parser("freshness", help="Show freshness / pending-sync status")
     add_scope_args(gfr)
@@ -287,17 +414,20 @@ def build_parser() -> argparse.ArgumentParser:
     add_scope_args(gex)
     gex.add_argument("--query", required=True)
     gex.add_argument("--top-k", type=int, default=12)
+    gex.add_argument("--allow-cloud-llm", action="store_true")
 
     ghy = graph_sub.add_parser("hybrid", help="Run hybrid search")
     add_scope_args(ghy)
     ghy.add_argument("--query", required=True)
     ghy.add_argument("--top-k", type=int, default=10)
+    ghy.add_argument("--allow-cloud-llm", action="store_true")
 
     gsm = graph_sub.add_parser("smoke", help="Ingest + freshness + hybrid + explore in one process")
     add_scope_args(gsm)
     gsm.add_argument("--path", required=True)
     gsm.add_argument("--query", default="login password")
     gsm.add_argument("--max-files", type=int, default=50)
+    gsm.add_argument("--allow-cloud-llm", action="store_true")
 
     gwa = graph_sub.add_parser(
         "watch",

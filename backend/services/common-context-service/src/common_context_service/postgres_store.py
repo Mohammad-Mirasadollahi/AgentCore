@@ -45,7 +45,15 @@ class PostgresStore:
 
     @staticmethod
     def _scope_key(scope: Scope) -> str:
-        return "|".join((scope.tenant_id, scope.workspace_id, scope.project_id))
+        return "|".join(
+            (
+                scope.tenant_id,
+                scope.workspace_id,
+                scope.project_id,
+                scope.scope_kind,
+                scope.user_id or "",
+            )
+        )
 
     def begin_idempotency(self, scope: Scope, key: str, resource: str) -> str | None:
         with self._connection.cursor() as cursor:
@@ -110,8 +118,21 @@ class PostgresStore:
         with self._connection.cursor() as cursor:
             cursor.execute(
                 """SELECT payload FROM common_context.documents
-                   WHERE id=%s AND kind='common_item' AND tenant_id=%s AND workspace_id=%s AND project_id=%s""",
-                (item_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+                   WHERE id=%s AND kind='common_item' AND tenant_id=%s AND workspace_id=%s AND project_id=%s
+                     AND COALESCE(payload->>'scope_kind', 'project')=%s
+                     AND (
+                       %s <> 'user'
+                       OR COALESCE(payload->>'user_id', '')=%s
+                     )""",
+                (
+                    item_id,
+                    scope.tenant_id,
+                    scope.workspace_id,
+                    scope.project_id,
+                    scope.scope_kind,
+                    scope.scope_kind,
+                    scope.user_id or "",
+                ),
             )
             row = cursor.fetchone()
         if row is None:
@@ -124,14 +145,39 @@ class PostgresStore:
                 cursor.execute(
                     """SELECT payload FROM common_context.documents
                        WHERE kind='common_item' AND tenant_id=%s AND workspace_id=%s AND project_id=%s
-                       AND status=%s""",
-                    (scope.tenant_id, scope.workspace_id, scope.project_id, status),
+                       AND status=%s
+                       AND COALESCE(payload->>'scope_kind', 'project')=%s
+                       AND (
+                         %s <> 'user'
+                         OR COALESCE(payload->>'user_id', '')=%s
+                       )""",
+                    (
+                        scope.tenant_id,
+                        scope.workspace_id,
+                        scope.project_id,
+                        status,
+                        scope.scope_kind,
+                        scope.scope_kind,
+                        scope.user_id or "",
+                    ),
                 )
             else:
                 cursor.execute(
                     """SELECT payload FROM common_context.documents
-                       WHERE kind='common_item' AND tenant_id=%s AND workspace_id=%s AND project_id=%s""",
-                    (scope.tenant_id, scope.workspace_id, scope.project_id),
+                       WHERE kind='common_item' AND tenant_id=%s AND workspace_id=%s AND project_id=%s
+                       AND COALESCE(payload->>'scope_kind', 'project')=%s
+                       AND (
+                         %s <> 'user'
+                         OR COALESCE(payload->>'user_id', '')=%s
+                       )""",
+                    (
+                        scope.tenant_id,
+                        scope.workspace_id,
+                        scope.project_id,
+                        scope.scope_kind,
+                        scope.scope_kind,
+                        scope.user_id or "",
+                    ),
                 )
             items = [dict(row["payload"]) for row in cursor.fetchall()]
         return sorted(items, key=lambda i: (-i["score"], i["id"]))

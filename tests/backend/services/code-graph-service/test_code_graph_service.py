@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from code_graph_service.api import app
+from starlette.requests import Request
+
+from code_graph_service.api import _is_loopback_request, app
 from code_graph_service.bootstrap import Settings, build_store
 from code_graph_service.core import (
     CallConfidence,
@@ -362,6 +364,13 @@ def test_normalization_and_api_routes():
     assert "/api/v1/llm/providers" in routes
     assert "/api/v1/llm/config" in routes
     assert "/api/v1/llm/complete" in routes
+
+
+def test_llm_sessions_route_is_loopback_only():
+    assert _is_loopback_request(Request({"type": "http", "client": ("127.0.0.1", 50000)}))
+    assert _is_loopback_request(Request({"type": "http", "client": ("::1", 50000)}))
+    assert not _is_loopback_request(Request({"type": "http", "client": ("192.0.2.1", 50000)}))
+    assert not _is_loopback_request(Request({"type": "http", "client": ("localhost", 50000)}))
 
 
 def test_language_matrix_python_required_and_multi_lang_supported():

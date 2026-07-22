@@ -21,6 +21,7 @@ canonical_path: docs/13-technology-stack-and-platform-decisions/12-litellm-envir
 related_docs:
   - docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
   - docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
+  - docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
   - backend/services/code-graph-service/config/code-graph-service.example.env
   - backend/packages/llm_gateway/README.md
 doc_version: "1.0.0"
@@ -329,12 +330,33 @@ AGENTCORE_LITELLM_DEFAULT_MODEL=gpt-4o-mini
 | **If raised (e.g. 120)** | Higher burst rate; may trigger provider 429s despite retries. |
 | **If &lt; 1** | Startup validation error. |
 
+**Current runtime:** `RpmSessionGate` records **start** timestamps in a sliding
+60s window **and** tracks in-flight sessions until `release` (end). Launching a
+call waits until both `starts_in_window < rpm` and `inflight < inflight_cap`
+(v1: inflight_cap = rpm). See
+[`37`–`40` RPM-session parallel sync](../07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md).
+Companion knob: `AGENTCORE_SYNC_MAX_FILE_WORKERS` (default **auto** =
+`min(cpu_count, AGENTCORE_LITELLM_RPM)`) for parse/hash parallelism; store writes stay
+serialized via `LockedStore`.
+
 **Example — strict local quota:**
 
 ```bash
 AGENTCORE_LITELLM_RPM=10
-# After 10 calls in ~60s, the 11th blocks until the oldest call ages out of the window.
+# After 10 starts in ~60s, the next acquire blocks until the oldest start ages out
+# or an in-flight session ends (whichever frees capacity first).
+# Sync file workers auto-cap at min(cpu_count, 10) unless overridden.
 ```
+
+### `AGENTCORE_SYNC_MAX_FILE_WORKERS`
+
+| | |
+| --- | --- |
+| **Purpose** | Max parallel file workers for `agentcore sync` / `ingest_repo`. |
+| **Default** | **auto** — `min(os.cpu_count(), AGENTCORE_LITELLM_RPM)` |
+| **If unset / `auto`** | Computed from CPU cores and current RPM so workers track the operator's RPM setting. |
+| **If set to a positive int** | Explicit override (still ≥ 1). |
+| **If invalid / `0`** | Falls back to auto. |
 
 ### `AGENTCORE_LITELLM_DROP_PARAMS`
 

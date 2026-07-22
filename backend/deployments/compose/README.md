@@ -49,10 +49,15 @@ Copy `postgres.example.env` (and optionally `neo4j.example.env`) to an untracked
 docker compose --env-file <environment-file> -f backend/deployments/compose/compose.yaml --profile core up -d postgres neo4j
 ```
 
-Wait for health with a **hard timeout** (default 90s; do not spin forever):
+Wait for health with a **hard timeout** (default 300s / 5 minutes; do not spin forever).
+Progress lines name Compose services (for example `postgres: starting`), not raw container IDs:
 
 ```bash
-backend/deployments/compose/wait-healthy.sh --timeout 90 agentcore-postgres-1 agentcore-neo4j-1
+backend/deployments/compose/wait-healthy.sh --timeout 300 agentcore-postgres-1 agentcore-neo4j-1
+# Example progress:
+#   Checking health for: postgres, neo4j
+#   Waiting for databases (285s left): postgres: starting, neo4j: ready
+#   OK: all healthy (postgres, neo4j)
 ```
 
 Exit codes: `0` healthy, `1` timeout, `2` missing/exited/restart loop. Agents must stop on non-zero instead of chaining another sleep loop after pytest.

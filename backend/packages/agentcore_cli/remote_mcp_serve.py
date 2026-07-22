@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 from agentcore_cli.remote_client import apply_compose_env_to_os

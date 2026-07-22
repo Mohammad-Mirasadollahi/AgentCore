@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,8 @@ DEFAULT_CACHE_DIR = "/opt/agentcore-models"
 
 _HF_UNAUTH_NOISE = "unauthenticated requests to the HF Hub"
 _hf_noise_filter_installed = False
+_MODEL_LOAD_LOCK = threading.Lock()
+_MODEL_SLOTS = threading.BoundedSemaphore(4)
 
 
 class _DropUnauthenticatedHfHubNoise(logging.Filter):
@@ -122,7 +125,9 @@ class LocalBgeEmbeddings:
 
     def _ensure_loaded(self) -> Any:
         if self._encoder is None:
-            self._encoder = _load_sentence_transformer(self.model_name, self.cache_dir, self.device)
+            with _MODEL_LOAD_LOCK:
+                if self._encoder is None:
+                    self._encoder = _load_sentence_transformer(self.model_name, self.cache_dir, self.device)
         return self._encoder
 
     def preload(self) -> None:
@@ -130,16 +135,17 @@ class LocalBgeEmbeddings:
         self._ensure_loaded()
 
     def embed(self, text: str, *, is_query: bool = False) -> EmbeddingResult:
-        encoder = self._ensure_loaded()
-        # BGE retrieval: prefix queries; passages (ingest) stay raw.
-        payload = text or ""
-        if is_query and "bge" in self.model_name.lower():
-            payload = f"Represent this sentence for searching relevant passages: {payload}"
-        vector = encoder.encode(
-            payload,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
+        with _MODEL_SLOTS:
+            encoder = self._ensure_loaded()
+            # BGE retrieval: prefix queries; passages (ingest) stay raw.
+            payload = text or ""
+            if is_query and "bge" in self.model_name.lower():
+                payload = f"Represent this sentence for searching relevant passages: {payload}"
+            vector = encoder.encode(
+                payload,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
         values = [float(v) for v in list(vector)]
         if len(values) != self.dims:
             # Keep pgvector contract strict; pad/truncate only as last resort.

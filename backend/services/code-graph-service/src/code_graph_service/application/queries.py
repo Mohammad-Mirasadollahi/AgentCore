@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from ..domain.embeddings import cosine
-from ..domain.enums import SymbolKind
 from ..domain.errors import NotFoundError, ValidationError
 from ..domain.models import GraphSymbol, Scope
 from ..domain.polyglot_profile import PolyglotProjectProfile, build_polyglot_profile
@@ -21,16 +20,6 @@ from .support import GraphServiceSupport
 class QueryUseCases(GraphServiceSupport):
     def get_symbol(self, scope: Scope, symbol_id: str) -> GraphSymbol:
         return self.store.get_symbol(symbol_id, scope)
-
-    def list_changed_since(self, scope: Scope, previous_hashes: dict[str, str]) -> list[GraphSymbol]:
-        changed: list[GraphSymbol] = []
-        for symbol in self.store.list_symbols(scope):
-            if symbol.kind in {SymbolKind.FILE, SymbolKind.DOCUMENTATION, SymbolKind.UNRESOLVED}:
-                continue
-            prior = previous_hashes.get(symbol.qualified_name)
-            if prior is None or prior != symbol.hash_value:
-                changed.append(symbol)
-        return changed
 
     def get_polyglot_profile(self, scope: Scope) -> PolyglotProjectProfile:
         return build_polyglot_profile(self.store.list_symbols(scope), self.store.list_edges(scope))

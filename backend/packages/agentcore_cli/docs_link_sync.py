@@ -70,6 +70,7 @@ def sync_human_docs(
 ) -> DocsLinkSyncResult:
     """Discover Markdown via docs.match globs, index in docs-sync, project edges."""
     from code_graph_service.domain.doc_discovery import discover_documentation_files
+    from code_graph_service.domain.hashing import digest
 
     _ensure_docs_sync_import()
     from docs_sync_service.core import Scope as DocsScope
@@ -116,13 +117,15 @@ def sync_human_docs(
         frontmatter = provisional_frontmatter(rel, body, partial)
         doc_id = str(frontmatter["doc_id"]).strip()
         linked_tokens = [str(t).strip() for t in (frontmatter.get("linked_symbols") or []) if str(t).strip()]
+        # Include content fingerprint so edits get a new key (same key + new body = ConflictError).
+        doc_fp = digest(f"{rel}\n{doc_id}\n{linked_tokens}\n{body}")[:16]
 
         try:
             document = docs_svc.index_document(
                 docs_scope,
                 actor,
                 corr,
-                f"docs-index:{rel}:{doc_id}",
+                f"docs-index:{rel}:{doc_id}:{doc_fp}",
                 {"path": rel, "frontmatter": frontmatter, "body": body},
             )
             result.docs_indexed += 1
@@ -150,11 +153,14 @@ def sync_human_docs(
             except Exception:
                 continue
             try:
+                sym_fp = digest(
+                    f"{graph_sym.qualified_name}\n{graph_sym.hash_value}\n{graph_sym.body or ''}"
+                )[:16]
                 ds_symbol = docs_svc.index_symbol(
                     docs_scope,
                     actor,
                     corr,
-                    f"docs-sym:{symbol_graph_id}",
+                    f"docs-sym:{symbol_graph_id}:{sym_fp}",
                     {
                         "repo": repo_name,
                         "file_path": graph_sym.file_path,
@@ -170,7 +176,7 @@ def sync_human_docs(
                     docs_scope,
                     actor,
                     corr,
-                    f"docs-anchor:{doc_id}:{ds_symbol.id}",
+                    f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
                     {
                         "doc_id": document.id,
                         "symbol_id": ds_symbol.id,

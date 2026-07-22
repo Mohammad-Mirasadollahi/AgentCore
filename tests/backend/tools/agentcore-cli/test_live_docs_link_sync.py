@@ -77,7 +77,7 @@ def test_live_agentcore_sync_docs_link(tmp_path: Path) -> None:
             "qa",
             "--project",
             "docs-link",
-            "--max-files",
+            "max-file",
             "50",
             "--progress-interval",
             "60",

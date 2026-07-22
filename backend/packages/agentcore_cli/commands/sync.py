@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import threading
 from pathlib import Path
 from typing import Any
 
 from agentcore_cli import ui
-from agentcore_cli.commands.graph import _graph_scope, _graph_service
+from agentcore_cli.commands.graph import _graph_scope, _graph_service, _require_cloud_llm_consent
 from agentcore_cli.docs_link_sync import sync_human_docs
 from agentcore_cli.software_paths import require_software_paths
 from agentcore_cli.sync_config import resolve_sync_filters
@@ -42,6 +43,28 @@ def _sync_one_root(
     print(f"{ui.accent('→')}  Syncing {ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id)}")
     ui.kv("Path", str(root_path))
     ui.kv("Progress", f"updates about every {int(args.progress_interval)}s (adapts ETA from observed rate)")
+    try:
+        from code_graph_service.locked_store import sync_max_file_workers
+
+        workers_auto = sync_max_file_workers()
+    except Exception:  # noqa: BLE001
+        workers_auto = None
+    rpm_snap: dict[str, Any] = {}
+    try:
+        if hasattr(svc, "llm_sessions_snapshot"):
+            rpm_snap = svc.llm_sessions_snapshot() or {}
+    except Exception:  # noqa: BLE001
+        rpm_snap = {}
+    rpm_limit = int(rpm_snap.get("rpm") or 0)
+    if workers_auto is not None:
+        ui.kv("Parallel files", f"up to {workers_auto} workers (auto from CPU × RPM)")
+    if rpm_limit:
+        ui.kv(
+            "RPM",
+            f"{rpm_limit} req/min  "
+            f"(inflight cap {int(rpm_snap.get('inflight_cap') or rpm_limit)}; "
+            f"live lines show active/starts)",
+        )
     ui.kv("Config", ", ".join(filters["sources"]))
     if filters["include_paths"]:
         ui.kv("Only (legacy)", ", ".join(filters["include_paths"]))
@@ -65,6 +88,18 @@ def _sync_one_root(
         path=str(root_path),
         interval_sec=float(args.progress_interval),
     )
+    session_monitor_stop = threading.Event()
+
+    def _monitor_sessions() -> None:
+        while not session_monitor_stop.is_set():
+            try:
+                tracker.update_sessions(svc.llm_sessions_snapshot())
+            except Exception:  # noqa: BLE001
+                pass
+            session_monitor_stop.wait(0.1)
+
+    session_monitor = threading.Thread(target=_monitor_sessions, daemon=True)
+    session_monitor.start()
     ingest_timer = TimedPhase()
     try:
         result = svc.sync_repo(
@@ -84,6 +119,8 @@ def _sync_one_root(
             },
         )
     finally:
+        session_monitor_stop.set()
+        session_monitor.join(timeout=1.0)
         tracker.finish()
     ingest_sec = ingest_timer.stop()
 
@@ -179,6 +216,18 @@ def _sync_one_root(
     ui.kv("Truncated", str(payload.get("truncated")))
     ui.kv("Files", f"ingested={payload.get('files_ingested')}  discovered={payload.get('files_discovered')}")
     ui.kv("Symbols", f"indexed={payload.get('symbols_indexed')}  changed={payload.get('symbols_changed')}")
+    try:
+        final_rpm = svc.llm_sessions_snapshot() if hasattr(svc, "llm_sessions_snapshot") else {}
+    except Exception:  # noqa: BLE001
+        final_rpm = {}
+    if final_rpm.get("rpm"):
+        ui.kv(
+            "RPM final",
+            f"inflight {int(final_rpm.get('inflight_count') or 0)}/"
+            f"{int(final_rpm.get('inflight_cap') or final_rpm.get('rpm') or 0)}  "
+            f"starts {int(final_rpm.get('starts_in_window') or 0)}/{int(final_rpm.get('rpm') or 0)}  "
+            f"history {len(final_rpm.get('history') or [])}",
+        )
     ui.kv(
         "Tokens≈",
         f"in={tokens_in + docs_tokens_in}  out={tokens_out}  "
@@ -212,11 +261,64 @@ def _sync_one_root(
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
+    try:
+        return _cmd_sync_body(args)
+    except KeyboardInterrupt:
+        ui.blank()
+        print(f"{ui.warn('!')} Sync stopped — graceful shutdown complete", flush=True)
+        ui.blank()
+        return 130
+
+
+def _cmd_sync_body(args: argparse.Namespace) -> int:
+    from agentcore_cli.service_runtime import ensure_running_or_offer_start
+    from agentcore_cli.util import repo_root
+
+    started = ensure_running_or_offer_start(repo_root())
+    if started is not None:
+        ui.blank()
+        ui.heading("AgentCore is up")
+        compose = started.get("compose") or {}
+        service_times = compose.get("service_started_at") or {}
+        for name in compose.get("services") or []:
+            ts = service_times.get(name) or compose.get("started_at") or "?"
+            ui.kv(str(name), f"started at {ts}")
+        mcp = started.get("mcp") or {}
+        mcp_ts = mcp.get("started_at") or "?"
+        mcp_bits = [f"started at {mcp_ts}"]
+        if mcp.get("pid"):
+            mcp_bits.append(f"pid {mcp.get('pid')}")
+        if mcp.get("host") is not None and mcp.get("port") is not None:
+            mcp_bits.append(f"{mcp.get('host')}:{mcp.get('port')}")
+        ui.kv("MCP HTTP", "  ".join(mcp_bits))
+        ui.blank()
+
     svc = _graph_service()
     scope = _graph_scope(args, with_defaults=True)
     scope_txt = f"{scope.tenant_id}/{scope.workspace_id}/{scope.project_id}"
     cli_paths = list(args.path) if args.path else None
     roots = [Path(p) for p in require_software_paths(cli_paths=cli_paths)]
+
+    from agentcore_cli.commands.inventory.collect import build_inventory_report
+    from agentcore_cli.commands.stats.render import print_sync_preflight
+
+    print_sync_preflight(
+        build_inventory_report(
+            args,
+            roots=roots,
+            max_files=int(args.max_files),
+            scope=scope,
+        )
+    )
+
+    _require_cloud_llm_consent(
+        svc,
+        allowed=bool(getattr(args, "allow_cloud_llm", False)),
+        tenant=scope.tenant_id,
+        workspace=scope.workspace_id,
+        project=scope.project_id,
+        paths=roots,
+    )
     results: list[dict[str, Any]] = []
     all_tasks: list[dict[str, Any]] = []
     total_in = 0
