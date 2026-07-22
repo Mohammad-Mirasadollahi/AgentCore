@@ -36,6 +36,7 @@ Local infrastructure services must be started through Docker Compose profiles or
 Compose profiles should be additive:
 
 - `core` for PostgreSQL with pgvector, Neo4j, and object storage.
+- `app` for the MCP HTTP gateway application container (built from `/opt/agentcore-wheelhouse`).
 - `observability` for OpenTelemetry, metrics, logs, and dashboards when enabled.
 - `all` for all approved local infrastructure services.
 

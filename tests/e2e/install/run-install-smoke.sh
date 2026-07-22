@@ -83,11 +83,14 @@ fi
 if ! grep -q "05_verify" "${EVIDENCE_LOG}"; then
   fail "list-stages missing 05_verify"
 fi
+if ! grep -q "06_runtime_bringup" "${EVIDENCE_LOG}"; then
+  fail "list-stages missing 06_runtime_bringup"
+fi
 
 # --- 2) Host path (no Docker) -----------------------------------------------
 banner "2/6 Host install path (--skip-infra)"
-run_capture "install --skip-infra" bash "${INSTALL_SH}" --skip-infra --skip-prerequisites
-run_capture "install --check --skip-infra" bash "${INSTALL_SH}" --check --skip-infra
+run_capture "install --skip-infra" bash "${INSTALL_SH}" --non-interactive --runtime host --skip-infra --skip-prerequisites
+run_capture "install --check --skip-infra" bash "${INSTALL_SH}" --non-interactive --runtime host --check --skip-infra
 
 require_exec "${ROOT}/.venv/bin/python"
 require_exec "${CLI}"
@@ -106,14 +109,14 @@ run_capture "venv imports" "${ROOT}/.venv/bin/python" -c \
 # --- 4) Per-stage dispatch --------------------------------------------------
 banner "4/6 Single-stage dispatch"
 run_capture "stage 01 (check-ish via skip-prereqs)" \
-  bash "${INSTALL_SH}" --stage 01_prerequisites --skip-prerequisites --skip-infra
-run_capture "stage 02_venv" bash "${INSTALL_SH}" --stage 02_venv
+  bash "${INSTALL_SH}" --non-interactive --runtime host --stage 01_prerequisites --skip-prerequisites --skip-infra
+run_capture "stage 02_venv" bash "${INSTALL_SH}" --non-interactive --runtime host --stage 02_venv
 run_capture "stage 05_verify --skip-infra" \
-  bash "${INSTALL_SH}" --stage 05_verify --skip-infra
+  bash "${INSTALL_SH}" --non-interactive --runtime host --stage 05_verify --skip-infra
 
 # --- 5) Compose env (no containers) -----------------------------------------
 banner "5/6 Compose env generation (stage 03)"
-run_capture "stage 03_compose_env" bash "${INSTALL_SH}" --stage 03_compose_env
+run_capture "stage 03_compose_env" bash "${INSTALL_SH}" --non-interactive --runtime host --stage 03_compose_env
 ENV_FILE="${ROOT}/backend/deployments/compose/.env.local"
 require_file "${ENV_FILE}"
 if grep -q "replace-with-a-local-secret" "${ENV_FILE}"; then
@@ -127,9 +130,9 @@ if [[ "${SMOKE_SKIP_DOCKER}" == "1" ]]; then
   log "SKIP docker section (SMOKE_SKIP_DOCKER=1)"
 elif docker_ready; then
   run_capture "full install.sh" \
-    bash "${INSTALL_SH}" --skip-prerequisites --compose-timeout "${SMOKE_COMPOSE_TIMEOUT}"
+    bash "${INSTALL_SH}" --non-interactive --runtime host --skip-prerequisites --compose-timeout "${SMOKE_COMPOSE_TIMEOUT}"
   run_capture "install --check" \
-    bash "${INSTALL_SH}" --check --compose-timeout "${SMOKE_COMPOSE_TIMEOUT}"
+    bash "${INSTALL_SH}" --non-interactive --runtime host --check --compose-timeout "${SMOKE_COMPOSE_TIMEOUT}"
 
   # Direct health evidence
   if [[ -x "${ROOT}/backend/deployments/compose/wait-healthy.sh" ]]; then

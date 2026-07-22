@@ -16,6 +16,8 @@ source "${AGENTCORE_INSTALL_LIB}/03_compose_env.sh"
 source "${AGENTCORE_INSTALL_LIB}/04_docker_infra.sh"
 # shellcheck source=05_verify.sh
 source "${AGENTCORE_INSTALL_LIB}/05_verify.sh"
+# shellcheck source=06_runtime_bringup.sh
+source "${AGENTCORE_INSTALL_LIB}/06_runtime_bringup.sh"
 
 INSTALL_STAGES=(
   "01_prerequisites:stage_01_prerequisites_run"
@@ -23,6 +25,7 @@ INSTALL_STAGES=(
   "03_compose_env:stage_03_compose_env_run"
   "04_docker_infra:stage_04_docker_infra_run"
   "05_verify:stage_05_verify_run"
+  "06_runtime_bringup:stage_06_runtime_bringup_run"
 )
 
 list_install_stages() {
@@ -32,6 +35,7 @@ list_install_stages() {
     name="${entry%%:*}"
     echo "  - ${name}"
   done
+  echo "Runtime modes: host | docker (prompted unless --runtime / --non-interactive)"
 }
 
 run_install_stage() {
@@ -41,6 +45,9 @@ run_install_stage() {
     name="${entry%%:*}"
     fn="${entry#*:}"
     if [[ "${name}" == "${want}" ]]; then
+      if [[ "${name}" == "06_runtime_bringup" ]]; then
+        resolve_install_runtime
+      fi
       "${fn}"
       return $?
     fi
@@ -51,6 +58,17 @@ run_install_stage() {
 run_install_all() {
   local entry fn
   ensure_state_dir
+
+  # Interactive / flagged choice before stages that depend on it.
+  resolve_install_runtime
+
+  # Human full installs must install OS prerequisites (ignore accidental skip).
+  if [[ "${INSTALL_NONINTERACTIVE}" != "1" && "${INSTALL_SKIP_PREREQS}" == "1" ]]; then
+    warn "Ignoring --skip-prerequisites for interactive install (prerequisites are required)"
+    INSTALL_SKIP_PREREQS=0
+    export INSTALL_SKIP_PREREQS
+  fi
+
   for entry in "${INSTALL_STAGES[@]}"; do
     fn="${entry#*:}"
     "${fn}"
@@ -70,6 +88,9 @@ install_main() {
       run_install_stage "${stage_name}"
       ;;
     prerequisites-only)
+      # Always install/check OS deps; no runtime prompt.
+      INSTALL_SKIP_PREREQS=0
+      export INSTALL_SKIP_PREREQS
       run_install_stage "01_prerequisites"
       ;;
     all|*)

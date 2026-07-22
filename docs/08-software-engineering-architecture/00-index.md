@@ -28,6 +28,7 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 18-developer-onboarding-and-delivery-workflow.md defines the practical reading path, repository discovery checklist, and workflows for new features, services, contracts, adapters, rules, documentation updates, and delivery readiness.
 - 19-zero-touch-installation-and-bootstrap-automation.md defines one-command installation goals, preflight checks, dependency provisioning, config generation, automated store and broker bootstrap, service registry creation, first-run readiness, evidence reports, and resumable failure handling.
 - 39-local-install-runbook.md is the operator runbook for the shipped modular root `install.sh` (prerequisites, `.venv`, Compose, verify).
+- 43-app-docker-and-wheelhouse-runbook.md is the operator runbook for exporting `.venv` wheels to `/opt/agentcore-wheelhouse`, building `mcp-gateway`, and Compose profile `app` (PATH, mounts, CLI parity).
 - 40-remote-dev-client-mcp-wiring.md is the cross-platform Python runbook for wiring a remote dev host to AgentCore MCP over SSH stdio.
 - 41-one-command-cross-platform-agent-onboarding.md specifies the target single-command, API-first, cross-platform onboarding UX (with phased delivery from today's wire-remote).
 - 20-agent-and-resource-connectivity-automation.md defines connector registry, agent onboarding, capability discovery, generated connection profiles, authentication automation, validation, self-service UI and CLI, dynamic discovery, connector health, and failure handling.
@@ -120,6 +121,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | CI, release, rollback | 12-ci-cd-and-release-engineering.md |
 | zero-touch installation and bootstrap | 19-zero-touch-installation-and-bootstrap-automation.md |
 | local modular install (`install.sh`) | 39-local-install-runbook.md |
+| app Docker + `/opt` wheelhouse (`mcp-gateway`) | 43-app-docker-and-wheelhouse-runbook.md |
 | remote dev client MCP (SSH) | 40-remote-dev-client-mcp-wiring.md |
 | one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |
 | agentcore CLI install / overview | 36-agentcore-cli.md |

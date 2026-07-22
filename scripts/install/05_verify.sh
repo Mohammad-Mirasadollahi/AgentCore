@@ -30,6 +30,13 @@ stage_05_verify_check() {
     fi
   fi
 
+  if ! user_cli_on_path; then
+    warn "agentcore not on user PATH (${HOME}/.local/bin/agentcore)"
+    errors=1
+  else
+    ok "user PATH shim present"
+  fi
+
   return "${errors}"
 }
 
@@ -60,18 +67,5 @@ stage_05_verify_run() {
     ok "ai-toolstack install finished (Reload Cursor window if open)"
   fi
 
-  ok "Stage 05 complete"
-  echo
-  banner "AgentCore install finished"
-  cat <<EOF
-Next steps:
-  1. Ensure ~/.local/bin is on PATH (open a new shell if needed)
-  2. Run:  agentcore --help
-  3. Run:  agentcore doctor
-  4. Ports: agentcore ports show
-  5. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
-
-Compose env (secrets): ${COMPOSE_ENV_FILE}
-Re-check anytime:       bash install.sh --check
-EOF
+  ok "Stage 05 complete (runtime bring-up follows in stage 06)"
 }

@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+# AgentCore MCP gateway image — installs Python deps from a host wheelhouse (no PyPI at build).
+#
+# Build (from repo root, after scripts/build-wheelhouse.sh):
+#   docker build \
+#     -f backend/deployments/docker/Dockerfile.mcp-gateway \
+#     --build-context wheelhouse=/opt/agentcore-wheelhouse \
+#     -t agentcore-mcp-gateway:local \
+#     .
+#
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    AGENTCORE_ROOT=/opt/AgentCore \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /opt/AgentCore
+
+# Wheelhouse produced on the host from .venv (default /opt/agentcore-wheelhouse).
+COPY --from=wheelhouse / /opt/agentcore-wheelhouse/
+
+# Application source (services resolve via PYTHONPATH; agentcore wheel provides CLI packages).
+COPY backend/packages /opt/AgentCore/backend/packages
+COPY backend/services/mcp-gateway-service /opt/AgentCore/backend/services/mcp-gateway-service
+COPY backend/services/core-data-service /opt/AgentCore/backend/services/core-data-service
+COPY backend/services/memory-service /opt/AgentCore/backend/services/memory-service
+COPY backend/services/code-graph-service /opt/AgentCore/backend/services/code-graph-service
+COPY backend/services/docs-sync-service /opt/AgentCore/backend/services/docs-sync-service
+COPY backend/services/common-context-service /opt/AgentCore/backend/services/common-context-service
+COPY backend/configs /opt/AgentCore/backend/configs
+COPY pyproject.toml README.md /opt/AgentCore/
+
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --no-index --find-links=/opt/agentcore-wheelhouse \
+      -r /opt/agentcore-wheelhouse/requirements.txt \
+ && test -x /usr/local/bin/agentcore || python -m pip install --no-index --find-links=/opt/agentcore-wheelhouse agentcore
+
+ENV PYTHONPATH=/opt/AgentCore/backend/services/mcp-gateway-service/src:/opt/AgentCore/backend/packages:/opt/AgentCore/backend/services/core-data-service/src:/opt/AgentCore/backend/services/memory-service/src:/opt/AgentCore/backend/services/code-graph-service/src:/opt/AgentCore/backend/services/docs-sync-service/src:/opt/AgentCore/backend/services/common-context-service/src
+
+EXPOSE 32500
+
+COPY backend/deployments/docker/entrypoint-mcp-gateway.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "-m", "mcp_gateway_service", "--http", "--host", "0.0.0.0", "--port", "32500"]

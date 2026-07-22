@@ -120,9 +120,9 @@ export PATH="${ISO_HOME}/.local/bin:${ISO_TREE}/.ac-venv/bin:${PATH}"
 # Avoid Cursor sandbox RO bind mounts on paths literally named ".venv".
 export AGENTCORE_VENV_DIR=".ac-venv"
 run_capture "iso install --skip-infra" \
-  bash "${ISO_TREE}/install.sh" --skip-infra --skip-prerequisites
+  bash "${ISO_TREE}/install.sh" --non-interactive --runtime host --skip-infra --skip-prerequisites
 run_capture "iso install --check --skip-infra" \
-  bash "${ISO_TREE}/install.sh" --check --skip-infra
+  bash "${ISO_TREE}/install.sh" --non-interactive --runtime host --check --skip-infra
 run_capture "iso agentcore doctor" \
   env AGENTCORE_VENV_DIR=".ac-venv" "${ISO_TREE}/.ac-venv/bin/agentcore" doctor
 banner "3/5 Compose env with offset ports"
@@ -177,7 +177,7 @@ else
   # install.sh compose helpers honor COMPOSE_PROJECT_NAME
   run_capture "iso install --check (with infra)" \
     env COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT}" \
-    bash "${ISO_TREE}/install.sh" --check --skip-prerequisites --compose-timeout 60
+    bash "${ISO_TREE}/install.sh" --non-interactive --runtime host --check --skip-prerequisites --compose-timeout 60
   ok "docker infra smoke on isolated ports passed"
 fi
 

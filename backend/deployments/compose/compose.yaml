@@ -95,6 +95,52 @@ services:
       ]
     restart: unless-stopped
 
+  # Application container: MCP Streamable HTTP gateway (deps from /opt/agentcore-wheelhouse).
+  mcp-gateway:
+    profiles: ["app", "all"]
+    build:
+      context: ../../..
+      dockerfile: backend/deployments/docker/Dockerfile.mcp-gateway
+      additional_contexts:
+        wheelhouse: ${AGENTCORE_WHEELHOUSE:-/opt/agentcore-wheelhouse}
+    image: agentcore-mcp-gateway:local
+    environment:
+      AGENTCORE_POSTGRES_HOST: postgres
+      AGENTCORE_POSTGRES_PORT: "5432"
+      AGENTCORE_POSTGRES_USER: ${AGENTCORE_POSTGRES_USER:-agentcore}
+      AGENTCORE_POSTGRES_PASSWORD: ${AGENTCORE_POSTGRES_PASSWORD:?AGENTCORE_POSTGRES_PASSWORD is required}
+      AGENTCORE_POSTGRES_DATABASE: ${AGENTCORE_POSTGRES_DATABASE:-agentcore}
+      AGENTCORE_NEO4J_HOST: neo4j
+      AGENTCORE_NEO4J_BOLT_PORT: "7687"
+      AGENTCORE_NEO4J_USER: ${AGENTCORE_NEO4J_USER:-neo4j}
+      AGENTCORE_NEO4J_PASSWORD: ${AGENTCORE_NEO4J_PASSWORD:?AGENTCORE_NEO4J_PASSWORD is required}
+      AGENTCORE_MCP_HTTP_HOST: "0.0.0.0"
+      AGENTCORE_MCP_HTTP_PORT: "32500"
+      AGENTCORE_MCP_HTTP_TOKEN: ${AGENTCORE_MCP_HTTP_TOKEN:-agentcore-docker-dev-token}
+      AGENTCORE_MCP_STORE_MODE: postgres
+      AGENTCORE_CODE_GRAPH_STORE: neo4j
+      AGENTCORE_MCP_GRAPH_MODE: neo4j
+    ports:
+      - "${AGENTCORE_MCP_HTTP_PORT:-32500}:32500"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:32500/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
 volumes:
   agentcore-postgres-data:
   agentcore-neo4j-data:
