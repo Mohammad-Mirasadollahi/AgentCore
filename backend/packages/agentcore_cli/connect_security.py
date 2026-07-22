@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import stat
 import sys
@@ -84,8 +83,3 @@ def reject_secrets_in_connect_doc(doc: dict[str, Any], path: Path) -> None:
 
 def merge_lock_path(config_path: Path) -> Path:
     return config_path.parent / ".agentcore-connect-merge.lock"
-
-
-def mcp_config_mode() -> int:
-    """Unix: group-readable MCP JSON in repo; secrets must not appear in these files."""
-    return 0o644

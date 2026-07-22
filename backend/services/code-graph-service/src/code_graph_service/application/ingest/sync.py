@@ -2,38 +2,22 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any
 
-from ...domain.cross_language import (
-    build_symbol_indexes,
-    resolve_call_target_polyglot,
-    resolve_import_target,
-)
 from ...domain.package_manifests import load_package_aliases
-from ...domain.dispatch_synth import synthesize_interface_dispatch
-from ...domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
 from ...domain.errors import ValidationError
-from ...domain.framework_routes import extract_routes, route_symbol_id
-from ...domain.freshness import extract_rationale_comments
-from ...domain.hashing import digest, normalize_source, now_iso
-from ...domain.languages import assert_language_supported, detect_language_from_path
+from ...domain.languages import detect_language_from_path
 from ...domain.models import (
-    GraphSymbol,
-    IngestResult,
     RepoIngestFileOutcome,
     RepoIngestResult,
     Scope,
     SyncRepoResult,
 )
-from ...domain.parsers import parse_source
-from ...domain.repo_discovery import (
-    DEFAULT_MAX_FILE_BYTES,
-    DEFAULT_MAX_FILES,
-    discover_source_files,
-)
-from ...domain.test_links import suggest_test_links
-from ..support import GraphServiceSupport, unresolved_call_name, unresolved_symbol_id
+from ...locked_store import sync_max_file_workers
+from .parallel_files import run_parallel_file_jobs
+
 
 class SyncMixin:
     """Operator-facing sync_repo / purge_scope."""
@@ -55,7 +39,9 @@ class SyncMixin:
             raise ValidationError(f"root_path is not a directory: {resolved_root}")
 
         symbols = list(self.store.list_symbols(scope))
-        freshness = self.freshness_status() if hasattr(self, "freshness_status") else {"pending_files": []}
+        freshness = (
+            self.freshness_status(scope) if hasattr(self, "freshness_status") else {"pending_files": []}
+        )
         pending = [str(p) for p in (freshness.get("pending_files") or []) if str(p).strip()]
 
         ingest_payload = dict(payload)
@@ -66,10 +52,12 @@ class SyncMixin:
             hint = ""
             if ingest.truncated:
                 hint = "truncated: run sync again to continue indexing more files"
+            if hasattr(self, "record_sync_stamp"):
+                self.record_sync_stamp(scope)
             return SyncRepoResult.from_ingest(
                 mode="full",
                 ingest=ingest,
-                freshness=self.freshness_status() if hasattr(self, "freshness_status") else freshness,
+                freshness=self.freshness_status(scope) if hasattr(self, "freshness_status") else freshness,
                 hint=hint,
             )
 
@@ -85,17 +73,23 @@ class SyncMixin:
                 on_progress=payload.get("on_progress"),
             )
             hint = ""
+            if hasattr(self, "record_sync_stamp"):
+                self.record_sync_stamp(scope)
             if ingest.files_ingested == 0 and ingest.files_failed == 0:
+                if ingest.files_skipped > 0:
+                    hint = "up to date (pending files unchanged)"
+                else:
+                    hint = "no pending files could be resolved under root_path"
                 return SyncRepoResult.from_ingest(
                     mode="noop",
                     ingest=ingest,
-                    freshness=self.freshness_status() if hasattr(self, "freshness_status") else freshness,
-                    hint="no pending files could be resolved under root_path",
+                    freshness=self.freshness_status(scope) if hasattr(self, "freshness_status") else freshness,
+                    hint=hint,
                 )
             return SyncRepoResult.from_ingest(
                 mode="incremental",
                 ingest=ingest,
-                freshness=self.freshness_status() if hasattr(self, "freshness_status") else freshness,
+                freshness=self.freshness_status(scope) if hasattr(self, "freshness_status") else freshness,
                 hint=hint,
             )
 
@@ -106,10 +100,15 @@ class SyncMixin:
             hint = "truncated: run sync again to continue indexing more files"
         elif mode == "noop":
             hint = "up to date (no source files discovered)"
+        elif ingest.files_ingested == 0 and ingest.files_skipped > 0:
+            mode = "noop"
+            hint = "up to date (no content changes)"
+        if hasattr(self, "record_sync_stamp"):
+            self.record_sync_stamp(scope)
         return SyncRepoResult.from_ingest(
             mode=mode,
             ingest=ingest,
-            freshness=self.freshness_status() if hasattr(self, "freshness_status") else freshness,
+            freshness=self.freshness_status(scope) if hasattr(self, "freshness_status") else freshness,
             hint=hint,
         )
 
@@ -138,11 +137,15 @@ class SyncMixin:
             "chars_read": 0,
         }
         total_files = len(pending_paths)
+        state_lock = threading.Lock()
+        done_count = 0
 
         def _emit(done: int, *, file: str = "", status: str = "") -> None:
             if not callable(on_progress):
                 return
             try:
+                with state_lock:
+                    snap_totals = dict(totals)
                 on_progress(
                     {
                         "phase": "incremental",
@@ -150,69 +153,78 @@ class SyncMixin:
                         "total": total_files,
                         "file": file,
                         "status": status,
-                        "files_ingested": totals["ingested"],
-                        "files_failed": totals["failed"],
-                        "files_skipped": totals["skipped"],
-                        "symbols_indexed": totals["symbols_indexed"],
-                        "symbols_changed": totals["symbols_changed"],
-                        "edges_written": totals["edges_written"],
-                        "chars_read": totals["chars_read"],
-                        "approx_tokens": totals["chars_read"] // 4,
+                        "files_ingested": snap_totals["ingested"],
+                        "files_failed": snap_totals["failed"],
+                        "files_skipped": snap_totals["skipped"],
+                        "symbols_indexed": snap_totals["symbols_indexed"],
+                        "symbols_changed": snap_totals["symbols_changed"],
+                        "edges_written": snap_totals["edges_written"],
+                        "chars_read": snap_totals["chars_read"],
+                        "approx_tokens": snap_totals["chars_read"] // 4,
                     }
                 )
             except Exception:  # noqa: BLE001
                 return
 
-        _emit(0, status="started")
-        for index, raw in enumerate(pending_paths):
+        def _process_one(index: int, raw: str) -> None:
+            nonlocal done_count
             rel, abs_path = self._resolve_pending_path(root, raw)
             if abs_path is None or not abs_path.is_file():
-                totals["skipped"] += 1
-                if include_outcomes:
-                    outcomes.append(
-                        RepoIngestFileOutcome(
-                            relative_path=rel or raw,
-                            language="",
-                            status="skipped",
-                            detail="not_found_under_root",
+                with state_lock:
+                    totals["skipped"] += 1
+                    done_count += 1
+                    done = done_count
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel or raw,
+                                language="",
+                                status="skipped",
+                                detail="not_found_under_root",
+                            )
                         )
-                    )
-                _emit(index + 1, file=rel or raw, status="skipped")
-                continue
+                _emit(done, file=rel or raw, status="skipped")
+                return
             try:
                 language = detect_language_from_path(str(abs_path)) or ""
             except Exception:
                 language = ""
             if not language:
-                totals["skipped"] += 1
-                if include_outcomes:
-                    outcomes.append(
-                        RepoIngestFileOutcome(
-                            relative_path=rel,
-                            language="",
-                            status="skipped",
-                            detail="unsupported_language",
+                with state_lock:
+                    totals["skipped"] += 1
+                    done_count += 1
+                    done = done_count
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language="",
+                                status="skipped",
+                                detail="unsupported_language",
+                            )
                         )
-                    )
                 if hasattr(self, "clear_pending_sync"):
                     self.clear_pending_sync(raw)
-                _emit(index + 1, file=rel, status="skipped")
-                continue
+                _emit(done, file=rel, status="skipped")
+                return
             try:
                 text_body = abs_path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError) as exc:
-                totals["failed"] += 1
-                if include_outcomes:
-                    outcomes.append(
-                        RepoIngestFileOutcome(
-                            relative_path=rel,
-                            language=language,
-                            status="failed",
-                            detail=str(exc)[:500],
+                with state_lock:
+                    totals["failed"] += 1
+                    done_count += 1
+                    done = done_count
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language=language,
+                                status="failed",
+                                detail=str(exc)[:500],
+                            )
                         )
-                    )
-                _emit(index + 1, file=rel, status="failed")
-                continue
+                _emit(done, file=rel, status="failed")
+                return
             file_key = f"{idempotency_key}:pending:{rel}:{index}"
             try:
                 result = self.ingest_file(
@@ -228,38 +240,57 @@ class SyncMixin:
                     },
                 )
             except Exception as exc:  # noqa: BLE001
-                totals["failed"] += 1
+                with state_lock:
+                    totals["failed"] += 1
+                    done_count += 1
+                    done = done_count
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language=language,
+                                status="failed",
+                                detail=str(exc)[:500],
+                            )
+                        )
+                _emit(done, file=rel, status="failed")
+                return
+            unchanged = (
+                result.symbols_indexed == 0
+                and result.symbols_changed == 0
+                and result.edges_written == 0
+            )
+            with state_lock:
+                if unchanged:
+                    totals["skipped"] += 1
+                else:
+                    totals["ingested"] += 1
+                totals["chars_read"] += len(text_body)
+                totals["symbols_indexed"] += result.symbols_indexed
+                totals["symbols_changed"] += result.symbols_changed
+                totals["symbols_documented"] += result.symbols_documented
+                totals["edges_written"] += result.edges_written
+                done_count += 1
+                done = done_count
                 if include_outcomes:
                     outcomes.append(
                         RepoIngestFileOutcome(
                             relative_path=rel,
                             language=language,
-                            status="failed",
-                            detail=str(exc)[:500],
+                            status="unchanged" if unchanged else "ok",
+                            file_id=result.file_id,
+                            symbols_indexed=result.symbols_indexed,
+                            symbols_changed=result.symbols_changed,
+                            symbols_documented=result.symbols_documented,
+                            edges_written=result.edges_written,
                         )
                     )
-                _emit(index + 1, file=rel, status="failed")
-                continue
-            totals["ingested"] += 1
-            totals["chars_read"] += len(text_body)
-            totals["symbols_indexed"] += result.symbols_indexed
-            totals["symbols_changed"] += result.symbols_changed
-            totals["symbols_documented"] += result.symbols_documented
-            totals["edges_written"] += result.edges_written
-            if include_outcomes:
-                outcomes.append(
-                    RepoIngestFileOutcome(
-                        relative_path=rel,
-                        language=language,
-                        status="ok",
-                        file_id=result.file_id,
-                        symbols_indexed=result.symbols_indexed,
-                        symbols_changed=result.symbols_changed,
-                        symbols_documented=result.symbols_documented,
-                        edges_written=result.edges_written,
-                    )
-                )
-            _emit(index + 1, file=rel, status="ok")
+            _emit(done, file=rel, status="unchanged" if unchanged else "ok")
+
+        _emit(0, status="started")
+        workers = min(sync_max_file_workers(), max(1, total_files))
+        if total_files:
+            run_parallel_file_jobs(workers=workers, items=pending_paths, fn=_process_one)
         _emit(total_files, status="finished")
         return RepoIngestResult(
             root_path=str(root),

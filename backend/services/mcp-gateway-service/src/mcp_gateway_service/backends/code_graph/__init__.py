@@ -19,11 +19,7 @@ from .query import (
 )
 from .write import ingest_file, ingest_repo, purge_scope, sync_repo
 
-# Private alias kept for any internal callers.
-_resolve_symbol_id = resolve_symbol_id
-
 __all__ = [
-    "_resolve_symbol_id",
     "architecture_overview",
     "detect_changes",
     "explore",

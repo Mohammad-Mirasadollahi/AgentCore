@@ -43,7 +43,12 @@ class PostgresStore:
 
         migrations_dir = Path(__file__).resolve().parents[2] / "migrations"
         with self._connection.cursor() as cur:
-            for name in ("0001_code_graph.sql", "0002_outbox_published.sql", "0006_symbol_fts.sql"):
+            for name in (
+                "0001_code_graph.sql",
+                "0002_outbox_published.sql",
+                "0006_symbol_fts.sql",
+                "0007_symbol_language.sql",
+            ):
                 path = migrations_dir / name
                 if path.is_file():
                     cur.execute(path.read_text(encoding="utf-8"))
@@ -127,6 +132,7 @@ class PostgresStore:
             version=row["version"],
             created_at=_timestamp(row["created_at"]),
             updated_at=_timestamp(row["updated_at"]),
+            language=str(row.get("language") or ""),
         )
 
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
@@ -151,9 +157,9 @@ class PostgresStore:
                 INSERT INTO code_graph.symbols (
                     id, tenant_id, workspace_id, project_id, project_group_id, kind, file_path, name,
                     qualified_name, signature, body, hash_value, ai_documentation, doc_status, embedding,
-                    visibility, version, created_at, updated_at
+                    visibility, version, created_at, updated_at, language
                 ) VALUES (
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
                 )
                 ON CONFLICT (id) DO UPDATE SET
                     kind = EXCLUDED.kind,
@@ -168,7 +174,8 @@ class PostgresStore:
                     embedding = EXCLUDED.embedding,
                     visibility = EXCLUDED.visibility,
                     version = EXCLUDED.version,
-                    updated_at = EXCLUDED.updated_at
+                    updated_at = EXCLUDED.updated_at,
+                    language = EXCLUDED.language
                 """,
                 (
                     symbol.id,
@@ -190,6 +197,7 @@ class PostgresStore:
                     symbol.version,
                     symbol.created_at,
                     symbol.updated_at,
+                    symbol.language or "",
                 ),
             )
             # Refresh FTS document (column added by 0006_symbol_fts.sql).

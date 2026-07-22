@@ -1,21 +1,10 @@
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Protocol
 from uuid import uuid4
 
 from .types import utc_now
-
-ROOT = Path(__file__).resolve().parents[3]
-SERVICES = ROOT / "backend" / "services"
-
-
-def _ensure(path: Path) -> None:
-    text = str(path)
-    if text not in sys.path:
-        sys.path.insert(0, text)
 
 
 @dataclass(frozen=True)
@@ -171,16 +160,6 @@ class BrokerForwardHandler:
             message,
         )
         return HandlerResult(self.name, True, f"broker:{intent}")
-
-
-def ensure_handler_paths() -> None:
-    for name in (
-        "memory-service",
-        "audit-service",
-        "adapter-service",
-        "core-data-service",
-    ):
-        _ensure(SERVICES / name / "src")
 
 
 def _scope(event: dict[str, Any]) -> tuple[str, str, str] | None:

@@ -163,3 +163,18 @@ Loads a user record by ID, validates that the record exists, and returns a norma
 - If embedding fails, keep graph structure and schedule embedding retry.
 - If relationship resolution is uncertain, store relationship with low confidence.
 - If graph upsert fails, retry idempotently using the same correlation ID.
+
+## Parallel sync under RPM sessions
+
+`agentcore sync` / `ingest_repo` uses bounded file workers
+(`AGENTCORE_SYNC_MAX_FILE_WORKERS`, default **auto** =
+`min(cpu_count, AGENTCORE_LITELLM_RPM)`). LiteLLM `complete`/`embed` calls
+are gated by tracked RPM sessions (start + end) under `AGENTCORE_LITELLM_RPM`.
+Graph store mutations go through `LockedStore` so the single Postgres connection
+stays correct. Observe sessions via `GET /api/v1/llm/sessions` or
+`agentcore llm sessions`.
+
+Design pack: [`37`](37-rpm-session-parallel-sync-feature-specification.md) →
+[`38`](38-rpm-session-parallel-sync-high-level-design.md) →
+[`39`](39-rpm-session-parallel-sync-low-level-design.md) →
+[`40`](40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md).

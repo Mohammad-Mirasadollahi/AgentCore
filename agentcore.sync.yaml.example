@@ -182,6 +182,7 @@ docs:
     - "**/*.md"
     - "**/*.mdx"
   exclude:
+    # Product / tooling trees (also listed under code.exclude — docs phase is independent)
     - "**/node_modules/**"
     - "**/.venv/**"
     - "**/venv/**"

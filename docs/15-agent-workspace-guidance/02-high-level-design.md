@@ -85,14 +85,24 @@ Platform-seeded MCP-first rules and skills ([`06-mcp-first-agent-skills-and-rule
 | Admin web | Authoring and audit UX for typed guidance |
 | Exporter (optional worker/API) | Materialize managed files; detect drift and conflicts |
 
+## Guidance Layers
+
+| Layer (`scope_kind`) | Storage | Authors | Contents |
+| --- | --- | --- | --- |
+| `org` | Workspace defaults (`project_id` sentinel `__org__`) | Domain / platform operator | Entry, rules, skills (templates) |
+| `project` | Real project id | Project admin | Entry, rules, skills |
+| `user` | Workspace-personal (`project_id` sentinel `__user__:{user_id}`) | Developer (own `user_id`) | Skills + non-mandatory rules only |
+
+Resolve loads org + project + (when actor known) user buckets, then merges by precedence. Each included descriptor carries a `layer` field for explainability. Bundle metadata includes `layers_considered` and optional `user_id`.
+
 ## Runtime Flow Connect Path
 
 1. Operator activates a Usage Profile that includes guidance MCP tools on the project.
 2. IDE starts `mcp-gateway-service` with tenant / workspace / project env.
 3. On session start (or before first write), the agent calls `agentcore_guidance_resolve`.
-4. Gateway maps the call to Common Context resolve with guidance kind filters and coding-agent applicability.
-5. Resolver returns `AgentWorkspaceGuidanceBundle`: entry, always-on rules, skill catalog, suppressions, conflicts, token estimate, audit id.
-6. Agent applies entry + rules (including `mcp-first-agentcore` when seeded); later calls `agentcore_guidance_get_skill` when a catalog skill matches.
+4. Gateway maps the call to Common Context resolve with guidance kind filters, coding-agent applicability, and actor `user_id` for the user layer.
+5. Resolver merges org → project → user layers and returns `AgentWorkspaceGuidanceBundle`: entry, always-on rules, skill catalog, suppressions, conflicts, token estimate, audit id.
+6. Agent applies entry + rules (including `mcp-first-agentcore` when seeded); later calls `agentcore_guidance_get_skill` when a catalog skill matches (merged catalog).
 7. Agent routes in-scope work through the matching MCP tools (memory, graph, docs, write, tasks) under the same scope, then performs local edits as needed.
 
 ## Runtime Flow Materialize Path

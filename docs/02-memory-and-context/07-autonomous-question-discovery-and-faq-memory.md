@@ -6,6 +6,10 @@ AgentCore should treat repeated questions, unanswered questions, and missing doc
 
 The intended behavior is similar to a disciplined senior engineer or product-minded technical lead. When the same uncertainty appears repeatedly, the system should become curious in a controlled way: search evidence, inspect code and docs, identify the knowledge gap, create a draft answer or documentation task, and store the result with scope, confidence, freshness, and evidence.
 
+Chat-turn write-back into RAG, retention of Q&A-derived docs, freshness on code change, and staged code-versus-documentation contradiction disclosure are specified in `09-chat-qa-rag-incremental-documentation.md`. This document owns curiosity scoring, FAQ promotion policy, and the broader evidence search loop.
+
+Open-source chat/RAG quality levers (license-verified prior art) are indexed from `10-chat-quality-prior-art-license-and-method.md` and theme catalogs `11`–`13`.
+
 ## Corrected Requirement
 
 The raw user requirement can be formalized as follows:

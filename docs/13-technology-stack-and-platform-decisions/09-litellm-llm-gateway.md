@@ -24,6 +24,7 @@ related_docs:
   - docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
   - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
   - docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+  - docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
   - docs/10-gap-analysis/01-gap-register.md
   - backend/services/code-graph-service/config/code-graph-service.example.env
 doc_version: "1.0.0"
@@ -173,3 +174,4 @@ Shared package: `backend/packages/llm_gateway`. Discovery: `GET /api/v1/llm/prov
 - Backend stack: `03-backend-api-and-service-stack.md`
 - Tiered routing strategy: `docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md`
 - Gap register: `GAP-003` in `docs/10-gap-analysis/01-gap-register.md`
+- RPM-session parallel sync (designed, not shipped): `docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md` through `40-…-acceptance.md` — evolves client-side RPM from start-only timestamps to tracked sessions with CLI/HTTP observability.

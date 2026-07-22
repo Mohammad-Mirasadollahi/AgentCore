@@ -2,38 +2,28 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any
 
-from ...domain.cross_language import (
-    build_symbol_indexes,
-    resolve_call_target_polyglot,
-    resolve_import_target,
-)
+from .parallel_files import run_parallel_file_jobs
+
 from ...domain.package_manifests import load_package_aliases
-from ...domain.dispatch_synth import synthesize_interface_dispatch
-from ...domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
+from ...domain.enums import SymbolKind
 from ...domain.errors import ValidationError
-from ...domain.framework_routes import extract_routes, route_symbol_id
-from ...domain.freshness import extract_rationale_comments
-from ...domain.hashing import digest, normalize_source, now_iso
-from ...domain.languages import assert_language_supported, detect_language_from_path
+from ...domain.hashing import digest, normalize_source
 from ...domain.models import (
-    GraphSymbol,
-    IngestResult,
     RepoIngestFileOutcome,
     RepoIngestResult,
     Scope,
-    SyncRepoResult,
 )
-from ...domain.parsers import parse_source
 from ...domain.repo_discovery import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
     discover_source_files,
 )
-from ...domain.test_links import suggest_test_links
-from ..support import GraphServiceSupport, unresolved_call_name, unresolved_symbol_id
+from ...locked_store import sync_max_file_workers
+
 
 class RepoIngestMixin:
     """Bulk ingest via discover_source_files + ingest_file."""
@@ -49,6 +39,8 @@ class RepoIngestMixin:
         """Walk a repository root and ingest every supported source file.
 
         Reuses ``ingest_file`` per file. Failures are collected; the walk continues.
+        Files are processed with a bounded worker pool; store mutations must be
+        serialized by the caller (LockedStore in bootstrap).
         """
         root_path = str(payload.get("root_path") or "").strip()
         if not root_path:
@@ -61,20 +53,73 @@ class RepoIngestMixin:
         max_files = int(payload.get("max_files") or DEFAULT_MAX_FILES)
         max_file_bytes = int(payload.get("max_file_bytes") or DEFAULT_MAX_FILE_BYTES)
         include_outcomes = bool(payload.get("include_outcomes", True))
-        # Probe one extra so we can report truncation without a second walk.
-        probe_limit = max_files + 1 if max_files < 20_000 else max_files
         discovered = discover_source_files(
             root_path,
             include_extensions=include_extensions,
             exclude_dirs=exclude_dirs,
             exclude_globs=exclude_globs,
             include_path_prefixes=include_path_prefixes,
-            max_files=probe_limit,
+            max_files=None,
             max_file_bytes=max_file_bytes,
         )
-        truncated = len(discovered) > max_files
-        if truncated:
-            discovered = discovered[:max_files]
+
+        indexed_files = {
+            s.file_path.replace("\\", "/"): s
+            for s in self.store.list_symbols(scope)
+            if s.kind == SymbolKind.FILE and s.file_path and not s.file_path.startswith("__agentcore__/")
+        }
+        indexed_paths = set(indexed_files)
+        unindexed = [d for d in discovered if d.relative_path.replace("\\", "/") not in indexed_paths]
+        known = [d for d in discovered if d.relative_path.replace("\\", "/") in indexed_paths]
+
+        def _known_changed(item: Any) -> bool:
+            previous = indexed_files[item.relative_path.replace("\\", "/")]
+            try:
+                source = Path(item.absolute_path).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                return True
+            return digest(normalize_source(source, item.language)) != previous.hash_value
+
+        changed_known = [item for item in known if _known_changed(item)]
+        changed_known_paths = {item.relative_path.replace("\\", "/") for item in changed_known}
+        unchanged_known = [
+            item
+            for item in known
+            if item.relative_path.replace("\\", "/") not in changed_known_paths
+        ]
+        # Prefer never-indexed files so truncated sync continues; keep a budget for re-checks.
+        selected: list = []
+        selected.extend(unindexed[:max_files])
+        remaining = max_files - len(selected)
+        if remaining > 0:
+            selected.extend(changed_known[:remaining])
+        remaining = max_files - len(selected)
+        if remaining > 0:
+            selected.extend(unchanged_known[:remaining])
+        selected_paths = {item.relative_path.replace("\\", "/") for item in selected}
+        pending_paths = {
+            item.relative_path.replace("\\", "/") for item in [*unindexed, *changed_known]
+        }
+        truncated = not pending_paths.issubset(selected_paths)
+        discovered = selected
+        queue_new = sum(
+            1
+            for item in selected
+            if item.relative_path.replace("\\", "/") not in indexed_paths
+        )
+        queue_changed = sum(
+            1
+            for item in selected
+            if item.relative_path.replace("\\", "/") in changed_known_paths
+        )
+        queue_unchanged = max(0, len(selected) - queue_new - queue_changed)
+        prior_indexed = len(known)
+        queue_meta = {
+            "prior_indexed": prior_indexed,
+            "queue_new": queue_new,
+            "queue_changed": queue_changed,
+            "queue_unchanged": queue_unchanged,
+        }
 
         package_aliases = load_package_aliases(root_path)
 
@@ -91,64 +136,106 @@ class RepoIngestMixin:
         }
         on_progress = payload.get("on_progress")
         total_files = len(discovered)
+        state_lock = threading.Lock()
+        done_count = 0
+        active_files: set[str] = set()
+        workers = min(sync_max_file_workers(), max(1, total_files or 1))
+
+        def _rpm_progress_fields() -> dict[str, Any]:
+            llm = getattr(self, "llm", None)
+            snap_fn = getattr(llm, "rpm_sessions_snapshot", None) if llm is not None else None
+            if not callable(snap_fn):
+                return {}
+            try:
+                snap = snap_fn()
+            except Exception:  # noqa: BLE001
+                return {}
+            return {
+                "rpm": int(snap.get("rpm") or 0),
+                "rpm_inflight_cap": int(snap.get("inflight_cap") or 0),
+                "rpm_inflight": int(snap.get("inflight_count") or 0),
+                "rpm_starts_in_window": int(snap.get("starts_in_window") or 0),
+            }
 
         def _emit(done: int, *, file: str = "", status: str = "") -> None:
             if not callable(on_progress):
                 return
             try:
-                on_progress(
-                    {
-                        "phase": "ingest",
-                        "done": done,
-                        "total": total_files,
-                        "file": file,
-                        "status": status,
-                        "files_ingested": totals["ingested"],
-                        "files_failed": totals["failed"],
-                        "files_skipped": totals["skipped"],
-                        "symbols_indexed": totals["symbols_indexed"],
-                        "symbols_changed": totals["symbols_changed"],
-                        "edges_written": totals["edges_written"],
-                        "chars_read": totals["chars_read"],
-                        "approx_tokens": totals["chars_read"] // 4,
-                    }
-                )
+                with state_lock:
+                    snap_totals = dict(totals)
+                    in_flight_paths = sorted(active_files)
+                event = {
+                    "phase": "ingest",
+                    "done": done,
+                    "total": total_files,
+                    "file": file,
+                    "status": status,
+                    # Progress done/total is this run only (not inventory "already done").
+                    "prior_indexed": int(queue_meta["prior_indexed"]),
+                    "queue_new": int(queue_meta["queue_new"]),
+                    "queue_changed": int(queue_meta["queue_changed"]),
+                    "queue_unchanged": int(queue_meta["queue_unchanged"]),
+                    "files_ingested": snap_totals["ingested"],
+                    "files_failed": snap_totals["failed"],
+                    "files_skipped": snap_totals["skipped"],
+                    "symbols_indexed": snap_totals["symbols_indexed"],
+                    "symbols_changed": snap_totals["symbols_changed"],
+                    "edges_written": snap_totals["edges_written"],
+                    "chars_read": snap_totals["chars_read"],
+                    "approx_tokens": snap_totals["chars_read"] // 4,
+                    "files_in_flight": len(in_flight_paths),
+                    "files_in_flight_paths": in_flight_paths[:8],
+                    "file_workers": workers,
+                }
+                event.update(_rpm_progress_fields())
+                on_progress(event)
             except Exception:  # noqa: BLE001 — progress must never break ingest
                 return
 
-        _emit(0, status="started")
-
-        for index, item in enumerate(discovered):
+        def _process_one(index: int, item: Any) -> None:
+            nonlocal done_count
+            rel = item.relative_path
+            with state_lock:
+                active_files.add(rel)
+            _emit(done_count, file=rel, status="active")
             try:
                 text = Path(item.absolute_path).read_text(encoding="utf-8")
             except UnicodeDecodeError:
-                totals["skipped"] += 1
-                if include_outcomes:
-                    outcomes.append(
-                        RepoIngestFileOutcome(
-                            relative_path=item.relative_path,
-                            language=item.language,
-                            status="skipped",
-                            detail="not_utf8",
+                with state_lock:
+                    totals["skipped"] += 1
+                    done_count += 1
+                    done = done_count
+                    active_files.discard(rel)
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language=item.language,
+                                status="skipped",
+                                detail="not_utf8",
+                            )
                         )
-                    )
-                _emit(index + 1, file=item.relative_path, status="skipped")
-                continue
+                _emit(done, file=rel, status="skipped")
+                return
             except OSError as exc:
-                totals["failed"] += 1
-                if include_outcomes:
-                    outcomes.append(
-                        RepoIngestFileOutcome(
-                            relative_path=item.relative_path,
-                            language=item.language,
-                            status="failed",
-                            detail=f"read_error:{exc}",
+                with state_lock:
+                    totals["failed"] += 1
+                    done_count += 1
+                    done = done_count
+                    active_files.discard(rel)
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language=item.language,
+                                status="failed",
+                                detail=f"read_error:{exc}",
+                            )
                         )
-                    )
-                _emit(index + 1, file=item.relative_path, status="failed")
-                continue
+                _emit(done, file=rel, status="failed")
+                return
 
-            file_key = f"{idempotency_key}:{item.relative_path}:{index}"
+            file_key = f"{idempotency_key}:{rel}:{index}"
             try:
                 result = self.ingest_file(
                     scope,
@@ -156,46 +243,66 @@ class RepoIngestMixin:
                     correlation_id,
                     file_key,
                     {
-                        "file_path": item.relative_path,
+                        "file_path": rel,
                         "source": text,
                         "language": item.language,
                         "package_aliases": package_aliases,
                     },
                 )
             except Exception as exc:  # noqa: BLE001 — soft-fail per file for bulk jobs
-                totals["failed"] += 1
+                with state_lock:
+                    totals["failed"] += 1
+                    done_count += 1
+                    done = done_count
+                    active_files.discard(rel)
+                    if include_outcomes:
+                        outcomes.append(
+                            RepoIngestFileOutcome(
+                                relative_path=rel,
+                                language=item.language,
+                                status="failed",
+                                detail=str(exc)[:500],
+                            )
+                        )
+                _emit(done, file=rel, status="failed")
+                return
+
+            unchanged = (
+                result.symbols_indexed == 0
+                and result.symbols_changed == 0
+                and result.edges_written == 0
+            )
+            with state_lock:
+                if unchanged:
+                    totals["skipped"] += 1
+                else:
+                    totals["ingested"] += 1
+                totals["chars_read"] += len(text)
+                totals["symbols_indexed"] += result.symbols_indexed
+                totals["symbols_changed"] += result.symbols_changed
+                totals["symbols_documented"] += result.symbols_documented
+                totals["edges_written"] += result.edges_written
+                done_count += 1
+                done = done_count
+                active_files.discard(rel)
                 if include_outcomes:
                     outcomes.append(
                         RepoIngestFileOutcome(
-                            relative_path=item.relative_path,
+                            relative_path=rel,
                             language=item.language,
-                            status="failed",
-                            detail=str(exc)[:500],
+                            status="unchanged" if unchanged else "ok",
+                            file_id=result.file_id,
+                            symbols_indexed=result.symbols_indexed,
+                            symbols_changed=result.symbols_changed,
+                            symbols_documented=result.symbols_documented,
+                            edges_written=result.edges_written,
                         )
                     )
-                _emit(index + 1, file=item.relative_path, status="failed")
-                continue
+            _emit(done, file=rel, status="unchanged" if unchanged else "ok")
 
-            totals["ingested"] += 1
-            totals["chars_read"] += len(text)
-            totals["symbols_indexed"] += result.symbols_indexed
-            totals["symbols_changed"] += result.symbols_changed
-            totals["symbols_documented"] += result.symbols_documented
-            totals["edges_written"] += result.edges_written
-            if include_outcomes:
-                outcomes.append(
-                    RepoIngestFileOutcome(
-                        relative_path=item.relative_path,
-                        language=item.language,
-                        status="ok",
-                        file_id=result.file_id,
-                        symbols_indexed=result.symbols_indexed,
-                        symbols_changed=result.symbols_changed,
-                        symbols_documented=result.symbols_documented,
-                        edges_written=result.edges_written,
-                    )
-                )
-            _emit(index + 1, file=item.relative_path, status="ok")
+        _emit(0, status="started")
+        if total_files:
+            run_parallel_file_jobs(workers=workers, items=discovered, fn=_process_one)
 
         _emit(total_files, status="finished")
 

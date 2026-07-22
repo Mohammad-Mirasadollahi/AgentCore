@@ -55,8 +55,59 @@ class IntelligenceUseCases(GraphServiceSupport):
         state.clear_pending(file_path)
         return state.stale_banner()
 
-    def freshness_status(self) -> dict[str, Any]:
-        return self._ensure_freshness().stale_banner()
+    def freshness_status(self, scope: Scope | None = None) -> dict[str, Any]:
+        banner = self._ensure_freshness().stale_banner()
+        if scope is not None:
+            durable = self._durable_last_sync_at(scope)
+            if durable:
+                banner["last_sync_at"] = durable
+        return banner
+
+    def record_sync_stamp(self, scope: Scope) -> str:
+        """Persist last_sync_at in the store so CLI status survives process restarts."""
+        from ..domain.enums import DocStatus, SymbolKind
+        from ..domain.hashing import digest, now_iso
+        from ..domain.models import GraphSymbol
+
+        stamp = now_iso()
+        sid = f"meta:last_sync:{scope.project_id}"
+        previous = self._maybe_get(sid, scope) if hasattr(self, "_maybe_get") else None
+        if previous is None:
+            try:
+                previous = self.store.get_symbol(sid, scope)
+            except Exception:  # noqa: BLE001
+                previous = None
+        self.store.put_symbol(
+            GraphSymbol(
+                id=sid,
+                scope=scope,
+                kind=SymbolKind.DOCUMENTATION,
+                file_path="__agentcore__/last_sync",
+                name="last_sync",
+                qualified_name="__agentcore__.last_sync",
+                signature="last_sync",
+                body=stamp,
+                hash_value=digest(stamp),
+                ai_documentation="",
+                doc_status=DocStatus.UNCHANGED,
+                embedding=[],
+                version=(previous.version + 1) if previous else 1,
+                created_at=previous.created_at if previous else stamp,
+                updated_at=stamp,
+                language="",
+            )
+        )
+        state = self._ensure_freshness()
+        state.last_sync_at = __import__("time").time()
+        return stamp
+
+    def _durable_last_sync_at(self, scope: Scope) -> str | None:
+        sid = f"meta:last_sync:{scope.project_id}"
+        try:
+            meta = self.store.get_symbol(sid, scope)
+        except Exception:  # noqa: BLE001
+            return None
+        return str(meta.updated_at or meta.body or "") or None
 
     def _community_map(self, scope: Scope) -> dict[str, int]:
         symbols = [

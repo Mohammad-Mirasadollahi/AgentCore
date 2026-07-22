@@ -98,6 +98,9 @@ For `status`, `sync`, `purge` (and other commands that call operator defaults):
 | `init` | **`--tenant`, `--workspace`, and at least one `--path` required.** `--project` optional (default: current directory name) |
 | `paths` | Uses active identity; `add` / `remove` take path arguments |
 | `status` / `sync` / `purge` | Optional scope flags if identity/env/connect already set; `sync` uses pinned software paths |
+| `inventory` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; uses pinned software paths |
+| `docs-standards` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scans repo `docs/**/*.md` against documentation standards |
+| `stats` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; pinned software paths + sync filters |
 | `project register|activate|show|effective` | **Required** (`--tenant` `--workspace` `--project`) |
 | `cursor export`, `mcp serve`, `graph *`, `client wire-remote` | **Required** unless noted |
 
@@ -176,6 +179,46 @@ agentcore sync
 | **Example** | `agentcore status` |
 | **What changes** | Nothing (read-only). Exit hints may tell you to `init` / `sync` / start Compose |
 
+### `agentcore inventory`
+
+**Operator UX law (applies to everyone — humans and agents):** for `inventory`, do **not** use dashed flags for modes. Use word modes only. Prefer the verb **`save`** (never `out`) when writing a report file. Keep console output to **percentages + top 10 files with models**; put full file↔model lists only via `save`.
+
+| | |
+| --- | --- |
+| **Why** | Show how much of the **client software** roots (pinned via `init` / `paths`) is already in AgentCore vs still outstanding, split into **Code** and **Docs** |
+| **Required** | Sync filter file at each root (same as `sync`). At least one software path. Scope from identity/env/connect (no dashed scope flags on this command) |
+| **Modes** | **Normal** (default): percents + **top 10** files with models. **Detail**: same top 10 with embed/docs models, status, and per-file symbol coverage. **Save**: write full file↔model lists to a path |
+| **Example** | `agentcore inventory` · `agentcore inventory detail` · `agentcore inventory save /tmp/inventory-details.txt` · `agentcore inventory detail save /tmp/inventory-details.txt` |
+| **What you see** | Code/Docs split into **done** (up to date), **edited** (was ingested, then changed / pending — needs `agentcore sync`), and **remaining** (never ingested); percents for each; **top 10** lists with `models=` and `reason=` (`content_changed` or `pending`). `save` writes the **full** lists |
+| **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
+
+### `agentcore docs-standards`
+
+**Operator UX law:** same word-mode pattern as `inventory` — no dashed mode flags; use `detail` and `save <path>` only.
+
+| | |
+| --- | --- |
+| **Why** | Show which Markdown files under repo `docs/` fail AgentCore documentation standards (frontmatter, lanes, H1/title, Purpose H2, size budgets, design Mermaid) and what **percent of the tree** that is |
+| **Required** | None (uses `AGENTCORE_ROOT` / package-derived repo root) |
+| **Modes** | **Normal**: conforming/nonconforming percents + **top 10** nonconforming paths. **Detail**: same top 10 with issue codes. **Save**: write full nonconforming + conforming lists to a path |
+| **Example** | `agentcore docs-standards` · `agentcore docs-standards detail` · `agentcore docs-standards save /tmp/docs-standards.txt` · `agentcore docs-standards detail save /tmp/docs-standards.txt` |
+| **What you see** | Totals and percents; top nonconforming files; optional per-issue detail; `save` writes the full report |
+| **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
+| **Normative refs** | `docs/00-master-plan/06-professional-documentation-standard.md`, `08-documentation-structure-and-machine-ingest-standard.md`, `09-documentation-classification-and-lanes.md` |
+
+### `agentcore stats`
+
+**Operator UX law:** same word-mode pattern as `inventory` — no dashed mode flags; use `detail` and `save <path>` only.
+
+| | |
+| --- | --- |
+| **Why** | Count **code + docs** on pinned software roots, show **language mix** (files, bytes, % of code), and **processed vs remaining** percents (done / edited / remaining + LLM symbols) |
+| **Required** | Sync filter file at each root (same as `sync` / `inventory`). At least one software path. Scope from identity/env/connect |
+| **Modes** | **Normal**: totals + processing percents + per-language summary. **Detail**: same with per-language done/edited/remaining counts. **Save**: full report including per-root language tables |
+| **Example** | `agentcore stats` · `agentcore stats detail` · `agentcore stats save /tmp/stats.txt` · `agentcore stats detail save /tmp/stats.txt` |
+| **What you see** | Code/docs file counts and sizes; done/edited/remaining percents; each language’s share of code files (and bytes in detail/save) |
+| **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
+
 ### `agentcore connect`
 
 | | |
@@ -195,12 +238,15 @@ agentcore sync
 | --- | --- |
 | **Why** | Load or refresh the code graph for a repo root (auto chooses full vs incremental vs noop) |
 | **Required** | Sync filter file at each sync root (see [Sync filters](#sync-filters)). At least one software path from `init` / `paths` (or override with `--path`). Scope defaults if identity/env already set |
-| **Optional** | `--path` (repeatable override; default = pinned paths), `--max-files`, `--progress-interval`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
+| **Optional** | `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
 | **Example** | `agentcore sync` or `agentcore sync --path /opt/MyApp` |
 | **What changes** | Phase 1: upserts code symbols/edges/embeddings. Phase 2 (when `docs.match` is non-empty): indexes human Markdown in docs-sync and projects `DOCUMENTED_BY` for resolved `linked_symbols` |
 | **If you change `--path` or scope** | You sync a different tree or different isolation bucket; previous scope data remains |
-| **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync --max-files 50` |
-| **Progress** | While syncing, prints `%` / files / elapsed / ETA / rate about every 10s (adapts from observed speed). `agentcore status` shows a Live sync section if another sync is running |
+| **Software preflight** | If Compose/MCP are not fully running, an interactive TTY asks `Start software now? [y/N]`. `y`/`yes` runs `agentcore service start` first, then sync. Decline or non-TTY → exit with a hint to start services manually. After start, prints each component’s **start time to the second** (`postgres`, `neo4j`, `MCP HTTP`) |
+| **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |
+| **Before sync** | Prints the same **Totals / Processing / By language** snapshot as `agentcore stats` (code+docs counts, done/edited/remaining, LLM symbols) so you see the work before consent and ingest |
+| **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
+| **Progress** | While syncing, prints `%` / **this run** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior file symbols** and **queue** (`new` / `changed` / `unchanged_recheck`) so `0/N` is not confused with inventory “already done”. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
 | **Usage log** | Each sync writes one JSON file named by **execution time** (`YYYY-MM-DD_HH-MM-SS.json`) under `AGENTCORE_SYNC_USAGE_LOG_DIR` (default `.agentcore/sync-usage`). Record field `execution_at` is date+time to the second. Folder cap: `AGENTCORE_SYNC_USAGE_LOG_DIR_MAX_BYTES` (default **5 GiB**, FIFO deletes oldest files). Gitignored |
 | **Filters** | Mandatory YAML + wildcards + built-in language excludes — [Sync filters](#sync-filters) |
 
@@ -317,6 +363,30 @@ agentcore sync
 | **Optional** | `--host`, `--port`, `--usage-profile` |
 | **Example** | `agentcore mcp serve-http --host 0.0.0.0 --port 32500` |
 | **What changes** | Binds an HTTP listener; clients use bearer auth configured at connect time |
+
+### `agentcore service start` / `stop` / `restart` / `status` / `detail`
+
+| | |
+| --- | --- |
+| **Why** | One operator command for local Compose infra (postgres + neo4j) **and** the MCP HTTP backend daemon |
+| **Required** | Prior `bash install.sh` (compose `.env.local` + Docker). Repo root or `AGENTCORE_ROOT` |
+| **Optional** | `status --json` · `detail --json` |
+| **Example** | `agentcore service start` · `agentcore service status` · `agentcore service detail` · `agentcore service restart` |
+| **What changes** | Starts/stops Compose profile `core` services; backgrounds MCP HTTP (pid/log under `.agentcore/run/`). If no MCP token env is set, creates `.agentcore/mcp-http.secret` |
+| **Status fields** | `status` / `detail` show **Restarted** (latest start among running postgres/neo4j/MCP HTTP) and **UpTime** since that time |
+| **Exit** | `status` / `detail` exit `1` unless State is `all running`. Failed `start`/`restart` prints the MCP HTTP log tail automatically |
+| **Diagnose** | When State is not `all running`, run `agentcore service detail` to see MCP HTTP log (and Compose logs for unhealthy containers) |
+
+### `agentcore boot enable` / `disable`
+
+| | |
+| --- | --- |
+| **Why** | Start AgentCore automatically on machine boot via systemd |
+| **Required** | `systemctl` available; write access to unit path (system unit needs root/sudo; `--user` does not) |
+| **Optional** | `--user` — install `~/.config/systemd/user/agentcore.service` instead of `/etc/systemd/system/` |
+| **Example** | `sudo $(which agentcore) boot enable` · `agentcore boot enable --user` · `agentcore boot disable` |
+| **What changes** | Writes a oneshot systemd unit that runs `agentcore service start` / `stop`, then `systemctl enable` / `disable`. User units may need `loginctl enable-linger $USER` to run at boot without an interactive login |
+| **Note** | Distinct from `agentcore status` (graph/sync view). Use `agentcore service status` for process health |
 
 ### `agentcore client list-mcp-clients`
 

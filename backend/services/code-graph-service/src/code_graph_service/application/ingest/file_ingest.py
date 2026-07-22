@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from ...domain.cross_language import (
@@ -10,7 +9,6 @@ from ...domain.cross_language import (
     resolve_call_target_polyglot,
     resolve_import_target,
 )
-from ...domain.package_manifests import load_package_aliases
 from ...domain.dispatch_synth import synthesize_interface_dispatch
 from ...domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
 from ...domain.errors import ValidationError
@@ -21,19 +19,12 @@ from ...domain.languages import assert_language_supported, detect_language_from_
 from ...domain.models import (
     GraphSymbol,
     IngestResult,
-    RepoIngestFileOutcome,
-    RepoIngestResult,
     Scope,
-    SyncRepoResult,
 )
 from ...domain.parsers import parse_source
-from ...domain.repo_discovery import (
-    DEFAULT_MAX_FILE_BYTES,
-    DEFAULT_MAX_FILES,
-    discover_source_files,
-)
 from ...domain.test_links import suggest_test_links
-from ..support import GraphServiceSupport, unresolved_call_name, unresolved_symbol_id
+from ..support import unresolved_call_name, unresolved_symbol_id
+
 
 class FileIngestMixin:
     """Parse one source file into symbols/edges."""
@@ -64,6 +55,21 @@ class FileIngestMixin:
         stamp = now_iso()
         file_hash = digest(normalize_source(source, language))
         file_id = f"file:{scope.project_id}:{file_path}"
+        previous_file = self._maybe_get(file_id, scope)
+        # Skip only when content is unchanged *and* language already persisted
+        # (older graphs may lack language and need one re-ingest to backfill).
+        if (
+            previous_file is not None
+            and previous_file.hash_value == file_hash
+            and str(previous_file.language or "").strip()
+        ):
+            # Unchanged content: skip re-parse / re-embed (new idempotency keys each sync).
+            clearer = getattr(self, "clear_pending_sync", None)
+            if callable(clearer):
+                clearer(file_path)
+            self.store.complete_idempotency(scope, idempotency_key, "ingest_file", file_id)
+            return IngestResult(file_id, 0, 0, 0, 0, [])
+
         file_embed = self.embeddings.embed(file_path)
         file_symbol = GraphSymbol(
             id=file_id,
@@ -80,8 +86,8 @@ class FileIngestMixin:
             embedding=file_embed.vector,
             created_at=stamp,
             updated_at=stamp,
+            language=language,
         )
-        previous_file = self._maybe_get(file_id, scope)
         if previous_file is not None:
             file_symbol.version = previous_file.version + 1
             file_symbol.created_at = previous_file.created_at
@@ -122,6 +128,7 @@ class FileIngestMixin:
                     version=(previous.version + 1) if previous else 1,
                     created_at=previous.created_at if previous else stamp,
                     updated_at=stamp,
+                    language=language,
                 )
                 doc = self.docs.generate(draft, neighbors)
                 status = DocStatus.GENERATED
@@ -143,6 +150,7 @@ class FileIngestMixin:
                         embedding=self.embeddings.embed(doc).vector,
                         created_at=stamp,
                         updated_at=stamp,
+                        language=language,
                     )
                 )
                 documented_pairs.append((symbol_id, doc_id))
@@ -154,8 +162,13 @@ class FileIngestMixin:
                 )
             elif previous and previous.ai_documentation:
                 doc_id = f"doc:{scope.project_id}:{item.qualified_name}"
-                if self._maybe_get(doc_id, scope) is not None:
+                doc_prev = self._maybe_get(doc_id, scope)
+                if doc_prev is not None:
                     documented_pairs.append((symbol_id, doc_id))
+                    if not str(doc_prev.language or "").strip():
+                        doc_prev.language = language
+                        doc_prev.updated_at = stamp
+                        self.store.put_symbol(doc_prev)
             embed = self.embeddings.embed(f"{item.qualified_name}\n{doc}")
             symbol = GraphSymbol(
                 id=symbol_id,
@@ -174,6 +187,7 @@ class FileIngestMixin:
                 version=(previous.version + 1) if previous and changed else (previous.version if previous else 1),
                 created_at=previous.created_at if previous else stamp,
                 updated_at=stamp,
+                language=language,
             )
             self.store.put_symbol(symbol)
             self._index_embedding(scope, symbol_id, embed.vector, kind=item.kind.value)
@@ -241,6 +255,7 @@ class FileIngestMixin:
                             embedding=self.embeddings.embed(imp).vector,
                             created_at=stamp,
                             updated_at=stamp,
+                            language=language,
                         )
                     )
                 import_meta = {
@@ -282,6 +297,17 @@ class FileIngestMixin:
                         target,
                         file_path=file_path,
                         confidence=CallConfidence.EXACT,
+                        link_key=f"base:{base}",
+                    )
+                else:
+                    edges_written += self._put_edge(
+                        scope,
+                        "INHERITS_FROM",
+                        source_id,
+                        unresolved_symbol_id(scope, base),
+                        file_path=file_path,
+                        confidence=CallConfidence.UNRESOLVED,
+                        metadata={"base": base},
                         link_key=f"base:{base}",
                     )
             for call in item.calls:
@@ -328,12 +354,17 @@ class FileIngestMixin:
                     )
 
         edges_written += self._relink_unresolved_calls(scope, source_language=source_language)
+        edges_written += self._relink_unresolved_references(
+            scope,
+            source_language=source_language,
+            package_aliases=package_aliases,
+        )
         edges_written += self._emit_framework_routes(
             scope, file_path=file_path, source=source, language=language, stamp=stamp
         )
         edges_written += self._emit_test_links(scope)
         edges_written += self._emit_rationale_nodes(
-            scope, file_path=file_path, source=source, stamp=stamp
+            scope, file_path=file_path, source=source, stamp=stamp, language=language
         )
         edges_written += self._emit_dynamic_dispatch(scope)
         clearer = getattr(self, "clear_pending_sync", None)
@@ -432,6 +463,7 @@ class FileIngestMixin:
                     embedding=self.embeddings.embed(label).vector,
                     created_at=stamp,
                     updated_at=stamp,
+                    language=language,
                 )
             )
             handlers = by_name.get(route.handler_name, [])
@@ -517,6 +549,7 @@ class FileIngestMixin:
         file_path: str,
         source: str,
         stamp: str,
+        language: str = "",
     ) -> int:
         """Extract WHY/NOTE/HACK comments as RATIONALE symbols linked DOCUMENTED_BY from file."""
         written = 0
@@ -540,6 +573,7 @@ class FileIngestMixin:
                     embedding=self.embeddings.embed(body).vector,
                     created_at=stamp,
                     updated_at=stamp,
+                    language=language,
                 )
             )
             written += self._put_edge(
@@ -633,5 +667,64 @@ class FileIngestMixin:
                     confidence=confidence,
                     metadata={**cross_meta, "call": call, "relinked": True},
                     link_key=f"call:{call}",
+                )
+        return written
+
+    def _relink_unresolved_references(
+        self,
+        scope: Scope,
+        *,
+        source_language: str,
+        package_aliases: dict[str, str],
+    ) -> int:
+        indexes = build_symbol_indexes(self.store.list_symbols(scope))
+        by_qualified = indexes.by_qualified
+        written = 0
+        for edge in list(self.store.list_edges(scope)):
+            file_path = str(edge.metadata.get("file_path") or "")
+            edge_language = detect_language_from_path(file_path) or source_language
+            if edge.rel_type == "IMPORTS" and str(edge.target_id).startswith("ext:"):
+                import_text = str(edge.metadata.get("import_text") or "")
+                target, confidence, cross_meta = resolve_import_target(
+                    import_text,
+                    indexes,
+                    source_language=edge_language,
+                    package_aliases=package_aliases,
+                )
+                if target is None:
+                    continue
+                self.store.delete_edge(scope, edge.id)
+                written += self._put_edge(
+                    scope,
+                    "IMPORTS",
+                    edge.source_id,
+                    target,
+                    file_path=file_path,
+                    confidence=confidence,
+                    metadata={
+                        **edge.metadata,
+                        **cross_meta,
+                        "is_external": False,
+                        "relinked": True,
+                    },
+                    link_key=f"import:{import_text}",
+                )
+            elif edge.rel_type == "INHERITS_FROM" and str(edge.target_id).startswith(
+                "unresolved:"
+            ):
+                base = str(edge.metadata.get("base") or "")
+                target = by_qualified.get(base) or (indexes.short_names.get(base, [None])[0])
+                if target is None:
+                    continue
+                self.store.delete_edge(scope, edge.id)
+                written += self._put_edge(
+                    scope,
+                    "INHERITS_FROM",
+                    edge.source_id,
+                    target,
+                    file_path=file_path,
+                    confidence=CallConfidence.EXACT,
+                    metadata={"base": base, "relinked": True},
+                    link_key=f"base:{base}",
                 )
         return written

@@ -142,27 +142,41 @@ description: Validate public API changes against naming and DTO standards.
 3. Refuse undocumented breaking changes.
 ```
 
+## Scope Kind And Storage Keys
+
+| `scope_kind` | Stored `project_id` | Extra fields |
+| --- | --- | --- |
+| `project` | Real project id | `scope_kind=project` (default when omitted — backward compatible) |
+| `org` | `__org__` | `scope_kind=org` |
+| `user` | `__user__:{user_id}` | `scope_kind=user`, `user_id` required |
+
+User authoring rejects `agents_entry` and rejects `mandatory=true` on rules.
+
 ## Resolve Pipeline
 
 Guidance resolve reuses the Common Context resolution algorithm with these specializations:
 
-1. Normalize task / session metadata (agent type = coding IDE or autonomous coder).
-2. Load approved items for project (+ allowed project groups).
+1. Normalize task / session metadata (agent type = coding IDE or autonomous coder) and optional `user_id` (actor).
+2. Load approved items for **org**, **project**, and (if `user_id`) **user** buckets in the same tenant/workspace.
 3. Filter to kinds `agents_entry`, `always_rule`, `skill` (plus optional non-typed common items only if profile `include_general_common_context` is true — default **false** for pure guidance resolve).
-4. Select at most one `agents_entry` (project wins over org fallback).
-5. Evaluate applicability for `always_rule` and include until always-on budget is exhausted (sort by mandatory, priority, reuse score, token efficiency).
-6. Build **skill catalog** from applicable skills (name, description, when_to_use, id, version) without bodies, until catalog budget is exhausted.
-7. Apply precedence against explicit task overrides; record conflicts.
-8. Persist audit; return bundle.
+4. Merge layers (see Precedence). Select at most one `agents_entry` (project wins over org; user never supplies entry).
+5. Evaluate applicability for merged `always_rule` set and include until always-on budget is exhausted (sort by mandatory, priority, reuse score, token efficiency).
+6. Build **skill catalog** from merged skills (name, description, when_to_use, id, version, `layer`) without bodies, until catalog budget is exhausted.
+7. Apply precedence against explicit task overrides; record conflicts (including mandatory vs higher-layer body clash).
+8. Persist audit; return bundle with `layers_considered` and optional `user_id`.
 
 ### Precedence
 
 1. Explicit authorized task instructions (highest).
-2. Project-scoped guidance items.
-3. Project-group shared guidance.
-4. Organization default templates (lowest), unless `mandatory` governance.
+2. User-profile guidance (`scope_kind=user`).
+3. Project-scoped guidance items.
+4. Organization default templates (lowest).
 
-Mandatory items that conflict with task overrides produce a visible conflict and follow safety policy (block vs warn) from feature profile.
+Same rule `slug` or skill `name`: higher layer replaces lower. If the lower item is `mandatory` and the higher body differs, keep the mandatory item and append a `GuidanceConflict` (`reason_code=mandatory_override_blocked`).
+
+Task overrides (request field `task_overrides`) may suppress non-mandatory rule slugs or skill names after layer merge. Suppressing a mandatory rule records `task_override_blocked` and keeps the rule.
+
+Project-group shared guidance remains deferred.
 
 ## Token Budgets
 

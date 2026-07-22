@@ -127,7 +127,7 @@ Start infra alone (after env exists):
 ```bash
 docker compose --env-file backend/deployments/compose/.env.local \
   -f backend/deployments/compose/compose.yaml --profile core up -d postgres neo4j
-backend/deployments/compose/wait-healthy.sh --timeout 180 \
+backend/deployments/compose/wait-healthy.sh --timeout 300 \
   agentcore-postgres-1 agentcore-neo4j-1
 ```
 

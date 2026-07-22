@@ -5,6 +5,9 @@
 # Usage:
 #   ./wait-healthy.sh [--timeout SEC] [--interval SEC] CONTAINER [CONTAINER...]
 #
+# CONTAINER may be a Compose service name, container name, or container ID.
+# Progress lines use human service names (not raw hashes).
+#
 # Exit codes:
 #   0  all containers healthy
 #   1  timeout (still starting/unhealthy)
@@ -13,7 +16,7 @@
 
 set -euo pipefail
 
-TIMEOUT_SEC=90
+TIMEOUT_SEC=300
 INTERVAL_SEC=5
 CONTAINERS=()
 
@@ -60,6 +63,54 @@ deadline=$((SECONDS + TIMEOUT_SEC))
 # Restarting more than this many consecutive polls ⇒ treat as failure (not "still booting").
 max_restarting_streak=6
 declare -A restarting_streak=()
+declare -A display_names=()
+
+# Prefer Compose service label, else container name, else short id.
+display_name() {
+  local ref="$1" svc name
+  if [[ -n "${display_names[$ref]:-}" ]]; then
+    printf '%s\n' "${display_names[$ref]}"
+    return 0
+  fi
+  svc="$(docker inspect --format='{{index .Config.Labels "com.docker.compose.service"}}' "$ref" 2>/dev/null || true)"
+  svc="${svc//$'\r'/}"
+  svc="${svc%%$'\n'*}"
+  if [[ -n "$svc" ]]; then
+    display_names["$ref"]="$svc"
+    printf '%s\n' "$svc"
+    return 0
+  fi
+  name="$(docker inspect --format='{{.Name}}' "$ref" 2>/dev/null || true)"
+  name="${name//$'\r'/}"
+  name="${name%%$'\n'*}"
+  name="${name#/}"
+  if [[ -n "$name" ]]; then
+    display_names["$ref"]="$name"
+    printf '%s\n' "$name"
+    return 0
+  fi
+  # Already a short/human token (service name) or truncate long ids.
+  if [[ ${#ref} -gt 16 ]]; then
+    display_names["$ref"]="${ref:0:12}"
+  else
+    display_names["$ref"]="$ref"
+  fi
+  printf '%s\n' "${display_names[$ref]}"
+}
+
+# Raw docker health/state → short operator-facing word.
+status_word() {
+  case "$1" in
+    healthy) echo ready ;;
+    starting) echo starting ;;
+    unhealthy) echo unhealthy ;;
+    restarting) echo restarting ;;
+    missing) echo missing ;;
+    exited|dead) echo "$1" ;;
+    running) echo running ;;
+    *) echo "$1" ;;
+  esac
+}
 
 status_of() {
   local name="$1" out
@@ -85,14 +136,36 @@ all_healthy() {
   return 0
 }
 
+progress_line() {
+  local remaining="$1" ref st label word parts=()
+  for ref in "${CONTAINERS[@]}"; do
+    st="$(status_of "$ref")"
+    label="$(display_name "$ref")"
+    word="$(status_word "$st")"
+    parts+=("${label}: ${word}")
+  done
+  local joined
+  joined="$(IFS=', '; echo "${parts[*]}")"
+  echo "Waiting for databases (${remaining}s left): ${joined}"
+}
+
+echo "Checking health for: $(
+  labels=()
+  for ref in "${CONTAINERS[@]}"; do
+    labels+=("$(display_name "$ref")")
+  done
+  IFS=', '
+  echo "${labels[*]}"
+)"
+
 while (( SECONDS < deadline )); do
   remaining=$((deadline - SECONDS))
-  line="remaining=${remaining}s"
   failed=0
+  line="$(progress_line "$remaining")"
 
   for name in "${CONTAINERS[@]}"; do
     st="$(status_of "$name")"
-    line+=" ${name}=${st}"
+    label="$(display_name "$name")"
 
     case "$st" in
       healthy)
@@ -100,7 +173,7 @@ while (( SECONDS < deadline )); do
         ;;
       missing|exited|dead)
         echo "$line" >&2
-        echo "FAIL: ${name} is ${st} — aborting (not waiting full timeout)" >&2
+        echo "FAIL: ${label} is ${st} — aborting (not waiting full timeout)" >&2
         docker logs "$name" 2>&1 | tail -40 || true
         exit 2
         ;;
@@ -108,7 +181,7 @@ while (( SECONDS < deadline )); do
         restarting_streak["$name"]=$((${restarting_streak["$name"]:-0} + 1))
         if (( restarting_streak["$name"] >= max_restarting_streak )); then
           echo "$line" >&2
-          echo "FAIL: ${name} restarting for ${restarting_streak[$name]} polls — aborting" >&2
+          echo "FAIL: ${label} restarting for ${restarting_streak[$name]} polls — aborting" >&2
           docker logs "$name" 2>&1 | tail -50 || true
           exit 2
         fi
@@ -122,7 +195,11 @@ while (( SECONDS < deadline )); do
   echo "$line"
 
   if all_healthy; then
-    echo "OK: all healthy"
+    labels=()
+    for ref in "${CONTAINERS[@]}"; do
+      labels+=("$(display_name "$ref")")
+    done
+    echo "OK: all healthy ($(IFS=', '; echo "${labels[*]}"))"
     exit 0
   fi
 
@@ -135,9 +212,11 @@ while (( SECONDS < deadline )); do
   sleep "$sleep_for"
 done
 
-echo "TIMEOUT: waited ${TIMEOUT_SEC}s; containers not healthy:" >&2
+echo "TIMEOUT: waited ${TIMEOUT_SEC}s; still not healthy:" >&2
 for name in "${CONTAINERS[@]}"; do
-  echo "  ${name}=$(status_of "$name")" >&2
+  label="$(display_name "$name")"
+  st="$(status_of "$name")"
+  echo "  ${label}: $(status_word "$st")" >&2
   docker logs "$name" 2>&1 | tail -30 || true
 done
 exit 1

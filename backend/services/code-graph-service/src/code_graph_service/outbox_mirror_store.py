@@ -15,10 +15,6 @@ class OutboxMirrorStore:
         self._store = store
         self._mirror = mirror
 
-    @property
-    def inner(self) -> Store:
-        return self._store
-
     def close(self) -> None:
         close = getattr(self._store, "close", None)
         if callable(close):

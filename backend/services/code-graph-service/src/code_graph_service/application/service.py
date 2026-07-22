@@ -61,3 +61,30 @@ class CodeGraphService(IngestUseCases, QueryUseCases, GenerationUseCases, Intell
             }
         )
         return payload
+
+    def llm_sessions_snapshot(self) -> dict[str, Any]:
+        """Process-local RPM session registry snapshot (in-flight + short history)."""
+        if self.llm is None:
+            return {
+                "rpm": 0,
+                "inflight_cap": 0,
+                "starts_in_window": 0,
+                "inflight_count": 0,
+                "inflight": [],
+                "history": [],
+                "configured": False,
+            }
+        snap_fn = getattr(self.llm, "rpm_sessions_snapshot", None)
+        if not callable(snap_fn):
+            return {
+                "rpm": 0,
+                "inflight_cap": 0,
+                "starts_in_window": 0,
+                "inflight_count": 0,
+                "inflight": [],
+                "history": [],
+                "configured": False,
+            }
+        payload = dict(snap_fn())
+        payload["configured"] = True
+        return payload

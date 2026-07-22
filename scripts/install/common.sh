@@ -25,7 +25,7 @@ INSTALL_SKIP_PREREQS="${INSTALL_SKIP_PREREQS:-0}"
 INSTALL_SKIP_INFRA="${INSTALL_SKIP_INFRA:-0}"
 INSTALL_WITH_FRONTEND="${INSTALL_WITH_FRONTEND:-0}"
 INSTALL_WITH_AI_TOOLSTACK="${INSTALL_WITH_AI_TOOLSTACK:-0}"
-INSTALL_COMPOSE_TIMEOUT="${INSTALL_COMPOSE_TIMEOUT:-180}"
+INSTALL_COMPOSE_TIMEOUT="${INSTALL_COMPOSE_TIMEOUT:-300}"
 
 log() { printf '%s %s\n' "${INSTALL_LOG_PREFIX}" "$*"; }
 info() { log "INFO  $*"; }
@@ -161,4 +161,36 @@ copy_example_if_missing() {
 seed_repo_operator_files() {
   copy_example_if_missing "${REPO_ENV_EXAMPLE}" "${REPO_ENV_FILE}" "repo .env"
   copy_example_if_missing "${REPO_SYNC_EXAMPLE}" "${REPO_SYNC_FILE}" "agentcore.sync.yaml"
+}
+
+# Symlink ~/.local/bin/agentcore and ensure a durable PATH export in shell rc.
+install_cli_on_path() {
+  local cli="${1:?}"
+  local link="${HOME}/.local/bin/agentcore"
+  local shell_rc=""
+  [[ -x "${cli}" ]] || fail "agentcore CLI missing at ${cli}"
+
+  if [[ -n "${AGENTCORE_SHELL_RC:-}" ]]; then
+    shell_rc="${AGENTCORE_SHELL_RC}"
+  elif [[ "${SHELL:-}" == */zsh ]] && [[ -f "${HOME}/.zshrc" ]]; then
+    shell_rc=".zshrc"
+  elif [[ -f "${HOME}/.bashrc" ]]; then
+    shell_rc=".bashrc"
+  fi
+
+  if [[ -n "${shell_rc}" ]]; then
+    run "${cli}" path install --shell-rc "${shell_rc}"
+  else
+    run "${cli}" path install
+  fi
+
+  if [[ ! -e "${link}" && ! -L "${link}" ]]; then
+    fail "PATH install failed: missing ${link} (agentcore must be on user PATH)"
+  fi
+  ok "agentcore PATH shim: ${link}"
+}
+
+user_cli_on_path() {
+  local link="${HOME}/.local/bin/agentcore"
+  [[ -e "${link}" || -L "${link}" ]]
 }

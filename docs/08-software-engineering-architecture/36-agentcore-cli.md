@@ -117,6 +117,9 @@ agentcore purge --yes   # graph only
 | `agentcore init` | You choose tenant + workspace IDs and software `--path`(s); save identity + `.env` |
 | `agentcore paths` | List / add / remove pinned software roots (sync targets) |
 | `agentcore status` | Scope, paths, infra, graph counts, MCP configs, hints |
+| `agentcore inventory` | Code/docs done vs remaining for pinned software roots |
+| `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent |
+| `agentcore stats` | Code/docs counts, language mix %, processed vs remaining |
 | `agentcore connect` / `--init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood |
 | `agentcore sync` / `purge` | Load or wipe project graph data (sync requires `agentcore.sync.yaml` + pinned paths) |
 | `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations |

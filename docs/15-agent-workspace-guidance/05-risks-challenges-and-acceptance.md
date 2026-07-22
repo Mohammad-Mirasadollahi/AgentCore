@@ -82,7 +82,7 @@ This document records risks, mitigations, acceptance gates, and remaining open g
 2. Resolve returns a schema-valid `AgentWorkspaceGuidanceBundle` with audit id.
 3. At most one active approved `agents_entry` per project; violations are rejected or fail closed.
 4. Skill catalog entries omit bodies; `get_skill` returns body only for in-scope approved skills.
-5. Precedence tests cover task > project > org and mandatory conflict recording.
+5. Precedence tests cover task > user > project > org, org entry fallback, same-slug replacement, and mandatory conflict recording when a higher layer would override a mandatory lower item.
 6. MCP tools appear only when Usage Profile allow-lists them; unknown tools fail closed.
 7. Export dry-run reports unmanaged local edits as conflicts and does not write them.
 8. Observability includes counts by kind, token estimates, and conflict reason codes.

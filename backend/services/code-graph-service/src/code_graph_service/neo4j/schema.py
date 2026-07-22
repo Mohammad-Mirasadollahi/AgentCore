@@ -2,22 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
-from ..core import (
-    CallConfidence,
-    ConflictError,
-    DocStatus,
-    GraphEdge,
-    GraphSymbol,
-    NotFoundError,
-    Scope,
-    SymbolKind,
-)
-from .constants import REL as _REL
-from .lucene import lucene_query as _lucene_query
 
 class Neo4jSchemaMixin:
     """Schema constraints/indexes and plugin capability cache."""

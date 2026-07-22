@@ -39,6 +39,7 @@ class GraphSymbol:
     version: int = 1
     created_at: str = ""
     updated_at: str = ""
+    language: str = ""
 
 
 @dataclass

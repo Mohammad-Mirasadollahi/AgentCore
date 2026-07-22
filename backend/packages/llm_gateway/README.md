@@ -50,4 +50,9 @@ PYTHONPATH=backend/packages .venv/bin/python -m llm_gateway complete --prompt "p
 
 ## Status
 
-Implemented.
+Implemented: `RpmSessionGate` tracks session start/end and in-flight count;
+`LiteLlmGateway` / `FakeLlmGateway` acquire/release around `complete`/`embed`.
+Observability: `gateway.rpm_sessions_snapshot()`, HTTP `GET /api/v1/llm/sessions`,
+CLI `agentcore llm sessions`. Design pack:
+[`docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md`](../../../docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md)
+through `40`.

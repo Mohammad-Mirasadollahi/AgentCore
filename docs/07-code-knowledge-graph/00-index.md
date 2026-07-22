@@ -44,9 +44,14 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `33-production-retrieval-live-test-gates.md` live/fuzzer/challenge gates, pythonpath, AuthError skip policy, anti-cascade acceptance.
 - `35-wedge-operator-connect-runbook.md` operator connect → ingest → explore/hybrid smoke.
 - `36-dead-code-candidates-and-cleanup-loop.md` unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
+- `37-rpm-session-parallel-sync-feature-specification.md` requirements for RPM-session-gated parallel `agentcore sync` (designed, not shipped).
+- `38-rpm-session-parallel-sync-high-level-design.md` topology: file workers, LLM queue, session registry, serialized store writer, CLI/HTTP observe.
+- `39-rpm-session-parallel-sync-low-level-design.md` session lifecycle, dual capacity gate, fairness, writer serialization, status API.
+- `40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md` challenges, known limits, acceptance gates before coding claims shipped.
 
 ## History
 
+- 2026-07-22: Added RPM-session parallel sync design pack `37`–`40` (`lifecycle_lane: future`; docs only until implementation).
 - 2026-07-21: Core product readiness backlog `34` (`ac.doc.ckg.core-product-readiness-phased-backlog`) retired (archived). Durable gates live in `19`/`26`/`31`/`33`, product scope, gap register (GAP-005), and runbook `35`. Do not reuse that `doc_id`.
 - 2026-07-21: Added `36-dead-code-candidates-and-cleanup-loop.md` for the unused-candidate / cleanup full loop (guidance + KPIs).
 
@@ -61,6 +66,14 @@ BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC
 ## Repository Code Wiki (future)
 
 Holistic, architecture-aware repository documentation (overview, module pages, diagrams, incremental update, admin browse + MCP). Complements symbol-level living documentation. Reading order: `14` → `15` → `16` → `17` → `18` → `20` (ideas + license). Status: draft / `lifecycle_lane: future` (docs only until implementation).
+
+## Dead-code cleanup loop (current)
+
+Unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed-loop guidance + KPIs. Reading order: `36`.
+
+## RPM-session parallel sync (current)
+
+Parallel `agentcore sync` gated by tracked LiteLLM RPM sessions (start/end), serialized store writer, process-local CLI/HTTP observability. Reading order: `37` → `38` → `39` → `40`.
 
 ## Implementation Slice
 
@@ -91,6 +104,7 @@ Phase 7 vertical slice service:
 - Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`) add explore/risk/routes analytics inspired by MIT prior art.
 - Production Retrieval Stack (`27`–`31`) adds BM25/FTS/BGE/APOC/free Leiden for agent search quality.
 - Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
+- RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
 - `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.
 - `../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md` defines dead-code cleanup KPIs.

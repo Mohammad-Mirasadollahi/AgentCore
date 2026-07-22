@@ -113,15 +113,21 @@ def build_llm_gateway():
 
 def build_service(settings: Settings | None = None) -> CodeGraphService:
     from .llm_wiring import maybe_preload_embeddings
+    from .locked_store import LockedEmbeddings, LockedStore
 
     resolved = settings or Settings.from_environment()
     gateway = build_llm_gateway()
     embeddings = build_embeddings(gateway, settings=gateway.settings)
+    if embeddings.local is not None:
+        embeddings.local = LockedEmbeddings(embeddings.local)
     maybe_preload_embeddings(embeddings)
+    emb_index = build_embedding_index(resolved)
+    if emb_index is not None:
+        emb_index = LockedStore(emb_index)
     return CodeGraphService(
-        build_store(resolved),
+        LockedStore(build_store(resolved)),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=embeddings,
-        embedding_index=build_embedding_index(resolved),
+        embedding_index=emb_index,
         llm=gateway,
     )

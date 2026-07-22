@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import sys
+
+import pytest
+
 from llm_gateway import (
     ChatMessage,
     CompletionRequest,
     FakeLlmGateway,
+    LiteLlmGateway,
     LlmGatewaySettings,
     list_providers,
     resolve_api_base,
@@ -100,10 +105,106 @@ def test_reasoning_payload_and_settings(monkeypatch):
 
 
 def test_rpm_limiter_allows_burst_then_blocks():
-    from llm_gateway.rate_limit import RpmLimiter
+    from llm_gateway.rate_limit import RpmSessionGate
 
-    limiter = RpmLimiter(2)
-    assert limiter.acquire() == 0.0
-    assert limiter.acquire() == 0.0
-    # Third call would wait; do not sleep a full minute in unit tests — just assert capacity state.
-    assert len(limiter._timestamps) == 2
+    gate = RpmSessionGate(2)
+    s1 = gate.acquire("complete")
+    s2 = gate.acquire("complete")
+    snap = gate.snapshot()
+    assert snap["starts_in_window"] == 2
+    assert snap["inflight_count"] == 2
+    gate.release(s1, "ok")
+    gate.release(s2, "ok")
+    snap2 = gate.snapshot()
+    assert snap2["inflight_count"] == 0
+    assert len(snap2["history"]) == 2
+
+
+def test_rpm_session_release_on_error_and_history_cap():
+    from llm_gateway.rate_limit import RpmSessionGate
+
+    gate = RpmSessionGate(5, history_size=3)
+    sessions = [gate.acquire("complete") for _ in range(3)]
+    for s in sessions:
+        gate.release(s, "error", error_detail="boom")
+    extra = gate.acquire("embed")
+    gate.release(extra, "ok")
+    snap = gate.snapshot()
+    assert snap["inflight_count"] == 0
+    assert len(snap["history"]) == 3
+    assert all(h["status"] in {"ok", "error"} for h in snap["history"])
+
+
+def test_rpm_inflight_cap_blocks_until_release():
+    import threading
+
+    from llm_gateway.rate_limit import RpmSessionGate
+
+    clock = {"t": 1000.0}
+
+    def mono() -> float:
+        return clock["t"]
+
+    gate = RpmSessionGate(10, inflight_cap=1, clock=mono)
+    first = gate.acquire("complete")
+    got: list = []
+
+    def other() -> None:
+        got.append(gate.acquire("complete"))
+
+    t = threading.Thread(target=other, daemon=True)
+    t.start()
+    t.join(timeout=0.2)
+    assert t.is_alive()
+    assert got == []
+    gate.release(first, "ok")
+    t.join(timeout=1.0)
+    assert not t.is_alive()
+    assert len(got) == 1
+    gate.release(got[0], "ok")
+
+
+def test_fake_gateway_releases_rpm_session():
+    gateway = FakeLlmGateway(canned="hello")
+    gateway.complete(
+        CompletionRequest(messages=(ChatMessage(role="user", content="hi"),), model="fake/model")
+    )
+    snap = gateway.rpm_sessions_snapshot()
+    assert snap["inflight_count"] == 0
+    assert snap["starts_in_window"] == 1
+    assert snap["history"][0]["status"] == "ok"
+
+
+def test_litellm_gateway_releases_sessions_on_failures(monkeypatch):
+    class FailingLiteLlm:
+        drop_params = False
+
+        @staticmethod
+        def completion(**_kwargs):
+            raise TimeoutError("provider timed out with sk-secret-value")
+
+        @staticmethod
+        def embedding(**_kwargs):
+            raise RuntimeError("provider failed")
+
+    monkeypatch.setitem(sys.modules, "litellm", FailingLiteLlm())
+    gateway = LiteLlmGateway(settings=FakeLlmGateway().settings)
+
+    with pytest.raises(TimeoutError):
+        gateway.complete(
+            CompletionRequest(
+                messages=(ChatMessage(role="user", content="hi"),),
+                model="fake/model",
+            )
+        )
+    with pytest.raises(RuntimeError, match="provider failed"):
+        gateway.embed("hello", model="fake/embed")
+
+    snap = gateway.rpm_sessions_snapshot()
+    assert snap["inflight_count"] == 0
+    assert [item["status"] for item in snap["history"][:2]] == ["error", "cancelled"]
+    assert [item["error_detail"] for item in snap["history"][:2]] == [
+        "RuntimeError",
+        "TimeoutError",
+    ]
+    assert "sk-secret-value" not in str(snap)

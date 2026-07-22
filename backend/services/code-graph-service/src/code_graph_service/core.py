@@ -38,15 +38,10 @@ from .domain.parsing import (
     builtin_names,
     defined_names,
     extract_call_refs,
-    extract_identifier_refs,
     parse_python_source,
     resolve_call_target,
 )
 from .domain.ports import Store
-
-# Backward-compatible private aliases used by older call sites / tests.
-_builtin_names = builtin_names
-_defined_names = defined_names
 
 __all__ = [
     "LANGUAGE_MATRIX",
@@ -80,7 +75,6 @@ __all__ = [
     "digest",
     "embed_text",
     "extract_call_refs",
-    "extract_identifier_refs",
     "language_matrix",
     "normalize_source",
     "now_iso",

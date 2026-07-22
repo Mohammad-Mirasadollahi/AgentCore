@@ -103,11 +103,11 @@ def scope_line(tenant: str, workspace: str, project: str) -> str:
 
 def status_badge(status: str) -> str:
     key = (status or "").strip().lower()
-    if key in {"ready", "ok", "active"}:
+    if key in {"ready", "ok", "active", "all running"}:
         return ok(status)
-    if key in {"pending_sync", "empty", "degraded"}:
+    if key in {"pending_sync", "empty"}:
         return warn(status)
-    if key in {"error", "down"}:
+    if key in {"error", "down", "stopped"} or "not" in key or "stopped" in key:
         return err(status)
     return bold(status)
 

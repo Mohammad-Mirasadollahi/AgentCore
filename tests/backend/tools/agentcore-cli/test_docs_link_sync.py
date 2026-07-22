@@ -120,6 +120,39 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     overview_edges = [e for e in store.list_edges(SCOPE) if e.target_id == overview.id and e.rel_type == "DOCUMENTED_BY"]
     assert overview_edges == []
 
+    # Re-sync after editing the doc body must not ConflictError; stale links drop when tokens shrink.
+    (tmp_path / "docs" / "login.md").write_text(
+        LINKED_DOC.replace(
+            "linked_symbols:\n  - src.auth.login\n",
+            "linked_symbols: []\n",
+        ).replace("Human documentation for login.", "Updated login docs."),
+        encoding="utf-8",
+    )
+    again = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-2",
+        repo_name="fixture",
+    )
+    assert again.errors == []
+    assert again.docs_indexed >= 1
+    stale = [
+        e
+        for e in store.list_edges(SCOPE)
+        if e.rel_type == "DOCUMENTED_BY" and e.source_id == login.id and e.target_id == human.id
+    ]
+    assert stale == []
+
 
 def test_resolve_sync_filters_docs_vs_code(tmp_path: Path, monkeypatch):
     from agentcore_cli.sync_config import resolve_sync_filters

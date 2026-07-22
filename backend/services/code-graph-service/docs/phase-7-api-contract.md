@@ -48,6 +48,7 @@ Service-wide (not project-scoped) endpoints from `backend/packages/llm_gateway`:
 
 - `GET /api/v1/llm/providers` — list providers; `configured` reflects env API keys
 - `GET /api/v1/llm/config` — public settings (auto Base URL, timeout default 180s, retries default 3; no secrets)
+- `GET /api/v1/llm/sessions` — process-local RPM session snapshot (in-flight + short history; no secrets)
 - `POST /api/v1/llm/complete` — chat completion via LiteLLM (`prompt`, optional `model` / `system` / `reasoning_enabled` / `reasoning_effort`)
 
 Environment: `AGENTCORE_LITELLM_*` in `config/code-graph-service.example.env`. Base URL auto-resolves to `http://{HOST}:{PORT}` unless `AGENTCORE_LITELLM_API_BASE` overrides it. Defaults: timeout `180`s, retries `3`, RPM `30`.

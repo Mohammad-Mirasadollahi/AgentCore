@@ -62,7 +62,8 @@ It also specifies the **MCP-first seed pack**: the always-on rule and skills tha
 | --- | --- |
 | Delivery | Hybrid: MCP resolve is authoritative; filesystem export is optional |
 | Storage | Layer on Common Context (`agents_entry`, `always_rule`, `skill`); no parallel SoT |
-| Precedence | Task override > project guidance > org defaults |
+| Precedence | Task override > user profile > project guidance > org defaults |
+| Layers | `org` (workspace defaults) · `project` · `user` (workspace-personal); same Common Context SoT |
 
 ## Files
 
