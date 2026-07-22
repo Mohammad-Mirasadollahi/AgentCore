@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.sea.engineering-best-practices-and-implementation-standards
+title: 29 - Engineering Best Practices And Implementation Standards
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines implementation standards that every AgentCore module must follow.
+  The goal is to make engineering quality explicit before code is written.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/29-engineering-best-practices-and-implementation-standards.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 29 - Engineering Best Practices And Implementation Standards
 
 ## Purpose

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.stack.backend-api-and-service-stack
+title: 03 - Backend API And Service Stack
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the backend implementation stack for AgentCore services, APIs,
+  workers, SDK generation, validation, and testing.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/03-backend-api-and-service-stack.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 03 - Backend API And Service Stack
 
 ## Purpose

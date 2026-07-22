@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.stack.stack-principles-and-decision-rules
+title: 01 - Stack Principles And Decision Rules
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines technology selection principles for AgentCore. The stack must
+  support a strong modular architecture, high-quality developer experience, reliable automation,
+  RAG, code graph intelligence, project isolation, reporting, and long-term maintainability.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/01-stack-principles-and-decision-rules.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 01 - Stack Principles And Decision Rules
 
 ## Purpose

@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.tech.end-to-end-runtime-logic
+title: End-to-End Runtime Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The AgentCore runtime converts unstructured agent activity into governed, searchable,
+  synchronized, and interoperable system state. The runtime is event-driven, but it does not
+  treat events as the final truth. Events are evidence. State is derived from evidence through
+  validation.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/06-end-to-end-runtime-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # End-to-End Runtime Logic
+
+
+## Purpose
+
+The AgentCore runtime converts unstructured agent activity into governed, searchable, synchronized, and interoperable system state. The runtime is event-driven, but it does not treat events as the final truth. Events are evidence. State is derived from evidence through validation.
 
 ## Runtime Objective
 

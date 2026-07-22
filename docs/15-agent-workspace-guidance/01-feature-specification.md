@@ -1,50 +1,52 @@
 ---
 doc_id: ac.doc.awg.feature-specification
-title: "01 - Agent Workspace Guidance Feature Specification"
-doc_type: feature-specification
+title: 01 - Agent Workspace Guidance Feature Specification
+doc_type: feature_spec
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Product requirements for governed AGENTS entry, always-on rules, and skills
-  that coding agents must load from AgentCore on connect or before a coding run.
+summary: This document specifies the product behavior of Agent Workspace Guidance for engineers,
+  architects, and product designers. It owns requirements and acceptance criteria. Runtime
+  topology lives in the high-level design; artifact algorithms and export mapping live in
+  the low-level.
 tags:
-  - agent-workspace-guidance
-  - feature-specification
-  - skills
-  - rules
-  - agents-md
-  - mcp
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- feature-specification
+- skills
+- rules
+- agents-md
+- mcp
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/01-feature-specification.md
-related_docs:
-  - ac.doc.awg.index
-  - ac.doc.awg.high-level-design
-  - ac.doc.common_context.feature-specification
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.index
+- ac.doc.awg.high-level-design
+- ac.doc.common_context.feature-specification
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - AgentWorkspaceGuidanceBundle
-  - AgentsEntry
-  - AlwaysRule
-  - Skill
+- AgentWorkspaceGuidanceBundle
+- AgentsEntry
+- AlwaysRule
+- Skill
 relations_declared:
-  - type: depends_on
-    target: ac.doc.common_context.feature-specification
-  - type: complements
-    target: ac.doc.sea.usage-profile-cursor-mcp
+- type: depends_on
+  target: ac.doc.common_context.feature-specification
+- type: complements
+  target: ac.doc.sea.usage-profile-cursor-mcp
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -58,6 +60,14 @@ security_classification: internal
 ## Purpose
 
 This document specifies the product behavior of Agent Workspace Guidance for engineers, architects, and product designers. It owns requirements and acceptance criteria. Runtime topology lives in the high-level design; artifact algorithms and export mapping live in the low-level design; wire contracts live in the contracts document.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
 
 ## Professional Audience
 

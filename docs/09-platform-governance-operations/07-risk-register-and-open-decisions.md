@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ops.risk-register-and-open-decisions
+title: Risk Register and Open Decisions
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This document captures important risks and unresolved decisions that should be tracked
+  before implementation.
+tags:
+- gap
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/07-risk-register-and-open-decisions.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Risk Register and Open Decisions
 
 ## Purpose

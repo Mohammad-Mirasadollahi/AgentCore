@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.sea.product-design-and-engineering-specification-discipline
+title: 22 - Product Design And Engineering Specification Discipline
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore specifications should be written from the combined
+  perspective of an experienced software engineer and an experienced product designer. It
+  turns product intent into technical behavior and turns technical behavior into usable operator
+  and agent .
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/22-product-design-and-engineering-specification-discipline.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 22 - Product Design And Engineering Specification Discipline
 
 ## Purpose

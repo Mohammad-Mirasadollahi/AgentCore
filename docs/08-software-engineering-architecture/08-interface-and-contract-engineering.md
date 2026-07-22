@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.interface-and-contract-engineering
+title: 08 - Interface And Contract Engineering
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should design, version, test, and operate interfaces
+  and contracts. Interfaces include APIs, events, SDKs, adapter payloads, configuration schemas,
+  migration contracts, and CLI commands.
+tags:
+- contract
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/08-interface-and-contract-engineering.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 08 - Interface And Contract Engineering
 
 ## Purpose

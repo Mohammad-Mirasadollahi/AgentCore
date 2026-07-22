@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.master.product-scope-and-feature-catalog
+title: Product Scope and Feature Catalog
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore connects to a codebase and improves the outputs of connected AI coding
+  tools.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/01-product-scope-and-feature-catalog.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Product Scope and Feature Catalog
+
+
+## Purpose
+
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools.
 
 ## Vision
 

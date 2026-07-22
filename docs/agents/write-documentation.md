@@ -1,26 +1,26 @@
 ---
-doc_id: tsoc.doc.agents.write-documentation
-title: "Write Documentation Skill (All Agents)"
-doc_type: onboarding
+doc_id: ac.doc.agents.write-documentation
+title: Write Documentation Skill (All Agents)
+doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-docs
-summary: >-
-  How any coding agent loads the write-documentation skill and the documentation
-  authoring law — not Cursor-specific.
+summary: How any coding agent loads the write-documentation skill and the documentation authoring
+  law — not Cursor-specific.
 tags:
-  - documentation
-  - agents
-  - skills
+- documentation
+- agents
+- skills
 phase: agents
 canonical_path: docs/agents/write-documentation.md
 lifecycle_lane: current
 concern_lane: onboarding
 audience_lane:
-  - agents
-  - platform-engineering
+- agents
+- platform-engineering
 authority: normative
 visibility: internal
+linked_symbols: []
 language: en
 security_classification: internal
 ---

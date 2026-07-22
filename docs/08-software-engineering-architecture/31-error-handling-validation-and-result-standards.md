@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.sea.error-handling-validation-and-result-standards
+title: 31 - Error Handling, Validation, And Result Standards
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should validate input, represent expected failures,
+  handle unexpected failures, and expose safe diagnostics.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/31-error-handling-validation-and-result-standards.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 31 - Error Handling, Validation, And Result Standards
 
 ## Purpose

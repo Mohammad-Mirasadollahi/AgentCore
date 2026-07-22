@@ -1,45 +1,45 @@
 ---
 doc_id: ac.doc.examples.turbovec-hybrid-retrieval
-title: "08 - TurboVec Hybrid Retrieval Example"
+title: 08 - TurboVec Hybrid Retrieval Example
 doc_type: example
-status: proposed
-schema_version: "1.0"
+status: draft
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Worked example of AgentCore Stage-1 SQL/ACL candidate narrowing followed by
-  turbovec IdMapIndex allowlist dense rerank, with fallback to pgvector.
+summary: Worked example of AgentCore Stage-1 SQL/ACL candidate narrowing followed by turbovec
+  IdMapIndex allowlist dense rerank, with fallback to pgvector.
 tags:
-  - turbovec
-  - rag
-  - hybrid-retrieval
-  - example
-  - memory
-phase: "11-logical-implementation-examples"
+- turbovec
+- rag
+- hybrid-retrieval
+- example
+- memory
+phase: 11-logical-implementation-examples
 canonical_path: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
-related_docs:
-  - ac.doc.stack.turbovec-ann-acceleration
-  - ac.doc.stack.turbovec-for-rag
-  - ac.doc.examples.memory-and-context
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - agent
 lifecycle_lane: future
 concern_lane: example
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: informative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.stack.turbovec-ann-acceleration
+- ac.doc.stack.turbovec-for-rag
+- ac.doc.examples.memory-and-context
+doc_version: 1.0.0
+audience:
+- engineer
+- agent
 primary_entities:
-  - HybridRetrievalPlan
-  - TurboVecReplica
-  - ContextBundle
+- HybridRetrievalPlan
+- TurboVecReplica
+- ContextBundle
 relations_declared:
-  - type: depends_on
-    target: docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md
-  - type: complements
-    target: docs/11-logical-implementation-examples/02-memory-and-context-example.md
+- type: depends_on
+  target: docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md
+- type: complements
+  target: docs/11-logical-implementation-examples/02-memory-and-context-example.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -88,14 +88,14 @@ Result: `allowed = uint64[1204, 1882, 2201, ...]` (e.g. 40 ids). FTS/`pg_trgm` m
 import numpy as np
 from turbovec import IdMapIndex
 
-# Loaded earlier by TurboVecIndexAdapter for this project replica
+## Loaded earlier by TurboVecIndexAdapter for this project replica
 idx: IdMapIndex  # dim=1536, bit_width=4
 
 allowed = np.asarray(stage1_ids, dtype=np.uint64)
 query = q.reshape(1, -1).astype(np.float32)
 
 scores, ids = idx.search(query, k=8, allowlist=allowed)
-# shapes: (1, min(8, len(allowed)))
+## shapes: (1, min(8, len(allowed)))
 ```
 
 Kernel behavior (vendor): blocks with no allowed slots are skipped; output length is `min(k, len(allowed))` with no padding.

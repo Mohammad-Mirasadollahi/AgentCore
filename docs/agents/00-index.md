@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.agents.index
+title: IDE agent documentation index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: English-only. **This tree is Cursor IDE setup and agent behavior in this repo—not
+  AgentCore product architecture.** Product specs live under [`../README.md`](../README.md)
+  (phases 00–15).
+tags:
+- index
+- agents
+phase: agents
+canonical_path: docs/agents/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # IDE agent documentation index
+
+
+## Purpose
+
+English-only. **This tree is Cursor IDE setup and agent behavior in this repo—not AgentCore product architecture.** Product specs live under [`../README.md`](../README.md) (phases 00–15).
 
 English-only. **This tree is Cursor IDE setup and agent behavior in this repo—not AgentCore product architecture.** Product specs live under [`../README.md`](../README.md) (phases 00–15).
 
@@ -9,12 +39,15 @@ English-only. **This tree is Cursor IDE setup and agent behavior in this repo—
 | Step | Document | Why |
 | --- | --- | --- |
 | 1 | [`AGENTS.md`](../../AGENTS.md) | Entry: laws, high-signal skills |
-| 2 | [`.cursor/rules/`](../../.cursor/rules/) | Always-apply / scoped Cursor rules (`.mdc`) |
-| 3 | [`.cursor/skills/`](../../.cursor/skills/) · [`.agents/skills/`](../../.agents/skills/) | Agent skills (`SKILL.md`) |
-| 4 | [`ide-mcp-first-workflow.md`](ide-mcp-first-workflow.md) | Docs-first discovery, live-test flow (if present) |
-| 5 | [`ide-workspace-rule-discovery.md`](ide-workspace-rule-discovery.md) | Optional: org interview → workspace packs → `.mdc` (if present) |
-| 6 | [`domain.md`](domain.md) | Monorepo context |
-| 7 | [`issue-tracker.md`](issue-tracker.md) · [`triage-labels.md`](triage-labels.md) | Issue workflow vocabulary |
+| 2 | [`team-documentation-playbook-for-agentcore.md`](team-documentation-playbook-for-agentcore.md) | Team method: which docs to follow for AgentCore-quality Markdown + code links |
+| 2a | [`TEAM-HANDOUT-agentcore-documentation-complete.md`](TEAM-HANDOUT-agentcore-documentation-complete.md) | **Give this one file to teams** — complete LIST A/B/C + rules |
+| 3 | [`documentation-authoring.md`](documentation-authoring.md) | Portable Full-tier authoring law |
+| 4 | [`.cursor/rules/`](../../.cursor/rules/) | Always-apply / scoped Cursor rules (`.mdc`) |
+| 5 | [`.cursor/skills/`](../../.cursor/skills/) · [`.agents/skills/`](../../.agents/skills/) | Agent skills (`SKILL.md`) |
+| 6 | [`ide-mcp-first-workflow.md`](ide-mcp-first-workflow.md) | Docs-first discovery, live-test flow (if present) |
+| 7 | [`ide-workspace-rule-discovery.md`](ide-workspace-rule-discovery.md) | Optional: org interview → workspace packs → `.mdc` (if present) |
+| 8 | [`domain.md`](domain.md) | Monorepo context |
+| 9 | [`issue-tracker.md`](issue-tracker.md) · [`triage-labels.md`](triage-labels.md) | Issue workflow vocabulary |
 
 ## Active Persian / language rules
 

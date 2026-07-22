@@ -1,51 +1,51 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-feature-spec
-title: "27 - Production Retrieval Stack Feature Specification"
+title: 27 - Production Retrieval Stack Feature Specification
 doc_type: feature_spec
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Production retrieval for code-graph agents: Okapi BM25 lexical search,
-  Neo4j Lucene / Postgres FTS, real BGE embeddings with RRF hybrid, APOC
-  neighborhood expand, and free scikit-network Leiden communities.
+summary: 'Production retrieval for code-graph agents: Okapi BM25 lexical search, Neo4j Lucene
+  / Postgres FTS, real BGE embeddings with RRF hybrid, APOC neighborhood expand, and free
+  scikit-network Leiden communities.'
 tags:
-  - retrieval
-  - bm25
-  - embeddings
-  - apoc
-  - leiden
-  - feature-specification
-phase: "07-code-knowledge-graph"
+- retrieval
+- bm25
+- embeddings
+- apoc
+- leiden
+- feature-specification
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/27-production-retrieval-stack-feature-specification.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-hld
-  - ac.doc.ckg.prod-retrieval-lld
-  - ac.doc.ckg.prod-retrieval-contracts
-  - ac.doc.ckg.prod-retrieval-risks
-  - ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
-  - ac.doc.ckg.code-intel-feature-spec
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.prod-retrieval-hld
+- ac.doc.ckg.prod-retrieval-lld
+- ac.doc.ckg.prod-retrieval-contracts
+- ac.doc.ckg.prod-retrieval-risks
+- ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
+- ac.doc.ckg.code-intel-feature-spec
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - HybridSearchResult
-  - ExplorePack
-  - CodeCommunity
+- HybridSearchResult
+- ExplorePack
+- CodeCommunity
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-feature-spec
-  - type: complements
-    target: docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
+- type: depends_on
+  target: ac.doc.ckg.code-intel-feature-spec
+- type: complements
+  target: docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -62,6 +62,21 @@ Make Code-Knowledge Graph **retrieval production-grade**: keyword search that
 actually ranks like search engines, embeddings that are real models (not hash
 stubs), multi-hop expansion via free Neo4j APOC, and community detection via
 free Leiden — without commercial Neo4j GDS algorithm licenses.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Goals
 

@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.sdk-engineering-and-contract-generation
+title: 27 - SDK Engineering And Contract Generation
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore SDKs should be engineered, generated, tested,
+  released, and governed. The SDK is a product surface and an engineering boundary. It must
+  be treated with the same rigor as public APIs, event contracts, and database migrations.
+tags:
+- contract
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/27-sdk-engineering-and-contract-generation.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 27 - SDK Engineering And Contract Generation
 
 ## Purpose

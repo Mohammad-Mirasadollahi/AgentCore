@@ -1,39 +1,40 @@
 ---
 doc_id: ac.doc.sea.local-install-runbook
-title: "39 - Local Install Runbook"
+title: 39 - Local Install Runbook
 doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-engineering
-summary: >-
-  Beginner-safe modular install for AgentCore local-dev: system prerequisites,
-  .venv, Compose secrets, PostgreSQL/Neo4j, and verification.
+summary: 'Beginner-safe modular install for AgentCore local-dev: system prerequisites, .venv,
+  Compose secrets, PostgreSQL/Neo4j, and verification.'
 tags:
-  - install
-  - bootstrap
-  - docker
-  - venv
-  - runbook
-  - local-dev
-phase: "08-software-engineering-architecture"
+- install
+- bootstrap
+- docker
+- venv
+- runbook
+- local-dev
+phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/39-local-install-runbook.md
-related_docs:
-  - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
-  - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
-  - docs/08-software-engineering-architecture/36-agentcore-cli.md
-  - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - operator
-  - agent
 lifecycle_lane: current
-concern_lane: runbook
+concern_lane: ops
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- tests/backend/tools/install/test_install_smoke.py::test_install_smoke_script_exists_and_executable
+related_docs:
+- docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
+- docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
+doc_version: 1.0.0
+audience:
+- engineer
+- operator
+- agent
 language: en
 security_classification: internal
 ---
@@ -54,12 +55,14 @@ From the repository root:
 bash install.sh
 ```
 
-The installer **asks** whether to bring AgentCore up as:
+The installer **asks** how to run the AgentCore **server** (not coding-agent clients):
 
-1. **host** — Compose Postgres/Neo4j + MCP HTTP from the host `.venv` (`agentcore service start`)
-2. **docker** — Compose Postgres/Neo4j + MCP HTTP in the `mcp-gateway` container (wheels from `/opt/agentcore-wheelhouse`)
+1. **host** — Server: Compose Postgres/Neo4j + MCP HTTP from the server `.venv` (`agentcore service start`)
+2. **docker** — Server: Compose Postgres/Neo4j + MCP HTTP in the `mcp-gateway` container (wheels from `/opt/agentcore-wheelhouse`)
 
-Both choices **always** install OS prerequisites (when interactive), create `.venv`, and put `agentcore` on `PATH` (`~/.local/bin` + shell rc).
+**Client boundary (normative):** Cursor / remote laptop / `agentcore connect` stay on the **client machine**. Do **not** Dockerize the client. Clients only attach to this server over MCP (HTTP or SSH stdio). See [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).
+
+Both **server** choices still install OS prerequisites (when interactive), create `.venv`, and put `agentcore` on the **server** `PATH` (`~/.local/bin` + shell rc).
 
 Non-interactive / CI:
 
@@ -107,7 +110,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
 | Flag | Meaning |
 | --- | --- |
-| `--runtime MODE` | `host` or `docker` (skips interactive prompt) |
+| `--runtime MODE` | Server bring-up: `host` or `docker` (skips prompt). Does **not** Dockerize clients. |
 | `--non-interactive` | No prompts; default runtime `host` if `--runtime` omitted |
 | `--check` | Verify only; do not install packages or change Compose |
 | `--prerequisites-only` | Stop after OS deps (always installs/checks prerequisites) |
@@ -174,17 +177,17 @@ State markers (optional resume hints): `.agentcore/install-state.env`.
 Prove the installer on a real host:
 
 ```bash
-# From repository root
+## From repository root
 bash tests/e2e/install/run-install-smoke.sh
 SMOKE_SKIP_DOCKER=1 bash tests/e2e/install/run-install-smoke.sh
 SMOKE_REQUIRE_DOCKER=1 bash tests/e2e/install/run-install-smoke.sh
 
-# Isolated temp tree + offset ports + auto cleanup
+## Isolated temp tree + offset ports + auto cleanup
 bash tests/e2e/install/run-isolated-install-smoke.sh
 SMOKE_REQUIRE_DOCKER=1 bash tests/e2e/install/run-isolated-install-smoke.sh
 SMOKE_KEEP=1 bash tests/e2e/install/run-isolated-install-smoke.sh
 
-# Pytest wrappers
+## Pytest wrappers
 .venv/bin/python -m pytest tests/backend/tools/install/test_install_smoke.py -q
 .venv/bin/python -m pytest tests/backend/tools/install/test_install_smoke.py -m live -q
 ```

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.ops.runbooks-and-operational-procedures
+title: Runbooks and Operational Procedures
+doc_type: runbook
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Runbooks define repeatable operational procedures. They reduce confusion during incidents,
+  releases, indexing failures, policy failures, and integration outages.
+tags:
+- runbook
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/06-runbooks-and-operational-procedures.md
+lifecycle_lane: current
+concern_lane: ops
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Runbooks and Operational Procedures
 
 ## Purpose

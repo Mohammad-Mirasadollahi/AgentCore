@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.interop.detailed-section-design
+title: Interoperability and Enterprise Ecosystem - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Organizations use many tools. One team may use IDE, another may use an autonomous
+  backend agent, another may use a QA bot, and another may rely on internal scripts. Without
+  a shared protocol, these tools become isolated islands.
+tags:
+- standard
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/06-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Interoperability and Enterprise Ecosystem - Detailed Section Design
+
+
+## Purpose
+
+Organizations use many tools. One team may use IDE, another may use an autonomous backend agent, another may use a QA bot, and another may rely on internal scripts. Without a shared protocol, these tools become isolated islands.
 
 ## Why This Phase Exists
 

@@ -1,41 +1,41 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-risks
-title: "31 - Production Retrieval Stack Risks Challenges And Acceptance"
-doc_type: specification
+title: 31 - Production Retrieval Stack Risks Challenges And Acceptance
+doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Risks, license constraints, and acceptance gates for the production retrieval
-  stack (BM25, FTS, BGE, APOC, free Leiden).
+summary: Risks, license constraints, and acceptance gates for the production retrieval stack
+  (BM25, FTS, BGE, APOC, free Leiden).
 tags:
-  - risks
-  - acceptance
-  - license
-  - retrieval
-phase: "07-code-knowledge-graph"
+- risks
+- acceptance
+- license
+- retrieval
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/31-production-retrieval-stack-risks-challenges-and-acceptance.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-feature-spec
-  - ac.doc.ckg.prod-retrieval-lld
-  - ac.doc.ckg.prod-retrieval-live-test-gates
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
 lifecycle_lane: current
-concern_lane: risk
+concern_lane: problem
 audience_lane:
-  - platform-engineering
-  - operators
+- platform-engineering
+- operators
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.prod-retrieval-feature-spec
+- ac.doc.ckg.prod-retrieval-lld
+- ac.doc.ckg.prod-retrieval-live-test-gates
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
 primary_entities:
-  - AcceptanceGate
+- AcceptanceGate
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.prod-retrieval-feature-spec
+- type: depends_on
+  target: ac.doc.ckg.prod-retrieval-feature-spec
 chunk_hints:
   strategy: heading_h2
   max_tokens: 600
@@ -45,6 +45,11 @@ security_classification: internal
 ---
 
 # 31 - Production Retrieval Stack Risks Challenges And Acceptance
+
+
+## Purpose
+
+Risks, license constraints, and acceptance gates for the production retrieval stack (BM25, FTS, BGE, APOC, free Leiden).
 
 ## Risks
 

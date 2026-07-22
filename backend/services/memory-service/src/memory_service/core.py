@@ -207,7 +207,7 @@ class QuestionMemory:
         self.version += 1
 
     def curiosity_score(self) -> float:
-        # ponytail: linear observation score; replace with full weighted curiosity profile when needed
+        # Linear observation score; replace with a full weighted curiosity profile when needed.
         unresolved = 1.0 if self.state not in {QuestionState.APPROVED_FAQ, QuestionState.DRAFT_GENERATED} else 0.0
         evidence = min(len(self.evidence_refs), 3) * 0.5
         return round(float(self.observations) + unresolved + evidence, 3)

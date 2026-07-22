@@ -1,44 +1,44 @@
 ---
 doc_id: ac.doc.ckg.code-intel-contracts
-title: "25 - Code Intelligence Enhancements Data Contracts And Events"
+title: 25 - Code Intelligence Enhancements Data Contracts And Events
 doc_type: contract
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  HTTP, MCP, and payload contracts for explore packs and change-risk reports,
-  plus edge metadata shapes for ROUTES_TO and TESTED_BY.
+summary: HTTP, MCP, and payload contracts for explore packs and change-risk reports, plus
+  edge metadata shapes for ROUTES_TO and TESTED_BY.
 tags:
-  - code-intelligence
-  - contracts
-  - mcp
-  - api
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- contracts
+- mcp
+- api
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/25-code-intelligence-enhancements-data-contracts-and-events.md
-related_docs:
-  - ac.doc.ckg.code-intel-feature-spec
-  - ac.doc.ckg.code-intel-hld
-  - backend/services/code-graph-service/docs/phase-7-api-contract.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - agent
 lifecycle_lane: current
 concern_lane: contract
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.code-intel-feature-spec
+- ac.doc.ckg.code-intel-hld
+- backend/services/code-graph-service/docs/phase-7-api-contract.md
+doc_version: 1.0.0
+audience:
+- engineer
+- agent
 primary_entities:
-  - ExplorePack
-  - ChangeRiskReport
-  - CODE_REL
+- ExplorePack
+- ChangeRiskReport
+- CODE_REL
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-feature-spec
-  - type: complements
-    target: backend/services/code-graph-service/docs/phase-7-api-contract.md
+- type: depends_on
+  target: ac.doc.ckg.code-intel-feature-spec
+- type: complements
+  target: backend/services/code-graph-service/docs/phase-7-api-contract.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.tech.data-contracts-and-events
+title: Technical Logic and Verification - Data Contracts and Events
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Phase 6 does not invent a parallel product schema. It defines the verification evidence
+  contract that proves Phase 1 through 5 public contracts behave correctly.
+tags:
+- contract
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/11-data-contracts-and-events.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Technical Logic and Verification - Data Contracts and Events
 
 ## Purpose

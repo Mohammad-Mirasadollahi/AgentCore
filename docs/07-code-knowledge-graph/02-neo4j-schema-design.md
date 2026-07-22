@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.ckg.neo4j-schema-design
+title: Code-Knowledge Graph - Neo4j Schema Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The **canonical Neo4j runtime model** for `code-graph-service` is:.
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Code-Knowledge Graph - Neo4j Schema Design
+
+
+## Purpose
+
+The **canonical Neo4j runtime model** for `code-graph-service` is:.
 
 ## Runtime projection (normative for Phase 7)
 

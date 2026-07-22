@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.examples.interoperability-and-broker-example
+title: Logical Example - Interoperability and Broker
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: A backend agent finishes a new Black Friday discount API. A frontend IDE plugin,
+  QA agent, Docs Agent, and Marketing workflow need to react without direct coupling to the
+  backend agent.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/05-interoperability-and-broker-example.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Logical Example - Interoperability and Broker
+
+
+## Purpose
+
+A backend agent finishes a new Black Friday discount API. A frontend IDE plugin, QA agent, Docs Agent, and Marketing workflow need to react without direct coupling to the backend agent.
 
 ## Scenario
 

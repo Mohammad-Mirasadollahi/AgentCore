@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.tech.risks-challenges-and-acceptance
+title: Technical Logic and Verification - Risks, Challenges, and Acceptance
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: '- Technical logic can drift from implemented vertical slices if docs and tests are
+  updated separately.'
+tags:
+- gap
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/12-risks-challenges-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Technical Logic and Verification - Risks, Challenges, and Acceptance
+
+
+## Purpose
+
+- Technical logic can drift from implemented vertical slices if docs and tests are updated separately. - Teams may treat Phase 6 as optional reading and jump to Phase 7 graph work too early. - Cross-domain runtime scenarios are easy to under-specify, leaving hidden handoffs. - Mo.
 
 ## Challenges
 

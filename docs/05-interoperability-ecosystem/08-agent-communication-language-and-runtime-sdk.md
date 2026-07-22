@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.interop.agent-communication-language-and-runtime-sdk
+title: Agent Communication Language and Runtime SDK
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Accepted shared product design. The hackathon contains the first executable vertical
+  slice; the main AgentCore implementation remains governed by the normal roadmap.
+tags:
+- standard
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/08-agent-communication-language-and-runtime-sdk.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Agent Communication Language and Runtime SDK
+
+
+## Purpose
+
+Accepted shared product design. The hackathon contains the first executable vertical slice; the main AgentCore implementation remains governed by the normal roadmap.
 
 ## Status
 

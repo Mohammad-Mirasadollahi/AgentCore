@@ -1,24 +1,36 @@
 ---
 doc_id: ac.doc.ckg.wedge-operator-connect-runbook
-title: "35 - Wedge Operator Connect and Ingest Runbook"
+title: 35 - Wedge Operator Connect and Ingest Runbook
 doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  One-path operator runbook: Compose (or memory smoke) → register project →
-  ingest → freshness/hybrid/explore. Closes backlog 34 Phase C1.
+summary: 'One-path operator runbook: Compose (or memory smoke) → register project → ingest
+  → freshness/hybrid/explore.'
 tags:
-  - runbook
-  - ingest
-  - mcp
-  - wedge
-phase: "07-code-knowledge-graph"
+- runbook
+- ingest
+- mcp
+- wedge
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/35-wedge-operator-connect-runbook.md
+lifecycle_lane: current
+concern_lane: ops
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
 language: en
 ---
 
 # 35 - Wedge Operator Connect and Ingest Runbook
+
+
+## Purpose
+
+One-path operator runbook: Compose (or memory smoke) → register project → ingest → freshness/hybrid/explore. Closes backlog 34 Phase C1.
 
 ## Goal
 
@@ -71,7 +83,7 @@ agentcore project activate \
 export AGENTCORE_CODE_GRAPH_STORE=neo4j
 export AGENTCORE_GRAPH_CLI_BACKEND=neo4j
 python samples/e2e-graph-probe/run_probe.py
-# or:
+## or:
 agentcore graph ingest \
   --tenant demo --workspace eng --project wedge \
   --path samples/e2e-graph-probe/src
@@ -84,7 +96,7 @@ agentcore graph explore --tenant demo --workspace eng --project wedge --query "l
 
 ```bash
 python samples/benefit-mvp/run_benefit_mvp.py
-# → tests/artifacts/code-graph-eval/benefit-mvp-latest.{json,md}
+## → tests/artifacts/code-graph-eval/benefit-mvp-latest.{json,md}
 ```
 
 ## Acceptance

@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.local-development-and-environment-engineering
+title: 13 - Local Development And Environment Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the expected local development and environment strategy for
+  AgentCore. It explains how engineers should run services safely, avoid port conflicts, manage
+  configuration, use test data, and reproduce behavior across machines.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 13 - Local Development And Environment Engineering
 
 ## Purpose

@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.rules.index
+title: 04 - Rule Engine and Orchestration Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Coordinate agents and humans through semantic policies, risk detection, escalation,
+  dependency analysis, and task routing.
+tags:
+- index
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 04 - Rule Engine and Orchestration Index
+
+
+## Purpose
+
+Coordinate agents and humans through semantic policies, risk detection, escalation, dependency analysis, and task routing.
 
 ## Mission
 

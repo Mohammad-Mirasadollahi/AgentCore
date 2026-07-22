@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.common-context-and-reuse-engineering
+title: 28 - Common Context And Reuse Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should engineer reusable common context so users
+  do not need to repeat stable project rules, architectural constraints, documentation preferences,
+  workflow expectations, and product definitions in every task.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/28-common-context-and-reuse-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 28 - Common Context And Reuse Engineering
 
 ## Purpose

@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.master.complete-system-blueprint
+title: Complete System Blueprint
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore connects to a codebase and improves the outputs of connected AI coding
+  tools. It indexes repository structure, documentation, decisions, and current project truth,
+  then injects task-scoped context into IDE assistants and agent runtimes. The first proof
+  of value is measu.
+tags:
+- standard
+- master
+phase: 00-master-plan
+canonical_path: docs/00-master-plan/05-complete-system-blueprint.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Complete System Blueprint
+
+
+## Purpose
+
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measu.
 
 ## Executive Summary
 

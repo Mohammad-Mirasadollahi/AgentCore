@@ -757,46 +757,91 @@ class CommonContextService:
         return result
 
     def ensure_mcp_first_seed(self, scope: Scope, actor_id: str, correlation_id: str) -> dict[str, Any]:
-        """Idempotently seed MCP-first guidance pack when no approved guidance exists."""
+        """Idempotently seed MCP-first guidance pack; add any missing pack skills on later calls."""
         seed_scope = (
             scope
             if scope.scope_kind in {"org", "project"}
             else project_scope(scope.tenant_id, scope.workspace_id, scope.project_id)
         )
-        approved = self.store.list_items(seed_scope, status="approved")
-        has_guidance = any(str(i.get("item_type") or "") in GUIDANCE_KINDS for i in approved)
-        if has_guidance:
-            return {"seeded": False, "reason": "guidance_already_present", "item_ids": []}
-
         all_items = self.store.list_items(seed_scope)
-        if any(str(i.get("item_type") or "") in GUIDANCE_KINDS for i in all_items):
-            return {"seeded": False, "reason": "guidance_items_exist", "item_ids": []}
+        guidance_items = [i for i in all_items if str(i.get("item_type") or "") in GUIDANCE_KINDS]
+        if not guidance_items:
+            item_ids: list[str] = []
+            seed_key = (
+                seed_scope.project_id if seed_scope.scope_kind == "project" else f"org:{seed_scope.workspace_id}"
+            )
+            for index, payload in enumerate(mcp_first_seed_payloads()):
+                item = self.propose_item(
+                    seed_scope,
+                    actor_id,
+                    correlation_id,
+                    f"awg-seed-mcp-first:{seed_key}:{index}:{payload.get('item_type')}:"
+                    f"{payload.get('name') or payload.get('slug') or 'entry'}",
+                    payload,
+                )
+                approved_item = self.approve_item(seed_scope, item["id"], actor_id)
+                item_ids.append(approved_item["id"])
+            self.store.append_event(
+                {
+                    "event_type": "AgentWorkspaceGuidanceSeedApplied",
+                    "project_id": seed_scope.project_id,
+                    "scope_kind": seed_scope.scope_kind,
+                    "seed_pack": "awg-seed-mcp-first-programming",
+                    "item_ids": item_ids,
+                }
+            )
+            return {
+                "seeded": True,
+                "reason": "applied",
+                "item_ids": item_ids,
+                "seed_pack": "awg-seed-mcp-first-programming",
+                "scope_kind": seed_scope.scope_kind,
+            }
 
-        item_ids: list[str] = []
+        return self._ensure_missing_mcp_first_skills(seed_scope, actor_id, correlation_id)
+
+    def _ensure_missing_mcp_first_skills(
+        self, seed_scope: Scope, actor_id: str, correlation_id: str
+    ) -> dict[str, Any]:
+        """Approve any seed pack skills that are not yet present by name."""
+        existing_names = {
+            str(i.get("name") or "").strip()
+            for i in self.store.list_items(seed_scope)
+            if str(i.get("item_type") or "") == "skill" and str(i.get("name") or "").strip()
+        }
         seed_key = seed_scope.project_id if seed_scope.scope_kind == "project" else f"org:{seed_scope.workspace_id}"
+        added: list[str] = []
         for index, payload in enumerate(mcp_first_seed_payloads()):
+            if payload.get("item_type") != "skill":
+                continue
+            name = str(payload.get("name") or "").strip()
+            if not name or name in existing_names:
+                continue
             item = self.propose_item(
                 seed_scope,
                 actor_id,
                 correlation_id,
-                f"awg-seed-mcp-first:{seed_key}:{index}:{payload.get('item_type')}:{payload.get('name') or payload.get('slug') or 'entry'}",
+                f"awg-seed-mcp-first-skill-upgrade:{seed_key}:{index}:{name}",
                 payload,
             )
             approved_item = self.approve_item(seed_scope, item["id"], actor_id)
-            item_ids.append(approved_item["id"])
+            added.append(approved_item["id"])
+            existing_names.add(name)
+        if not added:
+            return {"seeded": False, "reason": "guidance_already_present", "item_ids": []}
         self.store.append_event(
             {
-                "event_type": "AgentWorkspaceGuidanceSeedApplied",
+                "event_type": "AgentWorkspaceGuidanceSeedSkillsUpgraded",
                 "project_id": seed_scope.project_id,
                 "scope_kind": seed_scope.scope_kind,
                 "seed_pack": "awg-seed-mcp-first-programming",
-                "item_ids": item_ids,
+                "item_ids": added,
             }
         )
         return {
             "seeded": True,
-            "reason": "applied",
-            "item_ids": item_ids,
+            "reason": "skills_upgraded",
+            "item_ids": added,
             "seed_pack": "awg-seed-mcp-first-programming",
             "scope_kind": seed_scope.scope_kind,
         }

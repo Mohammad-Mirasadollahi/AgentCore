@@ -141,12 +141,14 @@ stage_06_runtime_bringup_run() {
   banner "AgentCore install finished"
   cat <<EOF
 Next steps:
-  1. agentcore is on PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
-  2. Runtime selected: ${runtime}
-  3. Run:  agentcore --help && agentcore doctor
-  4. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
-  5. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
+  1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
+  2. Server runtime selected: ${runtime}
+  3. Clients (Cursor / laptop) are NOT Dockerized — wire them with agentcore connect / MCP URL
+  4. Run:  agentcore --help && agentcore doctor
+  5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
+  6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
             docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
+            docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 
 Compose env (secrets): ${COMPOSE_ENV_FILE}
 Re-check anytime:       bash install.sh --check --non-interactive --runtime ${runtime}

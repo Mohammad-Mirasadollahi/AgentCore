@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.sea.domain-customization-and-feature-control
+title: 26 - Domain Customization And Feature Control
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must be modular enough to serve different operational domains while keeping
+  software engineering as the primary product focus. The platform should work as a deeply
+  technical coding and documentation copilot for engineering teams, but it should also support
+  domain-specif.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/26-domain-customization-and-feature-control.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 26 - Domain Customization And Feature Control
 
 ## Purpose

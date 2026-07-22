@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.tech.interoperability-technical-logic
+title: Interoperability Technical Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Interoperability layer allows different agents, IDEs, tools, and departments
+  to communicate through stable contracts. It hides vendor-specific formats behind adapters
+  and exposes structured events through a broker.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/05-interoperability-technical-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Interoperability Technical Logic
+
+
+## Purpose
+
+The Interoperability layer allows different agents, IDEs, tools, and departments to communicate through stable contracts. It hides vendor-specific formats behind adapters and exposes structured events through a broker.
 
 ## Technical Goal
 

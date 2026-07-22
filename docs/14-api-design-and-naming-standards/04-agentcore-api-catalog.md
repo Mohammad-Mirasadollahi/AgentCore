@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.api.agentcore-api-catalog
+title: 04 - AgentCore API Catalog
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the first planned API families for AgentCore. It provides logical
+  endpoint names that future implementation should follow unless a documented exception is
+  approved.
+tags:
+- standard
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/04-agentcore-api-catalog.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 04 - AgentCore API Catalog
 
 ## Purpose

@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.stack.local-venv-docker-and-port-policy
+title: 06 - Local Venv, Docker, And Port Policy
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the local development runtime policy for AgentCore. Python
+  dependencies must be installed inside a project virtual environment, infrastructure services
+  must run through Docker Compose or an equivalent container orchestration profile, and every
+  newly exposed .
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/06-local-venv-docker-and-port-policy.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 06 - Local Venv, Docker, And Port Policy
 
 ## Purpose

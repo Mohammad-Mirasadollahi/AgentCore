@@ -1,4 +1,32 @@
+---
+doc_id: ac.doc.ckg.third-party-notices
+title: Third-Party Notices — Code Intelligence Prior Art
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: 'Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`.'
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Third-Party Notices — Code Intelligence Prior Art
+
+
+## Purpose
+
+Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`.
 
 Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`
 

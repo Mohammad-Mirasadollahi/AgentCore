@@ -1,41 +1,42 @@
 ---
 doc_id: ac.doc.sea.app-docker-wheelhouse-runbook
-title: "43 - App Docker And Wheelhouse Runbook"
+title: 43 - App Docker And Wheelhouse Runbook
 doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-engineering
-summary: >-
-  How to export host .venv packages to /opt/agentcore-wheelhouse, build the
-  mcp-gateway application image, run Compose profile app, and verify MCP HTTP.
-  Clarifies PATH, CLI parity, and data mount behavior.
+summary: How to export host .venv packages to /opt/agentcore-wheelhouse, build the mcp-gateway
+  application image, run Compose profile app, and verify MCP HTTP. Clarifies PATH, CLI parity,
+  and data mount behavior.
 tags:
-  - docker
-  - wheelhouse
-  - mcp-gateway
-  - compose
-  - runbook
-  - offline-install
-phase: "08-software-engineering-architecture"
+- docker
+- wheelhouse
+- mcp-gateway
+- compose
+- runbook
+- offline-install
+phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
-related_docs:
-  - docs/08-software-engineering-architecture/39-local-install-runbook.md
-  - docs/13-technology-stack-and-platform-decisions/06-local-venv-docker-and-port-policy.md
-  - docs/08-software-engineering-architecture/36-agentcore-cli.md
-  - backend/deployments/docker/README.md
-  - backend/deployments/compose/README.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - operator
-  - agent
 lifecycle_lane: current
-concern_lane: runbook
+concern_lane: ops
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- tests/backend/tools/docker/test_app_docker_packaging.py::test_wheelhouse_script_exists_and_targets_opt
+related_docs:
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
+- docs/13-technology-stack-and-platform-decisions/06-local-venv-docker-and-port-policy.md
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- backend/deployments/docker/README.md
+- backend/deployments/compose/README.md
+doc_version: 1.0.0
+audience:
+- engineer
+- operator
+- agent
 language: en
 security_classification: internal
 ---
@@ -51,7 +52,17 @@ This runbook explains the **shipped** application-container path for AgentCore:
 3. Start Compose profiles `core` + `app` so Postgres, Neo4j, and MCP HTTP run as containers.
 4. Verify health and MCP `initialize`.
 
-Implementation status: **shipped** for the MCP HTTP gateway wedge. Per-service FastAPI mesh containers are **not** shipped yet. Host `.venv` + `agentcore` CLI remain the operator control plane for sync, connect, doctor, and project state.
+Implementation status: **shipped** for the MCP HTTP gateway wedge on the **AgentCore server**. Per-service FastAPI mesh containers are **not** shipped yet. Host `.venv` + `agentcore` CLI on the server remain the operator control plane for sync, connect-token minting, doctor, and project state.
+
+## Server vs client (normative)
+
+| Role | Dockerized? | What runs where |
+| --- | --- | --- |
+| AgentCore **server** (`--runtime docker`) | Yes (Postgres, Neo4j, `mcp-gateway`) | This machine / VM that hosts AgentCore |
+| AgentCore **server** (`--runtime host`) | Infra only (Postgres/Neo4j); MCP from server `.venv` | Same server host |
+| Coding-agent **client** (Cursor, laptop, CI agent) | **Never** | Client OS + `agentcore connect` / MCP config only |
+
+Do **not** ship or install a client-side Docker Compose stack for AgentCore. Clients attach to the server MCP endpoint (HTTP URL or SSH stdio). Remote client wiring: [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).
 
 ## What works today
 
@@ -87,7 +98,7 @@ flowchart LR
 Default path: `/opt/agentcore-wheelhouse` (override with `AGENTCORE_WHEELHOUSE`).
 
 ```bash
-# From repository root, with a working .venv
+## From repository root, with a working .venv
 bash scripts/build-wheelhouse.sh
 ```
 
@@ -106,7 +117,7 @@ Prefer the installer (prompts for host vs docker, always installs PATH + prerequ
 
 ```bash
 bash install.sh
-# or non-interactive:
+## or non-interactive:
 bash install.sh --non-interactive --runtime docker
 ```
 
@@ -179,10 +190,9 @@ Compose sets container DB hosts via env (`AGENTCORE_POSTGRES_HOST=postgres`, `AG
 
 ```bash
 curl -sS http://127.0.0.1:32500/health
-# Expect: {"status":"ok","service":"mcp-gateway-http",...}
-
+## Expect: {"status":"ok","service":"mcp-gateway-http",...}
 docker ps --filter name=agentcore-mcp-gateway --format '{{.Names}} {{.Status}}'
-# Expect: ... (healthy)
+## Expect: ... (healthy)
 ```
 
 MCP `initialize` requires a bearer token (`AGENTCORE_MCP_HTTP_TOKEN`, default in Compose for local lab: `agentcore-docker-dev-token`) plus scope headers `X-Tenant-Id`, `X-Workspace-Id`, `X-Project-Id`.

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.api.dto-schema-error-pagination-and-idempotency-standard
+title: 03 - DTO, Schema, Error, Pagination, And Idempotency Standard
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the payload, schema, error, pagination, filtering, sorting,
+  and idempotency standards for AgentCore APIs.
+tags:
+- standard
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/03-dto-schema-error-pagination-and-idempotency-standard.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 03 - DTO, Schema, Error, Pagination, And Idempotency Standard
 
 ## Purpose

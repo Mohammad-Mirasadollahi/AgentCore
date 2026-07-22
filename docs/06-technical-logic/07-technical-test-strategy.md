@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.tech.technical-test-strategy
+title: Technical Test Strategy
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how to verify the technical logic of AgentCore. The platform
+  should not be considered ready because documents exist. It is ready when the documented
+  logic can be tested through deterministic, repeatable scenarios.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/07-technical-test-strategy.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/technical-logic-verification/run_gate.py::main
+---
+
 # Technical Test Strategy
 
 ## Purpose

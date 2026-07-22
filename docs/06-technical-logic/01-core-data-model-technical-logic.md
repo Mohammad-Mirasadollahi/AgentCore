@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.tech.core-data-model-technical-logic
+title: Core Data Model Technical Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Core Data Model must provide deterministic, auditable, queryable records for
+  agent work.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/01-core-data-model-technical-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Core Data Model Technical Logic
+
+
+## Purpose
+
+The Core Data Model must provide deterministic, auditable, queryable records for agent work. This layer is the write-ahead memory of AgentCore. No higher-level component should depend on raw chat messages, raw terminal output, or vendor-specific agent text.
 
 ## Technical Goal
 

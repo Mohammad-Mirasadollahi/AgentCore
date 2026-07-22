@@ -1,3 +1,30 @@
+---
+doc_id: ac.doc.ops.index
+title: 09 - Platform Governance and Operations Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This section completes the AgentCore plan from an operational and governance perspective.
+  Earlier sections define product architecture, technical logic, code graph design, and software
+  engineering architecture. This section defines the controls required to run the platform
+  safely.
+tags:
+- index
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/governance-catalog-verification/run_gate.py::main
+---
+
 # 09 - Platform Governance and Operations Index
 
 ## Purpose

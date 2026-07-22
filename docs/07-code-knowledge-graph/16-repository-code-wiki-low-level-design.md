@@ -1,48 +1,48 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-lld
-title: "16 - Repository Code Wiki Low-Level Design"
+title: 16 - Repository Code Wiki Low-Level Design
 doc_type: lld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Algorithms for module-tree construction, hierarchical decomposition,
-  recursive generation, incremental dirty-set selection, Mermaid validation,
-  and published page layout for Repository Code Wiki.
+summary: This document defines implementation-level algorithms and data shapes for Repository
+  Code Wiki generation. System boundaries live in the high-level design; HTTP/MCP field contracts
+  live in the contracts document.
 tags:
-  - repository-code-wiki
-  - lld
-  - hierarchical-decomposition
-  - incremental-update
-  - mermaid
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- lld
+- hierarchical-decomposition
+- incremental-update
+- mermaid
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/16-repository-code-wiki-low-level-design.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-hld
-  - ac.doc.ckg.repository-code-wiki-contracts
-  - ac.doc.ckg.repository-code-wiki-feature-spec
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
 concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-hld
+- ac.doc.ckg.repository-code-wiki-contracts
+- ac.doc.ckg.repository-code-wiki-feature-spec
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - WikiModuleNode
-  - WikiModuleTree
-  - WikiPage
-  - WikiDirtySet
+- WikiModuleNode
+- WikiModuleTree
+- WikiPage
+- WikiDirtySet
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.repository-code-wiki-hld
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/08-code-metadata-schema-and-lifecycle.md
+- type: depends_on
+  target: ac.doc.ckg.repository-code-wiki-hld
+- type: depends_on
+  target: docs/07-code-knowledge-graph/08-code-metadata-schema-and-lifecycle.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -56,6 +56,21 @@ security_classification: internal
 ## Purpose
 
 This document defines implementation-level algorithms and data shapes for Repository Code Wiki generation. System boundaries live in the high-level design; HTTP/MCP field contracts live in the contracts document.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Module Key And Page Identity
 

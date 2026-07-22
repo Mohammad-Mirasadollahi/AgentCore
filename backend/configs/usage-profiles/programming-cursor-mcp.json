@@ -298,7 +298,7 @@
       },
       {
         "name": "agentcore_code_graph_generation_context",
-        "description": "Build a generation context pack (seed symbol + related symbols/docs) for coding agents.",
+        "description": "Build a generation context pack for coding agents: seed symbol, related symbols, and hybrid_documentation layers (human → living → rationale → AST). Prefer human docs when DOCUMENTED_BY exists; never invents edges.",
         "maps_to": "code_graph.generation_context",
         "input_schema": {
           "type": "object",
@@ -553,7 +553,7 @@
       },
       {
         "name": "agentcore_docs_write",
-        "description": "Documentation workflow from Cursor: validate frontmatter, index a doc note, or create a review draft for a symbol via docs-sync.",
+        "description": "Documentation workflow from Cursor: Body-tier validate frontmatter, index a doc note, or create a review draft for a symbol via docs-sync. For Full-tier product Markdown rules call agentcore_docs_authoring_standards first.",
         "maps_to": "docs_sync.write",
         "input_schema": {
           "type": "object",
@@ -618,8 +618,18 @@
       },
       {
         "name": "agentcore_docs_status",
-        "description": "Return documentation coverage and missing-doc gaps for the scoped project.",
+        "description": "Return documentation coverage and missing-doc gaps for the scoped project (docs-as-code sync). For Full-tier product Markdown authoring rules, call agentcore_docs_authoring_standards.",
         "maps_to": "docs_sync.status",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_docs_authoring_standards",
+        "description": "Return Full-tier AgentCore/ThinkingSOC documentation authoring law: required frontmatter, lanes, Mermaid+flow tables, size budgets, procedure 10, and CLI gates. Call when the user asks how documentation works or before writing/remediating product Markdown under docs/. Docs-sync validate is Body-tier only.",
+        "maps_to": "docs_sync.authoring_standards",
         "input_schema": {
           "type": "object",
           "properties": {},

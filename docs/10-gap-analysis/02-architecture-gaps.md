@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.gap.architecture-gaps
+title: Architecture Gaps
+doc_type: gap
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This document captures architecture-level gaps that should be resolved before implementation
+  reaches production-grade design.
+tags:
+- gap
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/02-architecture-gaps.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Architecture Gaps
 
 ## Purpose

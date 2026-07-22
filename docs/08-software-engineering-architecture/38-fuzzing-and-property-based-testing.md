@@ -1,51 +1,51 @@
 ---
 doc_id: ac.doc.sea.fuzzing-property-based
-title: "38 - Fuzzing And Property-Based Testing"
+title: 38 - Fuzzing And Property-Based Testing
 doc_type: standard
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-engineering
-summary: >-
-  Normative AgentCore standard for property-based tests and fuzzing: invariants,
-  generators, schema/API fuzz, corpus, shrinking, markers, CI selection, and
-  when fuzz suites are mandatory alongside implementation.
+summary: 'Normative AgentCore standard for property-based tests and fuzzing: invariants, generators,
+  schema/API fuzz, corpus, shrinking, markers, CI selection, and when fuzz suites are mandatory
+  alongside implementation.'
 tags:
-  - testing
-  - fuzz
-  - property-based
-  - hypothesis
-  - security
-  - authoring
-phase: "08-software-engineering-architecture"
+- testing
+- fuzz
+- property-based
+- hypothesis
+- security
+- authoring
+phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/38-fuzzing-and-property-based-testing.md
-related_docs:
-  - ac.doc.sea.test-authoring-standard
-  - ac.doc.sea.testing-verification
-  - ac.doc.sea.live-unit-test-strategy
-  - ac.doc.sea.testing-seams
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - security
-  - agent
 lifecycle_lane: current
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.sea.test-authoring-standard
+- ac.doc.sea.testing-verification
+- ac.doc.sea.live-unit-test-strategy
+- ac.doc.sea.testing-seams
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- security
+- agent
 primary_entities:
-  - FuzzSuite
-  - PropertyInvariant
-  - InputStrategy
-  - CorpusSeed
+- FuzzSuite
+- PropertyInvariant
+- InputStrategy
+- CorpusSeed
 relations_declared:
-  - type: complements
-    target: docs/08-software-engineering-architecture/37-test-authoring-standard.md
-  - type: depends_on
-    target: docs/08-software-engineering-architecture/33-testing-seams-and-contract-boundary-standards.md
+- type: complements
+  target: docs/08-software-engineering-architecture/37-test-authoring-standard.md
+- type: depends_on
+  target: docs/08-software-engineering-architecture/33-testing-seams-and-contract-boundary-standards.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

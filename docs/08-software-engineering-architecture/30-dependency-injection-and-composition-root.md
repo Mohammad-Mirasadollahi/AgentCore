@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.dependency-injection-and-composition-root
+title: 30 - Dependency Injection And Composition Root
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should use Dependency Injection. DI is required
+  so modules remain testable, replaceable, observable, and free from hidden infrastructure
+  coupling.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/30-dependency-injection-and-composition-root.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 30 - Dependency Injection And Composition Root
 
 ## Purpose

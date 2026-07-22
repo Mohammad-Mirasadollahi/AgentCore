@@ -1,48 +1,48 @@
 ---
 doc_id: ac.doc.ckg.code-intel-risks
-title: "26 - Code Intelligence Enhancements Risks Challenges And Acceptance"
-doc_type: risks
+title: 26 - Code Intelligence Enhancements Risks Challenges And Acceptance
+doc_type: gap
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Risks, challenges, license pitfalls, and acceptance gates for AgentCore code
-  intelligence enhancements inspired by MIT prior art.
+summary: Records residual risks and acceptance gates for Code Intelligence Enhancements. License
+  rules are normative in [`21`](21-code-intelligence-prior-art-ideas-and-license.md).
 tags:
-  - code-intelligence
-  - risks
-  - acceptance
-  - license
-  - mit
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- risks
+- acceptance
+- license
+- mit
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/26-code-intelligence-enhancements-risks-challenges-and-acceptance.md
-related_docs:
-  - ac.doc.ckg.code-intel-feature-spec
-  - ac.doc.ckg.code-intel-prior-art-license
-  - ac.doc.codegraph.competitive-intelligence-roadmap-adr
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - security
-  - product
 lifecycle_lane: current
-concern_lane: risk
+concern_lane: problem
 audience_lane:
-  - platform-engineering
-  - security
-  - product
+- platform-engineering
+- security
+- product
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.code-intel-feature-spec
+- ac.doc.ckg.code-intel-prior-art-license
+- ac.doc.codegraph.competitive-intelligence-roadmap-adr
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- security
+- product
 primary_entities:
-  - ExplorePack
-  - ChangeRiskReport
-  - LicenseObligation
+- ExplorePack
+- ChangeRiskReport
+- LicenseObligation
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-feature-spec
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-prior-art-license
+- type: depends_on
+  target: ac.doc.ckg.code-intel-feature-spec
+- type: depends_on
+  target: ac.doc.ckg.code-intel-prior-art-license
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700

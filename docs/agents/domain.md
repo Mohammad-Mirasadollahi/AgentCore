@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.agents.domain
+title: Domain Docs
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: How the engineering skills should consume this repo's domain documentation when exploring
+  the codebase.
+tags:
+- standard
+- agents
+phase: agents
+canonical_path: docs/agents/domain.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Domain Docs
+
+
+## Purpose
+
+How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 

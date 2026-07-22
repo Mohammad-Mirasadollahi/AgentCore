@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.backend.module-template
+title: Backend Module README Template
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: README template for new backend folders and modules under backend/.
+tags:
+- backend
+- template
+- readme
+phase: backend-docs
+canonical_path: backend/docs/MODULE_TEMPLATE.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+language: en
+security_classification: internal
+---
+
 # Backend Module README Template
+
+## Purpose
+
+Provide the required README shape when adding a new backend folder so every module records path, ownership, boundary, contracts, and status.
 
 Use this template when adding a new backend folder.
 
@@ -49,3 +79,9 @@ Document configuration, observability, health checks, and runbook links.
 
 Draft, scaffold, active, deprecated, or removed.
 ```
+
+## Related Documents
+
+- [STRUCTURE_STANDARD.md](./STRUCTURE_STANDARD.md)
+- [ENGINEERING_STANDARDS.md](./ENGINEERING_STANDARDS.md)
+- [API_NAMING_AND_CONTRACT_STANDARD.md](./API_NAMING_AND_CONTRACT_STANDARD.md)

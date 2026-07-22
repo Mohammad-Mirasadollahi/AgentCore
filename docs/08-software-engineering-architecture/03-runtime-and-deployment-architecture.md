@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.runtime-and-deployment-architecture
+title: Runtime and Deployment Architecture
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should run across development, staging, and production.
+  The system should be configurable, observable, and safe to run alongside other tools without
+  port conflicts.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/03-runtime-and-deployment-architecture.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Runtime and Deployment Architecture
 
 ## Purpose

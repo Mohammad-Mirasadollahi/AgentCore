@@ -1,71 +1,71 @@
 ---
 doc_id: ac.doc.codegraph.competitive-intelligence-roadmap-adr
-title: "19 - Competitive Code Intelligence Roadmap ADR"
+title: 19 - Competitive Code Intelligence Roadmap ADR
 doc_type: adr
-status: accepted
-schema_version: "1.0"
+status: active
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Adopts a three-wave roadmap for AgentCore code-graph intelligence inspired by
-  CodeGraph (surgical explore), code-review-graph (flows/risk/communities), and
-  graphify (edge confidence UX + rationale), without switching SoR to SQLite.
+summary: Adopts a three-wave roadmap for AgentCore code-graph intelligence inspired by CodeGraph
+  (surgical explore), code-review-graph (flows/risk/communities), and graphify (edge confidence
+  UX + rationale), without switching SoR to SQLite.
 tags:
-  - code-graph
-  - adr
-  - mcp
-  - review
-  - rag
-phase: "07-code-knowledge-graph"
+- code-graph
+- adr
+- mcp
+- review
+- rag
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/19-competitive-code-intelligence-roadmap-adr.md
-related_docs:
-  - docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
-  - docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md
-  - docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
-  - docs/07-code-knowledge-graph/21-code-intelligence-prior-art-ideas-and-license.md
-  - docs/07-code-knowledge-graph/22-code-intelligence-enhancements-feature-specification.md
-  - docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md
-  - backend/services/code-graph-service/docs/phase-7-api-contract.md
-external_refs:
-  - https://github.com/colbymchenry/codegraph
-  - https://github.com/tirth8205/code-review-graph
-  - https://github.com/Graphify-Labs/graphify
-  - https://opensource.org/licenses/MIT
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+- docs/07-code-knowledge-graph/13-codesymbol-projection-adr.md
+- docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- docs/07-code-knowledge-graph/21-code-intelligence-prior-art-ideas-and-license.md
+- docs/07-code-knowledge-graph/22-code-intelligence-enhancements-feature-specification.md
+- docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md
+- backend/services/code-graph-service/docs/phase-7-api-contract.md
+external_refs:
+- https://github.com/colbymchenry/codegraph
+- https://github.com/tirth8205/code-review-graph
+- https://github.com/Graphify-Labs/graphify
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
 primary_entities:
-  - CodeGraphService
-  - ExplorePack
-  - RiskScore
-  - ExecutionFlow
-  - ROUTES_TO
-  - TESTED_BY
+- CodeGraphService
+- ExplorePack
+- RiskScore
+- ExecutionFlow
+- ROUTES_TO
+- TESTED_BY
 relations_declared:
-  - type: constrains
-    target: backend/services/code-graph-service/
-  - type: complements
-    target: docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+- type: constrains
+  target: backend/services/code-graph-service/
+- type: complements
+  target: docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
   overlap_tokens: 64
 language: en
 security_classification: internal
-external_refs:
-  - https://github.com/colbymchenry/codegraph
-  - https://github.com/tirth8205/code-review-graph
-  - https://github.com/Graphify-Labs/graphify
 ---
 
 # 19 - Competitive Code Intelligence Roadmap ADR
+
+
+## Purpose
+
+Adopts a three-wave roadmap for AgentCore code-graph intelligence inspired by CodeGraph (surgical explore), code-review-graph (flows/risk/communities), and graphify (edge confidence UX + rationale), without switching SoR to SQLite.
 
 ## Status
 

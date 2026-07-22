@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.gap.phase10-verification-and-acceptance
+title: Phase 10 - Verification and Acceptance
+doc_type: standard
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: Phase 10 makes unresolved assumptions and design gaps explicit and reviewable.
+tags:
+- standard
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/06-phase10-verification-and-acceptance.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/gap-register-verification/run_gate.py::main
+---
+
 # Phase 10 - Verification and Acceptance
 
 ## Purpose

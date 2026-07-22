@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.sea.engineering-operating-model
+title: 06 - Engineering Operating Model
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how engineering work should happen inside AgentCore. It explains
+  how teams should move from design to implementation, how responsibilities should be assigned,
+  how work should be reviewed, and how technical decisions should become traceable system
+  knowledge.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/06-engineering-operating-model.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 06 - Engineering Operating Model
 
 ## Purpose

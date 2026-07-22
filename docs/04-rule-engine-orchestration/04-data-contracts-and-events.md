@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.rules.data-contracts-and-events
+title: Rule Engine and Orchestration - Data Contracts and Events
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: '- `Policy(id, title, natural_language_rule, scope, severity, owner, examples, evaluation_mode)`
+  - `RuleEvaluation(id, policy_id, subject_ref, verdict, confidence, rationale, evidence_refs)`
+  - `EscalationTicket(id, evaluation_id, approver, status, options, deadline, decision_reaso.'
+tags:
+- contract
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/04-data-contracts-and-events.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine and Orchestration - Data Contracts and Events
+
+
+## Purpose
+
+- `Policy(id, title, natural_language_rule, scope, severity, owner, examples, evaluation_mode)` - `RuleEvaluation(id, policy_id, subject_ref, verdict, confidence, rationale, evidence_refs)` - `EscalationTicket(id, evaluation_id, approver, status, options, deadline, decision_reaso.
 
 ## Core Entities
 

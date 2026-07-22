@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.docs-sync.detailed-section-design
+title: Docs-as-Code and Synchronization - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Documentation drift is one of the oldest problems in software engineering. Code changes
+  quickly, but documents are often updated late or not updated at all. In an AI-agent environment,
+  the problem becomes more dangerous because future agents may trust stale docs and make incorrec.
+tags:
+- standard
+- docs-sync
+phase: 03-docs-as-code-sync
+canonical_path: docs/03-docs-as-code-sync/06-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Docs-as-Code and Synchronization - Detailed Section Design
+
+
+## Purpose
+
+Documentation drift is one of the oldest problems in software engineering. Code changes quickly, but documents are often updated late or not updated at all. In an AI-agent environment, the problem becomes more dangerous because future agents may trust stale docs and make incorrec.
 
 ## Why This Phase Exists
 

@@ -32,6 +32,7 @@ def test_tools_list_is_lazy_facade():
     assert "agentcore_ping" in catalog
     assert "agentcore_guidance_resolve" in catalog
     assert "agentcore_create_task" in catalog
+    assert "agentcore_docs_authoring_standards" in catalog
 
 
 def test_initialize_and_tools_list_rpc():
@@ -161,6 +162,12 @@ def test_tools_call_wired_backends():
     assert "coverage" in status["structuredContent"]
     assert "missing_count" in status["structuredContent"]
 
+    authoring = gw.call_tool("agentcore_docs_authoring_standards", {})
+    standards = authoring["structuredContent"]["authoring_standards"]
+    assert standards["law_id"] == "agentcore.documentation_authoring.full_tier"
+    assert "doc_id" in standards["required_frontmatter_keys"]
+    assert "agentcore-documentation-authoring" == standards["skill_name"]
+
     guidance = gw.call_tool(
         "agentcore_guidance_resolve",
         {"task_summary": "start coding with AgentCore MCP"},
@@ -171,13 +178,22 @@ def test_tools_call_wired_backends():
     assert any(s["name"] == "agentcore-session-bootstrap" for s in bundle["skills"])
 
     listed = gw.call_tool("agentcore_guidance_list_skills", {"query": "docs"})
-    assert any(s["name"] == "agentcore-docs-sync" for s in listed["structuredContent"]["skills"])
+    skill_names = {s["name"] for s in listed["structuredContent"]["skills"]}
+    assert "agentcore-docs-sync" in skill_names
+    assert "agentcore-documentation-authoring" in skill_names
 
     skill = gw.call_tool(
         "agentcore_guidance_get_skill",
         {"name": "agentcore-code-graph", "bundle_id": bundle["bundle_id"]},
     )
     assert "agentcore_code_graph_search" in skill["structuredContent"]["skill"]["body"]
+
+    authoring_skill = gw.call_tool(
+        "agentcore_guidance_get_skill",
+        {"name": "agentcore-documentation-authoring", "bundle_id": bundle["bundle_id"]},
+    )
+    assert "agentcore_docs_authoring_standards" in authoring_skill["structuredContent"]["skill"]["body"]
+    assert "Full-tier" in authoring_skill["structuredContent"]["skill"]["body"]
 
 
 def test_unknown_tool_fails_closed():

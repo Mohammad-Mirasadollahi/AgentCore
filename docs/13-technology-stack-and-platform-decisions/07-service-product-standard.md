@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.stack.service-product-standard
+title: 07 - Service Product Standard
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the AgentCore product-per-role standard. The architecture should
+  use one approved product for each infrastructure responsibility so implementers do not mix
+  multiple competing technologies for the same concern.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 07 - Service Product Standard
 
 ## Purpose

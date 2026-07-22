@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.sea.testing-and-verification-engineering
+title: 11 - Testing And Verification Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the testing and verification strategy for AgentCore from a
+  Software Engineering perspective.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/11-testing-and-verification-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 11 - Testing And Verification Engineering
 
 ## Purpose

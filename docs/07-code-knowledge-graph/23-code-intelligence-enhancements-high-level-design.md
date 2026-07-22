@@ -1,49 +1,49 @@
 ---
 doc_id: ac.doc.ckg.code-intel-hld
-title: "23 - Code Intelligence Enhancements High-Level Design"
+title: 23 - Code Intelligence Enhancements High-Level Design
 doc_type: hld
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  System architecture for explore packs, route/test enrichment, change-risk
-  reports, and Wave 2 analytics inside code-graph-service and MCP gateway.
+summary: System architecture for explore packs, route/test enrichment, change-risk reports,
+  and Wave 2 analytics inside code-graph-service and MCP gateway.
 tags:
-  - code-intelligence
-  - hld
-  - neo4j
-  - mcp
-phase: "07-code-knowledge-graph"
+- code-intelligence
+- hld
+- neo4j
+- mcp
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/23-code-intelligence-enhancements-high-level-design.md
-related_docs:
-  - ac.doc.ckg.code-intel-feature-spec
-  - ac.doc.ckg.code-intel-lld
-  - ac.doc.ckg.code-intel-contracts
-  - ac.doc.codegraph.codesymbol-projection-adr
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.code-intel-feature-spec
+- ac.doc.ckg.code-intel-lld
+- ac.doc.ckg.code-intel-contracts
+- ac.doc.codegraph.codesymbol-projection-adr
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - CodeGraphService
-  - IntelligenceUseCases
-  - ExplorePack
-  - ChangeRiskReport
+- CodeGraphService
+- IntelligenceUseCases
+- ExplorePack
+- ChangeRiskReport
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.code-intel-feature-spec
-  - type: depends_on
-    target: ac.doc.codegraph.codesymbol-projection-adr
-  - type: complements
-    target: docs/07-code-knowledge-graph/06-technical-implementation-logic.md
+- type: depends_on
+  target: ac.doc.ckg.code-intel-feature-spec
+- type: depends_on
+  target: ac.doc.codegraph.codesymbol-projection-adr
+- type: complements
+  target: docs/07-code-knowledge-graph/06-technical-implementation-logic.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -59,6 +59,21 @@ security_classification: internal
 Defines how Code Intelligence Enhancements fit into AgentCore runtime topology.
 Algorithms live in [`24`](24-code-intelligence-enhancements-low-level-design.md);
 product requirements in [`22`](22-code-intelligence-enhancements-feature-specification.md).
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Architectural Decision
 

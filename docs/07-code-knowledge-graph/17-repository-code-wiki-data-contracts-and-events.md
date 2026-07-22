@@ -1,47 +1,48 @@
 ---
 doc_id: ac.doc.ckg.repository-code-wiki-contracts
-title: "17 - Repository Code Wiki Data Contracts And Events"
+title: 17 - Repository Code Wiki Data Contracts And Events
 doc_type: contract
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Job, page, tree, publish, and MCP tool contracts plus domain events for
-  Repository Code Wiki.
+summary: This document defines public contracts for Repository Code Wiki jobs, pages, module
+  trees, publish results, MCP tools, and events. Algorithms live in the low-level design;
+  REST path naming must follow `../14-api-design-and-naming-standards/`.
 tags:
-  - repository-code-wiki
-  - contracts
-  - mcp
-  - events
-  - api
-phase: "07-code-knowledge-graph"
+- repository-code-wiki
+- contracts
+- mcp
+- events
+- api
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/17-repository-code-wiki-data-contracts-and-events.md
-related_docs:
-  - ac.doc.ckg.repository-code-wiki-lld
-  - ac.doc.ckg.repository-code-wiki-feature-spec
-  - ac.doc.ckg.repository-code-wiki-hld
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
 concern_lane: contract
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.repository-code-wiki-lld
+- ac.doc.ckg.repository-code-wiki-feature-spec
+- ac.doc.ckg.repository-code-wiki-hld
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - WikiGenerationJob
-  - WikiPage
-  - WikiModuleTree
-  - WikiPublishResult
+- WikiGenerationJob
+- WikiPage
+- WikiModuleTree
+- WikiPublishResult
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.repository-code-wiki-lld
-  - type: complements
-    target: docs/14-api-design-and-naming-standards/01-api-design-principles.md
+- type: depends_on
+  target: ac.doc.ckg.repository-code-wiki-lld
+- type: complements
+  target: docs/14-api-design-and-naming-standards/01-api-design-principles.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

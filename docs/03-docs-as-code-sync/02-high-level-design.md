@@ -1,8 +1,49 @@
+---
+doc_id: ac.doc.docs-sync.high-level-design
+title: Docs As Code Sync - High-Level Design
+doc_type: hld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This HLD defines the system-level architecture for Docs As Code Sync. It explains
+  the architectural intent, actors, components, data ownership, runtime flows, integration
+  boundaries, operational expectations, and acceptance criteria. It is written for architects,
+  senior engineers.
+tags:
+- hld
+- docs-sync
+phase: 03-docs-as-code-sync
+canonical_path: docs/03-docs-as-code-sync/02-high-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Docs As Code Sync - High-Level Design
 
 ## Purpose
 
 This HLD defines the system-level architecture for Docs As Code Sync. It explains the architectural intent, actors, components, data ownership, runtime flows, integration boundaries, operational expectations, and acceptance criteria. It is written for architects, senior engineers, product designers, reviewers, and operators who need enough context to implement the phase without relying on hidden assumptions.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

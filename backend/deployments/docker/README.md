@@ -12,14 +12,16 @@ MCP gateway application image is implemented (`Dockerfile.mcp-gateway`). Infrast
 
 **Normative operator runbook:** [`docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md`](../../../docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md)
 
-## Quick facts (PATH / mounts / CLI)
+## Quick facts (PATH / mounts / CLI / client boundary)
 
 | Question | Answer |
 | --- | --- |
-| Does `docker compose up` put `agentcore` on the **host** `PATH`? | **No.** Host PATH still comes from `.venv` / `install.sh`. |
-| Can I use the same `agentcore …` operator commands inside the container? | **Partial.** `agentcore version` works via `docker exec`; sync/connect/service orchestration remain host CLI workflows. |
-| Is host `.agentcore/` state bind-mounted into `mcp-gateway`? | **No.** Source is copied at image build; DB data lives in Compose named volumes. |
-| What clients should use from the host? | MCP HTTP on port `32500` (`/health`, `/mcp`). |
+| Who is Dockerized? | **Server only** (Postgres/Neo4j + optional `mcp-gateway`). |
+| Are coding-agent clients Dockerized? | **No.** Cursor / remote laptop / `agentcore connect` stay on the client machine. |
+| Does `docker compose up` put `agentcore` on the **server** `PATH`? | **No by itself** — `install.sh` installs the server PATH shim (`~/.local/bin`). |
+| Can I use the same `agentcore …` operator commands inside the container? | **Partial.** `agentcore version` works via `docker exec`; sync/connect orchestration remain **server** host CLI workflows. |
+| Is server `.agentcore/` state bind-mounted into `mcp-gateway`? | **No.** Source is copied at image build; DB data lives in Compose named volumes. |
+| What should clients call? | Server MCP HTTP on port `32500` (`/health`, `/mcp`), or SSH stdio per remote-client docs. |
 
 ## Wheelhouse (offline deps)
 

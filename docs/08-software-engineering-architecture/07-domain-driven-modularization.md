@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.domain-driven-modularization
+title: 07 - Domain Driven Modularization
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should be decomposed into domains, bounded contexts,
+  modules, and services. It explains how engineering should decide where logic belongs and
+  how to prevent the system from becoming a set of coupled utilities.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/07-domain-driven-modularization.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 07 - Domain Driven Modularization
 
 ## Purpose

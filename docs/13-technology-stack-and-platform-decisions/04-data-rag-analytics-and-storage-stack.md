@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.stack.data-rag-analytics-and-storage-stack
+title: 04 - Data, RAG, Analytics, And Storage Stack
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the data and infrastructure stack for AgentCore.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/04-data-rag-analytics-and-storage-stack.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 04 - Data, RAG, Analytics, And Storage Stack
 
 ## Purpose

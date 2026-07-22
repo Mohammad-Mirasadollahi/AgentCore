@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.ops.observability-slo-and-incident-response
+title: Observability, SLO, and Incident Response
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore must be observable enough for operators to diagnose slow agents, failed
+  indexing, prompt retrieval mistakes, policy failures, broker delivery problems, and documentation
+  drift issues.
+tags:
+- standard
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/02-observability-slo-and-incident-response.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Observability, SLO, and Incident Response
 
 ## Purpose

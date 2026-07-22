@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.examples.developer-implementation-checklist
+title: Developer Implementation Checklist
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This checklist helps engineers translate the AgentCore documentation into implementation
+  tasks. It does not replace detailed design documents. It lists what must exist before each
+  subsystem can be considered ready for coding or review.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/06-developer-implementation-checklist.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Developer Implementation Checklist
 
 ## Purpose

@@ -1,56 +1,56 @@
 ---
 doc_id: ac.doc.stack.litellm-llm-gateway
-title: "09 - LiteLLM LLM Gateway"
+title: 09 - LiteLLM LLM Gateway
 doc_type: adr
-status: accepted
-schema_version: "1.0"
+status: active
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Accepts LiteLLM as the sole approved LLM gateway for AgentCore model
-  completion, chat, and embedding-provider calls. Domain ports stay provider
-  agnostic; infrastructure adapters must call LiteLLM, not vendor SDKs directly.
+summary: Accepts LiteLLM as the sole approved LLM gateway for AgentCore model completion,
+  chat, and embedding-provider calls. Domain ports stay provider agnostic; infrastructure
+  adapters must call LiteLLM, not vendor SDKs directly.
 tags:
-  - litellm
-  - llm
-  - gateway
-  - model-routing
-  - adr
-  - adapter
-phase: "13-technology-stack-and-platform-decisions"
+- litellm
+- llm
+- gateway
+- model-routing
+- adr
+- adapter
+phase: 13-technology-stack-and-platform-decisions
 canonical_path: docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md
-related_docs:
-  - docs/13-technology-stack-and-platform-decisions/03-backend-api-and-service-stack.md
-  - docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
-  - docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
-  - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-  - docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
-  - docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
-  - docs/10-gap-analysis/01-gap-register.md
-  - .env.example
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - operator
-  - agent
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/13-technology-stack-and-platform-decisions/03-backend-api-and-service-stack.md
+- docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
+- docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md
+- docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
+- docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- docs/07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md
+- docs/10-gap-analysis/01-gap-register.md
+- .env.example
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- operator
+- agent
 primary_entities:
-  - LiteLLMGateway
-  - ModelRoutingProfile
-  - LlmCompletionPort
+- LiteLLMGateway
+- ModelRoutingProfile
+- LlmCompletionPort
 relations_declared:
-  - type: constrains
-    target: backend/services/
-  - type: complements
-    target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
-  - type: resolves
-    target: GAP-003
+- type: constrains
+  target: backend/services/
+- type: complements
+  target: docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md
+- type: resolves
+  target: GAP-003
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -58,8 +58,8 @@ chunk_hints:
 language: en
 security_classification: internal
 external_refs:
-  - https://docs.litellm.ai/
-  - https://github.com/BerriAI/litellm
+- https://docs.litellm.ai/
+- https://github.com/BerriAI/litellm
 ---
 
 # 09 - LiteLLM LLM Gateway
@@ -133,8 +133,8 @@ Example environment shape (illustrative — not a secret store):
 AGENTCORE_LITELLM_ENABLED=true
 AGENTCORE_LITELLM_HOST=127.0.0.1
 AGENTCORE_LITELLM_PORT=32400
-# Leave empty for auto Base URL http://127.0.0.1:32400 — or override:
-# AGENTCORE_LITELLM_API_BASE=http://127.0.0.1:32400
+## Leave empty for auto Base URL http://127.0.0.1:32400 — or override:
+## AGENTCORE_LITELLM_API_BASE=http://127.0.0.1:32400
 AGENTCORE_LITELLM_API_KEY=<proxy-or-provider-key>
 AGENTCORE_LITELLM_DEFAULT_MODEL=ollama/qwen2.5-coder
 AGENTCORE_LITELLM_TIMEOUT_SECONDS=180

@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.core.index
+title: 01 - Core Data Model Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Turn every agent action, architectural reason, discovered problem, and executable
+  assignment into durable structured knowledge.
+tags:
+- index
+- core
+phase: 01-core-data-model
+canonical_path: docs/01-core-data-model/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 01 - Core Data Model Index
+
+
+## Purpose
+
+Turn every agent action, architectural reason, discovered problem, and executable assignment into durable structured knowledge.
 
 ## Mission
 

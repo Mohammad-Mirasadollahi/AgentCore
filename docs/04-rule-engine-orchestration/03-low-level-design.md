@@ -1,8 +1,48 @@
+---
+doc_id: ac.doc.rules.low-level-design
+title: Rule Engine And Orchestration - Low-Level Design
+doc_type: lld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This low-level design translates the Rule Engine And Orchestration architecture into
+  implementation-ready technical design. It defines internal modules, commands, queries, events,
+  state machines, persistence rules, validation rules, algorithms, idempotency behavior, observability.
+tags:
+- lld
+- rules
+phase: 04-rule-engine-orchestration
+canonical_path: docs/04-rule-engine-orchestration/03-low-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine And Orchestration - Low-Level Design
 
 ## Purpose
 
 This low-level design translates the Rule Engine And Orchestration architecture into implementation-ready technical design. It defines internal modules, commands, queries, events, state machines, persistence rules, validation rules, algorithms, idempotency behavior, observability, tests, and edge cases.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Implementation Boundary
 

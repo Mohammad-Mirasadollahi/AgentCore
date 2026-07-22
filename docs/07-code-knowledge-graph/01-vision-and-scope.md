@@ -1,4 +1,33 @@
+---
+doc_id: ac.doc.ckg.vision-and-scope
+title: Code-Knowledge Graph - Vision and Scope
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: 'The Code-Knowledge Graph is the core mechanism of the AgentCore wedge: connect a
+  repository, understand it as structured knowledge, and improve connected AI coding outputs.'
+tags:
+- standard
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/01-vision-and-scope.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Code-Knowledge Graph - Vision and Scope
+
+
+## Purpose
+
+The Code-Knowledge Graph is the core mechanism of the AgentCore wedge: connect a repository, understand it as structured knowledge, and improve connected AI coding outputs.
 
 ## Vision
 

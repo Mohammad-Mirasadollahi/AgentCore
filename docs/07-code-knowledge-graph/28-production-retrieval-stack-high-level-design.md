@@ -1,40 +1,40 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-hld
-title: "28 - Production Retrieval Stack High Level Design"
-doc_type: design
+title: 28 - Production Retrieval Stack High Level Design
+doc_type: hld
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Runtime topology for BM25, store FTS, BGE embeddings, RRF, APOC expand,
-  and free Leiden communities inside code-graph-service.
+summary: Runtime topology for BM25, store FTS, BGE embeddings, RRF, APOC expand, and free
+  Leiden communities inside code-graph-service.
 tags:
-  - retrieval
-  - hld
-  - neo4j
-  - postgres
-phase: "07-code-knowledge-graph"
+- retrieval
+- hld
+- neo4j
+- postgres
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/28-production-retrieval-stack-high-level-design.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-feature-spec
-  - ac.doc.ckg.prod-retrieval-lld
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
 lifecycle_lane: current
 concern_lane: design
 audience_lane:
-  - platform-engineering
+- platform-engineering
 authority: informative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.prod-retrieval-feature-spec
+- ac.doc.ckg.prod-retrieval-lld
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
 primary_entities:
-  - HybridEmbeddings
-  - Neo4jStore
-  - PostgresStore
+- HybridEmbeddings
+- Neo4jStore
+- PostgresStore
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.prod-retrieval-feature-spec
+- type: depends_on
+  target: ac.doc.ckg.prod-retrieval-feature-spec
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -44,6 +44,26 @@ security_classification: internal
 ---
 
 # 28 - Production Retrieval Stack High Level Design
+
+
+## Purpose
+
+Runtime topology for BM25, store FTS, BGE embeddings, RRF, APOC expand, and free Leiden communities inside code-graph-service.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Topology
 

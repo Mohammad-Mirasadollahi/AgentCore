@@ -1,56 +1,56 @@
 ---
 doc_id: ac.doc.memory.chat-quality-grounding-citations
-title: "12 - Chat Quality Grounding Citations Refusal"
+title: 12 - Chat Quality Grounding Citations Refusal
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Transferable ideas for evidence grounding, citation attachment, empty-context
-  refusal, low-relevance warnings, and alignment with AgentCore code-vs-doc
-  contradiction staging — from license-verified OSS chat backends.
+summary: Transferable ideas for evidence grounding, citation attachment, empty-context refusal,
+  low-relevance warnings, and alignment with AgentCore code-vs-doc contradiction staging —
+  from license-verified OSS chat backends.
 tags:
-  - chat
-  - grounding
-  - citations
-  - refusal
-  - contradiction
-  - prior-art
-phase: "02-memory-and-context"
+- chat
+- grounding
+- citations
+- refusal
+- contradiction
+- prior-art
+phase: 02-memory-and-context
 canonical_path: docs/02-memory-and-context/12-chat-quality-grounding-citations-refusal.md
-related_docs:
-  - docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-  - docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-  - docs/02-memory-and-context/11-chat-quality-retrieval-ranking-and-context-packing.md
-external_refs:
-  - https://github.com/infiniflow/ragflow
-  - https://github.com/Mintplex-Labs/anything-llm
-  - https://github.com/Cinnamon/kotaemon
-  - https://github.com/danny-avila/LibreChat
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: future
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- docs/02-memory-and-context/11-chat-quality-retrieval-ranking-and-context-packing.md
+external_refs:
+- https://github.com/infiniflow/ragflow
+- https://github.com/Mintplex-Labs/anything-llm
+- https://github.com/Cinnamon/kotaemon
+- https://github.com/danny-avila/LibreChat
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - CitationAttachment
-  - GroundedAnswer
-  - QueryRefusal
-  - RelevanceWarning
+- CitationAttachment
+- GroundedAnswer
+- QueryRefusal
+- RelevanceWarning
 relations_declared:
-  - type: depends_on
-    target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-  - type: complements
-    target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- type: depends_on
+  target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- type: complements
+  target: docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

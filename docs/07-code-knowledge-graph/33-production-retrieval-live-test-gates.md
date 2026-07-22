@@ -1,54 +1,57 @@
 ---
 doc_id: ac.doc.ckg.prod-retrieval-live-test-gates
-title: "33 - Production Retrieval Live Test Gates"
+title: 33 - Production Retrieval Live Test Gates
 doc_type: runbook
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: code-graph-lead
-summary: >-
-  Normative live/fuzzer/challenge test gates for the production retrieval stack:
-  suite inventory, Compose env contract, pythonpath rules, AuthError skip policy,
-  AuthenticationRateLimit handling, and acceptance criteria (anti-cascade design).
+summary: 'Normative live/fuzzer/challenge test gates for the production retrieval stack: suite
+  inventory, Compose env contract, pythonpath rules, AuthError skip policy, AuthenticationRateLimit
+  handling, and acceptance criteria (anti-cascade design).'
 tags:
-  - testing
-  - live
-  - retrieval
-  - neo4j
-  - postgres
-  - runbook
-  - acceptance
-phase: "07-code-knowledge-graph"
+- testing
+- live
+- retrieval
+- neo4j
+- postgres
+- runbook
+- acceptance
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/33-production-retrieval-live-test-gates.md
-related_docs:
-  - ac.doc.ckg.prod-retrieval-feature-spec
-  - ac.doc.ckg.prod-retrieval-risks
-  - ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
-  - docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - operator
-  - agent
 lifecycle_lane: current
-concern_lane: runbook
+concern_lane: ops
 audience_lane:
-  - platform-engineering
-  - operators
-  - agents
+- platform-engineering
+- operators
+- agents
 authority: normative
 visibility: internal
+linked_symbols:
+- tests/backend/services/code-graph-service/test_production_retrieval_challenge_live.py::check_password
+- tests/backend/services/code-graph-service/test_production_retrieval_fuzzer.py::test_fuzz_tokenize_never_raises
+- tests/backend/services/code-graph-service/test_production_retrieval_live.py::check_password
+related_docs:
+- ac.doc.ckg.prod-retrieval-feature-spec
+- ac.doc.ckg.prod-retrieval-risks
+- ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
+- docs/07-code-knowledge-graph/12-neo4j-runtime-plugins.md
+doc_version: 1.0.0
+audience:
+- engineer
+- operator
+- agent
 primary_entities:
-  - LiveTestGate
-  - ChallengeSuite
-  - FuzzerSuite
-  - AuthSkipPolicy
+- LiveTestGate
+- ChallengeSuite
+- FuzzerSuite
+- AuthSkipPolicy
 relations_declared:
-  - type: depends_on
-    target: ac.doc.ckg.prod-retrieval-feature-spec
-  - type: complements
-    target: ac.doc.ckg.prod-retrieval-risks
-  - type: complements
-    target: ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
+- type: depends_on
+  target: ac.doc.ckg.prod-retrieval-feature-spec
+- type: complements
+  target: ac.doc.ckg.prod-retrieval-risks
+- type: complements
+  target: ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -155,7 +158,7 @@ must skip (not ERROR-cascade) while rate-limited.
 export AGENTCORE_NEO4J_PASSWORD=agentcore-local-dev-secret
 export AGENTCORE_POSTGRES_PASSWORD=agentcore-local-dev-secret
 
-# Prefer .venv pytest; pythonpath is configured in pyproject.toml
+## Prefer .venv pytest; pythonpath is configured in pyproject.toml
 .venv/bin/python -m pytest \
   tests/backend/services/code-graph-service/test_production_retrieval_challenge_live.py -v
 

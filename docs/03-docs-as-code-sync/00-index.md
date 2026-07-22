@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.docs-sync.index
+title: 03 - Docs-as-Code and Synchronization Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Make documentation, code, decisions, and ownership part of one synchronized knowledge
+  graph so documentation drift is detected before merge.
+tags:
+- index
+- docs-sync
+phase: 03-docs-as-code-sync
+canonical_path: docs/03-docs-as-code-sync/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
+- backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
+---
+
 # 03 - Docs-as-Code and Synchronization Index
+
+
+## Purpose
+
+Make documentation, code, decisions, and ownership part of one synchronized knowledge graph so documentation drift is detected before merge.
 
 ## Mission
 

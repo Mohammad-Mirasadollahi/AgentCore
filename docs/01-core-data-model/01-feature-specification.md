@@ -1,4 +1,49 @@
+---
+doc_id: ac.doc.core.feature-specification
+title: Core Data Model - Feature Specification
+doc_type: feature_spec
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: The Core Data Model turns agent activity, decisions, discovered problems, and executable
+  work into durable structured records. It is the foundation for memory, documentation synchronization,
+  policy evaluation, orchestration, auditing, and interoperability.
+tags:
+- feature-spec
+- core
+phase: 01-core-data-model
+canonical_path: docs/01-core-data-model/01-feature-specification.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Core Data Model - Feature Specification
+
+
+## Purpose
+
+The Core Data Model turns agent activity, decisions, discovered problems, and executable work into durable structured records. It is the foundation for memory, documentation synchronization, policy evaluation, orchestration, auditing, and interoperability.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Mission
 

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.stack.frontend-and-admin-console-stack
+title: 02 - Frontend And Admin Console Stack
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the technology stack for the AgentCore web interface, admin
+  console, and operator control surface.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/02-frontend-and-admin-console-stack.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 02 - Frontend And Admin Console Stack
 
 ## Purpose

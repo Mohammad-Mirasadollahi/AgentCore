@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.gap.index
+title: 10 - Gap Analysis Index
+doc_type: index
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: This section captures known gaps, unresolved assumptions, and areas that need deeper
+  thinking before implementation. The goal is not to block the project. The goal is to make
+  uncertainty explicit so the team can review, prioritize, and resolve it later.
+tags:
+- index
+- gap
+phase: 10-gap-analysis
+canonical_path: docs/10-gap-analysis/00-index.md
+lifecycle_lane: future
+concern_lane: gap
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/gap-register-verification/run_gate.py::main
+---
+
 # 10 - Gap Analysis Index
 
 ## Purpose

@@ -19,6 +19,8 @@ from agentcore_cli.commands.paths_cmd import cmd_paths_add, cmd_paths_list, cmd_
 from agentcore_cli.commands.status import cmd_status
 from agentcore_cli.commands.inventory import cmd_inventory
 from agentcore_cli.commands.docs_standards import cmd_docs_standards
+from agentcore_cli.commands.docs_suggest_links import cmd_docs_suggest_links
+from agentcore_cli.commands.quality_audit import cmd_quality_audit
 from agentcore_cli.commands.stats import cmd_stats
 from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
 from agentcore_cli.commands.list_profiles import cmd_list_profiles
@@ -27,12 +29,18 @@ from agentcore_cli.commands.llm_cmd import cmd_llm_sessions, cmd_llm_test
 from agentcore_cli.commands.graph import (
     cmd_graph_explore,
     cmd_graph_freshness,
+    cmd_graph_generation_context,
     cmd_graph_hybrid,
     cmd_graph_ingest,
     cmd_graph_smoke,
     cmd_graph_watch,
 )
-from agentcore_cli.commands.mcp_cmd import cmd_mcp_serve, cmd_mcp_serve_http, cmd_mcp_tools
+from agentcore_cli.commands.mcp_cmd import (
+    cmd_mcp_serve,
+    cmd_mcp_serve_http,
+    cmd_mcp_tokens,
+    cmd_mcp_tools,
+)
 from agentcore_cli.commands.path_cmd import cmd_path_install
 from agentcore_cli.commands.ports import cmd_ports_check, cmd_ports_show
 from agentcore_cli.commands.profile import cmd_profile_list, cmd_profile_show
@@ -101,6 +109,10 @@ def _dispatch(argv: list[str] | None = None) -> int:
         return cmd_inventory(args)
     if args.command == "docs-standards":
         return cmd_docs_standards(args)
+    if args.command == "docs-suggest-links":
+        return cmd_docs_suggest_links(args)
+    if args.command == "quality-audit":
+        return cmd_quality_audit(args)
     if args.command == "stats":
         return cmd_stats(args)
     if args.command == "connect":
@@ -152,6 +164,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
     if args.command == "mcp":
         if args.mcp_command == "tools":
             return cmd_mcp_tools(args)
+        if args.mcp_command == "tokens":
+            return cmd_mcp_tokens(args)
         if args.mcp_command == "serve":
             return cmd_mcp_serve(args)
         if args.mcp_command == "serve-http":
@@ -173,6 +187,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
             return cmd_graph_explore(args)
         if args.graph_command == "hybrid":
             return cmd_graph_hybrid(args)
+        if args.graph_command == "generation-context":
+            return cmd_graph_generation_context(args)
         if args.graph_command == "smoke":
             return cmd_graph_smoke(args)
         if args.graph_command == "watch":

@@ -1,52 +1,52 @@
 ---
 doc_id: ac.doc.memory.chat-quality-retrieval-ranking
-title: "11 - Chat Quality Retrieval Ranking And Context Packing"
+title: 11 - Chat Quality Retrieval Ranking And Context Packing
 doc_type: standard
 status: draft
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Transferable chat-quality ideas for hybrid retrieval, reranking, hierarchical
-  summaries, graph query modes, similarity gates, pinned context, and
-  token-budgeted context packing — from license-verified OSS backends.
+summary: Transferable chat-quality ideas for hybrid retrieval, reranking, hierarchical summaries,
+  graph query modes, similarity gates, pinned context, and token-budgeted context packing
+  — from license-verified OSS backends.
 tags:
-  - chat
-  - rag
-  - retrieval
-  - rerank
-  - hybrid-search
-  - prior-art
-phase: "02-memory-and-context"
+- chat
+- rag
+- retrieval
+- rerank
+- hybrid-search
+- prior-art
+phase: 02-memory-and-context
 canonical_path: docs/02-memory-and-context/11-chat-quality-retrieval-ranking-and-context-packing.md
-related_docs:
-  - docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
-  - docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
-  - docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
-external_refs:
-  - https://github.com/infiniflow/ragflow
-  - https://github.com/Mintplex-Labs/anything-llm
-  - https://github.com/microsoft/graphrag
-  - https://github.com/Cinnamon/kotaemon
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: future
 concern_lane: standard
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- docs/02-memory-and-context/09-chat-qa-rag-incremental-documentation.md
+- docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
+external_refs:
+- https://github.com/infiniflow/ragflow
+- https://github.com/Mintplex-Labs/anything-llm
+- https://github.com/microsoft/graphrag
+- https://github.com/Cinnamon/kotaemon
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - HybridRetrieval
-  - RerankStage
-  - ContextPackBudget
-  - HierarchicalSummaryIndex
+- HybridRetrieval
+- RerankStage
+- ContextPackBudget
+- HierarchicalSummaryIndex
 relations_declared:
-  - type: depends_on
-    target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
+- type: depends_on
+  target: docs/02-memory-and-context/10-chat-quality-prior-art-license-and-method.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

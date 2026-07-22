@@ -1,54 +1,54 @@
 ---
 doc_id: ac.doc.ckg.dead-code-cleanup-loop
-title: "36 - Dead-Code Candidates And Cleanup Loop"
-doc_type: feature-specification
+title: 36 - Dead-Code Candidates And Cleanup Loop
+doc_type: feature_spec
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-product
-summary: >-
-  Normative design for graph-backed unused-symbol candidates, MCP contract,
-  live-until-proven exclusions, and the closed loop with Workspace Guidance
-  and benefit measurement. AgentCore never mutates the repository.
+summary: Normative design for graph-backed unused-symbol candidates, MCP contract, live-until-proven
+  exclusions, and the closed loop with Workspace Guidance and benefit measurement. AgentCore
+  never mutates the repository.
 tags:
-  - dead-code
-  - unused-symbols
-  - code-graph
-  - mcp
-  - cleanup
-  - wedge
-phase: "07-code-knowledge-graph"
+- dead-code
+- unused-symbols
+- code-graph
+- mcp
+- cleanup
+- wedge
+phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md
-related_docs:
-  - ac.doc.ckg.index
-  - docs/07-code-knowledge-graph/02-neo4j-schema-design.md
-  - docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
-  - ac.doc.awg.mcp-first-skills-rules
-  - docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
-  - docs/00-master-plan/01-product-scope-and-feature-catalog.md
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - product
-  - agent
 lifecycle_lane: current
-concern_lane: feature
+concern_lane: product
 audience_lane:
-  - platform-engineering
-  - product
-  - agents
+- platform-engineering
+- product
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.ckg.index
+- docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+- docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+- ac.doc.awg.mcp-first-skills-rules
+- docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
+- docs/00-master-plan/01-product-scope-and-feature-catalog.md
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- product
+- agent
 primary_entities:
-  - UnusedCandidate
-  - DeadCodeCleanupLoop
+- UnusedCandidate
+- DeadCodeCleanupLoop
 relations_declared:
-  - type: depends_on
-    target: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
-  - type: complements
-    target: ac.doc.awg.mcp-first-skills-rules
-  - type: complements
-    target: docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
+- type: depends_on
+  target: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
+- type: complements
+  target: ac.doc.awg.mcp-first-skills-rules
+- type: complements
+  target: docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800
@@ -66,6 +66,21 @@ This document specifies the **dead-code cleanup full loop** for the AgentCore we
 AgentCore is not the executor. External IDE assistants and agent runtimes delete code. AgentCore owns candidates, guidance seed content, freshness signals, and evidence for benefit measurement.
 
 Product positioning: [`../00-master-plan/01-product-scope-and-feature-catalog.md`](../00-master-plan/01-product-scope-and-feature-catalog.md). Guidance seed: [`../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md`](../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md). Measurement: [`../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md`](../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md).
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Professional Audience
 

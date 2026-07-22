@@ -1,4 +1,47 @@
+---
+doc_id: ac.doc.common-context.low-level-design
+title: 03 - Common Context Low-Level Design
+doc_type: lld
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: A reusable rule, definition, convention, constraint, instruction, or workflow reminder.
+tags:
+- lld
+- common-context
+phase: 12-common-context-reuse
+canonical_path: docs/12-common-context-reuse/03-low-level-design.md
+lifecycle_lane: future
+concern_lane: design
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 03 - Common Context Low-Level Design
+
+
+## Purpose
+
+A reusable rule, definition, convention, constraint, instruction, or workflow reminder.
+
+## Document flow
+
+```mermaid
+flowchart TD
+  reader[Reader] --> doc[This document]
+  doc --> next[Related docs or implementation]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Reader | Opens this design document | Understands scope and constraints |
+| 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
+| 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
+
 
 ## Core Entities
 

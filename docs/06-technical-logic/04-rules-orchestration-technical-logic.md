@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.tech.rules-orchestration-technical-logic
+title: Rule Engine and Orchestration Technical Logic
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: The Rule Engine and Orchestration layer decides whether automation should continue,
+  warn, route downstream work, or stop for human approval. It combines deterministic checks,
+  graph impact, anomaly signals, and constrained LLM judgment.
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/04-rules-orchestration-technical-logic.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Rule Engine and Orchestration Technical Logic
+
+
+## Purpose
+
+The Rule Engine and Orchestration layer decides whether automation should continue, warn, route downstream work, or stop for human approval. It combines deterministic checks, graph impact, anomaly signals, and constrained LLM judgment.
 
 ## Technical Goal
 

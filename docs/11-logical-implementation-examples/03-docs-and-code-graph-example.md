@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.examples.docs-and-code-graph-example
+title: Logical Example - Docs and Code Graph
+doc_type: example
+status: draft
+schema_version: '1.0'
+owner: platform-docs
+summary: A developer changes discount logic for VIP users. The Code-Knowledge Graph must detect
+  the changed function, update graph relationships, detect stale documentation, and provide
+  context for future code generation.
+tags:
+- example
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/03-docs-and-code-graph-example.md
+lifecycle_lane: current
+concern_lane: example
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Logical Example - Docs and Code Graph
+
+
+## Purpose
+
+A developer changes discount logic for VIP users. The Code-Knowledge Graph must detect the changed function, update graph relationships, detect stale documentation, and provide context for future code generation.
 
 ## Scenario
 

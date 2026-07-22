@@ -1,8 +1,34 @@
+---
+doc_id: ac.doc.backend.structure-standard
+title: Backend Structure Standard
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Standard for creating folders and modules under backend/ so AgentCore stays modular.
+tags:
+- backend
+- structure
+- standard
+phase: backend-docs
+canonical_path: backend/docs/STRUCTURE_STANDARD.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+language: en
+security_classification: internal
+---
+
 # Backend Structure Standard
 
 ## Purpose
 
-This document defines the standard for creating folders and modules inside `/root/AgentCore/backend`.
+This document defines the standard for creating folders and modules inside `backend/`.
 
 The standard exists so AgentCore remains modular as it grows. Every new folder must have a clear owner, purpose, boundary, dependency rule, testing expectation, and README.
 
@@ -140,3 +166,10 @@ The backend structure is acceptable when:
 - shared packages are limited to contracts, SDKs, and stable primitives.
 - infrastructure adapters do not leak into domain logic.
 - future modules can be added without changing unrelated modules.
+
+## Related Documents
+
+- [MODULE_TEMPLATE.md](./MODULE_TEMPLATE.md)
+- [NAMING_AND_BOUNDARIES.md](./NAMING_AND_BOUNDARIES.md)
+- [ENGINEERING_STANDARDS.md](./ENGINEERING_STANDARDS.md)
+- [README.md](./README.md)

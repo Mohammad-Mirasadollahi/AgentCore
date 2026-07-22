@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.tech.detailed-section-design
+title: Technical Logic and Verification - Detailed Section Design
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: 'Phases 1 through 5 deliver product vertical slices. Phase 7 expands into a Neo4j-backed
+  code graph. Between those concerns sits a different job: prove the earlier slices are technically
+  coherent enough to build on. Mixing that job into Phase 5 or Phase 7 hides the gate and
+  invite.'
+tags:
+- standard
+- tech
+phase: 06-technical-logic
+canonical_path: docs/06-technical-logic/13-detailed-section-design.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Technical Logic and Verification - Detailed Section Design
+
+
+## Purpose
+
+Phases 1 through 5 deliver product vertical slices. Phase 7 expands into a Neo4j-backed code graph. Between those concerns sits a different job: prove the earlier slices are technically coherent enough to build on. Mixing that job into Phase 5 or Phase 7 hides the gate and invite.
 
 ## Why This Phase Is Separate
 

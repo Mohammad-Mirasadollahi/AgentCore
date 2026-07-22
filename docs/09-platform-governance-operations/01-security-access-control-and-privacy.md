@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.ops.security-access-control-and-privacy
+title: Security, Access Control, and Privacy
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: AgentCore handles code, documentation, logs, model prompts, tool outputs, decisions,
+  approvals, and potentially sensitive business data. Security and privacy must be designed
+  into the platform from the beginning.
+tags:
+- standard
+- ops
+phase: 09-platform-governance-operations
+canonical_path: docs/09-platform-governance-operations/01-security-access-control-and-privacy.md
+lifecycle_lane: current
+concern_lane: security
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # Security, Access Control, and Privacy
 
 ## Purpose

@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.stack.runtime-messaging-observability-and-deployment-stack
+title: 05 - Runtime, Messaging, Observability, And Deployment Stack
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the runtime and operational stack for AgentCore services, workers,
+  messaging, deployment, observability, and automation.
+tags:
+- standard
+- stack
+phase: 13-technology-stack-and-platform-decisions
+canonical_path: docs/13-technology-stack-and-platform-decisions/05-runtime-messaging-observability-and-deployment-stack.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 05 - Runtime, Messaging, Observability, And Deployment Stack
 
 ## Purpose

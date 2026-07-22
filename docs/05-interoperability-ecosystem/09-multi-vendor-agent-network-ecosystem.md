@@ -1,4 +1,35 @@
+---
+doc_id: ac.doc.interop.multi-vendor-agent-network-ecosystem
+title: Multi-Vendor Agent Network Ecosystem
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: '**Product vision and architecture.** The hackathon Change Society demo implements
+  the first vertical slice (registry, tickets, Universal Agent JSON, model and webhook adapters).
+  The central message broker, federated control planes, and full connector registry remain
+  on the AgentC.'
+tags:
+- standard
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/09-multi-vendor-agent-network-ecosystem.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # Multi-Vendor Agent Network Ecosystem
+
+
+## Purpose
+
+**Product vision and architecture.** The hackathon Change Society demo implements the first vertical slice (registry, tickets, Universal Agent JSON, model and webhook adapters). The central message broker, federated control planes, and full connector registry remain on the AgentC.
 
 ## Status
 

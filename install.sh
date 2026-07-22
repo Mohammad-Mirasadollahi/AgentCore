@@ -55,11 +55,15 @@ Options:
   --compose-timeout SEC   Health wait timeout (default 180)
   -h, --help              Show this help
 
-Runtime modes:
-  host    Compose Postgres/Neo4j + MCP HTTP from host .venv (agentcore service start)
-  docker  Compose Postgres/Neo4j + MCP HTTP container (mcp-gateway from /opt wheelhouse)
+Runtime modes (AgentCore SERVER only — clients are never Dockerized):
+  host    Server: Compose Postgres/Neo4j + MCP HTTP from server .venv
+  docker  Server: Compose Postgres/Neo4j + MCP HTTP container (mcp-gateway)
 
-Both modes always: install prerequisites (interactive), create .venv, put agentcore on PATH.
+Coding-agent clients (Cursor, remote laptop, `agentcore connect`) run on the
+client machine and only connect to this server — no client Docker stack.
+
+Both server modes always: install prerequisites (interactive), create .venv,
+put agentcore on the SERVER PATH.
 
 Default flow (all stages):
   01_prerequisites → 02_venv → 03_compose_env → 04_docker_infra → 05_verify → 06_runtime_bringup

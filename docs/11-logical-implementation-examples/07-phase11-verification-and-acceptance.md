@@ -1,3 +1,27 @@
+---
+doc_id: ac.doc.examples.phase11-verification-and-acceptance
+title: Phase 11 - Verification and Acceptance
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Phase 11 turns architecture into engineer-facing runtime examples and a coding checklist.
+tags:
+- standard
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/07-phase11-verification-and-acceptance.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/logical-examples-verification/run_gate.py::main
+---
+
 # Phase 11 - Verification and Acceptance
 
 ## Purpose

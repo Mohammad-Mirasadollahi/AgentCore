@@ -1,45 +1,45 @@
 ---
 doc_id: ac.doc.awg.data-contracts
-title: "04 - Agent Workspace Guidance Data Contracts And Events"
-doc_type: contracts
+title: 04 - Agent Workspace Guidance Data Contracts And Events
+doc_type: contract
 status: active
-schema_version: "1.0"
+schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Bundle DTOs, MCP tool contracts for resolve/list/get-skill, export records,
-  events, and compatibility rules for Agent Workspace Guidance.
+summary: Bundle DTOs, MCP tool contracts for resolve/list/get-skill, export records, events,
+  and compatibility rules for Agent Workspace Guidance.
 tags:
-  - agent-workspace-guidance
-  - contracts
-  - mcp
-  - events
-phase: "15-agent-workspace-guidance"
+- agent-workspace-guidance
+- contracts
+- mcp
+- events
+phase: 15-agent-workspace-guidance
 canonical_path: docs/15-agent-workspace-guidance/04-data-contracts-and-events.md
-related_docs:
-  - ac.doc.awg.low-level-design
-  - ac.doc.common_context.data-contracts
-  - ac.doc.sea.usage-profile-cursor-mcp
-doc_version: "1.0.0"
-audience:
-  - engineer
-  - architect
-  - agent
 lifecycle_lane: current
 concern_lane: contract
 audience_lane:
-  - platform-engineering
-  - agents
+- platform-engineering
+- agents
 authority: normative
 visibility: internal
+linked_symbols: []
+related_docs:
+- ac.doc.awg.low-level-design
+- ac.doc.common_context.data-contracts
+- ac.doc.sea.usage-profile-cursor-mcp
+doc_version: 1.0.0
+audience:
+- engineer
+- architect
+- agent
 primary_entities:
-  - AgentWorkspaceGuidanceBundle
-  - GuidanceSkillDescriptor
-  - GuidanceExportResult
+- AgentWorkspaceGuidanceBundle
+- GuidanceSkillDescriptor
+- GuidanceExportResult
 relations_declared:
-  - type: depends_on
-    target: ac.doc.awg.low-level-design
-  - type: complements
-    target: ac.doc.common_context.data-contracts
+- type: depends_on
+  target: ac.doc.awg.low-level-design
+- type: complements
+  target: ac.doc.common_context.data-contracts
 chunk_hints:
   strategy: heading_h2
   max_tokens: 800

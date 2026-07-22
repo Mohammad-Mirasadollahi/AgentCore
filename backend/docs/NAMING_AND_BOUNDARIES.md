@@ -1,8 +1,34 @@
+---
+doc_id: ac.doc.backend.naming-and-boundaries
+title: Naming And Boundary Rules
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Naming and modular boundary rules for folders and imports under backend/.
+tags:
+- backend
+- naming
+- boundaries
+phase: backend-docs
+canonical_path: backend/docs/NAMING_AND_BOUNDARIES.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+language: en
+security_classification: internal
+---
+
 # Naming And Boundary Rules
 
 ## Purpose
 
-This document defines naming and boundary rules for `/root/AgentCore/backend`.
+This document defines naming and boundary rules for `backend/`.
 
 ## Folder Naming
 
@@ -42,3 +68,8 @@ Experimental work should live under an explicit experimental path only after app
 ## Dependency Naming
 
 Imports and package names should make direction obvious. Domain code should not import infrastructure packages. Shared packages must not import services.
+
+## Related Documents
+
+- [STRUCTURE_STANDARD.md](./STRUCTURE_STANDARD.md)
+- [MODULE_TEMPLATE.md](./MODULE_TEMPLATE.md)

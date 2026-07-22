@@ -45,6 +45,45 @@ def register(sub: argparse._SubParsersAction) -> None:
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
     tools = mcp_sub.add_parser("tools", help="List MCP tools for a Usage Profile")
     tools.add_argument("--usage-profile", default="programming-cursor-mcp")
+    tokens = mcp_sub.add_parser(
+        "tokens",
+        help="Estimate MCP connect token cost + usage history by client/scope id",
+    )
+    tokens.add_argument("--usage-profile", default="programming-cursor-mcp")
+    tokens.add_argument(
+        "--since",
+        "-s",
+        default="",
+        help="History start: 24h, 7d, 30d, or ISO (default: 7d)",
+    )
+    tokens.add_argument("--until", "-u", default="", help="History end ISO (default: now)")
+    tokens.add_argument(
+        "--clients",
+        default="all",
+        help="Client ids: all or comma-separated (cursor,vscode,…)",
+    )
+    tokens.add_argument(
+        "--id",
+        default="all",
+        help="Scope ids for history: all or tenant/workspace/project[,…]",
+    )
+    tokens.add_argument(
+        "--project-dir",
+        default="",
+        help="App repo root for client wiring check (default: cwd)",
+    )
+    tokens.add_argument(
+        "--include-user-clients",
+        action="store_true",
+        help="Also check user-global MCP configs (cursor-user, claude-desktop)",
+    )
+    tokens.add_argument(
+        "--format",
+        "-f",
+        choices=("text", "json"),
+        default="text",
+        help="Output format",
+    )
     serve = mcp_sub.add_parser("serve", help="Run MCP gateway on stdio for a project scope")
     add_scope_args(serve)
     serve.add_argument("--usage-profile", default="")

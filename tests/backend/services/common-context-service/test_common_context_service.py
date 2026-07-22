@@ -545,7 +545,32 @@ def test_org_mcp_first_seed_idempotent():
     assert first["scope_kind"] == "org"
     second = service.ensure_mcp_first_seed(org, "ops", "corr-org-2")
     assert second["seeded"] is False
+    assert second["reason"] == "guidance_already_present"
     bundle = service.resolve_guidance(project_scope("t", "w", "p"), user_id="alice")
     assert bundle["agents_entry"] is not None
     assert bundle["agents_entry"]["layer"] == "org"
     assert any(r.get("slug") == "mcp-first-agentcore" for r in bundle["always_rules"])
+    assert any(s["name"] == "agentcore-documentation-authoring" for s in bundle["skills"])
+
+
+def test_mcp_first_seed_upgrades_missing_skills():
+    from common_context_service.core import org_scope, project_scope
+
+    service = CommonContextService(InMemoryStore())
+    org = org_scope("t", "w")
+    service.ensure_mcp_first_seed(org, "ops", "corr-org")
+    # Simulate an older seed without the documentation-authoring skill.
+    for item_id, item in list(service.store._items.items()):
+        if item.get("name") == "agentcore-documentation-authoring":
+            del service.store._items[item_id]
+    names_before = {
+        i.get("name")
+        for i in service.store.list_items(org)
+        if i.get("item_type") == "skill"
+    }
+    assert "agentcore-documentation-authoring" not in names_before
+    upgraded = service.ensure_mcp_first_seed(org, "ops", "corr-upgrade")
+    assert upgraded["seeded"] is True
+    assert upgraded["reason"] == "skills_upgraded"
+    bundle = service.resolve_guidance(project_scope("t", "w", "p"), user_id="alice")
+    assert any(s["name"] == "agentcore-documentation-authoring" for s in bundle["skills"])

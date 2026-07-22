@@ -1,4 +1,34 @@
+---
+doc_id: ac.doc.interop.index
+title: 05 - Interoperability and Enterprise Ecosystem Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: Connect different AI coding tools, models, IDEs, departments, humans, SDK clients,
+  adapters, and external systems through a shared protocol, broker, developer platform, and
+  operating model.
+tags:
+- index
+- interop
+phase: 05-interoperability-ecosystem
+canonical_path: docs/05-interoperability-ecosystem/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols: []
+---
+
 # 05 - Interoperability and Enterprise Ecosystem Index
+
+
+## Purpose
+
+Connect different AI coding tools, models, IDEs, departments, humans, SDK clients, adapters, and external systems through a shared protocol, broker, developer platform, and operating model.
 
 ## Mission
 

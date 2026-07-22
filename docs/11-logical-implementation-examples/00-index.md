@@ -1,3 +1,29 @@
+---
+doc_id: ac.doc.examples.index
+title: 11 - Logical Implementation Examples Index
+doc_type: index
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This section explains AgentCore through concrete implementation-oriented examples.
+  It is written for engineers who need to understand how the design behaves before they start
+  coding.
+tags:
+- index
+- examples
+phase: 11-logical-implementation-examples
+canonical_path: docs/11-logical-implementation-examples/00-index.md
+lifecycle_lane: current
+concern_lane: onboarding
+audience_lane:
+- platform-engineering
+- agents
+authority: informative
+visibility: internal
+linked_symbols:
+- tests/backend/gates/logical-examples-verification/run_gate.py::main
+---
+
 # 11 - Logical Implementation Examples Index
 
 ## Purpose

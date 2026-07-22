@@ -1,3 +1,26 @@
+---
+doc_id: ac.doc.api.rest-endpoint-naming-standard
+title: 02 - REST Endpoint Naming Standard
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines the endpoint naming format for AgentCore REST APIs.
+tags:
+- standard
+- api
+phase: 14-api-design-and-naming-standards
+canonical_path: docs/14-api-design-and-naming-standards/02-rest-endpoint-naming-standard.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 02 - REST Endpoint Naming Standard
 
 ## Purpose

@@ -1,3 +1,28 @@
+---
+doc_id: ac.doc.sea.ci-cd-and-release-engineering
+title: 12 - CI CD And Release Engineering
+doc_type: standard
+status: active
+schema_version: '1.0'
+owner: platform-docs
+summary: This document defines how AgentCore should build, validate, package, release, and
+  roll back software changes. It focuses on engineering controls that keep modular services,
+  contracts, migrations, documentation, and runtime configuration aligned.
+tags:
+- standard
+- sea
+phase: 08-software-engineering-architecture
+canonical_path: docs/08-software-engineering-architecture/12-ci-cd-and-release-engineering.md
+lifecycle_lane: current
+concern_lane: standard
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols: []
+---
+
 # 12 - CI CD And Release Engineering
 
 ## Purpose
