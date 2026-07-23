@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import AdapterError, AdapterService, Scope, ValidationError
 
 
@@ -80,9 +80,22 @@ class ContextInjectRequest(BaseModel):
     items: list[dict[str, Any]] = Field(default_factory=list)
 
 
-def app(service: AdapterService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: AdapterService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.service:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(service=service, settings=None)
+        else:
+            container = build_container()
+    service = container.service
     api = FastAPI(title="AgentCore Adapter / Interop API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(AdapterError)
     async def adapter_error(_: Request, exc: AdapterError):
@@ -324,3 +337,7 @@ def app(service: AdapterService | None = None) -> FastAPI:
         return {"items": [item.public() for item in service.list_department_tasks(scope)], "correlation_id": None}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app

@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import Body, FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import CommonContextService, CommonContextError, Scope, project_scope, resolve_authoring_scope
 
 
@@ -48,9 +48,22 @@ def _item_scope_from_headers(
     )
 
 
-def app(service: CommonContextService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: CommonContextService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.service:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(service=service, settings=None)
+        else:
+            container = build_container()
+    service = container.service
     api = FastAPI(title="AgentCore Common Context API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(CommonContextError)
     async def domain_error(_: Request, exc: CommonContextError):
@@ -283,3 +296,7 @@ def app(service: CommonContextService | None = None) -> FastAPI:
         return {"export": result}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app

@@ -179,7 +179,7 @@ Do **not** hold launch for these unless product explicitly expands scope.
 | --- | --- | --- | --- |
 | F1 | Repository Code Wiki implementation | Separate program; acceptance in `18` | deferred (docs-only) |
 | F2 | Force BGE preload at process start | Ops knob (`31`) | [x] `AGENTCORE_EMBEDDING_PRELOAD` + `maybe_preload_embeddings` |
-| F3 | Deeper framework / DI / package-manager import matrix | GAP-002 partial | [x] package manifest aliases (`pyproject`/`go.mod`/`package.json`); DI matrix still deferred |
+| F3 | Deeper framework / DI / package-manager import matrix | GAP-002 | [x] manifests + DI CALLS + confidence policy (2026-07-23); exotic DI iterative |
 | F4 | Zero-touch installer / upgrade / repair productization | Platform Phases 8–9 depth | deferred |
 | F5 | Full admin web UI (`frontend/` today empty) | After CLI/MCP wedge | deferred |
 | F6 | Human approval UX (GAP-004) | Governed sells later | deferred |

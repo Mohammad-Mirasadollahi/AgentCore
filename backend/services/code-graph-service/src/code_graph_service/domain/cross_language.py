@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .confidence_policy import clamp_confidence
 from .enums import CallConfidence, SymbolKind
 from .languages import detect_language_from_path
 from .models import GraphSymbol
@@ -100,10 +101,18 @@ def resolve_import_target(
         hit = _resolve_one_import(attempt, indexes, source_language=source_language)
         if hit[0] is not None or hit[1] == CallConfidence.AMBIGUOUS:
             meta = dict(hit[2])
+            via = str(meta.get("resolved_via") or "")
             if rewritten != raw and attempt == rewritten:
-                meta["resolved_via"] = meta.get("resolved_via") or "package_manifest"
+                via = via or "package_manifest"
+                meta["resolved_via"] = via
                 meta["import_rewritten_from"] = raw
-            return hit[0], hit[1], meta
+            conf = clamp_confidence(
+                hit[1],
+                source_language=source_language,
+                target_language=str(meta.get("target_language") or ""),
+                via=via,
+            )
+            return hit[0], conf, meta
     return None, CallConfidence.UNRESOLVED, {}
 
 
@@ -179,15 +188,14 @@ def resolve_call_target_polyglot(
         module_prefix=module_prefix,
     )
     if targets and confidence != CallConfidence.UNRESOLVED:
-        meta = {}
+        meta: dict[str, object] = {}
         if len(targets) == 1:
             meta = _cross_meta(source_language, indexes, targets[0])
-            if meta.get("cross_language"):
-                confidence = (
-                    CallConfidence.PROBABLE
-                    if confidence == CallConfidence.EXACT
-                    else confidence
-                )
+            confidence = clamp_confidence(
+                confidence,
+                source_language=source_language,
+                target_language=str(meta.get("target_language") or ""),
+            )
         return targets, confidence, meta
 
     normalized_call = normalize_symbol_key(call)
@@ -207,8 +215,10 @@ def resolve_call_target_polyglot(
         return [], CallConfidence.UNRESOLVED, {}
     if len(candidates) == 1:
         meta = _cross_meta(source_language, indexes, candidates[0])
-        confidence = (
-            CallConfidence.PROBABLE if meta.get("cross_language") else CallConfidence.EXACT
+        confidence = clamp_confidence(
+            CallConfidence.EXACT,
+            source_language=source_language,
+            target_language=str(meta.get("target_language") or ""),
         )
         return candidates, confidence, meta
     return candidates, CallConfidence.AMBIGUOUS, {"cross_language": True, "candidates": candidates}

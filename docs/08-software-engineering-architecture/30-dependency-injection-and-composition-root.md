@@ -103,6 +103,39 @@ It must not depend directly on:
 
 Every application service must be constructible in a unit test without real databases, brokers, file systems, model providers, or network calls.
 
+## Composition flow
+
+```mermaid
+flowchart LR
+  settings[Settings] --> root[Composition root]
+  root --> container[ServiceContainer]
+  container --> handlers[Handlers / use cases]
+  handlers --> ports[Ports]
+  ports --> adapters[Adapters]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Bootstrap | Validate settings | Typed config |
+| 2 | Composition root | Bind adapters to ports | Container |
+| 3 | Handler | Use injected ports only | Testable, swappable |
+
+## Backend migration pack
+
+Standing principles in this file are **current**. The executable migration to uniform `ServiceContainer` / `build_app` wiring is specified (not yet shipped) in:
+
+- `45-backend-di-composition-feature-specification.md`
+- `46-backend-di-composition-high-level-design.md`
+- `47-backend-di-composition-low-level-design.md`
+- `48-backend-di-composition-risks-challenges-and-acceptance.md`
+
 ## Acceptance Criteria
 
 DI is implemented correctly when dependency graphs are visible at bootstrap, domain code is framework-free, application services are easy to instantiate in tests, and infrastructure can be replaced without modifying business logic.
+
+## Related Documents
+
+- `45-backend-di-composition-feature-specification.md` — migration feature spec
+- `29-engineering-best-practices-and-implementation-standards.md` — implementation standards
+- `33-testing-seams-and-contract-boundary-standards.md` — fakes and seams
+

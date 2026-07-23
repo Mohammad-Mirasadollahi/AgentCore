@@ -24,6 +24,29 @@ def test_load_aliases_from_pyproject_go_and_package_json(tmp_path: Path):
     assert rewrite_import("acme-tools.core", aliases).startswith("acme_tools")
 
 
+def test_load_aliases_from_cargo_tsconfig_and_go_replace(tmp_path: Path):
+    (tmp_path / "Cargo.toml").write_text(
+        '[package]\nname = "acme-core"\nversion = "0.1.0"\n\n'
+        '[dependencies]\nhelper = { path = "crates/helper" }\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "go.mod").write_text(
+        "module example.com/acme\n\n"
+        "replace example.com/old => ./internal/old\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tsconfig.json").write_text(
+        '{"compilerOptions":{"paths":{"@app/*":["src/app/*"]}}}',
+        encoding="utf-8",
+    )
+    aliases = load_package_aliases(tmp_path)
+    assert aliases["acme-core"] == "acme_core"
+    assert aliases["helper"] == "helper"
+    assert aliases["example.com/old"] == "old"
+    assert aliases["@app"] == "src/app"
+    assert rewrite_import("@app/utils", aliases).startswith("src/app")
+
+
 def test_resolve_import_uses_package_alias():
     scope = Scope("t", "w", "p")
     file_sym = GraphSymbol(

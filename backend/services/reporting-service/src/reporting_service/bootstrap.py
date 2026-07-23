@@ -21,6 +21,31 @@ class Settings:
         return cls(database_url=database_url)
 
 
-def build_service(settings: Settings | None = None) -> ReportingService:
+@dataclass(frozen=True)
+class ServiceContainer:
+    """Process-scoped composition root output."""
+
+    service: ReportingService
+    settings: Settings | None = None
+
+    def close(self) -> None:
+        store = getattr(self.service, "store", None)
+        closer = getattr(store, "close", None) if store is not None else None
+        if callable(closer):
+            closer()
+
+
+def build_container(settings: Settings | None = None) -> ServiceContainer:
+    """Composition root: bind adapters and return a frozen service container."""
     resolved = settings or Settings.from_environment()
-    return ReportingService(PostgresStore(resolved.database_url))
+    return ServiceContainer(service=ReportingService(PostgresStore(resolved.database_url)), settings=resolved)
+
+
+def build_service(settings: Settings | None = None) -> ReportingService:
+    """Compatibility wrapper — prefer ``build_container`` for new wiring."""
+    return build_container(settings).service
+
+
+def shutdown_container(container: ServiceContainer | None) -> None:
+    if container is not None:
+        container.close()

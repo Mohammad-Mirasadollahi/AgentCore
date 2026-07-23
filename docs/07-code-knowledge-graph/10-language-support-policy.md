@@ -94,6 +94,9 @@ Unsupported languages return a validation error. Planned languages must not be s
 | JS/TS/Go/Rust adapters | `code_graph_service.domain.parsers.{javascript,typescript,go_lang,rust_lang}` |
 | Ingest orchestration | `code_graph_service.application.service.CodeGraphService` |
 | Cross-language resolution | `code_graph_service.domain.cross_language` |
+| Package-manager aliases | `code_graph_service.domain.package_manifests` |
+| Confidence caps | `code_graph_service.domain.confidence_policy` |
+| DI injection bindings | `code_graph_service.domain.di_injections` |
 
 ## Multi-Language Repository Behavior
 
@@ -104,7 +107,15 @@ Unsupported languages return a validation error. Planned languages must not be s
   - then normalized qualified names (`::` / `/` → `.`) and short-name indexes across the project;
   - import paths may resolve to another language's file via file-stem matching (for example `./helpers` → `helpers.py`);
   - edges that remain `unresolved:*` are relinked on later ingest when a unique target appears.
-- Edge metadata may include `cross_language`, `source_language`, `target_language`, and `relinked`.
+- Package-manager aliases (`domain/package_manifests.py`) rewrite imports using:
+  - `pyproject.toml` project name;
+  - `go.mod` module + `replace` directives;
+  - `Cargo.toml` package name + `path` dependencies;
+  - `package.json` name, `imports`, and local `file:` / `workspace:` deps;
+  - `tsconfig.json` `compilerOptions.paths` (root + one-level nested).
+- Confidence caps (`domain/confidence_policy.py`): cross-language and package/DI heuristics never claim `exact`.
+- Framework DI bindings (`domain/di_injections.py`) emit `CALLS` with `provenance=di_injection` for FastAPI `Depends(...)` and Nest/TS constructor type / `@Inject` patterns.
+- Edge metadata may include `cross_language`, `source_language`, `target_language`, `relinked`, `resolved_via`, and `provenance`.
 - Ambiguous cross-language matches stay `AMBIGUOUS` (multiple candidate edges) rather than inventing a single target.
 - The service derives a **polyglot project profile** (`get_polyglot_profile` / `GET .../graph/language-profile`) that states:
   - which languages are present;
@@ -123,6 +134,8 @@ Unsupported languages return a validation error. Planned languages must not be s
 - A Python caller can form a `CALLS` edge to a uniquely named Rust/Go/JS/TS symbol in the same project (confidence `probable`, `cross_language=true`).
 - An unresolved call is relinked after the target language file is ingested later.
 - For a Python+Rust related pair, `language-profile` reports `is_polyglot=true`, `relatedness=polyglot_fully_related` (or partially when more languages are isolated), and non-empty `language_links`.
+- `Cargo.toml` / `tsconfig` paths / `go.mod replace` aliases participate in IMPORT rewrite tests.
+- FastAPI `Depends` ingest emits at least one `CALLS` edge with `provenance=di_injection` at `probable` confidence.
 
 ## Implementation References
 

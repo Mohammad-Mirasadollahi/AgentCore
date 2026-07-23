@@ -136,6 +136,9 @@ class FileIngestMixin(
         edges_written += self._emit_framework_routes(
             scope, file_path=file_path, source=source, language=language, stamp=stamp
         )
+        edges_written += self._emit_di_injections(
+            scope, file_path=file_path, source=source, language=language
+        )
         edges_written += self._emit_test_links(scope)
         edges_written += self._emit_rationale_nodes(
             scope, file_path=file_path, source=source, stamp=stamp, language=language

@@ -45,12 +45,15 @@
       "category": "Technical Implementation",
       "severity": "High",
       "owner": "Code Graph Lead",
-      "status": "PARTIALLY_RESOLVED",
+      "status": "CLOSED",
       "linked_phase_gates": [7],
       "proposed_resolution_artifact": "docs/07-code-knowledge-graph/10-language-support-policy.md",
-      "documentation_ref": "docs/10-gap-analysis/03-technical-implementation-gaps.md",
+      "documentation_ref": "docs/07-code-knowledge-graph/10-language-support-policy.md",
       "decision_needed": "Tune per-language confidence thresholds and package-manager-aware import graphs (npm/cargo/go.mod).",
-      "resolution_path": "Cross-language CALLS/IMPORTS + unresolved relink in domain/cross_language.py; continue package-resolution fidelity."
+      "resolution_path": "Package manifests + DI injection CALLS + confidence_policy; exotic DI frameworks iterative.",
+      "closed_in": "docs/07-code-knowledge-graph/10-language-support-policy.md",
+      "approver": "Code Graph Lead",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-003",

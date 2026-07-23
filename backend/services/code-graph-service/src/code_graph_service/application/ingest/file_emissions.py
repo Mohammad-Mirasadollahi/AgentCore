@@ -1,7 +1,9 @@
-"""Secondary graph emissions after primary file edges (routes / tests / rationale / dispatch)."""
+"""Secondary graph emissions after primary file edges (routes / DI / tests / rationale / dispatch)."""
 
 from __future__ import annotations
 
+from ...domain.confidence_policy import clamp_confidence
+from ...domain.di_injections import extract_injections
 from ...domain.dispatch_synth import synthesize_interface_dispatch
 from ...domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
 from ...domain.framework_routes import extract_routes, route_symbol_id
@@ -13,7 +15,7 @@ from ..support import unresolved_symbol_id
 
 
 class FileEmissionsMixin:
-    """Framework routes, test links, rationale comments, dynamic dispatch."""
+    """Framework routes, DI injections, test links, rationale comments, dynamic dispatch."""
 
     def _emit_framework_routes(
         self,
@@ -98,6 +100,77 @@ class FileEmissionsMixin:
                             "provenance": "framework_route",
                         },
                         link_key=f"route:{route.method}:{route.path}:{hid}",
+                    )
+        return written
+
+    def _emit_di_injections(
+        self,
+        scope: Scope,
+        *,
+        file_path: str,
+        source: str,
+        language: str,
+    ) -> int:
+        """Emit CALLS edges for Depends / constructor DI bindings."""
+        by_name: dict[str, list[str]] = {}
+        for sym in self.store.list_symbols(scope):
+            if sym.kind in {
+                SymbolKind.FUNCTION,
+                SymbolKind.METHOD,
+                SymbolKind.CLASS,
+            }:
+                by_name.setdefault(sym.name, []).append(sym.id)
+
+        written = 0
+        for inj in extract_injections(source, language=language, file_path=file_path):
+            consumers = by_name.get(inj.consumer_name, [])
+            providers = by_name.get(inj.provider_name, [])
+            if not consumers:
+                continue
+            if not providers:
+                target = unresolved_symbol_id(scope, inj.provider_name)
+                conf = clamp_confidence(
+                    CallConfidence.UNRESOLVED, via="di_injection"
+                )
+                for cid in consumers[:5]:
+                    written += self._put_edge(
+                        scope,
+                        RelType.CALLS.value,
+                        cid,
+                        target,
+                        file_path=file_path,
+                        confidence=conf,
+                        metadata={
+                            "call": inj.provider_name,
+                            "framework": inj.framework,
+                            "pattern": inj.pattern,
+                            "line": inj.line_hint,
+                            "provenance": "di_injection",
+                        },
+                        link_key=f"di:{cid}:{inj.provider_name}:{inj.pattern}",
+                    )
+                continue
+            conf = clamp_confidence(
+                CallConfidence.EXACT if len(providers) == 1 else CallConfidence.AMBIGUOUS,
+                via="di_injection",
+            )
+            for cid in consumers[:5]:
+                for pid in providers[:5]:
+                    written += self._put_edge(
+                        scope,
+                        RelType.CALLS.value,
+                        cid,
+                        pid,
+                        file_path=file_path,
+                        confidence=conf,
+                        metadata={
+                            "call": inj.provider_name,
+                            "framework": inj.framework,
+                            "pattern": inj.pattern,
+                            "line": inj.line_hint,
+                            "provenance": "di_injection",
+                        },
+                        link_key=f"di:{cid}:{pid}:{inj.pattern}",
                     )
         return written
 
