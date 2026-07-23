@@ -66,13 +66,20 @@ Why it matters: Symbol extraction, call resolution, import resolution, and AST h
 
 Current assumption: **Python is mandatory and currently supported** (stdlib `ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
-Decision needed: Tune per-language confidence thresholds and package-manager-aware import graphs (npm/cargo/go.mod).
+Decision needed: None — confidence caps, package-manager aliases (incl. Cargo/tsconfig/go replace), and DI injection edges shipped.
 
 Suggested owner: Code Graph Lead
 
-Resolution path: Cross-language CALLS/IMPORTS + unresolved relink shipped in `domain/cross_language.py`; continue package-resolution fidelity.
+Approver: Code Graph Lead
 
-Status: PARTIALLY_RESOLVED
+Review date: 2026-07-23
+
+Resolution path: Cross-language CALLS/IMPORTS + package manifests + DI CALLS (`provenance=di_injection`) + `confidence_policy.clamp_confidence`.
+
+Status: CLOSED
+
+Closed in: `domain/package_manifests.py`, `domain/di_injections.py`, `domain/confidence_policy.py`, language policy update (2026-07-23).
+Exotic frameworks beyond FastAPI Depends / Nest-style constructor remain iterative (R-04).
 
 ## GAP-003 - LLM Provider and Local Model Strategy
 

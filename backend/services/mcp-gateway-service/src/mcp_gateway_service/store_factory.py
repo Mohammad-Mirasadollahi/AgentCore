@@ -156,9 +156,9 @@ def build_stores(environ: Mapping[str, str] | None = None) -> StoreBundle:
 
     if graph_mode == "neo4j":
         try:
-            from code_graph_service.bootstrap import Settings, build_service
+            from code_graph_service.bootstrap import Settings, build_container
 
-            graph_service = build_service(Settings.from_environment(env))
+            graph_service = build_container(Settings.from_environment(env)).graph
             # Placeholder unused store so close() loops stay simple; real close via graph_service.
             graph_store = _memory_graph_store()
         except Exception as exc:
@@ -196,3 +196,27 @@ def build_stores(environ: Mapping[str, str] | None = None) -> StoreBundle:
         database_url=database_url,
         graph_service=graph_service,
     )
+
+
+@dataclass(frozen=True)
+class McpServiceContainer:
+    """Composition-root output for the MCP gateway process."""
+
+    stores: StoreBundle
+    backends: Any
+
+    def close(self) -> None:
+        closer = getattr(self.backends, "close", None)
+        if callable(closer):
+            closer()
+        else:
+            self.stores.close()
+
+
+def build_container(environ: Mapping[str, str] | None = None) -> McpServiceContainer:
+    """MCP composition root: stores + platform backends."""
+    from .backends.platform import PlatformBackends
+
+    stores = build_stores(environ)
+    backends = PlatformBackends(stores)
+    return McpServiceContainer(stores=stores, backends=backends)

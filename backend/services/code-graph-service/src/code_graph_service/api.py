@@ -6,7 +6,7 @@ from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import CodeGraphError, CodeGraphService, Scope
 
 
@@ -116,9 +116,22 @@ class LlmCompleteRequest(BaseModel):
     reasoning_effort: str | None = Field(default=None, max_length=32)
 
 
-def app(service: CodeGraphService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: CodeGraphService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.graph:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(graph=service, settings=None)
+        else:
+            container = build_container()
+    service = container.graph
     api = FastAPI(title="AgentCore Code Graph API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(CodeGraphError)
     async def graph_error(_: Request, exc: CodeGraphError):
@@ -450,3 +463,7 @@ def app(service: CodeGraphService | None = None) -> FastAPI:
         return {"status": "ok", "service": "code-graph-service"}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app

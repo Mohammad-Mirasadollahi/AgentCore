@@ -66,6 +66,20 @@ class Settings:
         )
 
 
+@dataclass(frozen=True)
+class ServiceContainer:
+    """Process-scoped composition root output for code-graph HTTP/CLI."""
+
+    graph: CodeGraphService
+    settings: Settings | None = None
+
+    def close(self) -> None:
+        store = getattr(self.graph, "store", None)
+        closer = getattr(store, "close", None) if store is not None else None
+        if callable(closer):
+            closer()
+
+
 def _env_flag(raw: str | None, *, default: bool) -> bool:
     if raw is None or not str(raw).strip():
         return default
@@ -111,7 +125,8 @@ def build_llm_gateway():
     return LiteLlmGateway(LlmGatewaySettings.from_environment())
 
 
-def build_service(settings: Settings | None = None) -> CodeGraphService:
+def build_container(settings: Settings | None = None) -> ServiceContainer:
+    """Composition root: bind adapters and return a frozen service container."""
     from .llm_wiring import maybe_preload_embeddings
     from .locked_store import LockedEmbeddings, LockedStore
 
@@ -124,10 +139,21 @@ def build_service(settings: Settings | None = None) -> CodeGraphService:
     emb_index = build_embedding_index(resolved)
     if emb_index is not None:
         emb_index = LockedStore(emb_index)
-    return CodeGraphService(
+    graph = CodeGraphService(
         LockedStore(build_store(resolved)),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=embeddings,
         embedding_index=emb_index,
         llm=gateway,
     )
+    return ServiceContainer(graph=graph, settings=resolved)
+
+
+def build_service(settings: Settings | None = None) -> CodeGraphService:
+    """Compatibility wrapper — prefer ``build_container`` for new wiring."""
+    return build_container(settings).graph
+
+
+def shutdown_container(container: ServiceContainer | None) -> None:
+    if container is not None:
+        container.close()

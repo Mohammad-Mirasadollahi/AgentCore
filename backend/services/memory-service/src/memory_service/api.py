@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import MemoryError, MemoryService, Scope, ValidationError
 
 
@@ -62,9 +62,22 @@ class MarkReadyRequest(BaseModel):
     reason: str
 
 
-def app(service: MemoryService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: MemoryService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.service:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(service=service, settings=None)
+        else:
+            container = build_container()
+    service = container.service
     api = FastAPI(title="AgentCore Memory Service API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(MemoryError)
     async def memory_error(_: Request, exc: MemoryError):
@@ -300,3 +313,7 @@ def app(service: MemoryService | None = None) -> FastAPI:
         return {"items": [item.public() for item in service.list_stale_memory(read_scope(project_id, x_tenant_id, x_workspace_id))], "correlation_id": None}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app

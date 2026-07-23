@@ -11,7 +11,7 @@ from core_data_service.core import CoreData, Scope as CoreScope
 from docs_sync_service.core import DocsSyncService, Scope as DocsScope
 from memory_service.core import MemoryService, Scope as MemoryScope
 
-from ..store_factory import StoreBundle, build_stores
+from ..store_factory import StoreBundle, build_container, build_stores
 
 
 def _seed_enabled(environ: dict[str, str] | None = None) -> bool:
@@ -39,7 +39,8 @@ class PlatformBackends:
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> PlatformBackends:
-        return cls(build_stores(environ))
+        """Composition-root entry: build stores via ``build_container`` and return backends."""
+        return build_container(environ).backends
 
     def close(self) -> None:
         self._stores.close()

@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import DocsSyncError, DocsSyncService, Scope, ValidationError
 
 
@@ -60,9 +60,22 @@ class CiGateRequest(BaseModel):
     waived_finding_ids: list[str] = Field(default_factory=list)
 
 
-def app(service: DocsSyncService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: DocsSyncService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.service:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(service=service, settings=None)
+        else:
+            container = build_container()
+    service = container.service
     api = FastAPI(title="AgentCore Docs Sync API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(DocsSyncError)
     async def docs_error(_: Request, exc: DocsSyncError):
@@ -259,3 +272,7 @@ def app(service: DocsSyncService | None = None) -> FastAPI:
         return {"gate": service.evaluate_ci_gate(read_scope(project_id, x_tenant_id, x_workspace_id), body.waived_finding_ids), "correlation_id": None}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app

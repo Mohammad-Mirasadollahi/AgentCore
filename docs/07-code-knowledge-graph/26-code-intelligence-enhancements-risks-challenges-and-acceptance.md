@@ -115,7 +115,7 @@ License rules are normative in [`21`](21-code-intelligence-prior-art-ideas-and-l
 | Gap | Owner | Notes |
 | --- | --- | --- |
 | Watcher deployment model | platform-ops | Poll sidecar shipped (`graph watch`); v1 still markets explicit ingest + pending-sync |
-| Full DI / framework import matrix | code-graph-lead | Package-manager aliases shipped (F3); DI graph still deferred |
+| Full DI / framework import matrix | code-graph-lead | **Closed for v1 wedge:** FastAPI `Depends` + Nest/TS constructor/`@Inject` CALLS (`di_injection`); package manifests include Cargo/tsconfig/go replace. Exotic DI frameworks remain iterative (R-04). |
 
 ## Honesty eval (Phase A — durable)
 

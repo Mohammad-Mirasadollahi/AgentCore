@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .bootstrap import build_service
+from .bootstrap import ServiceContainer, build_container
 from .core import RuleEngineError, RuleEngineService, Scope, ValidationError
 
 
@@ -77,9 +77,22 @@ class FeedbackRequest(BaseModel):
     note: str = ""
 
 
-def app(service: RuleEngineService | None = None) -> FastAPI:
-    service = service or build_service()
+def build_app(
+    service: RuleEngineService | None = None,
+    *,
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    """Compose FastAPI with a process-scoped ``ServiceContainer`` on ``app.state``."""
+    if container is not None and service is not None and service is not container.service:
+        raise ValueError("pass either service or container, not conflicting both")
+    if container is None:
+        if service is not None:
+            container = ServiceContainer(service=service, settings=None)
+        else:
+            container = build_container()
+    service = container.service
     api = FastAPI(title="AgentCore Rule Engine API", version="1.0.0")
+    api.state.container = container
 
     @api.exception_handler(RuleEngineError)
     async def engine_error(_: Request, exc: RuleEngineError):
@@ -283,3 +296,7 @@ def app(service: RuleEngineService | None = None) -> FastAPI:
         return {"health": service.get_rule_health(read_scope(project_id, x_tenant_id, x_workspace_id)), "correlation_id": None}
 
     return api
+
+
+# Backward-compatible alias used by tests and callers.
+app = build_app
