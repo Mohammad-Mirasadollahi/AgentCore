@@ -97,6 +97,8 @@ def dispatch_capability(
 
     if maps_to == "docs_sync.authoring_standards":
         return docs.docs_authoring_standards(base=base)
+    if maps_to == "docs_sync.catalog":
+        return docs.docs_catalog(arguments, base=base)
 
     if maps_to == "guidance.resolve":
         return guidance.guidance_resolve(

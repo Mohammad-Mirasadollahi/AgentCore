@@ -132,6 +132,19 @@ def mcp_status(root: Path) -> dict[str, Any]:
     return out
 
 
+def _wait_port_free(host: str, port: int, *, timeout: float = 15.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not tcp_ok(host, port, timeout=0.25):
+            return True
+        time.sleep(0.2)
+    return not tcp_ok(host, port, timeout=0.25)
+
+
+def _clear_mcp_pid(root: Path) -> None:
+    mcp_pid_path(root).unlink(missing_ok=True)
+
+
 def start_mcp_http(root: Path) -> dict[str, Any]:
     existing = read_mcp_pid(root)
     if existing is not None:
@@ -153,6 +166,18 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
     exe = str(python if python.is_file() else sys.executable)
     log_path = mcp_log_path(root)
     started_at = wall_clock_now()
+
+    # Same contract as install host bring-up: container must not hold :32500.
+    from agentcore_cli.service_runtime.compose import stop_mcp_gateway
+
+    stop_mcp_gateway(root)
+    if not _wait_port_free(host, port):
+        raise SystemExit(
+            f"error: MCP HTTP port {port} is still in use after stopping "
+            f"compose mcp-gateway. Free the port, then retry: "
+            f"agentcore service start (see {log_path})"
+        )
+
     progress(f"MCP HTTP: starting on {host}:{port}")
     log_f = open(log_path, "a", encoding="utf-8")  # noqa: SIM115 — kept open for daemon
     try:
@@ -171,6 +196,7 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
 
     for _ in range(30):
         if proc.poll() is not None:
+            _clear_mcp_pid(root)
             raise SystemExit(
                 f"error: MCP HTTP exited early (code={proc.returncode}); see {log_path}"
             )
@@ -178,9 +204,28 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
             break
         time.sleep(0.2)
     else:
-        progress(f"MCP HTTP: not reachable yet on port {port} — see {log_path}")
-    if tcp_ok(host, port):
-        progress(f"MCP HTTP: is up on {host}:{port}")
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError, OSError):
+                try:
+                    proc.terminate()
+                except ProcessLookupError:
+                    pass
+        _clear_mcp_pid(root)
+        raise SystemExit(
+            f"error: MCP HTTP not reachable on {host}:{port}; see {log_path}"
+        )
+
+    # Reject the false-success race: foreign listener answered TCP while our
+    # process already failed to bind and exited.
+    if proc.poll() is not None or not tcp_ok(host, port):
+        _clear_mcp_pid(root)
+        raise SystemExit(
+            f"error: MCP HTTP failed to stay up on {host}:{port}; see {log_path}"
+        )
+
+    progress(f"MCP HTTP: is up on {host}:{port}")
     return {
         "ok": True,
         "action": "started",

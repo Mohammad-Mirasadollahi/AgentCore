@@ -83,6 +83,44 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Print JSON report",
     )
 
+    docs_catalog = sub.add_parser(
+        "docs-catalog",
+        help="Cached docs frontmatter catalog (tags/lanes) for agent retrieval; no invented edges",
+    )
+    docs_catalog.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Rebuild .agentcore/cache/docs-catalog.json from disk",
+    )
+    docs_catalog.add_argument(
+        "--roots",
+        default="",
+        help="Comma-separated doc roots under repo (default: env AGENTCORE_DOCS_CATALOG_ROOTS or built-in defaults)",
+    )
+    docs_catalog.add_argument("--tag", default="", help="Filter by tag (case-insensitive)")
+    docs_catalog.add_argument("--concern", default="", help="Filter by concern_lane")
+    docs_catalog.add_argument("--lifecycle", default="", help="Filter by lifecycle_lane")
+    docs_catalog.add_argument("--audience", default="", help="Filter by audience_lane value")
+    docs_catalog.add_argument("--phase", default="", help="Filter by phase")
+    docs_catalog.add_argument("--doc-type", default="", dest="doc_type", help="Filter by doc_type")
+    docs_catalog.add_argument(
+        "--query",
+        default="",
+        help="Substring match on path/title/summary/tags/doc_id",
+    )
+    docs_catalog.add_argument(
+        "--linked-only",
+        action="store_true",
+        help="Only documents that already have linked_symbols",
+    )
+    docs_catalog.add_argument(
+        "--unlinked-only",
+        action="store_true",
+        help="Only documents with empty linked_symbols",
+    )
+    docs_catalog.add_argument("--limit", type=int, default=50, help="Max matched documents (default 50)")
+    docs_catalog.add_argument("--json", action="store_true", help="Print JSON report")
+
     stats = sub.add_parser(
         "stats",
         help="Count code/docs, language mix, and processed vs remaining percents",

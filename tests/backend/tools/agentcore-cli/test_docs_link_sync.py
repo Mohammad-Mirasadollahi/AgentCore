@@ -258,3 +258,170 @@ def test_resolve_sync_filters_docs_vs_code(tmp_path: Path, monkeypatch):
     filters3 = resolve_sync_filters(root=tmp_path)
     assert filters3["docs_enabled"] is True
     assert "**/*.md" in filters3["doc_match_globs"]
+
+
+AUTH_BACKEND = '''\
+def login(user, password):
+    return True
+'''
+
+
+EVIDENCE_DOC = '''\
+---
+doc_id: doc-evidence-login
+title: Evidence login
+owner: platform
+status: active
+schema_version: "1.0"
+linked_symbols: []
+decision_refs: []
+lifecycle_lane: current
+---
+
+# Evidence login
+
+See `backend/pkg/auth.py` for the login helper.
+'''
+
+
+PLAIN_DOC = '''\
+---
+doc_id: doc-plain
+title: Plain
+owner: platform
+status: active
+schema_version: "1.0"
+linked_symbols: []
+decision_refs: []
+lifecycle_lane: archive
+---
+
+# Plain
+
+No code citations.
+'''
+
+
+def test_sync_human_docs_merges_evidence_and_creates_edge(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "1")
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY", "1")
+    (tmp_path / "backend" / "pkg").mkdir(parents=True)
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "backend" / "pkg" / "auth.py").write_text(AUTH_BACKEND, encoding="utf-8")
+    (tmp_path / "docs" / "evidence.md").write_text(EVIDENCE_DOC, encoding="utf-8")
+    (tmp_path / "docs" / "plain.md").write_text(PLAIN_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    graph.ingest_file(
+        SCOPE,
+        "test",
+        "c1",
+        "k1",
+        {"file_path": "backend/pkg/auth.py", "source": AUTH_BACKEND, "language": "python"},
+    )
+
+    result = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-ev",
+        repo_name="fixture",
+    )
+    assert result.errors == []
+    assert result.evidence_enabled is True
+    assert result.evidence_tokens_new >= 1
+    assert result.evidence_frontmatter_applied >= 1
+    assert result.links_created >= 1
+
+    fm, _body = parse_markdown_frontmatter(
+        (tmp_path / "docs" / "evidence.md").read_text(encoding="utf-8")
+    )
+    assert "backend/pkg/auth.py::login" in (fm.get("linked_symbols") or [])
+
+    login = store.get_symbol_by_qualified_name(SCOPE, "backend.pkg.auth.login")
+    assert login is not None
+    human = store.get_symbol("doc:human:docs-link:doc-evidence-login", SCOPE)
+    edges = [
+        e
+        for e in store.list_edges(SCOPE)
+        if e.rel_type == "DOCUMENTED_BY" and e.source_id == login.id and e.target_id == human.id
+    ]
+    assert len(edges) == 1
+
+
+def test_sync_human_docs_evidence_can_disable(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    (tmp_path / "backend" / "pkg").mkdir(parents=True)
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "backend" / "pkg" / "auth.py").write_text(AUTH_BACKEND, encoding="utf-8")
+    (tmp_path / "docs" / "evidence.md").write_text(EVIDENCE_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    graph.ingest_file(
+        SCOPE,
+        "test",
+        "c1",
+        "k1",
+        {"file_path": "backend/pkg/auth.py", "source": AUTH_BACKEND, "language": "python"},
+    )
+    result = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-off",
+        repo_name="fixture",
+    )
+    assert result.evidence_enabled is False
+    assert result.evidence_tokens_new == 0
+    assert result.links_created == 0
+    fm, _ = parse_markdown_frontmatter(
+        (tmp_path / "docs" / "evidence.md").read_text(encoding="utf-8")
+    )
+    assert (fm.get("linked_symbols") or []) == []
+
+
+def test_phase2_priority_orders_evidence_first(tmp_path: Path, monkeypatch):
+    from agentcore_cli.docs_link_sync import _phase2_priority
+
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "1")
+    (tmp_path / "backend" / "pkg").mkdir(parents=True)
+    (tmp_path / "backend" / "pkg" / "auth.py").write_text(AUTH_BACKEND, encoding="utf-8")
+    ev = _phase2_priority(
+        rel="docs/a.md",
+        body='See `backend/pkg/auth.py`.\n',
+        frontmatter={"lifecycle_lane": "archive", "linked_symbols": []},
+        catalog_row=None,
+        root_path=tmp_path,
+        evidence_enabled=True,
+    )
+    plain = _phase2_priority(
+        rel="docs/b.md",
+        body="No paths.\n",
+        frontmatter={"lifecycle_lane": "current", "linked_symbols": []},
+        catalog_row={"lifecycle_lane": "current"},
+        root_path=tmp_path,
+        evidence_enabled=True,
+    )
+    assert ev < plain

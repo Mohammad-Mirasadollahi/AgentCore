@@ -42,6 +42,7 @@ Coordinate agents and humans through semantic policies, risk detection, escalati
 - `05-risks-challenges-and-acceptance.md` defines risks and acceptance criteria.
 - `06-detailed-section-design.md` provides deep rationale, policy design, LLM judge behavior, escalation details, edge cases, and phase output.
 - `07-custom-rule-authoring-and-suggestion-workflows.md` defines user-authored rules, domain-scoped rules, conversation-derived rule suggestions, **guided business and process intake**, **challenge-by-challenge rule discovery**, **LLM-managed rule authoring**, feature profile rules, rule lifecycle, conflict handling, and admin-console rule workflows.
+- `08-domain-pack-feature-profile-and-rule-suggestion-schemas.md` defines normative JSON schemas, ownership, activation workflow, and conflict precedence for DomainPack, FeatureProfile, and RuleSuggestion (closes GAP-009).
 
 ## Features Covered
 

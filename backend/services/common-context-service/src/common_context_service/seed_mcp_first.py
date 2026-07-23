@@ -128,14 +128,17 @@ description: Search AgentCore code knowledge graph before wide local search.
 
 1. Prefer `agentcore_code_graph_explore` for "how does X work", flows, or surveying an area (one call: seeds + call path + budgeted source).
 2. Use `agentcore_code_graph_hybrid_search` or `agentcore_code_graph_search` for name/meaning lookup when you only need ids.
-3. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
-4. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
-5. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, or empty graph; report degraded mode when tools fail.
+3. When you need related **human Markdown**, call `agentcore_docs_catalog` with tag/concern/lifecycle/query filters (cached lane enums + tag index). Then Read only the matched paths — do not invent DOCUMENTED_BY.
+4. For a seed symbol, call `agentcore_code_graph_generation_context` and prefer `hybrid_documentation` (human → living → rationale → AST).
+5. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
+6. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
+7. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, or empty graph; report degraded mode when tools fail.
 
 ## Do not
 
 - Prefer exhaustive workspace crawl when graph explore/search is available and healthy.
 - Re-verify explore results with wide Grep when the pack already returned verbatim source.
+- Treat docs catalog matches as graph edges; sync still owns DOCUMENTED_BY after evidence linked_symbols.
 """,
     },
     {
@@ -206,17 +209,19 @@ description: Run AgentCore docs-sync drift, status, Body-tier validate, note, dr
 
 1. **Before writing or explaining product Markdown** under `docs/` (or other normative trees):
    execute `agentcore_docs_authoring_standards` and skill `agentcore-documentation-authoring`.
-2. Coverage / gaps: `agentcore_docs_status`.
-3. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
-4. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
-5. Keep committed documentation English per project laws.
-6. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`.
+2. To find which docs to open (tags/lanes): `agentcore_docs_catalog` (optional `refresh`, filters).
+3. Coverage / gaps: `agentcore_docs_status`.
+4. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
+5. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
+6. Keep committed documentation English per project laws.
+7. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`; refresh catalog with `agentcore docs-catalog --refresh`.
 
 ## Do not
 
 - Treat `agentcore_docs_write` mode=`validate` as Full-tier compliance for product docs.
 - Bypass docs-sync for governed docs-as-code changes when these tools are on the profile.
 - Skip `agentcore_docs_authoring_standards` when the user asks how documentation writing works.
+- Invent DOCUMENTED_BY from catalog tags alone.
 """,
     },
     {

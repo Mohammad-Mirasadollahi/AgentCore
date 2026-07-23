@@ -132,10 +132,12 @@ After graph update, the system emits events for Docs-as-Code and Orchestration:
 After Phase 1 code ingest, `agentcore sync` runs a second phase when `docs.match` is non-empty (default `**/*.md` / `**/*.mdx`):
 
 1. Discover Markdown via `docs.match` wildcards and **docs-only** `docs.exclude` (`code_graph_service.domain.doc_discovery` — not the language matrix). Code excludes (`code.exclude`) do not apply to this phase.
-2. Index each document into **docs-sync-service** (SoT for Document / DocAnchor / Drift) with frontmatter (`linked_symbols` required for linking).
-3. Resolve each `linked_symbols` token against the code graph (`qualified_name` or `file_path::SymbolName`). Unresolved tokens do **not** create edges.
-4. Project human doc nodes into Neo4j as `doc:human:{project_id}:{doc_id}` (`kind=documentation`, `doc_status=human`) and merge `DOCUMENTED_BY` from each resolved code symbol → human doc (same direction as living AI docs).
-5. Register docs-sync anchors for resolved links so drift can compare code hashes later.
+2. **Order** the queue using the docs catalog cache when present (evidence citations and `lifecycle_lane: current` first). Catalog tags never create edges.
+3. **Evidence merge (default):** extract path citations with the same rules as `docs-suggest-links`, merge into `linked_symbols`, and by default persist to YAML frontmatter (`AGENTCORE_SYNC_DOCS_EVIDENCE` / `AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY`).
+4. Index each document into **docs-sync-service** (SoT for Document / DocAnchor / Drift) with frontmatter (`linked_symbols` required for linking).
+5. Resolve each `linked_symbols` token against the code graph (`qualified_name` or `file_path::SymbolName`). Unresolved tokens do **not** create edges.
+6. Project human doc nodes into Neo4j as `doc:human:{project_id}:{doc_id}` (`kind=documentation`, `doc_status=human`) and merge `DOCUMENTED_BY` from each resolved code symbol → human doc (same direction as living AI docs).
+7. Register docs-sync anchors for resolved links so drift can compare code hashes later.
 
 Living AI docs (`doc:{project}:{qualified_name}`) remain separate from human projections. Body-tier Markdown without Full-tier frontmatter is still indexed in docs-sync via provisional fields, but receives no `DOCUMENTED_BY` edges until `linked_symbols` resolve.
 
@@ -155,8 +157,9 @@ Preference for prompt snippets: **human → living → rationale → AST**. No e
 
 Evidence-only link suggestions (write path): `agentcore docs-suggest-links` proposes
 `path::Symbol` tokens from Markdown path citations; `--apply` updates frontmatter only.
-Phase 2 sync remains the sole edge writer for resolved tokens. Full normative detail
-(including optional flags and deferred LLM pairing): [`41-hybrid-documentation-coverage.md`](./41-hybrid-documentation-coverage.md).
+Phase 2 sync also merges evidence by default and remains the sole edge writer for resolved
+tokens. Catalog: [`42-documentation-catalog-and-lane-cache.md`](./42-documentation-catalog-and-lane-cache.md).
+Full normative hybrid detail: [`41-hybrid-documentation-coverage.md`](./41-hybrid-documentation-coverage.md).
 
 Orchestration lives in `agentcore_cli.docs_link_sync` (in-process clients; no cross-service DB reads). Disable Phase 2 with `docs.match: []` or `docs.enabled: false`.
 

@@ -58,6 +58,9 @@ def build_symbol_indexes(symbols: list[GraphSymbol]) -> SymbolIndexes:
             # Placeholder endpoints for Neo4j edges — not resolution targets.
             continue
 
+        if symbol.kind == SymbolKind.EXTERNAL:
+            continue
+
         if symbol.kind == SymbolKind.IMPORT:
             # Import nodes are edges of naming, not resolution targets.
             continue

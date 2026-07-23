@@ -34,6 +34,8 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_docs_drift_check` | read | Docs drift for a symbol |
 | `agentcore_docs_write` | write | Docs workflow: `validate` / `note` / `draft` / `index` |
 | `agentcore_docs_status` | read | Coverage + missing docs |
+| `agentcore_docs_catalog` | read | Cached frontmatter catalog (tags/lanes) for retrieval narrowing |
+| `agentcore_docs_authoring_standards` | read | Full-tier documentation authoring law |
 | `agentcore_guidance_resolve` | read | Resolve AGENTS entry, always-on rules, skill catalog (seeds MCP-first pack) |
 | `agentcore_guidance_list_skills` | read | List skill catalog descriptors |
 | `agentcore_guidance_get_skill` | read | Fetch one skill body by id or name |

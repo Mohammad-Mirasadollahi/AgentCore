@@ -637,6 +637,62 @@
         }
       },
       {
+        "name": "agentcore_docs_catalog",
+        "description": "Cached documentation catalog built from this software's scanned Markdown frontmatter. Vocabularies (tags/lanes/doc_type/…) are observed — not a global hardcoded enum. Use filters to narrow which paths to Read. Does not invent DOCUMENTED_BY. Optional refresh/roots rebuild the cache.",
+        "maps_to": "docs_sync.catalog",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "refresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Rebuild catalog cache from disk"
+            },
+            "roots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional doc roots to scan (product-specific). Omit to use AGENTCORE_DOCS_CATALOG_ROOTS or defaults."
+            },
+            "tag": {
+              "type": "string",
+              "description": "Filter by frontmatter tag observed in this software"
+            },
+            "concern_lane": {
+              "type": "string"
+            },
+            "lifecycle_lane": {
+              "type": "string"
+            },
+            "audience_lane": {
+              "type": "string"
+            },
+            "phase": {
+              "type": "string"
+            },
+            "doc_type": {
+              "type": "string"
+            },
+            "query": {
+              "type": "string",
+              "description": "Substring on path/title/summary/tags/doc_id"
+            },
+            "has_linked_symbols": {
+              "type": "boolean",
+              "description": "If set, only docs with or without linked_symbols"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
         "name": "agentcore_guidance_resolve",
         "description": "Resolve Agent Workspace Guidance for this project: AGENTS entry, always-on rules, and skill catalog. Prefer calling before substantive coding. Seeds MCP-first guidance when empty.",
         "maps_to": "guidance.resolve",

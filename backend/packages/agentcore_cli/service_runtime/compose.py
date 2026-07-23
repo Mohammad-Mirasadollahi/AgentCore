@@ -116,6 +116,55 @@ def start_compose(root: Path) -> dict[str, Any]:
     }
 
 
+def stop_mcp_gateway(root: Path) -> dict[str, Any]:
+    """Stop Compose mcp-gateway so host MCP HTTP can bind the shared port.
+
+    Host runtime (``agentcore service start`` / install stage 06) owns :32500.
+    A leftover ``mcp-gateway`` container makes host start look healthy via TCP
+    while the new process dies with EADDRINUSE — then sync reports MCP stopped.
+
+    Both ``core`` and ``app`` profiles are required: mcp-gateway depends_on
+    postgres/neo4j, which are only defined when ``core`` is enabled.
+    """
+    progress("MCP HTTP: stopping compose mcp-gateway if present (host owns the port)")
+    cmd = compose_base_cmd(root) + [
+        "--profile",
+        "core",
+        "--profile",
+        "app",
+        "stop",
+        "--timeout",
+        str(COMPOSE_STOP_TIMEOUT_SEC),
+        "mcp-gateway",
+    ]
+    try:
+        proc = run_cmd(cmd, cwd=root, check=False, timeout=COMPOSE_STOP_WAIT_SEC)
+    except subprocess.TimeoutExpired:
+        progress("MCP HTTP: mcp-gateway stop timed out — forcing kill")
+        proc = run_cmd(
+            compose_base_cmd(root)
+            + ["--profile", "core", "--profile", "app", "kill", "mcp-gateway"],
+            cwd=root,
+            check=False,
+            timeout=30,
+        )
+    ok = proc.returncode == 0
+    if ok:
+        progress("MCP HTTP: compose mcp-gateway is stopped (or was already down)")
+    else:
+        err = (proc.stderr or proc.stdout or "").strip()
+        # Missing service / profile is fine on older compose layouts.
+        progress(
+            "MCP HTTP: mcp-gateway stop skipped"
+            + (f" — {err[:160]}" if err else f" (exit {proc.returncode})")
+        )
+    return {
+        "ok": ok,
+        "action": "mcp_gateway_stop",
+        "returncode": proc.returncode,
+    }
+
+
 def stop_compose(root: Path) -> dict[str, Any]:
     services = ", ".join(COMPOSE_SERVICES)
     progress(f"Databases: stopping {services}")

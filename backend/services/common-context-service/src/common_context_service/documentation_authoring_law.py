@@ -20,6 +20,7 @@ CANONICAL_PATHS: dict[str, str] = {
     "team_handout": "docs/agents/TEAM-HANDOUT-agentcore-documentation-complete.md",
     "standardization_procedure": "docs/00-master-plan/10-documentation-standardization-procedure.md",
     "hybrid_coverage": "docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md",
+    "docs_catalog": "docs/07-code-knowledge-graph/42-documentation-catalog-and-lane-cache.md",
     "standards_pack": "backend/docs/standards/documentation/",
     "pack_01": "backend/docs/standards/documentation/01-professional-documentation-standard.md",
     "pack_02": "backend/docs/standards/documentation/02-documentation-structure-and-machine-ingest-standard.md",
@@ -59,6 +60,7 @@ HARD_REQUIREMENTS: list[str] = [
     "linked_symbols only when evidence exists on disk (qualified_name / path::Symbol / symbol id).",
     "Optional evidence helper: agentcore docs-suggest-links (dry-run; --apply only updates frontmatter; sync creates edges).",
     "Hybrid coverage optional layers prefer human → living → rationale → AST; never invent DOCUMENTED_BY (see docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md).",
+    "Use docs catalog (agentcore docs-catalog / agentcore_docs_catalog) for tag/lane narrowing before reading many Markdown files.",
     "When standardizing or remediating: follow docs/00-master-plan/10-documentation-standardization-procedure.md.",
     "Verify with CLI: agentcore docs-standards (zero issues) and agentcore quality-audit for docs.* categories.",
 ]
@@ -79,6 +81,7 @@ CLI_GATES: list[str] = [
     "agentcore docs-standards",
     "agentcore docs-standards remediate (when remediating)",
     "agentcore docs-suggest-links (hybrid evidence linked_symbols suggestions)",
+    "agentcore docs-catalog (tags/lanes cache for retrieval; --refresh after bulk doc edits)",
     "agentcore quality-audit (docs.* categories must be clean)",
 ]
 
@@ -123,6 +126,7 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
    `agentcore quality-audit`.
 9. Hybrid coverage (optional layers): prefer human → living → rationale → AST; never invent edges
    (`docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md`).
+10. Narrow docs with `agentcore_docs_catalog` / `agentcore docs-catalog` (tags + lane enums) before wide Read.
 
 ## Body-tier vs Full-tier
 
@@ -156,6 +160,7 @@ def authoring_law_payload() -> dict[str, Any]:
         "skill_name": "agentcore-documentation-authoring",
         "related_mcp_tools": [
             "agentcore_docs_authoring_standards",
+            "agentcore_docs_catalog",
             "agentcore_docs_status",
             "agentcore_docs_drift_check",
             "agentcore_docs_write",

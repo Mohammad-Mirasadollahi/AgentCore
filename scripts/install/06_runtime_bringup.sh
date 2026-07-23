@@ -55,8 +55,9 @@ _stage_06_bringup_host() {
   local cli
   cli="$(_venv_cli)"
   # Prefer host MCP: stop container listener if present so :32500 is free.
+  # Both profiles required — mcp-gateway depends_on postgres/neo4j (core).
   info "Stopping mcp-gateway container if running (host MCP will own the port)…"
-  _compose_app --profile app stop mcp-gateway >/dev/null 2>&1 || true
+  _compose_app --profile core --profile app stop mcp-gateway >/dev/null 2>&1 || true
   info "Starting host runtime (Compose core + MCP HTTP via agentcore service start)…"
   run "${cli}" service start
 }

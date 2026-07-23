@@ -37,9 +37,19 @@ This documentation is written for experienced software engineers, software archi
 
 ## Implementation status
 
-Executable vertical slices and **feature/service gates** live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. Suites are grouped by owning service or feature (for example `tests/backend/services/memory-service/`, `tests/backend/gates/port-profile-verification/`), not by roadmap phase number. Named pytest commands and suite layout live in [tests/README.md](../tests/README.md). The repository root [README.md](../README.md) is a minimal entry (install + doc map). Product design docs in this tree are the normative specification; many describe target architecture ahead of code. That is allowed. Docs must not imply product readiness beyond what gates and tests prove (for example Neo4j runtime remains a design target for the code graph). See `00-master-plan/06-professional-documentation-standard.md` (Designed Vs Shipped Honesty) and `00-master-plan/09-documentation-classification-and-lanes.md`.
+Executable vertical slices and **feature/service gates** live under `backend/services/`, `backend/packages/`, `backend/configs/`, and `tests/backend/`. Suites are grouped by owning service or feature (for example `tests/backend/services/memory-service/`, `tests/backend/gates/port-profile-verification/`), not by roadmap phase number. Named pytest commands and suite layout live in [tests/README.md](../tests/README.md). The repository root [README.md](../README.md) is a minimal entry (install, high-level architecture, doc map). Product design docs in this tree are the normative specification; many describe target architecture ahead of code. That is allowed. Docs must not imply product readiness beyond what gates and tests prove (for example Neo4j runtime remains a design target for the code graph). See `00-master-plan/06-professional-documentation-standard.md` (Designed Vs Shipped Honesty) and `00-master-plan/09-documentation-classification-and-lanes.md`.
 
 **Usage Profiles** (org/person configuration + Cursor MCP): see [08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md](08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md). **One-command remote connect (SSH + HTTP, operator examples):** [41-one-command-cross-platform-agent-onboarding.md](08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md). **Every `agentcore` CLI command** (why, required flags, examples, what changes): [42-agentcore-cli-command-reference.md](08-software-engineering-architecture/42-agentcore-cli-command-reference.md).
+
+## Architecture at a glance
+
+High-level plane (clients → MCP/CLI → domain services → PostgreSQL / Neo4j; external agents stay outside): root [README.md § Quick architecture](../README.md#quick-architecture).
+
+Deeper specs in this tree:
+
+- [00-master-plan/03-global-architecture-hld.md](00-master-plan/03-global-architecture-hld.md) — system-wide HLD
+- [00-master-plan/05-complete-system-blueprint.md](00-master-plan/05-complete-system-blueprint.md) — product narrative + value stack
+- [backend/services/README.md](../backend/services/README.md) — service inventory
 
 ## Documentation Map
 

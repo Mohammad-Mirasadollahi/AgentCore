@@ -1,4 +1,10 @@
-"""Phase-2 human documentation sync: docs-sync SoT + code-graph DOCUMENTED_BY projection."""
+"""Phase-2 human documentation sync: docs-sync SoT + code-graph DOCUMENTED_BY projection.
+
+Catalog (when available) orders the Phase 2 queue. Evidence path citations in Markdown
+bodies are merged into ``linked_symbols`` (same extractor as ``docs-suggest-links``).
+``DOCUMENTED_BY`` is created only for tokens that resolve after Phase 1 — never from
+tags or catalog metadata alone.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +20,10 @@ from agentcore_cli.util import repo_root
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
+def _env_truthy(name: str, default: str = "1") -> bool:
+    return os.environ.get(name, default).strip().lower() not in ("0", "false", "no", "off")
+
+
 @dataclass
 class DocsLinkSyncResult:
     docs_discovered: int = 0
@@ -23,6 +33,10 @@ class DocsLinkSyncResult:
     unresolved_tokens: list[str] = field(default_factory=list)
     skipped: int = 0
     errors: list[str] = field(default_factory=list)
+    evidence_enabled: bool = True
+    evidence_tokens_new: int = 0
+    evidence_frontmatter_applied: int = 0
+    catalog_ordered: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -33,6 +47,10 @@ class DocsLinkSyncResult:
             "unresolved_tokens": list(self.unresolved_tokens),
             "skipped": self.skipped,
             "errors": list(self.errors),
+            "evidence_enabled": self.evidence_enabled,
+            "evidence_tokens_new": self.evidence_tokens_new,
+            "evidence_frontmatter_applied": self.evidence_frontmatter_applied,
+            "catalog_ordered": self.catalog_ordered,
         }
 
 
@@ -80,6 +98,111 @@ def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
     return out
 
 
+def _catalog_by_path(root_path: Path) -> dict[str, dict[str, Any]]:
+    """Best-effort catalog index for Phase 2 ordering (never invents edges)."""
+    from agentcore_cli.docs_catalog import load_docs_catalog_cache
+
+    for base in (root_path, repo_root()):
+        try:
+            cached = load_docs_catalog_cache(base)
+        except Exception:  # noqa: BLE001
+            cached = None
+        if not cached:
+            continue
+        docs = cached.get("documents") or []
+        if not docs:
+            continue
+        out: dict[str, dict[str, Any]] = {}
+        for row in docs:
+            if not isinstance(row, dict):
+                continue
+            path = str(row.get("path") or "").replace("\\", "/").strip()
+            if path:
+                out[path] = row
+        if out:
+            return out
+    return {}
+
+
+def _phase2_priority(
+    *,
+    rel: str,
+    body: str,
+    frontmatter: dict[str, Any],
+    catalog_row: dict[str, Any] | None,
+    root_path: Path,
+    evidence_enabled: bool,
+) -> tuple[int, str]:
+    """Lower sort key = earlier. Evidence and current-lifecycle docs first."""
+    from agentcore_cli.docs_link_suggest import extract_evidence_link_tokens
+
+    score = 0
+    entry = catalog_row or {}
+    if evidence_enabled:
+        evidence = extract_evidence_link_tokens(body, repo=root_path)
+        if evidence:
+            score += 100
+    life = str(
+        entry.get("lifecycle_lane") or frontmatter.get("lifecycle_lane") or ""
+    ).strip()
+    if life == "current":
+        score += 10
+    if frontmatter.get("linked_symbols"):
+        score += 5
+    if entry.get("has_linked_symbols"):
+        score += 2
+    return (-score, rel)
+
+
+def _merge_evidence_tokens(
+    *,
+    abs_path: Path,
+    rel: str,
+    body: str,
+    frontmatter: dict[str, Any],
+    linked_tokens: list[str],
+    root_path: Path,
+    apply_frontmatter: bool,
+    result: DocsLinkSyncResult,
+) -> tuple[str, dict[str, Any], list[str]]:
+    """Merge evidence tokens into linked_symbols; optionally persist frontmatter."""
+    from agentcore_cli.docs_link_suggest import (
+        apply_suggested_links,
+        extract_evidence_link_tokens,
+    )
+
+    evidence = extract_evidence_link_tokens(body, repo=root_path)
+    existing = set(linked_tokens)
+    new_tokens = [t for t in evidence if t not in existing]
+    if not new_tokens:
+        return body, frontmatter, linked_tokens
+
+    result.evidence_tokens_new += len(new_tokens)
+    if apply_frontmatter:
+        applied = apply_suggested_links(abs_path, new_tokens)
+        if applied.get("status") == "applied":
+            result.evidence_frontmatter_applied += 1
+            try:
+                text = abs_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                result.errors.append(f"{rel}: evidence apply re-read failed: {exc}")
+                merged = list(linked_tokens) + new_tokens
+                frontmatter = {**frontmatter, "linked_symbols": merged}
+                return body, frontmatter, merged
+            partial, body = parse_markdown_frontmatter(text)
+            frontmatter = provisional_frontmatter(rel, body, partial)
+            linked_tokens = [
+                str(t).strip()
+                for t in (frontmatter.get("linked_symbols") or [])
+                if str(t).strip()
+            ]
+            return body, frontmatter, linked_tokens
+
+    merged = list(linked_tokens) + new_tokens
+    frontmatter = {**frontmatter, "linked_symbols": merged}
+    return body, frontmatter, merged
+
+
 def sync_human_docs(
     *,
     graph_service: Any,
@@ -105,6 +228,10 @@ def sync_human_docs(
     if not match_globs:
         return result
 
+    evidence_enabled = _env_truthy("AGENTCORE_SYNC_DOCS_EVIDENCE", "1")
+    apply_evidence_fm = _env_truthy("AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY", "1")
+    result.evidence_enabled = evidence_enabled
+
     root_path = root_path.expanduser().resolve()
     discovered = discover_documentation_files(
         root_path,
@@ -120,6 +247,8 @@ def sync_human_docs(
 
     prior_hashes = _indexed_doc_hashes(graph_service, graph_scope)
     prior_indexed = len(prior_hashes)
+    catalog_index = _catalog_by_path(root_path)
+    result.catalog_ordered = bool(catalog_index)
     # Classify against body hash (same digest upsert_human_documentation stores).
     need_paths: set[str] = set()
     queue_new = 0
@@ -146,6 +275,17 @@ def sync_human_docs(
             need_paths.add(rel)
         prepared.append((item, rel, body, frontmatter, body_hash))
 
+    prepared.sort(
+        key=lambda row: _phase2_priority(
+            rel=row[1],
+            body=row[2],
+            frontmatter=row[3],
+            catalog_row=catalog_index.get(row[1]),
+            root_path=root_path,
+            evidence_enabled=evidence_enabled,
+        )
+    )
+
     queue_unchanged = max(0, len(prepared) - queue_new - queue_changed)
     progress_total = len(need_paths) if need_paths else len(prepared)
     progress_done = 0
@@ -168,6 +308,7 @@ def sync_human_docs(
                     "docs_indexed": result.docs_indexed,
                     "links_created": result.links_created,
                     "anchors_registered": result.anchors_registered,
+                    "evidence_tokens_new": result.evidence_tokens_new,
                     "files_in_flight": 1 if status == "active" else 0,
                     "files_in_flight_paths": [file] if file and status == "active" else [],
                     "file_workers": 1,
@@ -185,13 +326,26 @@ def sync_human_docs(
     corr = correlation_id or f"docs-link-{graph_scope.project_id}"
 
     _emit(0, status="started")
-    for _item, rel, body, frontmatter, _body_hash in prepared:
+    for item, rel, body, frontmatter, _body_hash in prepared:
         counts = rel in need_paths if need_paths else True
         _emit(progress_done, file=rel, status="active")
+        abs_path = Path(item.absolute_path)
         doc_id = str(frontmatter["doc_id"]).strip()
         linked_tokens = [
             str(t).strip() for t in (frontmatter.get("linked_symbols") or []) if str(t).strip()
         ]
+        if evidence_enabled:
+            body, frontmatter, linked_tokens = _merge_evidence_tokens(
+                abs_path=abs_path,
+                rel=rel,
+                body=body,
+                frontmatter=frontmatter,
+                linked_tokens=linked_tokens,
+                root_path=root_path,
+                apply_frontmatter=apply_evidence_fm,
+                result=result,
+            )
+            doc_id = str(frontmatter["doc_id"]).strip()
         # Include content fingerprint so edits get a new key (same key + new body = ConflictError).
         doc_fp = digest(f"{rel}\n{doc_id}\n{linked_tokens}\n{body}")[:16]
 

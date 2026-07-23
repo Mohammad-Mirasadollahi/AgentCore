@@ -2,7 +2,8 @@
 
 Does not invent graph edges. Candidates come from path citations / ``path::Symbol``
 in Markdown bodies (same evidence rules as docs-standards remediator and procedure §6).
-Operators review dry-run output, then ``agentcore sync`` Phase 2 creates ``DOCUMENTED_BY``
+Operators may review dry-run output via ``agentcore docs-suggest-links``; ``agentcore sync``
+Phase 2 runs the same extractor by default, merges tokens, and creates ``DOCUMENTED_BY``
 only for tokens that resolve.
 
 Optional behaviors (all documented; none invent edges):
@@ -13,6 +14,7 @@ Optional behaviors (all documented; none invent edges):
 - Already-linked evidence tokens — listed under ``existing``; not re-suggested.
 - Missing file on disk for a path citation — token omitted (not invented).
 - Loose (non-backtick) path citations — accepted as evidence (procedure §6.2).
+- Sync env: ``AGENTCORE_SYNC_DOCS_EVIDENCE`` / ``AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY``.
 """
 
 from __future__ import annotations
@@ -121,9 +123,9 @@ def suggest_links_for_markdown(
         "existing": existing,
         "mode": "hybrid_evidence_suggest",
         "note": (
-            "Suggestions are evidence-only. Apply to frontmatter, then "
-            "agentcore sync Phase 2; unresolved tokens never create edges. "
-            "Apply skips files without YAML frontmatter."
+            "Suggestions are evidence-only. Apply to frontmatter and/or run "
+            "agentcore sync Phase 2 (evidence merge default); unresolved tokens "
+            "never create edges. Apply skips files without YAML frontmatter."
         ),
     }
 

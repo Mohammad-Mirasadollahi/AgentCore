@@ -60,7 +60,7 @@ class GenerationUseCases(GraphServiceSupport):
                 symbol = self.store.get_symbol(symbol_id, scope)
             except NotFoundError:
                 continue
-            if symbol.kind in {SymbolKind.FILE, SymbolKind.UNRESOLVED}:
+            if symbol.kind in {SymbolKind.FILE, SymbolKind.UNRESOLVED, SymbolKind.EXTERNAL}:
                 continue
             symbols.append(symbol)
             if len(symbols) >= max_symbols:

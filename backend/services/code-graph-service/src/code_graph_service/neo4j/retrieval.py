@@ -226,6 +226,7 @@ class Neo4jRetrievalMixin:
                           AND source.project_id = $project_id
                           AND source.kind <> 'documentation'
                           AND source.kind <> 'unresolved'
+                          AND source.kind <> 'external'
                         OPTIONAL MATCH (source)-[:CODE_REL]->(target:CodeSymbol)
                         WHERE target IS NULL OR (
                           target.tenant_id = $tenant_id
@@ -287,6 +288,7 @@ class Neo4jRetrievalMixin:
                       AND n.project_id = $project_id
                       AND n.kind <> 'documentation'
                       AND n.kind <> 'unresolved'
+                      AND n.kind <> 'external'
                     OPTIONAL MATCH (n)-[r:{_REL}]-(m:CodeSymbol)
                     WHERE m.tenant_id = $tenant_id
                       AND m.workspace_id = $workspace_id

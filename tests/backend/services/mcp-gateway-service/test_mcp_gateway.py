@@ -33,6 +33,7 @@ def test_tools_list_is_lazy_facade():
     assert "agentcore_guidance_resolve" in catalog
     assert "agentcore_create_task" in catalog
     assert "agentcore_docs_authoring_standards" in catalog
+    assert "agentcore_docs_catalog" in catalog
 
 
 def test_initialize_and_tools_list_rpc():
@@ -167,6 +168,18 @@ def test_tools_call_wired_backends():
     assert standards["law_id"] == "agentcore.documentation_authoring.full_tier"
     assert "doc_id" in standards["required_frontmatter_keys"]
     assert "agentcore-documentation-authoring" == standards["skill_name"]
+    assert "agentcore_docs_catalog" in standards["related_mcp_tools"]
+
+    catalog = gw.call_tool(
+        "agentcore_docs_catalog",
+        {"query": "hybrid", "limit": 5, "refresh": False},
+    )
+    cat = catalog["structuredContent"]
+    assert cat["mode"] == "docs_catalog_query"
+    assert cat["invents_edges"] is False
+    assert cat.get("vocabulary_source") == "observed_frontmatter"
+    assert "vocabularies" in cat
+    assert "documents" in cat
 
     guidance = gw.call_tool(
         "agentcore_guidance_resolve",

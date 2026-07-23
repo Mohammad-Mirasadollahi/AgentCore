@@ -9,6 +9,7 @@ from ..domain.documentation import HeuristicDocGenerator
 from ..domain.embeddings import LocalEmbeddingStub
 from ..domain.enums import CallConfidence, DocStatus, SymbolKind
 from ..domain.errors import NotFoundError
+from ..domain.external_calls import is_external_call_id
 from ..domain.hashing import digest, now_iso
 from ..domain.models import GraphEdge, GraphSymbol, Scope
 from ..domain.ports import Store
@@ -22,11 +23,15 @@ def unresolved_symbol_id(scope: Scope, call: str) -> str:
 
 
 def unresolved_call_name(target_id: str) -> str:
-    """Extract the call name from unresolved:{project_id}:{call} (or legacy unresolved:{call})."""
-    rest = str(target_id).removeprefix("unresolved:")
-    if ":" in rest:
-        return rest.split(":", 1)[1]
-    return rest
+    """Extract the call name from unresolved:/ext:call: placeholders."""
+    tid = str(target_id)
+    for prefix in ("unresolved:", "ext:call:"):
+        if tid.startswith(prefix):
+            rest = tid.removeprefix(prefix)
+            if ":" in rest:
+                return rest.split(":", 1)[1]
+            return rest
+    return tid
 
 
 class GraphServiceSupport:
@@ -69,9 +74,15 @@ class GraphServiceSupport:
         if callable(deleter):
             deleter(scope, symbol_id)
 
-    def _ensure_unresolved_symbol(self, scope: Scope, symbol_id: str) -> None:
-        """Materialize unresolved:* endpoints so Neo4j edges can attach to nodes."""
-        if not symbol_id.startswith("unresolved:"):
+    def _ensure_placeholder_symbol(self, scope: Scope, symbol_id: str) -> None:
+        """Materialize unresolved:* / ext:call:* endpoints so edges can attach."""
+        if symbol_id.startswith("unresolved:"):
+            kind = SymbolKind.UNRESOLVED
+            doc = ""
+        elif is_external_call_id(symbol_id):
+            kind = SymbolKind.EXTERNAL
+            doc = "external call (outside repository)"
+        else:
             return
         if self._maybe_get(symbol_id, scope) is not None:
             return
@@ -81,14 +92,14 @@ class GraphServiceSupport:
             GraphSymbol(
                 id=symbol_id,
                 scope=scope,
-                kind=SymbolKind.UNRESOLVED,
+                kind=kind,
                 file_path="",
                 name=name,
                 qualified_name=symbol_id,
                 signature="",
                 body="",
                 hash_value=digest(symbol_id),
-                ai_documentation="",
+                ai_documentation=doc,
                 doc_status=DocStatus.MISSING,
                 embedding=[],
                 visibility="public",
@@ -96,6 +107,10 @@ class GraphServiceSupport:
                 updated_at=stamp,
             )
         )
+
+    def _ensure_unresolved_symbol(self, scope: Scope, symbol_id: str) -> None:
+        """Backward-compatible alias for placeholder materialization."""
+        self._ensure_placeholder_symbol(scope, symbol_id)
 
     def _put_edge(
         self,
@@ -109,8 +124,8 @@ class GraphServiceSupport:
         metadata: dict[str, Any] | None = None,
         link_key: str | None = None,
     ) -> int:
-        self._ensure_unresolved_symbol(scope, source_id)
-        self._ensure_unresolved_symbol(scope, target_id)
+        self._ensure_placeholder_symbol(scope, source_id)
+        self._ensure_placeholder_symbol(scope, target_id)
         meta = {"file_path": file_path}
         if metadata:
             meta.update(metadata)

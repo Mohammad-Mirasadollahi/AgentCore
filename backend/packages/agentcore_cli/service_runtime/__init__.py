@@ -22,6 +22,7 @@ from agentcore_cli.service_runtime.compose import (
     run_cmd as _run,
     start_compose,
     stop_compose,
+    stop_mcp_gateway,
 )
 from agentcore_cli.service_runtime.lifecycle import (
     ensure_running_or_offer_start,
@@ -106,6 +107,7 @@ __all__ = [
     "status_all",
     "stop_all",
     "stop_compose",
+    "stop_mcp_gateway",
     "stop_mcp_http",
     "unit_body",
     "unit_path",

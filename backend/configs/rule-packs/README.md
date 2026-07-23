@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active rule packs remain JSON templates. RuleSuggestion payloads must validate against `rule-suggestion.schema.json` (see example file). Governance: `docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md`.

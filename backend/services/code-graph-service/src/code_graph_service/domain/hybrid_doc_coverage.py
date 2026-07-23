@@ -98,6 +98,7 @@ def build_symbol_doc_coverage(
         SymbolKind.RATIONALE,
         SymbolKind.FILE,
         SymbolKind.UNRESOLVED,
+        SymbolKind.EXTERNAL,
     }:
         living_docs.append(
             {
@@ -165,6 +166,7 @@ def build_symbol_doc_coverage(
         if neighbor.kind in {
             SymbolKind.FILE,
             SymbolKind.UNRESOLVED,
+            SymbolKind.EXTERNAL,
             SymbolKind.DOCUMENTATION,
             SymbolKind.RATIONALE,
         }:
