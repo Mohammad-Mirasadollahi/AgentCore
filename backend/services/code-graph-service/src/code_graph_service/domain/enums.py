@@ -13,6 +13,7 @@ class SymbolKind(StrEnum):
     IMPORT = "import"
     DOCUMENTATION = "documentation"
     UNRESOLVED = "unresolved"
+    EXTERNAL = "external"
     ROUTE = "route"
     RATIONALE = "rationale"
 
@@ -34,6 +35,7 @@ class CallConfidence(StrEnum):
     PROBABLE = "probable"
     AMBIGUOUS = "ambiguous"
     UNRESOLVED = "unresolved"
+    EXTERNAL = "external"
 
 
 class DocStatus(StrEnum):

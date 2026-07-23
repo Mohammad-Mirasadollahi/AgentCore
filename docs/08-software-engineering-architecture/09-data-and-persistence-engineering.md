@@ -50,14 +50,14 @@ AgentCore may need multiple store types.
 
 | Store Type | Primary Use | Owning Areas |
 | --- | --- | --- |
-| relational database | work records, tasks, decisions, config, audit indexes | core-data, config, audit |
-| PostgreSQL graph tables | code symbols, dependencies, documentation links | code-graph, docs-sync |
+| relational database (PostgreSQL) | work records, tasks, decisions, config, audit indexes | core-data, config, audit, memory metadata |
+| Neo4j code graph | symbols, typed relationships, impact traversal | code-graph (Postgres projection = rollback only) |
 | object storage | large evidence bundles, logs, exports, snapshots | audit, code-graph |
-| PostgreSQL pgvector | semantic memory and retrieval candidates | memory |
-| PostgreSQL-backed cache tables or in-process cache | short-lived lookups where durable coordination is not required | platform packages |
+| PostgreSQL pgvector | durable embeddings for memory and code retrieval | memory, code-graph |
+| Redis (optional) | TTL cache, locks, rate limits, ephemeral coordination | platform packages |
 | message broker storage | event delivery, retry, dead-letter | broker |
 
-The exact technology can change, but ownership and access rules should remain stable.
+The exact technology can change, but ownership and access rules should remain stable. The authoritative entity→store matrix is `../13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md`.
 
 ## Persistence Boundaries
 

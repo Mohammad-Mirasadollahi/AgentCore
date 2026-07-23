@@ -5,12 +5,12 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Normative hybrid model for AgentCore documentation coverage of code symbols.
-  Layers are AST (always after ingest), living LLM/heuristic docs, human Markdown via
-  evidence linked_symbols, and optional in-source rationale. Read path merges layers;
-  write path suggests evidence tokens only; edges only after sync resolve. Optional
-  behaviors (docs-root, include-all, skip without frontmatter, deferred LLM pairing)
-  are specified without inventing DOCUMENTED_BY.
+summary: Normative hybrid model for AgentCore documentation coverage of code symbols. Layers
+  are AST (always after ingest), living LLM/heuristic docs, human Markdown via evidence linked_symbols,
+  and optional in-source rationale. Read path merges layers; write path suggests evidence
+  tokens; Phase 2 sync merges evidence by default and creates DOCUMENTED_BY only after resolve.
+  Optional behaviors (docs-root, include-all, skip without frontmatter, deferred LLM pairing)
+  are specified without inventing edges.
 tags:
 - standard
 - ckg
@@ -33,9 +33,14 @@ linked_symbols:
 - backend/packages/agentcore_cli/docs_link_suggest.py::suggest_links_for_markdown
 - backend/packages/agentcore_cli/docs_link_suggest.py::suggest_links_for_tree
 - backend/packages/agentcore_cli/docs_link_suggest.py::apply_suggested_links
+- backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_suggest_links.py::cmd_docs_suggest_links
+- tests/backend/services/code-graph-service/test_hybrid_doc_coverage.py::check_password
+- tests/backend/tools/agentcore-cli/test_docs_suggest_links.py::test_extract_evidence_from_path_citation
+- tests/backend/tools/agentcore-cli/test_docs_link_sync.py::login
 related_docs:
 - ac.doc.ckg.ingestion-and-living-documentation-workflow
+- ac.doc.ckg.documentation-catalog-and-lane-cache
 - ac.doc.ckg.context-pack-retrieval-and-agent-workflow
 - ac.doc.ckg.graph-guided-code-generation-workflow
 - ac.doc.agents.team-handout-agentcore-documentation-complete
@@ -127,7 +132,11 @@ flowchart TD
 
 ## Write Path (evidence suggestions)
 
-Command: `agentcore docs-suggest-links`.
+Command: `agentcore docs-suggest-links` (dry-run / review).
+
+**Also during `agentcore sync` Phase 2:** the same evidence extractor runs by default,
+merges new tokens into `linked_symbols` (optional FM write), then resolves — so operators
+are not required to run `docs-suggest-links --apply` first when bodies already cite real paths.
 
 | Mode | Behavior |
 | --- | --- |
@@ -137,21 +146,25 @@ Command: `agentcore docs-suggest-links`.
 | `--include-all` | Include files with zero new suggestions (already linked / no evidence) |
 | `--apply` | Merge suggested tokens into YAML `linked_symbols` only |
 | `--json` | Machine-readable report |
+| Sync Phase 2 (default) | Same merge + resolve; catalog may reorder the docs queue |
 
 **Hard rules:**
 
 1. Tokens come only from path citations that resolve on disk (backtick `` `path` `` /
    `` `path::Symbol` ``, or the same path without backticks), where the file exists.
-2. `--apply` **never** creates Neo4j edges; only Phase 2 `agentcore sync` does, and only for tokens that resolve.
-3. `--apply` on Markdown **without** YAML frontmatter → `skipped_no_frontmatter` (no silent invent of frontmatter).
+2. Suggest / apply **never** invent Neo4j edges; Phase 2 creates `DOCUMENTED_BY` only for tokens that resolve.
+3. `--apply` (and sync FM apply) on Markdown **without** YAML frontmatter → `skipped_no_frontmatter` (no silent invent of frontmatter). Sync may still project provisional docs without edges until tokens resolve.
 4. Unresolved tokens after sync still create **no** `DOCUMENTED_BY`.
+5. Catalog tags/lanes never create edges.
 
 ```mermaid
 flowchart LR
-  cite[Path citation in Markdown] --> suggest[docs-suggest-links]
+  cite[Path citation in Markdown] --> suggest[docs-suggest-links optional]
   suggest --> fm[Optional --apply to linked_symbols]
-  fm --> sync[agentcore sync Phase 2]
-  sync --> resolve{Token resolves?}
+  cite --> sync[agentcore sync Phase 2]
+  fm --> sync
+  sync --> merge[Evidence merge default]
+  merge --> resolve{Token resolves?}
   resolve -->|yes| edge[DOCUMENTED_BY]
   resolve -->|no| noEdge[No edge]
 ```
@@ -159,8 +172,8 @@ flowchart LR
 | Step | Actor | Action | Outcome |
 | --- | --- | --- | --- |
 | 1 | Author | Cite real code paths in the body | Evidence on disk |
-| 2 | Operator | Dry-run `docs-suggest-links` | Suggested `path::Symbol` list |
-| 3 | Operator | Review; optional `--apply` | Frontmatter updated or skipped |
+| 2 | Operator | Optional dry-run `docs-suggest-links` | Suggested `path::Symbol` list |
+| 3 | Operator | Optional `--apply`, or rely on sync Phase 2 merge | Frontmatter updated or in-memory merge |
 | 4 | Operator | `agentcore docs-standards` then `agentcore sync` | Edges only for resolved tokens |
 
 ## Optional Behaviors (explicit)
@@ -178,18 +191,21 @@ These are **supported or deferred** options. Hybrid works without them.
 | Already-linked evidence | Supported | Listed as `already_linked`; not re-suggested |
 | Missing file for citation | Supported omit | Token not suggested (never invented) |
 | Body-tier Markdown without Full-tier FM | Sync indexes provisionally | No `DOCUMENTED_BY` until FM + resolve |
-| LLM / embedding free-form doc↔symbol pairing | **Deferred** | May *suggest* for humans later; **must not** auto-write `DOCUMENTED_BY` without evidence resolve. Use `docs-suggest-links` for evidence tokens today |
+| LLM / embedding free-form doc↔symbol pairing | **Deferred** | May *suggest* for humans later; **must not** auto-write `DOCUMENTED_BY` without evidence resolve. Use `docs-suggest-links` or sync Phase 2 evidence merge for evidence tokens today |
+| Phase 2 catalog queue order | Supported | Prefer docs with evidence / `lifecycle_lane: current` when catalog cache exists |
+| `AGENTCORE_SYNC_DOCS_EVIDENCE` / `_APPLY` | Supported | Disable evidence merge or FM write during sync |
 
 ## Operator Checklist
 
 1. Write or fix Full-tier Markdown (authoring law).
 2. Cite real code paths in the body when the doc explains code.
-3. `agentcore docs-suggest-links` (dry-run) → review → optional `--apply`.
+3. Optional: `agentcore docs-suggest-links` (dry-run) → review → optional `--apply`.
 4. `agentcore docs-standards` → zero issues.
 5. Optional: add `# WHY:` in source for rationale coverage.
-6. `agentcore sync` so Phase 1 + Phase 2 refresh AST / living / human edges.
-7. Agents / operators: `agentcore_code_graph_generation_context` (MCP) or
-   `agentcore graph generation-context --symbol-id …` and read `hybrid_documentation`.
+6. `agentcore sync` so Phase 1 + Phase 2 refresh AST / living / human edges (evidence merge on by default).
+7. Agents / operators: `agentcore_docs_catalog` to narrow Markdown by tags/lanes; then
+   `agentcore_code_graph_generation_context` (MCP) or `agentcore graph generation-context`
+   and read `hybrid_documentation`.
 
 ## Verification
 
@@ -197,12 +213,14 @@ These are **supported or deferred** options. Hybrid works without them.
 | --- | --- |
 | Read pack prefers human | Unit: `tests/backend/services/code-graph-service/test_hybrid_doc_coverage.py` |
 | Suggest evidence only | Unit: `tests/backend/tools/agentcore-cli/test_docs_suggest_links.py` |
+| Sync Phase 2 evidence | Unit: `tests/backend/tools/agentcore-cli/test_docs_link_sync.py` |
 | Doc standards | `agentcore docs-standards` on this file |
-| Edges only after sync | Manual / live: apply tokens → sync → explore `DOCUMENTED_BY` |
+| Edges only after sync | Manual / live: cite paths → sync → explore `DOCUMENTED_BY` |
 
 ## Related Documents
 
 - [`03-ingestion-and-living-documentation-workflow.md`](./03-ingestion-and-living-documentation-workflow.md) — Phase 1 / Phase 2 sync.
+- [`42-documentation-catalog-and-lane-cache.md`](./42-documentation-catalog-and-lane-cache.md) — catalog + sync queue.
 - [`04-graph-guided-code-generation-workflow.md`](./04-graph-guided-code-generation-workflow.md) — generation context usage.
 - [`09-context-pack-retrieval-and-agent-workflow.md`](./09-context-pack-retrieval-and-agent-workflow.md) — context packs.
 - [`../agents/TEAM-HANDOUT-agentcore-documentation-complete.md`](../agents/TEAM-HANDOUT-agentcore-documentation-complete.md) — team LIST E hybrid.

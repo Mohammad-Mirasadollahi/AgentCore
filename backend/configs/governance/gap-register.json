@@ -7,6 +7,7 @@
     "UNDER_REVIEW",
     "DECISION_NEEDED",
     "PLANNED",
+    "PARTIALLY_RESOLVED",
     "CLOSED",
     "ACCEPTED_RISK"
   ],
@@ -28,12 +29,15 @@
       "category": "Architecture",
       "severity": "High",
       "owner": "Platform Architect",
-      "status": "DECISION_NEEDED",
+      "status": "CLOSED",
       "linked_phase_gates": [3, 4, 7],
-      "proposed_resolution_artifact": "docs/03-system-architecture/storage-ownership-matrix.md",
-      "documentation_ref": "docs/10-gap-analysis/02-architecture-gaps.md",
+      "proposed_resolution_artifact": "docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md",
+      "documentation_ref": "docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md",
       "decision_needed": "Define the authoritative storage location for every entity type and event type.",
-      "resolution_path": "Create a storage ownership matrix and update data contracts."
+      "resolution_path": "Storage ownership matrix published; product-per-role baseline unchanged.",
+      "closed_in": "docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md",
+      "approver": "Platform Architect",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-002",
@@ -133,12 +137,15 @@
       "category": "Product Architecture and Configuration Governance",
       "severity": "High",
       "owner": "Product Architect and Platform Architect",
-      "status": "DECISION_NEEDED",
+      "status": "CLOSED",
       "linked_phase_gates": [5, 9],
-      "proposed_resolution_artifact": "docs/05-rule-engine/domain-pack-and-feature-profile-schemas.md",
-      "documentation_ref": "docs/10-gap-analysis/02-architecture-gaps.md",
+      "proposed_resolution_artifact": "docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md",
+      "documentation_ref": "docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md",
       "decision_needed": "Define authoritative schema, ownership, activation workflow, and conflict precedence.",
-      "resolution_path": "Formal DomainPack, FeatureProfile, RuleSuggestion schemas and acceptance tests."
+      "resolution_path": "JSON Schemas + precedence standard + unit schema tests.",
+      "closed_in": "docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md",
+      "approver": "Platform Architect",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-010",

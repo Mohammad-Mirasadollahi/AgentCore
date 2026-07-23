@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Schemas are normative. First-party `default.json` must validate against `domain-pack.schema.json`. See `docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md`.

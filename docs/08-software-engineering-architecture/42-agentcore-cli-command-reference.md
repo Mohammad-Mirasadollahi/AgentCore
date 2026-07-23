@@ -104,6 +104,7 @@ For `status`, `sync`, `purge` (and other commands that call operator defaults):
 | `inventory` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; uses pinned software paths |
 | `docs-standards` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scans repo `docs/**/*.md` against documentation standards |
 | `docs-suggest-links` | Evidence-only `linked_symbols` suggestions from path citations. Flags: `--path`, `--docs-root`, `--include-all`, `--apply`, `--json`. Does **not** invent graph edges |
+| `docs-catalog` | Cached frontmatter catalog from **observed** tags/lanes (not a global hardcoded enum). Flags: `--refresh`, `--roots`, `--tag`, `--concern`, … `--json` |
 | `quality-audit` | **No dashed mode flags.** Word modes only (`detail`, `save [<path>]`). Categorized docs+code quality findings; `save` defaults under `.agentcore/quality-audit/` |
 | `stats` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; pinned software paths + sync filters |
 | `project register|activate|show|effective` | **Required** (`--tenant` `--workspace` `--project`) |

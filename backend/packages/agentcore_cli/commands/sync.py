@@ -159,6 +159,13 @@ def _sync_one_root(
                 f"links={docs_payload.get('links_created')}  "
                 f"anchors={docs_payload.get('anchors_registered')}",
             )
+            if docs_payload.get("evidence_enabled"):
+                ui.kv(
+                    "Evidence",
+                    f"new_tokens={docs_payload.get('evidence_tokens_new')}  "
+                    f"fm_applied={docs_payload.get('evidence_frontmatter_applied')}  "
+                    f"catalog_order={docs_payload.get('catalog_ordered')}",
+                )
             if docs_payload.get("unresolved_tokens"):
                 ui.kv("Unresolved", ", ".join(docs_payload["unresolved_tokens"][:8]))
     except KeyboardInterrupt:
@@ -330,6 +337,26 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
         project=scope.project_id,
         paths=roots,
     )
+
+    from agentcore_cli.docs_catalog import refresh_docs_catalog_after_sync
+
+    catalog_info: dict[str, Any]
+    try:
+        catalog_info = refresh_docs_catalog_after_sync(repo_root())
+        ui.blank()
+        ui.kv(
+            "Docs catalog",
+            f"built  docs={catalog_info.get('document_count')}  "
+            f"tags={catalog_info.get('unique_tags')}  "
+            f"cache={catalog_info.get('cache_path')}",
+        )
+        ui.blank()
+    except Exception as exc:  # noqa: BLE001 — sync must not fail on catalog build
+        catalog_info = {"ok": False, "error": str(exc)}
+        ui.blank()
+        ui.kv("Docs catalog", f"build skipped ({exc})")
+        ui.blank()
+
     results: list[dict[str, Any]] = []
     all_tasks: list[dict[str, Any]] = []
     total_in = 0
@@ -353,6 +380,7 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
         "results": results,
         # Backward-compatible single-root fields when only one path synced
         **(results[0] if len(results) == 1 else {}),
+        "docs_catalog": catalog_info,
     }
     usage_record = build_sync_usage_record(
         scope=scope_txt,

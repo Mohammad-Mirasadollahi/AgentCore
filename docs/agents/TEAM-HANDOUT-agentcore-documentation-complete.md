@@ -230,8 +230,9 @@ AgentCore does **not** require every layer for a symbol. The hybrid pack merges 
 | --- | --- | --- | --- |
 | E1 | Hybrid documentation coverage (normative) | `docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md` | Full layer model + optional behaviors |
 | E2 | Ingestion / living workflow | `docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md` | Phase 1 / Phase 2 + hybrid note |
-| E3 | Suggest evidence links | `agentcore docs-suggest-links` | Write path: evidence tokens only (`--path`, `--docs-root`, `--include-all`, `--apply`, `--json`) |
-| E4 | Generation context (MCP / CLI) | `agentcore_code_graph_generation_context` · `agentcore graph generation-context` | Read path: `hybrid_documentation` pack |
+| E3 | Suggest evidence links | `agentcore docs-suggest-links` | Optional dry-run / `--apply`; sync Phase 2 also merges evidence by default |
+| E4 | Docs catalog (tags/lanes) | `agentcore docs-catalog` · MCP `agentcore_docs_catalog` · [`42-…`](../07-code-knowledge-graph/42-documentation-catalog-and-lane-cache.md) | Narrow Markdown to Read; sync uses catalog to **order** Phase 2 (no tag→edge) |
+| E5 | Generation context (MCP / CLI) | `agentcore_code_graph_generation_context` · `agentcore graph generation-context` | Read path: `hybrid_documentation` pack |
 
 **Optional (explicit):**
 
@@ -241,6 +242,7 @@ AgentCore does **not** require every layer for a symbol. The hybrid pack merges 
 | No living LLM docs | Rationale + AST still cover | Treat living as mandatory |
 | No `# WHY:` comments | AST (+ other layers) still cover | Invent rationale nodes offline |
 | Suggest without frontmatter | Fix Full-tier FM first; `--apply` skips (`skipped_no_frontmatter`) | Auto-create frontmatter via suggest |
+| Sync evidence merge | Leave defaults on; cite real paths in body | Invent tags→edges; disable only via env if needed |
 | Alternate doc trees | `--docs-root backend/docs` | Assume only `docs/` exists |
 | LLM free-form pairing | Deferred; may suggest later for humans | Auto-write edges without resolve |
 
@@ -267,7 +269,7 @@ AgentCore does **not** require every layer for a symbol. The hybrid pack merges 
 4. **`linked_symbols`** — empty if no code explanation; otherwise evidence-only (see LIST B). Prefer `agentcore docs-suggest-links` then human review — never invent symbols.
 5. **Design docs** — Mermaid + matching flow table in the same H2 (see A13).
 6. **Gate** — `agentcore docs-standards` → zero issues before calling a file done. Prefer `agentcore quality-audit` for broader docs+code health.
-7. **Sync** — after material doc/code changes: `agentcore sync` so Phase 2 indexes docs and creates `DOCUMENTED_BY` for resolved links.
+7. **Sync** — after material doc/code changes: `agentcore sync` so Phase 2 indexes docs, merges evidence path citations by default, and creates `DOCUMENTED_BY` for resolved links.
 8. **Hybrid** — missing optional layers are OK; agents fall back (LIST E). Never invent graph edges on suggest or read.
 
 ---

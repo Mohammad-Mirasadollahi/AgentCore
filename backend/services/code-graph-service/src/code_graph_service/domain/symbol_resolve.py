@@ -13,6 +13,7 @@ _SKIP_KINDS = frozenset(
         SymbolKind.FILE,
         SymbolKind.DOCUMENTATION,
         SymbolKind.UNRESOLVED,
+        SymbolKind.EXTERNAL,
         SymbolKind.IMPORT,
         SymbolKind.RATIONALE,
         SymbolKind.ROUTE,

@@ -152,6 +152,26 @@ def _heavy_tool_estimates(profile: dict[str, Any]) -> list[dict[str, Any]]:
     except Exception:
         pass
 
+    try:
+        from agentcore_cli.docs_catalog import SCHEMA_VERSION
+
+        enum_tokens = approx_tokens_from_obj(
+            {
+                "mode": "docs_catalog",
+                "schema_version": SCHEMA_VERSION,
+                "vocabulary_source": "observed_frontmatter",
+            }
+        )
+        rows.append(
+            {
+                "tool": "agentcore_docs_catalog",
+                "kind": "full_response",
+                "tokens_est": max(enum_tokens, 200),
+            }
+        )
+    except Exception:
+        pass
+
     # Effective profile dump size.
     rows.append(
         {

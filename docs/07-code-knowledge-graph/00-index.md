@@ -75,9 +75,11 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `39-rpm-session-parallel-sync-low-level-design.md` session lifecycle, dual capacity gate, fairness, writer serialization, status API.
 - `40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md` challenges, known limits, acceptance gates before coding claims shipped.
 - `41-hybrid-documentation-coverage.md` layered hybrid coverage (AST + living + human + rationale), read/write paths, optional behaviors, no invented edges.
+- `42-documentation-catalog-and-lane-cache.md` cached docs frontmatter catalog (tags + closed lane enums) for agent retrieval narrowing.
 
 ## History
 
+- 2026-07-22: Added `42-documentation-catalog-and-lane-cache.md` (docs catalog CLI/MCP + cache).
 - 2026-07-22: Added `41-hybrid-documentation-coverage.md` (hybrid read pack + evidence `docs-suggest-links` write path).
 - 2026-07-22: Added RPM-session parallel sync design pack `37`–`40` (`lifecycle_lane: future`; docs only until implementation).
 - 2026-07-21: Core product readiness backlog `34` (`ac.doc.ckg.core-product-readiness-phased-backlog`) retired (archived). Durable gates live in `19`/`26`/`31`/`33`, product scope, gap register (GAP-005), and runbook `35`. Do not reuse that `doc_id`.

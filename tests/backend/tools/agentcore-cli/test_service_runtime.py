@@ -537,3 +537,156 @@ def test_ensure_running_yes_but_still_down(tmp_path: Path, monkeypatch):
         assert "service detail" in str(exc)
     assert raised
 
+
+def test_stop_mcp_gateway_uses_app_profile(tmp_path: Path, monkeypatch, capsys):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+
+    compose = tmp_path / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True)
+    (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
+    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+
+    seen: list[list[str]] = []
+
+    def fake_run(cmd, *, cwd, check=False, timeout=None):
+        seen.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(compose_mod, "run_cmd", fake_run)
+    report = compose_mod.stop_mcp_gateway(tmp_path)
+    assert report["ok"] is True
+    assert report["action"] == "mcp_gateway_stop"
+    assert "mcp-gateway" in seen[0]
+    assert seen[0].count("--profile") == 2
+    assert "core" in seen[0]
+    assert "app" in seen[0]
+    out = capsys.readouterr().out
+    assert "host owns the port" in out
+
+
+def test_start_mcp_http_refuses_when_port_still_busy(tmp_path: Path, monkeypatch):
+    """Regression: docker mcp-gateway on :32500 made start report ok while host died."""
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "0.0.0.0",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: False)
+    launched: list[object] = []
+
+    def boom(*_a, **_k):
+        launched.append(1)
+        raise AssertionError("must not launch when port is busy")
+
+    monkeypatch.setattr(subprocess, "Popen", boom)
+    try:
+        mcp_mod.start_mcp_http(tmp_path)
+        raised = False
+        msg = ""
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+    assert raised
+    assert "still in use" in msg
+    assert launched == []
+
+
+def test_start_mcp_http_clears_pid_when_process_exits_early(tmp_path: Path, monkeypatch):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "127.0.0.1",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: True)
+    monkeypatch.setattr(mcp_mod, "tcp_ok", lambda *_a, **_k: False)
+
+    class DeadProc:
+        pid = 4242
+        returncode = 1
+
+        def poll(self):
+            return 1
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_a, **_k: DeadProc())
+    pid_path = mcp_mod.mcp_pid_path(tmp_path)
+    try:
+        mcp_mod.start_mcp_http(tmp_path)
+        raised = False
+        msg = ""
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+    assert raised
+    assert "exited early" in msg
+    assert not pid_path.is_file()
+
+
+def test_start_mcp_http_ok_when_own_process_reachable(tmp_path: Path, monkeypatch, capsys):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "0.0.0.0",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: True)
+    monkeypatch.setattr(mcp_mod, "tcp_ok", lambda *_a, **_k: True)
+
+    class LiveProc:
+        pid = 7777
+        returncode = None
+
+        def poll(self):
+            return None
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_a, **_k: LiveProc())
+    report = mcp_mod.start_mcp_http(tmp_path)
+    assert report["ok"] is True
+    assert report["pid"] == 7777
+    assert report["action"] == "started"
+    assert mcp_mod.mcp_pid_path(tmp_path).read_text(encoding="utf-8").strip() == "7777"
+    out = capsys.readouterr().out
+    assert "is up on" in out
+

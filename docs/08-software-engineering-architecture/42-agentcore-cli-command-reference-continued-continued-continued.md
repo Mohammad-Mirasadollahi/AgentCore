@@ -138,6 +138,21 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **Exit code** | `0` when zero new suggestions; `1` when any suggested token remains (CI-friendly dry-run) |
 | **Normative refs** | `docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md`, `docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md` |
 
+### `agentcore docs-catalog`
+
+**Retrieval helper:** cached frontmatter index (tags + closed lane enums). Does not invent `DOCUMENTED_BY`.
+
+| | |
+| --- | --- |
+| **Why** | Let operators/agents narrow which Markdown to open using tags/lanes without loading full bodies |
+| **Required** | None |
+| **Flags** | `--refresh`, `--roots`, `--tag`, `--concern`, `--lifecycle`, `--audience`, `--phase`, `--doc-type`, `--query`, `--linked-only`, `--unlinked-only`, `--limit`, `--json` |
+| **Example** | `agentcore docs-catalog --refresh` · `agentcore docs-catalog --roots handbook --tag api` · `agentcore docs-catalog --query hybrid --json` |
+| **Cache** | `.agentcore/cache/docs-catalog.json` (override `AGENTCORE_DOCS_CATALOG_CACHE`; roots via `AGENTCORE_DOCS_CATALOG_ROOTS` or `--roots`) |
+| **Vocabulary** | Observed from scanned frontmatter only — not a global hardcoded tag/lane list |
+| **What changes** | `--refresh` rewrites the cache file only. **`agentcore sync` builds the catalog at the start** (best-effort; sync still continues if catalog build fails) |
+| **Normative refs** | `docs/07-code-knowledge-graph/42-documentation-catalog-and-lane-cache.md` |
+
 ### `agentcore quality-audit`
 
 **Operator UX law:** same word-mode pattern as `inventory` / `docs-standards` — no dashed mode flags; use `detail` and `save [<path>]`.

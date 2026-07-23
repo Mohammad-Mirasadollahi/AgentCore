@@ -18,6 +18,47 @@ def docs_authoring_standards(
     return {**base, "authoring_standards": authoring_law_payload()}
 
 
+def docs_catalog(
+    arguments: dict[str, Any],
+    *,
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Cached docs frontmatter catalog (tags/lanes) for retrieval narrowing."""
+    from pathlib import Path
+
+    from agentcore_cli.docs_catalog import filter_docs_catalog, get_docs_catalog
+    from agentcore_cli.util import repo_root
+
+    refresh = bool(arguments.get("refresh") or False)
+    has_links = arguments.get("has_linked_symbols")
+    if has_links is not None:
+        has_links = bool(has_links)
+    limit = int(arguments.get("limit") or 50)
+    roots_raw = arguments.get("roots")
+    roots: list[str] | None = None
+    if isinstance(roots_raw, list):
+        roots = [str(x).strip() for x in roots_raw if str(x).strip()]
+    elif isinstance(roots_raw, str) and roots_raw.strip():
+        roots = [p.strip() for p in roots_raw.split(",") if p.strip()]
+    catalog = get_docs_catalog(
+        Path(repo_root()).resolve(),
+        refresh=refresh or bool(roots),
+        roots=roots,
+    )
+    report = filter_docs_catalog(
+        catalog,
+        tag=str(arguments.get("tag") or ""),
+        concern_lane=str(arguments.get("concern_lane") or ""),
+        lifecycle_lane=str(arguments.get("lifecycle_lane") or ""),
+        audience_lane=str(arguments.get("audience_lane") or ""),
+        phase=str(arguments.get("phase") or ""),
+        doc_type=str(arguments.get("doc_type") or ""),
+        query=str(arguments.get("query") or ""),
+        has_linked_symbols=has_links,
+        limit=limit,
+    )
+    return {**base, **report}
+
 def docs_status(
     backends: PlatformBackends,
     *,

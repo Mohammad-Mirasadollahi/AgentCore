@@ -31,7 +31,7 @@ def degree_hubs(
     scored = []
     for nid, deg in degree.items():
         n = by_id.get(nid)
-        if n is None or n.kind in {"file", "unresolved", "import", "documentation", "route"}:
+        if n is None or n.kind in {"file", "unresolved", "external", "import", "documentation", "route"}:
             continue
         scored.append(
             {
@@ -56,7 +56,7 @@ def approximate_betweenness(
     sample_cap: int = 80,
 ) -> list[dict]:
     """Brandes betweenness on undirected graph; sample sources when large."""
-    by_id = {n.id: n for n in nodes if n.kind not in {"file", "unresolved", "import", "documentation"}}
+    by_id = {n.id: n for n in nodes if n.kind not in {"file", "unresolved", "external", "import", "documentation"}}
     adj: dict[str, set[str]] = defaultdict(set)
     for src, tgt in edges:
         if src in by_id and tgt in by_id and src != tgt:
@@ -132,7 +132,7 @@ def knowledge_gaps(
     by_id = {n.id: n for n in nodes}
     isolated = []
     for n in nodes:
-        if n.kind in {"file", "unresolved", "import", "documentation", "route"}:
+        if n.kind in {"file", "unresolved", "external", "import", "documentation", "route"}:
             continue
         d = degree.get(n.id, 0)
         if d <= 1:
@@ -152,7 +152,7 @@ def knowledge_gaps(
             by_comm[n.community_id].append(n)
     thin = []
     for cid, members in by_comm.items():
-        useful = [m for m in members if m.kind not in {"file", "unresolved", "import"}]
+        useful = [m for m in members if m.kind not in {"file", "unresolved", "external", "import"}]
         if 0 < len(useful) < 3:
             thin.append({"community_id": cid, "size": len(useful), "members": [m.qualified_name for m in useful]})
 
@@ -186,7 +186,7 @@ def surprising_connections(
 ) -> list[dict]:
     """edges: (src, tgt, rel, confidence). Prefer cross-community + inferred."""
     by_id = {n.id: n for n in nodes}
-    conf_rank = {"unresolved": 0, "ambiguous": 1, "probable": 2, "exact": 3}
+    conf_rank = {"external": 0, "unresolved": 0, "ambiguous": 1, "probable": 2, "exact": 3}
     scored = []
     for src, tgt, rel, conf in edges:
         a, b = by_id.get(src), by_id.get(tgt)
@@ -203,7 +203,7 @@ def surprising_connections(
             score += 2
             reasons.append("cross_top_dir")
         conf_l = (conf or "exact").lower()
-        if conf_l in {"ambiguous", "probable", "unresolved"}:
+        if conf_l in {"ambiguous", "probable", "unresolved", "external"}:
             score += conf_rank.get("exact", 3) - conf_rank.get(conf_l, 3)
             reasons.append(f"confidence:{conf_l}")
         if score <= 0:

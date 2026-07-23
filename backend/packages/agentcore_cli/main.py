@@ -20,6 +20,7 @@ from agentcore_cli.commands.status import cmd_status
 from agentcore_cli.commands.inventory import cmd_inventory
 from agentcore_cli.commands.docs_standards import cmd_docs_standards
 from agentcore_cli.commands.docs_suggest_links import cmd_docs_suggest_links
+from agentcore_cli.commands.docs_catalog import cmd_docs_catalog
 from agentcore_cli.commands.quality_audit import cmd_quality_audit
 from agentcore_cli.commands.stats import cmd_stats
 from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
@@ -111,6 +112,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
         return cmd_docs_standards(args)
     if args.command == "docs-suggest-links":
         return cmd_docs_suggest_links(args)
+    if args.command == "docs-catalog":
+        return cmd_docs_catalog(args)
     if args.command == "quality-audit":
         return cmd_quality_audit(args)
     if args.command == "stats":

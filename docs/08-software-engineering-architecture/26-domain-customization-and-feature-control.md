@@ -268,7 +268,7 @@ The explanation metadata should answer: which profile made this decision, which 
 
 ## Configuration Contract Example
 
-The final implementation should use a validated schema. A conceptual example:
+The final implementation should use a validated schema. Normative schemas, conflict precedence, and activation workflow: `../04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md`. A conceptual example:
 
 ```yaml
 domain_pack: software-engineering

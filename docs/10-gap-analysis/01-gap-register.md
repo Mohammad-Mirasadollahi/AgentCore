@@ -40,13 +40,19 @@ Why it matters: Incorrect storage ownership can create duplicate truth, difficul
 
 Current assumption: Core entities live outside Neo4j, code relationships live in Neo4j, artifacts live in object storage, and events live in broker persistence or event storage.
 
-Decision needed: Define the authoritative storage location for every entity type and event type.
+Decision needed: None — entity→store matrix published.
 
 Suggested owner: Platform Architect
 
-Resolution path: Create a storage ownership matrix and update data contracts.
+Approver: Platform Architect
 
-Status: DECISION_NEEDED
+Review date: 2026-07-23
+
+Resolution path: Storage ownership matrix + product-per-role stack baseline.
+
+Status: CLOSED
+
+Closed in: `docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md` (2026-07-23).
 
 ## GAP-002 - First Supported Language Set
 
@@ -212,13 +218,19 @@ Why it matters: These mechanisms control what users see, what agents can do, whi
 
 Current assumption: Domain packs, feature profiles, and suggested rules are versioned, scoped, auditable, dry-run capable, and approval-gated by default.
 
-Decision needed: Define the authoritative schema, ownership model, activation workflow, conflict precedence rules, UI review flow, test fixture format, and default first-party domain packs.
+Decision needed: None — schemas, precedence, and activation workflow published.
 
 Suggested owner: Product Architect and Platform Architect
 
-Resolution path: Create a formal DomainPack schema, FeatureProfile schema, RuleSuggestion schema, conflict-resolution matrix, admin-console workflow, and acceptance test suite.
+Approver: Platform Architect
 
-Status: DECISION_NEEDED
+Review date: 2026-07-23
+
+Resolution path: Formal schemas under `backend/configs/` plus governance standard and unit schema tests.
+
+Status: CLOSED
+
+Closed in: `docs/04-rule-engine-orchestration/08-domain-pack-feature-profile-and-rule-suggestion-schemas.md` + JSON Schema files + `tests/backend/configs/test_domain_customization_schemas.py` (2026-07-23).
 
 ## GAP-010 - Impact KPI Instrumentation Completeness
 

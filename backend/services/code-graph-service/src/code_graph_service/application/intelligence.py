@@ -18,6 +18,7 @@ from ..domain.communities import detect_communities, last_community_algorithm
 from ..domain.enums import RelType, SymbolKind
 from ..domain.errors import NotFoundError, ValidationError
 from ..domain.explore import ExploreSymbol, build_explore_pack, extract_query_terms
+from ..domain.external_calls import is_blast_call_edge
 from ..domain.flows import FlowNode, detect_entry_points, trace_flow
 from ..domain.freshness import FreshnessState
 from ..domain.hybrid_search import lexical_rank, searchable_text
@@ -162,7 +163,9 @@ class IntelligenceUseCases(GraphServiceSupport):
         calls_out: dict[str, list[str]] = defaultdict(list)
         calls_in: dict[str, list[str]] = defaultdict(list)
         for edge in self.store.list_edges(scope):
-            if edge.rel_type in {RelType.CALLS.value, "CALLS"}:
+            if edge.rel_type in {RelType.CALLS.value, "CALLS"} and is_blast_call_edge(
+                target_id=edge.target_id, metadata=edge.metadata
+            ):
                 calls_out[edge.source_id].append(edge.target_id)
                 calls_in[edge.target_id].append(edge.source_id)
 
@@ -209,7 +212,12 @@ class IntelligenceUseCases(GraphServiceSupport):
         explore_syms: list[ExploreSymbol] = []
         for sid in candidate_ids:
             sym = by_id.get(sid) or self._maybe_get(sid, scope)
-            if sym is None or sym.kind in {SymbolKind.FILE, SymbolKind.UNRESOLVED, SymbolKind.IMPORT}:
+            if sym is None or sym.kind in {
+                SymbolKind.FILE,
+                SymbolKind.UNRESOLVED,
+                SymbolKind.EXTERNAL,
+                SymbolKind.IMPORT,
+            }:
                 continue
             explore_syms.append(
                 ExploreSymbol(
@@ -251,7 +259,7 @@ class IntelligenceUseCases(GraphServiceSupport):
                 for sec in pack.sections
             ],
             "edge_confidence_policy": (
-                "exact|probable|ambiguous|unresolved on CALLS; "
+                "exact|probable|ambiguous|unresolved|external on CALLS; "
                 "ROUTES_TO/TESTED_BY/dynamic_dispatch are heuristic"
             ),
             "freshness": self._ensure_freshness().stale_banner(paths),
@@ -482,7 +490,9 @@ class IntelligenceUseCases(GraphServiceSupport):
         tested_by: dict[str, list[str]] = defaultdict(list)
         route_handlers: set[str] = set()
         for edge in edges:
-            if edge.rel_type in {RelType.CALLS.value, "CALLS"}:
+            if edge.rel_type in {RelType.CALLS.value, "CALLS"} and is_blast_call_edge(
+                target_id=edge.target_id, metadata=edge.metadata
+            ):
                 calls_out[edge.source_id].append(edge.target_id)
                 callers_of[edge.target_id].append(edge.source_id)
             elif edge.rel_type in {RelType.TESTED_BY.value, "TESTED_BY"}:
@@ -513,6 +523,7 @@ class IntelligenceUseCases(GraphServiceSupport):
             (e.source_id, e.target_id)
             for e in edges
             if e.rel_type in {RelType.CALLS.value, "CALLS"}
+            and is_blast_call_edge(target_id=e.target_id, metadata=e.metadata)
         ]
         entries = detect_entry_points(
             flow_nodes.values(), call_pairs, route_handler_ids=route_handlers
