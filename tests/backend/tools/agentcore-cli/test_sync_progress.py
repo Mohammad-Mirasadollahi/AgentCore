@@ -78,9 +78,10 @@ def test_progress_explains_this_run_vs_prior(tmp_path: Path, monkeypatch, capsys
     )
     out = capsys.readouterr().out
     assert "code 0/237" in out
-    assert "prior file symbols 40" in out
     assert "new=200" in out
     assert "changed=37" in out
+    assert "prior file symbols" not in out
+    assert "lang_backfill=" not in out
     assert "need-work files finished yet" not in out
     assert "0 of 237 files finished yet" in out
     assert "in-flight not counted" in out
@@ -113,8 +114,67 @@ def test_progress_shows_docs_phase_label(tmp_path: Path, monkeypatch, capsys):
     )
     out = capsys.readouterr().out
     assert "docs 2/10" in out
-    assert "prior docs 5" in out
+    assert "prior docs" not in out
+    assert "link_refresh=5" in out
+    assert "unchanged_recheck=" not in out
     assert "links 1" in out
+    tracker.finish()
+
+
+def test_progress_code_phase_uses_lang_backfill_label(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 1,
+            "total": 3,
+            "status": "ok",
+            "prior_indexed": 10,
+            "queue_new": 1,
+            "queue_changed": 1,
+            "queue_unchanged": 1,
+        }
+    )
+    out = capsys.readouterr().out
+    assert "lang_backfill=1" in out
+    assert "new=1" in out
+    assert "changed=1" in out
+    assert "prior file symbols" not in out
+    assert "unchanged_recheck=" not in out
+    tracker.finish()
+
+
+def test_progress_hides_zero_queue_fields(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 2,
+            "total": 4,
+            "status": "ok",
+            "prior_indexed": 358,
+            "queue_new": 0,
+            "queue_changed": 4,
+            "queue_unchanged": 0,
+        }
+    )
+    out = capsys.readouterr().out
+    assert "changed=4" in out
+    assert "new=" not in out
+    assert "lang_backfill=" not in out
+    assert "prior" not in out
     tracker.finish()
 
 

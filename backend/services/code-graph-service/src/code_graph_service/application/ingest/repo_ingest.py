@@ -1,4 +1,13 @@
-"""Repository tree walk ingest."""
+"""Repository tree walk ingest.
+
+Role: discover sources, classify new/changed/stable, parallel ``ingest_file``.
+SoT: FILE ``hash_value`` + persisted ``language``; durable graph store.
+Invariants: prefer unindexed then changed; enqueue hash-stable only when
+``language`` is missing (legacy backfill). Hash-stable + language → count as
+skipped without worker visit (no re-parse / embed / LLM).
+Allowed failure: per-file errors collected; walk continues.
+Forbidden: queueing language-stable hash matches as full ingest work.
+"""
 
 from __future__ import annotations
 
@@ -87,7 +96,24 @@ class RepoIngestMixin:
             for item in known
             if item.relative_path.replace("\\", "/") not in changed_known_paths
         ]
-        # Prefer never-indexed files so truncated sync continues; keep a budget for re-checks.
+        # Hash-stable + language already set → skip workers (ingest_file would no-op).
+        # Hash-stable + empty language → enqueue for legacy language backfill only.
+        language_backfill = [
+            item
+            for item in unchanged_known
+            if not str(
+                indexed_files[item.relative_path.replace("\\", "/")].language or ""
+            ).strip()
+        ]
+        backfill_paths = {
+            item.relative_path.replace("\\", "/") for item in language_backfill
+        }
+        hash_stable_skip = [
+            item
+            for item in unchanged_known
+            if item.relative_path.replace("\\", "/") not in backfill_paths
+        ]
+        # Prefer never-indexed files so truncated sync continues; budget for lang backfill.
         selected: list = []
         selected.extend(unindexed[:max_files])
         remaining = max_files - len(selected)
@@ -95,7 +121,7 @@ class RepoIngestMixin:
             selected.extend(changed_known[:remaining])
         remaining = max_files - len(selected)
         if remaining > 0:
-            selected.extend(unchanged_known[:remaining])
+            selected.extend(language_backfill[:remaining])
         selected_paths = {item.relative_path.replace("\\", "/") for item in selected}
         pending_paths = {
             item.relative_path.replace("\\", "/") for item in [*unindexed, *changed_known]
@@ -127,7 +153,8 @@ class RepoIngestMixin:
         totals = {
             "ingested": 0,
             "failed": 0,
-            "skipped": 0,
+            # Count hash-stable skips without visiting workers (still "up to date").
+            "skipped": len(hash_stable_skip),
             "symbols_indexed": 0,
             "symbols_changed": 0,
             "symbols_documented": 0,
@@ -136,8 +163,7 @@ class RepoIngestMixin:
         }
         on_progress = payload.get("on_progress")
         total_files = len(discovered)
-        # done/total = every selected file this run processes (incl. unchanged recheck).
-        # Queue line still shows new/changed/unchanged_recheck separately.
+        # done/total = files this run actually visits (new/changed/lang_backfill).
         progress_total = total_files
         state_lock = threading.Lock()
         progress_done = 0
@@ -192,7 +218,7 @@ class RepoIngestMixin:
                     "total": progress_total,
                     "file": file,
                     "status": status,
-                    # done/total = all selected files this run (incl. unchanged rechecks).
+                    # done/total = visited files; queue_unchanged = language backfill only.
                     "prior_indexed": int(queue_meta["prior_indexed"]),
                     "queue_new": int(queue_meta["queue_new"]),
                     "queue_changed": int(queue_meta["queue_changed"]),
@@ -323,25 +349,26 @@ class RepoIngestMixin:
         _emit(0, status="started")
         if total_files:
             run_parallel_file_jobs(workers=workers, items=discovered, fn=_process_one)
-
-        try:
-            finals = self.finalize_cross_file_resolution(
-                scope,
-                package_aliases=package_aliases,
-            )
-            with state_lock:
-                totals["edges_written"] += int(finals or 0)
-        except Exception:  # noqa: BLE001 — finalize must not fail the ingest walk
-            pass
+            try:
+                finals = self.finalize_cross_file_resolution(
+                    scope,
+                    package_aliases=package_aliases,
+                )
+                with state_lock:
+                    totals["edges_written"] += int(finals or 0)
+            except Exception:  # noqa: BLE001 — finalize must not fail the ingest walk
+                pass
 
         _emit(progress_total, status="finished")
 
         resolved_root = str(Path(root_path).expanduser().resolve())
-        try:
-            readme_edges = self._ingest_package_readme_maps(scope, resolved_root)
-            totals["edges_written"] += readme_edges
-        except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
-            readme_edges = 0
+        # Package README maps only when this run visited files (avoid noop graph walks).
+        if total_files:
+            try:
+                readme_edges = self._ingest_package_readme_maps(scope, resolved_root)
+                totals["edges_written"] += readme_edges
+            except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
+                pass
 
         return RepoIngestResult(
             root_path=resolved_root,

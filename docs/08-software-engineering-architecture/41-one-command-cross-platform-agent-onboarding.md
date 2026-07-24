@@ -28,10 +28,12 @@ authority: normative
 visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
+- backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
 - backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
 - backend/packages/agentcore_cli/connect_flow.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
-doc_version: 1.2.2
+- backend/packages/agentcore_cli/remote_client.py::remote_register_project
+doc_version: 1.2.3
 updated_at: '2026-07-24'
 ---
 
@@ -138,7 +140,9 @@ cd /opt/MyApp
 agentcore connect
 ```
 
-On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root, tenant/workspace. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
+On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root discovery, **tenant / workspace / Usage Profile**, then project register. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
+
+**Missing scope on first connect:** if tenant, workspace, Usage Profile (and related connect fields) are not already present, the wizard **must** collect them before wiring MCP — see [First connect when scope is missing](./41-one-command-cross-platform-agent-onboarding-continued.md#first-connect-when-scope-is-missing) in the continued document. Usage Profile is **selected** from the installed catalog (not authored during client install). Project id defaults to the current directory name.
 
 Advanced template only: `agentcore connect init` then hand-edit YAML.
 
@@ -165,7 +169,8 @@ SSH mode only needs a completed `install.sh` and a login that can run:
 ```bash
 cd /opt/MyApp
 agentcore connect
-# prompts: host, username, password, tenant, workspace (remote root auto-discovered)
+# prompts: host, username, tenant, workspace, Usage Profile, password
+# (remote root auto-discovered; project id = directory name)
 ```
 
 `connect` uses **this directory** as the project (MCP under the checkout; path pinned for later `sync`).
