@@ -58,8 +58,8 @@ Requires Python 3.12+ and Docker (Compose). On an empty machine, fetch + install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
-# prompts: release (recommended) or main → then install.sh menus (default root /opt/AgentCore)
-# new shell so agentcore is on PATH
+# prompts: release or main → root → then install.sh role/runtime menus
+# get-agentcore always passes --yes (no "type yes"); open a new shell for PATH
 agentcore doctor
 ```
 
@@ -87,11 +87,11 @@ agentcore mcp serve-http --host 0.0.0.0 --port 32500
 Install the CLI only (no Docker required on the client):
 
 ```bash
-# empty machine (choose role client in install menus), or:
+# empty machine — fully non-interactive client (no prompts after channel/root flags):
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
-  | bash -s -- --channel main --yes --non-interactive --role client
+  | bash -s -- --channel main --role client
 # or from an existing clone:
-bash install.sh --skip-infra
+bash install.sh --skip-infra --yes --non-interactive --role client
 agentcore path install   # if needed; open a new shell
 agentcore connect
 ```
