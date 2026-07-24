@@ -9,7 +9,7 @@ Entrypoint options:
 |--------|----------------|
 | [`../get-agentcore.sh`](../get-agentcore.sh) | Fetch from GitHub (`release` = latest Release tag tarball; `main` = branch tip); preserve `.agentcore/`, `.env`, compose `.env.local`, `.venv` |
 | [`common.sh`](common.sh) | Logging, root paths, state file, secret helpers, root/sudo runner |
-| [`01_prerequisites.sh`](01_prerequisites.sh) | Check/install Python 3.12+, Docker, Compose, curl, git (+ optional Node) |
+| [`01_prerequisites.sh`](01_prerequisites.sh) | Check/install Python 3.12+, curl, git; Docker/Compose only when **server** (not client / `--skip-infra`) |
 | [`02_venv.sh`](02_venv.sh) | Create `.venv`, install deps, editable `agentcore` CLI; seed `.env` + `agentcore.sync.yaml` from examples |
 | [`03_compose_env.sh`](03_compose_env.sh) | Seed repo templates; create `backend/deployments/compose/.env.local` with generated secrets |
 | [`04_docker_infra.sh`](04_docker_infra.sh) | `docker compose --profile core up` for Postgres + Neo4j, wait healthy |

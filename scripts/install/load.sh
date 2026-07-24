@@ -102,6 +102,10 @@ run_install_upgrade() {
     INSTALL_ROLE="${INSTALL_ROLE:-server}"
     export INSTALL_ROLE
   fi
+  if [[ "${INSTALL_ROLE}" == "client" ]]; then
+    INSTALL_SKIP_INFRA=1
+    export INSTALL_SKIP_INFRA
+  fi
   if [[ -z "${INSTALL_RUNTIME}" ]]; then
     INSTALL_RUNTIME="$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)"
     INSTALL_RUNTIME="$(normalize_install_runtime "${INSTALL_RUNTIME:-venv}" || printf '%s\n' "venv")"

@@ -163,8 +163,15 @@ while [[ $# -gt 0 ]]; do
       echo "error: unknown option: $1 (try --help)" >&2
       exit 64
       ;;
-  esac
+    esac
 done
+
+# Client never needs Compose/Docker — set before any stage (including --stage / prerequisites-only).
+case "${INSTALL_ROLE:-}" in
+  client | CLIENT)
+    export INSTALL_SKIP_INFRA=1
+    ;;
+esac
 
 # shellcheck source=scripts/install/load.sh
 source "${LIB}/load.sh"

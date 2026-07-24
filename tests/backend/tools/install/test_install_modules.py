@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -129,6 +130,65 @@ echo OK
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert "OK" in proc.stdout
+
+
+def test_prerequisites_skip_docker_install_when_skip_infra() -> None:
+    """Client/--skip-infra must not apt-install docker.io even if Docker is missing."""
+    with tempfile.TemporaryDirectory() as tmp:
+        script = f"""
+set -euo pipefail
+export AGENTCORE_ROOT={tmp!r}
+export AGENTCORE_INSTALL_LIB={INSTALL_LIB.as_posix()!r}
+export INSTALL_SKIP_INFRA=1
+export INSTALL_SKIP_PREREQS=0
+export INSTALL_CHECK_ONLY=0
+export INSTALL_WITH_FRONTEND=0
+source {INSTALL_LIB.as_posix()!r}/common.sh
+source {INSTALL_LIB.as_posix()!r}/01_prerequisites.sh
+
+linux_debian_family() {{ return 0; }}
+_stage_01_ensure_python312() {{ :; }}
+have_cmd() {{ return 1; }}
+as_root() {{
+  printf 'ROOT_CMD %s\\n' "$*" >>"${{AGENTCORE_ROOT}}/as_root.log"
+}}
+mkdir -p "${{AGENTCORE_ROOT}}"
+: >"${{AGENTCORE_ROOT}}/as_root.log"
+
+_check_n=0
+stage_01_prerequisites_check() {{
+  _check_n=$((_check_n + 1))
+  if [[ "${{_check_n}}" -eq 1 ]]; then
+    return 1
+  fi
+  return 0
+}}
+
+stage_01_prerequisites_run
+if grep -E 'docker\\.io|docker-compose|systemctl.*docker|usermod.*docker' \
+  "${{AGENTCORE_ROOT}}/as_root.log"; then
+  exit 2
+fi
+grep -q 'apt-get update' "${{AGENTCORE_ROOT}}/as_root.log"
+grep -q 'ca-certificates' "${{AGENTCORE_ROOT}}/as_root.log"
+echo OK
+"""
+        proc = subprocess.run(
+            ["bash", "-c", script],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+    assert "Skipping Docker Engine install" in (proc.stderr + proc.stdout)
+
+
+def test_role_client_sets_skip_infra_in_entrypoint() -> None:
+    text = (ROOT / "install.sh").read_text(encoding="utf-8")
+    assert "export INSTALL_SKIP_INFRA=1" in text
+    assert "client | CLIENT" in text
 
 
 def test_unknown_flag_exits_nonzero() -> None:
