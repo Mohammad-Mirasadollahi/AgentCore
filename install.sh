@@ -8,6 +8,7 @@
 #   bash install.sh --role server --runtime venv
 #   bash install.sh --role server --runtime docker
 #   bash install.sh --role client
+#   bash install.sh --role both --runtime venv
 #   bash install.sh --non-interactive --role server --runtime venv
 #   bash install.sh --upgrade
 #   bash install.sh --check
@@ -52,7 +53,7 @@ Already cloned — from the repository root:
   bash install.sh [options]
 
 Options:
-  --role ROLE             client | server (skips role prompt)
+  --role ROLE             client | server | both (skips role prompt)
   --runtime MODE          SERVER MCP mode: venv | docker (alias: host→venv)
   --non-interactive       No prompts; default action=install, role=server, runtime=venv
   --yes, -y               Skip the interactive y/n confirmation
@@ -71,14 +72,15 @@ Options:
 Interactive (TTY, no flags):
   1) install or upgrade? (no default — choose 1 or 2)
   2) confirm with y/yes or n/no (no default)
-  3) if install → client or server? (no default)
-  4) if server → venv or docker MCP? (no default)
+  3) if install → client, server, or both? (no default)
+  4) if server/both → venv or docker MCP? (no default)
 
 Roles:
   client  Coding-agent machine: CLI + .venv only; then run agentcore connect
   server  AgentCore platform: Compose Postgres/Neo4j + MCP
+  both    Same-host dogfood: server stack + local sync AND IDE connect (client tooling)
 
-SERVER MCP modes (infra always Compose):
+SERVER MCP modes (infra always Compose; used by server and both):
   venv    MCP HTTP from this machine's Python .venv (recommended; was formerly "host")
   docker  MCP HTTP in mcp-gateway container
 
@@ -104,7 +106,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --role)
-      [[ $# -ge 2 ]] || { echo "error: --role needs client|server" >&2; exit 64; }
+      [[ $# -ge 2 ]] || { echo "error: --role needs client|server|both" >&2; exit 64; }
       export INSTALL_ROLE="$2"
       shift 2
       ;;

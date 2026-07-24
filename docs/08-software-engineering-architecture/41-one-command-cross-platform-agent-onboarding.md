@@ -31,7 +31,7 @@ linked_symbols:
 - backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
 - backend/packages/agentcore_cli/connect_flow.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
-doc_version: 1.2.0
+doc_version: 1.2.1
 updated_at: '2026-07-24'
 ---
 
@@ -114,7 +114,7 @@ Selection rule inside `agentcore connect`:
 
 1. If `prefer_http: true` (default) **and** HTTP URL + auth headers/token are available → write **HTTP** MCP configs.
 2. Else if SSH BatchMode works (or the interactive wizard just installed a key) → write **SSH** MCP configs.
-3. Else fail closed with a message to run `agentcore connect --edit` (or fix `connect.yaml`).
+3. Else fail closed with a message to run `agentcore connect edit` (or fix `connect.yaml`).
 
 ## One-time setup checklist
 
@@ -140,7 +140,7 @@ agentcore connect
 
 On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root, tenant/workspace. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
 
-Advanced template only: `agentcore connect --init` then hand-edit YAML.
+Advanced template only: `agentcore connect init` then hand-edit YAML.
 
 Reload MCP / the IDE window after connect succeeds.
 
@@ -173,16 +173,16 @@ Prefer a dedicated OS user (for example `ops`). The password is used **once** to
 Re-enter host/user (and replace the pubkey):
 
 ```bash
-agentcore connect --edit
+agentcore connect edit
 ```
 
-`--edit` always rotates `<checkout>/.agentcore/ssh/id_ed25519_agentcore` (or the configured `auth.ssh_key`), installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
+`edit` always rotates `<checkout>/.agentcore/ssh/id_ed25519_agentcore` (or the configured `auth.ssh_key`), installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
 
 Manual key install remains possible (`ssh-keygen` + `ssh-copy-id`) but is not required.
 
 ### Dev host: `<checkout>/.agentcore/connect.yaml`
 
-The wizard writes this file. Hand-edit **scope / clients / remote_root / ingest** freely; re-run `agentcore connect` to apply. If you change `server.ssh` or `auth.ssh_key` and BatchMode breaks, run `agentcore connect --edit` — do not put OS passwords in YAML.
+The wizard writes this file. Hand-edit **scope / clients / remote_root / ingest** freely; re-run `agentcore connect` to apply. If you change `server.ssh` or `auth.ssh_key` and BatchMode breaks, run `agentcore connect edit` — do not put OS passwords in YAML.
 
 ```yaml
 server:
@@ -385,7 +385,7 @@ Environment overrides (examples): `AGENTCORE_CONNECT_SSH`, `AGENTCORE_CONNECT_UR
 CLI:
 
 ```bash
-agentcore connect --init
+agentcore connect init
 agentcore connect
 agentcore connect --project myapp --clients cursor,vscode
 agentcore connect --dry-run
@@ -419,7 +419,7 @@ User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-
 ## Security (operator rules)
 
 1. **Never** put OS passwords or database passwords in `connect.yaml` or `mcp.json`.
-2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect --edit` (replaces pubkey).
+2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect edit` (replaces pubkey).
 3. HTTP without TLS: private network + firewall on the MCP port; prefer reverse-proxy TLS for anything beyond a closed lab.
 4. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
 5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.

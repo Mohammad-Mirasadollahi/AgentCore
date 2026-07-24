@@ -85,3 +85,45 @@ def test_cmd_sync_client_remote_without_connect_exits(monkeypatch, tmp_path: Pat
         raised = True
         assert "Client installs" in str(exc)
     assert raised
+
+
+def test_cmd_sync_routes_remote_when_role_client_even_with_compose(
+    monkeypatch, tmp_path: Path
+):
+    compose = tmp_path / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True, exist_ok=True)
+    (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
+    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+    state = tmp_path / ".agentcore"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "install-state.env").write_text("role=client\n", encoding="utf-8")
+
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    called: list[bool] = []
+
+    def fake_remote(args):
+        called.append(True)
+        return 0
+
+    def boom_start(_root):
+        raise AssertionError("must not offer local start on client")
+
+    monkeypatch.setattr(
+        "agentcore_cli.commands.sync.cmd.cmd_sync_client_remote",
+        fake_remote,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.service_runtime.ensure_running_or_offer_start",
+        boom_start,
+    )
+    args = SimpleNamespace(
+        force=True,
+        path=None,
+        tenant=None,
+        workspace=None,
+        project=None,
+        cpu_percent=None,
+        allow_cloud_llm=False,
+    )
+    assert sync_cmd.cmd_sync(args) == 0
+    assert called == [True]

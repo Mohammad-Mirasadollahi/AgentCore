@@ -9,8 +9,8 @@ from agentcore_cli.util import add_scope_args
 
 def register(sub: argparse._SubParsersAction) -> None:
     profile = sub.add_parser("profile", help="Usage Profile catalog commands")
-    profile_sub = profile.add_subparsers(dest="profile_command", required=True)
-    profile_sub.add_parser("list", help="List Usage Profiles")
+    profile_sub = profile.add_subparsers(dest="profile_command", required=False)
+    profile_sub.add_parser("list", help="List Usage Profiles (default)")
     show = profile_sub.add_parser("show", help="Show one Usage Profile JSON")
     show.add_argument("profile_id")
 

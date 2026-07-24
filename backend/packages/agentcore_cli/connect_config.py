@@ -85,7 +85,7 @@ def resolve_config_path(explicit: str = "") -> Path:
             return candidate
     hint = default_connect_yaml_path()
     raise SystemExit(
-        f"error: no connect config; run `agentcore connect --init` or create {hint}"
+        f"error: no connect config; run `agentcore connect init` or create {hint}"
     )
 
 
@@ -193,7 +193,7 @@ def load_connect_settings(
     ):
         raise SystemExit(
             "error: set server.local: true, and/or server.ssh, and/or server.url / mcp_http_url "
-            "(or run `agentcore connect` / `agentcore connect --edit` in a TTY)"
+            "(or run `agentcore connect` / `agentcore connect edit` in a TTY)"
         )
     return settings
 
@@ -202,9 +202,9 @@ CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-a
 #
 # Lives under this checkout: .agentcore/connect.yaml (gitignored).
 # Preferred first-time path: run `agentcore connect` in a TTY (interactive SSH wizard).
-# Re-auth / replace pubkey: `agentcore connect --edit`
+# Re-auth / replace pubkey: `agentcore connect edit`
 # Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
-# breaks BatchMode login, run --edit (do not store OS passwords here).
+# breaks BatchMode login, run `agentcore connect edit` (do not store OS passwords here).
 #
 # --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
 # server:

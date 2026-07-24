@@ -32,7 +32,7 @@ related_docs:
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.0.0
+doc_version: 1.0.1
 audience:
 - engineer
 - operator
@@ -125,7 +125,7 @@ agentcore purge --yes   # graph only
 | `agentcore inventory` | Code/docs done vs remaining for pinned software roots |
 | `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent |
 | `agentcore stats` | Code/docs counts, language mix %, processed vs remaining |
-| `agentcore connect` / `--init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood |
+| `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood |
 | `agentcore sync` / `purge` | Load or wipe project graph data (sync requires `agentcore.sync.yaml` + pinned paths) |
 | `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations |
 | `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope |

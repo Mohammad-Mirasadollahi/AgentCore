@@ -169,7 +169,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
         if args.paths_command == "remove":
             return cmd_paths_remove(args)
     if args.command == "profile":
-        if args.profile_command == "list":
+        if args.profile_command in (None, "list"):
             return cmd_profile_list(args)
         if args.profile_command == "show":
             return cmd_profile_show(args)

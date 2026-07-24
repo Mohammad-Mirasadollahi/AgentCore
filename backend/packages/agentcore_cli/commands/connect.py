@@ -53,14 +53,17 @@ def _config_path_from_args(args: argparse.Namespace) -> Path | None:
 
 
 def cmd_connect(args: argparse.Namespace) -> int:
-    if args.init:
+    mode = str(getattr(args, "connect_mode", "") or "").strip().lower()
+    if mode and mode not in {"edit", "init"}:
+        raise SystemExit("error: connect mode must be 'edit' or 'init' (or omit for normal connect)")
+    if mode == "init":
         path = write_connect_template()
         print(f"wrote {path}")
         print("Edit connect.yaml (local / ssh / http), then run: agentcore connect")
         return 0
 
     work = Path.cwd()
-    force_edit = bool(getattr(args, "edit", False))
+    force_edit = mode == "edit"
 
     if args.local and not args.config:
         settings = _settings_for_local(args)

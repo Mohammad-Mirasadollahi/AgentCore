@@ -1,23 +1,29 @@
+"""PostgreSQL Docs Sync Store with per-thread connections.
+
+Role: persist docs-sync symbols/documents/anchors/findings/drafts/outbox.
+Source of truth: ``docs_sync.*`` tables; each worker thread owns one ``psycopg``
+connection (connections are not shareable across threads).
+Allowed: concurrent Phase-2 writers via thread-local connections; close all
+tracked connections on ``close()``. Forbidden: sharing one cursor/connection
+across threads; inventing rows outside scoped SQL.
+"""
+
 from __future__ import annotations
 
+import threading
 from typing import Any
 
-from .core import (
+from .enums import DocumentState, DraftState, DriftState, DriftType, Severity
+from .errors import ConflictError, NotFoundError
+from .models import (
     CodeSymbol,
-    ConflictError,
     DocAnchor,
     Document,
     DocumentationDraft,
-    DocumentState,
-    DraftState,
     DriftFinding,
-    DriftState,
-    DriftType,
-    NotFoundError,
     Scope,
-    Severity,
-    digest,
 )
+from .util import digest
 
 
 def _timestamp(value: Any) -> str:
@@ -25,7 +31,7 @@ def _timestamp(value: Any) -> str:
 
 
 class PostgresStore:
-    """PostgreSQL adapter for the Docs Sync Store port."""
+    """PostgreSQL adapter for the Docs Sync Store port (thread-safe writers)."""
 
     def __init__(self, database_url: str) -> None:
         if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
@@ -36,9 +42,30 @@ class PostgresStore:
             from psycopg.types.json import Jsonb
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("psycopg is required for PostgreSQL persistence") from exc
-        normalized_url = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-        self._connection = psycopg.connect(normalized_url, autocommit=True, row_factory=dict_row)
+        self._psycopg = psycopg
+        self._row_factory = dict_row
         self._json = Jsonb
+        self._database_url = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+        self._local = threading.local()
+        self._all_connections: list[Any] = []
+        self._all_lock = threading.Lock()
+        # Fail fast on bad URL / schema; seed the creating thread's connection.
+        _ = self._connection
+
+    @property
+    def _connection(self) -> Any:
+        conn = getattr(self._local, "connection", None)
+        if conn is not None and not conn.closed:
+            return conn
+        conn = self._psycopg.connect(
+            self._database_url,
+            autocommit=True,
+            row_factory=self._row_factory,
+        )
+        self._local.connection = conn
+        with self._all_lock:
+            self._all_connections.append(conn)
+        return conn
 
     @staticmethod
     def _scope_key(scope: Scope) -> str:
@@ -312,4 +339,13 @@ class PostgresStore:
             return [row["payload"] for row in cursor.fetchall()]
 
     def close(self) -> None:
-        self._connection.close()
+        with self._all_lock:
+            conns = list(self._all_connections)
+            self._all_connections.clear()
+        for conn in conns:
+            try:
+                if not conn.closed:
+                    conn.close()
+            except Exception:  # noqa: BLE001 — best-effort shutdown
+                pass
+        self._local.connection = None

@@ -233,6 +233,40 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
         (tmp_path / "docs" / f"d{i}.md").write_text(body, encoding="utf-8")
     (tmp_path / "docs" / "login.md").write_text(LINKED_DOC, encoding="utf-8")
 
+    import threading
+    import time
+
+    from agentcore_cli.process_containers import clear_process_containers
+    from docs_sync_service.core import DocsSyncService
+    from docs_sync_service.testing import InMemoryStore as DocsInMemoryStore
+
+    class OverlapProbeStore(DocsInMemoryStore):
+        """Record concurrent entry into put_document (proves no CLI docs_lock)."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.max_overlap = 0
+            self._inflight = 0
+            self._probe = threading.Lock()
+
+        def put_document(self, document):  # noqa: ANN001
+            with self._probe:
+                self._inflight += 1
+                self.max_overlap = max(self.max_overlap, self._inflight)
+            try:
+                time.sleep(0.03)
+                return super().put_document(document)
+            finally:
+                with self._probe:
+                    self._inflight -= 1
+
+    clear_process_containers()
+    probe = OverlapProbeStore()
+    monkeypatch.setattr(
+        "agentcore_cli.docs_link_sync._docs_sync_service",
+        lambda: DocsSyncService(probe),
+    )
+
     store = InMemoryStore()
     graph = CodeGraphService(LockedStore(store, lock_reads=True))
     graph.ingest_file(
@@ -266,7 +300,9 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
     assert result.anchors_registered >= 1
     # At least one progress snap should report concurrent in-flight under workers>1.
     assert any(int(e.get("files_in_flight") or 0) >= 1 for e in events if e.get("status") == "active")
-
+    # Docs-sync writes must overlap across workers (not CLI single-flight).
+    assert probe.max_overlap >= 2
+    clear_process_containers()
 
 def test_sync_human_docs_skips_unchanged_unlinked(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)

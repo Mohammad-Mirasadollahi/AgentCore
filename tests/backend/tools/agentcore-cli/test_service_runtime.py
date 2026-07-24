@@ -18,6 +18,52 @@ def _stub_compose_stack(root: Path) -> None:
     (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
 
 
+def test_local_compose_stack_absent_for_client_role(tmp_path: Path):
+    _stub_compose_stack(tmp_path)
+    assert runtime.local_compose_stack_present(tmp_path) is True
+    state = tmp_path / ".agentcore"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "install-state.env").write_text("role=client\n", encoding="utf-8")
+    assert runtime.install_role(tmp_path) == "client"
+    assert runtime.local_compose_stack_present(tmp_path) is False
+
+
+def test_local_compose_stack_present_for_both_role(tmp_path: Path):
+    _stub_compose_stack(tmp_path)
+    state = tmp_path / ".agentcore"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "install-state.env").write_text("role=both\n", encoding="utf-8")
+    assert runtime.install_role(tmp_path) == "both"
+    assert runtime.local_compose_stack_present(tmp_path) is True
+
+
+def test_ensure_running_client_role_exits_even_with_compose_files(tmp_path: Path):
+    _stub_compose_stack(tmp_path)
+    state = tmp_path / ".agentcore"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "install-state.env").write_text("role=client\n", encoding="utf-8")
+    try:
+        runtime.ensure_running_or_offer_start(tmp_path, stdin_isatty=True)
+        raised = False
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+        assert "Client installs" in msg
+        assert "install role=client" in msg
+        assert "local Compose sync is disabled" in msg
+    assert raised
+
+
+def test_missing_local_stack_message_client_role_not_missing_env(tmp_path: Path):
+    _stub_compose_stack(tmp_path)
+    state = tmp_path / ".agentcore"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "install-state.env").write_text("role=client\n", encoding="utf-8")
+    msg = runtime.missing_local_stack_message(tmp_path)
+    assert "local Compose sync is disabled" in msg
+    assert "missing " not in msg.split("(", 1)[1].split(")", 1)[0]
+
+
 def test_parser_service_and_boot():
     parser = build_parser()
     start = parser.parse_args(["service", "start"])

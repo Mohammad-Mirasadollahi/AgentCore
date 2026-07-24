@@ -3,10 +3,10 @@
 Role: discover Markdown, index into docs-sync, project ``DOCUMENTED_BY`` for
 resolved ``linked_symbols`` (catalog orders the queue; evidence may merge tokens).
 Source of truth: docs-sync Document/DocAnchor; Neo4j human ``doc:human:…`` nodes.
-Parallelism: same ``sync_max_file_workers`` pool as code ingest; docs-sync store
-calls are single-flight (one Postgres connection / unsafe in-memory dicts).
-Allowed: soft-fail per doc; skip unchanged unlinked bodies. Forbidden: invent
-edges for unresolved tokens; bypass the docs-sync write lock under workers.
+Parallelism: same ``sync_max_file_workers`` pool as code ingest; docs-sync stores
+are thread-safe (Postgres per-thread connections; in-memory ``RLock``).
+Allowed: soft-fail per doc; skip unchanged unlinked bodies; concurrent docs-sync
+writes under workers. Forbidden: invent edges for unresolved tokens.
 """
 
 from __future__ import annotations
@@ -330,7 +330,6 @@ def sync_human_docs(
     progress_total = len(prepared)
     progress_done = 0
     state_lock = threading.Lock()
-    docs_lock = threading.Lock()  # docs-sync store is single-connection / not thread-safe
     active_files: set[str] = set()
 
     from code_graph_service.application.ingest.parallel_files import run_parallel_file_jobs
@@ -419,14 +418,13 @@ def sync_human_docs(
         doc_fp = digest(f"{rel}\n{doc_id}\n{linked_tokens}\n{body}")[:16]
 
         try:
-            with docs_lock:
-                document = docs_svc.index_document(
-                    docs_scope,
-                    actor,
-                    corr,
-                    f"docs-index:{rel}:{doc_id}:{doc_fp}",
-                    {"path": rel, "frontmatter": frontmatter, "body": body},
-                )
+            document = docs_svc.index_document(
+                docs_scope,
+                actor,
+                corr,
+                f"docs-index:{rel}:{doc_id}:{doc_fp}",
+                {"path": rel, "frontmatter": frontmatter, "body": body},
+            )
             with state_lock:
                 result.docs_indexed += 1
         except Exception as exc:
@@ -462,38 +460,37 @@ def sync_human_docs(
                 sym_fp = digest(
                     f"{graph_sym.qualified_name}\n{graph_sym.hash_value}\n{graph_sym.body or ''}"
                 )[:16]
-                with docs_lock:
-                    ds_symbol = docs_svc.index_symbol(
-                        docs_scope,
-                        actor,
-                        corr,
-                        f"docs-sym:{symbol_graph_id}:{sym_fp}",
-                        {
-                            "repo": repo_name,
-                            "file_path": graph_sym.file_path,
-                            "symbol_path": graph_sym.qualified_name,
-                            "kind": (
-                                graph_sym.kind.value
-                                if hasattr(graph_sym.kind, "value")
-                                else str(graph_sym.kind)
-                            ),
-                            "body": graph_sym.body or graph_sym.signature or graph_sym.qualified_name,
-                            "signature": graph_sym.signature or graph_sym.qualified_name,
-                            "doc_required": True,
-                            "tags": [],
-                        },
-                    )
-                    docs_svc.register_anchor(
-                        docs_scope,
-                        actor,
-                        corr,
-                        f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
-                        {
-                            "doc_id": document.id,
-                            "symbol_id": ds_symbol.id,
-                            "recorded_hash": graph_sym.hash_value,
-                        },
-                    )
+                ds_symbol = docs_svc.index_symbol(
+                    docs_scope,
+                    actor,
+                    corr,
+                    f"docs-sym:{symbol_graph_id}:{sym_fp}",
+                    {
+                        "repo": repo_name,
+                        "file_path": graph_sym.file_path,
+                        "symbol_path": graph_sym.qualified_name,
+                        "kind": (
+                            graph_sym.kind.value
+                            if hasattr(graph_sym.kind, "value")
+                            else str(graph_sym.kind)
+                        ),
+                        "body": graph_sym.body or graph_sym.signature or graph_sym.qualified_name,
+                        "signature": graph_sym.signature or graph_sym.qualified_name,
+                        "doc_required": True,
+                        "tags": [],
+                    },
+                )
+                docs_svc.register_anchor(
+                    docs_scope,
+                    actor,
+                    corr,
+                    f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
+                    {
+                        "doc_id": document.id,
+                        "symbol_id": ds_symbol.id,
+                        "recorded_hash": graph_sym.hash_value,
+                    },
+                )
                 with state_lock:
                     result.anchors_registered += 1
             except Exception as exc:

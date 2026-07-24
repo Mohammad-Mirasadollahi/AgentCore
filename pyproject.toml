@@ -50,7 +50,10 @@ packages = ["agentcore_cli", "usage_profile", "outbox_relay", "llm_gateway", "po
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # So Test Explorer / bare `pytest` can import code_graph_service without exporting PYTHONPATH.
-pythonpath = ["backend/services/code-graph-service/src"]
+pythonpath = [
+  "backend/services/code-graph-service/src",
+  "backend/services/docs-sync-service/src",
+]
 markers = [
   "live: requires Compose Neo4j/Postgres (skips when unavailable)",
 ]

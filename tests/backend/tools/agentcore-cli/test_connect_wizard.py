@@ -9,7 +9,15 @@ import yaml
 
 from agentcore_cli.connect_config import ConnectSettings, load_connect_settings, write_or_merge_connect_yaml
 from agentcore_cli.connect_wizard import ensure_ssh_ready, parse_ssh_target, run_ssh_connect_wizard
+from agentcore_cli.parser import build_parser
 from agentcore_cli.ssh_bootstrap import IdentityResult
+
+
+def test_connect_parser_word_modes():
+    parser = build_parser()
+    assert parser.parse_args(["connect"]).connect_mode == ""
+    assert parser.parse_args(["connect", "edit"]).connect_mode == "edit"
+    assert parser.parse_args(["connect", "init"]).connect_mode == "init"
 
 
 def test_parse_ssh_target():
@@ -77,7 +85,7 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
         "ssh-ed25519 AAAA agentcore-connect\n", encoding="utf-8"
     )
 
-    answers = iter(["agentcore.example", "ops", "/opt/AgentCore", "acme", "eng"])
+    answers = iter(["agentcore.example", "ops", "acme", "eng"])
 
     def fake_input(prompt: str) -> str:
         return next(answers)
@@ -97,6 +105,10 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr("agentcore_cli.connect_wizard.bootstrap_ssh_auth", fake_bootstrap)
     monkeypatch.setattr("agentcore_cli.connect_wizard._require_tty", lambda: None)
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
 
     app = tmp_path / "MyApp"
     app.mkdir()
@@ -109,6 +121,7 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
         password_fn=fake_password,
     )
     assert settings.ssh == "ops@agentcore.example"
+    assert settings.remote_root == "/opt/AgentCore"
     assert settings.prefer_http is False
     cfg = (home / ".agentcore" / "connect.yaml").read_text(encoding="utf-8")
     assert "ops@agentcore.example" in cfg
@@ -116,7 +129,40 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
     assert "password" not in cfg
 
 
-def test_ensure_ssh_ready_batch_fail_runs_wizard(monkeypatch):
+def test_run_ssh_connect_wizard_prompts_path_when_discover_fails(tmp_path: Path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    identity = home / ".ssh" / "id_ed25519_agentcore"
+    identity.parent.mkdir(parents=True)
+    identity.write_text("PRIVATE", encoding="utf-8")
+    (home / ".ssh" / "id_ed25519_agentcore.pub").write_text(
+        "ssh-ed25519 AAAA agentcore-connect\n", encoding="utf-8"
+    )
+    answers = iter(["h.example", "ops", "t", "w", "/srv/AgentCore"])
+
+    def fake_input(prompt: str) -> str:
+        return next(answers)
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_wizard.bootstrap_ssh_auth",
+        lambda *a, **k: IdentityResult(private_path=identity, public_path=Path(f"{identity}.pub")),
+    )
+    monkeypatch.setattr("agentcore_cli.connect_wizard._require_tty", lambda: None)
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: None,
+    )
+    app = tmp_path / "App"
+    app.mkdir()
+    settings = run_ssh_connect_wizard(
+        existing=ConnectSettings(project="App"),
+        rotate=False,
+        config_path=home / "connect.yaml",
+        project_dir=app,
+        input_fn=fake_input,
+        password_fn=lambda _p: "pw",
+    )
+    assert settings.remote_root == "/srv/AgentCore"
     monkeypatch.setattr("agentcore_cli.connect_wizard.probe_batch_mode", lambda *a, **k: False)
     monkeypatch.setattr("agentcore_cli.connect_wizard.sys.stdin.isatty", lambda: True)
 
@@ -148,7 +194,7 @@ def test_ensure_ssh_ready_edit_rotates(tmp_path: Path, monkeypatch):
 def test_ensure_ssh_ready_batch_fail_non_tty(monkeypatch):
     monkeypatch.setattr("agentcore_cli.connect_wizard.probe_batch_mode", lambda *a, **k: False)
     monkeypatch.setattr("agentcore_cli.connect_wizard.sys.stdin.isatty", lambda: False)
-    with pytest.raises(SystemExit, match="connect --edit"):
+    with pytest.raises(SystemExit, match="connect edit"):
         ensure_ssh_ready(
             ConnectSettings(ssh="ops@host", prefer_http=False, mcp_http_url="", api_token=""),
             allow_wizard=True,

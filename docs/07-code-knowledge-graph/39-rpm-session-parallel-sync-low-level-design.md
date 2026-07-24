@@ -31,7 +31,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-risks
 - ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 primary_entities:
@@ -222,26 +222,25 @@ LLM execution **may** use the same file workers (each blocks in `docs.generate`)
 equivalent work-stealing) so one file with hundreds of symbols cannot monopolize
 all in-flight slots while other files idle.
 
-### Serialized store writer
+### Concurrent store writers
 
-Postgres store uses a **single** `psycopg` connection today — concurrent
-`put_symbol` is unsafe. `LockedStore(lock_reads=True)` serializes **all**
-Postgres store traffic.
+Postgres adapters use **per-thread** ``psycopg`` connections
+(``ThreadLocalPsycopg``). Production bootstrap wraps Postgres and Neo4j with
+the same ``LockedStore(lock_reads=False, max_concurrent=store_concurrency)``
+slot budget — not an exclusive process-wide lock.
 
 ```text
-writer_thread:
-    while running:
-        batch = queue.get()
-        with store_lock:   # or only this thread touches store
-            apply upserts / edges / idempotency completes
-        progress.emit(...)
+file_worker_i:
+    parse / embed / docs
+    with store_slot:          # BoundedSemaphore, re-entrant per thread
+        put_symbol / put_edge / idempotency
+    progress.emit(...)
 ```
 
-Neo4j uses **per-call sessions** and a **bounded** concurrent slot budget
-(`store_concurrency`, typically 2–8), **not** a process-wide exclusive write
-lock. A global write RLock left file workers idle on futex despite
-`parallel N active`. Idempotency keys remain per-file; nested store calls are
-re-entrant on the same thread. See
+Neo4j uses **per-call sessions** under the same slot budget
+(`store_concurrency`, typically 2–8). A global write RLock left file workers
+idle on futex despite `parallel N active`. Idempotency keys remain per-file;
+nested store calls are re-entrant on the same thread. See
 [`50`](50-sync-cpu-budget-and-store-concurrency-lld.md).
 
 ### Cross-file edges
@@ -255,7 +254,7 @@ repair edges when endpoints appear (same as serial ingest semantics).
 
 `ingest_file` keys remain **`{job_key}:{relative_path}:{index}`** (or equivalent
 unique per file). Concurrent files **must not** share an idempotency key.
-Idempotency begin/complete runs **inside** the serialized writer section.
+Idempotency begin/complete runs **under** the store slot (same as other mutations).
 
 ## Progress tracking
 
@@ -345,7 +344,7 @@ to avoid huge CPU queues behind a tiny LLM gate (warn, do not hard-fail).
 2. Unit: exception path always releases (no leak).
 3. Concurrency: many threads; `starts_in_window ≤ rpm` and `inflight ≤ cap` always.
 4. No full-minute sleeps in CI — use fake clock or rpm=1 with injected time.
-5. Ingest: parallel files + serialized writer; no connection errors on Postgres path.
+5. Ingest: parallel files + bounded concurrent store slots; no connection errors on Postgres path.
 6. Observability: snapshot JSON schema stable; no secret fields.
 
 ## Related Documents

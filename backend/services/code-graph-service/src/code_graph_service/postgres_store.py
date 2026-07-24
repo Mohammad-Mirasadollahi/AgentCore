@@ -1,3 +1,12 @@
+"""PostgreSQL Code Graph Store with per-thread connections.
+
+Role: persist symbols/edges/idempotency/outbox for the code-graph Store port.
+Source of truth: ``code_graph.*`` tables; each worker thread owns one ``psycopg``
+connection (not shareable across threads).
+Allowed: concurrent ingest writers under ``LockedStore`` slot budget; schema
+ensure on construct. Forbidden: sharing one cursor/connection across threads.
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +22,7 @@ from .core import (
     Scope,
     SymbolKind,
 )
+from .pg_thread_local import ThreadLocalPsycopg
 
 
 def _timestamp(value: Any) -> str:
@@ -32,10 +42,19 @@ class PostgresStore:
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("psycopg is required for PostgreSQL persistence") from exc
         normalized_url = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-        self._connection = psycopg.connect(normalized_url, autocommit=True, row_factory=dict_row)
         self._json = Jsonb
+        self._pool = ThreadLocalPsycopg(
+            lambda: psycopg.connect(normalized_url, autocommit=True, row_factory=dict_row)
+        )
         if ensure_schema:
             self.ensure_schema()
+
+    @property
+    def _connection(self) -> Any:
+        return self._pool.get()
+
+    def close(self) -> None:
+        self._pool.close_all()
 
     def ensure_schema(self) -> None:
         """Apply core + FTS migrations when present."""
