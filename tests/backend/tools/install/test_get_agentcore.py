@@ -239,7 +239,40 @@ parse_and_run --channel release --root {root.as_posix()!r} --yes --role server -
         env={**os.environ, "AGENTCORE_SKIP_INSTALL": "0"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    assert "INSTALL_ARGS:--yes --role server --runtime venv" in proc.stdout
+    # --role implies --non-interactive; --yes is always injected (once).
+    assert "INSTALL_ARGS:--non-interactive --yes --role server --runtime venv" in proc.stdout
+
+
+def test_run_install_auto_yes_without_explicit_flag(tmp_path: Path) -> None:
+    root = tmp_path / "AgentCore"
+    root.mkdir()
+    (root / "install.sh").write_text(
+        "#!/usr/bin/env bash\nprintf 'INSTALL_ARGS:%s\\n' \"$*\"\n",
+        encoding="utf-8",
+    )
+    (root / "install.sh").chmod(0o755)
+    proc = _source_helpers(
+        f"run_install {root.as_posix()!r}",
+        env={"AGENTCORE_SKIP_INSTALL": "0"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "INSTALL_ARGS:--yes" in proc.stdout
+
+
+def test_run_install_role_implies_noninteractive(tmp_path: Path) -> None:
+    root = tmp_path / "AgentCore"
+    root.mkdir()
+    (root / "install.sh").write_text(
+        "#!/usr/bin/env bash\nprintf 'INSTALL_ARGS:%s\\n' \"$*\"\n",
+        encoding="utf-8",
+    )
+    (root / "install.sh").chmod(0o755)
+    proc = _source_helpers(
+        f"run_install {root.as_posix()!r} --role client",
+        env={"AGENTCORE_SKIP_INSTALL": "0"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "INSTALL_ARGS:--non-interactive --yes --role client" in proc.stdout
 
 
 def test_noninteractive_requires_channel() -> None:

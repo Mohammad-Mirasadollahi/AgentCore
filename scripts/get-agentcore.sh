@@ -332,8 +332,27 @@ run_install() {
     info "AGENTCORE_SKIP_INSTALL=1 — not running install.sh"
     return 0
   fi
-  info "Running: bash install.sh $*"
-  (cd "${root}" && bash install.sh "$@")
+
+  # Bootstrap already chose channel/root (or flags). Never ask install.sh to type "yes".
+  local args=(--yes)
+  local has_noninteractive=0
+  local has_role=0
+  local a
+  for a in "$@"; do
+    case "${a}" in
+      --yes | -y) continue ;;
+      --non-interactive) has_noninteractive=1 ;;
+      --role) has_role=1 ;;
+    esac
+    args+=("${a}")
+  done
+  # CLI --role means an agent/CI client: no install/upgrade/role menus.
+  if [[ "${has_role}" == "1" && "${has_noninteractive}" != "1" ]]; then
+    args=(--non-interactive "${args[@]}")
+  fi
+
+  info "Running: bash install.sh ${args[*]}"
+  (cd "${root}" && bash install.sh "${args[@]}")
 }
 
 usage() {
@@ -347,11 +366,12 @@ Usage:
 Get options:
   --channel release|main   Fetch channel (prompted on TTY if omitted)
   --root PATH              Install directory (default ${AGENTCORE_DEFAULT_ROOT})
-  --yes, -y                Passed through to install.sh; also skips extra confirms here
+  --yes, -y                (default) Always passed to install.sh; optional to pass explicitly
   --skip-install           Fetch only (do not run install.sh)
   -h, --help               Show this help
 
 Any other flags are passed through to install.sh (--role, --runtime, --upgrade, …).
+Passing --role also enables --non-interactive (no install menus; agent/CI friendly).
 
 Channels:
   release  Latest GitHub Release tag (immutable); recommended for servers

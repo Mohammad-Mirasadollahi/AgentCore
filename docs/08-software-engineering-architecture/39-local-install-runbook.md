@@ -40,7 +40,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.1
+doc_version: 1.3.2
 audience:
 - engineer
 - operator
@@ -76,13 +76,18 @@ You will be asked:
    - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
    - **main** — tip of the `main` branch (may include unreleased commits)
 2. **Install root** (default `/opt/AgentCore`)
-3. Then the normal `install.sh` prompts (install/upgrade → yes → client/server → venv/docker)
+3. Then `install.sh` menus (role/runtime). `get-agentcore` always passes `--yes` (no "type yes"). Passing `--role` also enables `--non-interactive`.
 
-Non-interactive fetch + install example:
+Non-interactive fetch + install examples:
 
 ```bash
+# Server
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
-  | bash -s -- --channel release --root /opt/AgentCore --yes --non-interactive --role server --runtime venv
+  | bash -s -- --channel main --root /opt/AgentCore --role server --runtime venv
+
+# Client (CLI only)
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
+  | bash -s -- --channel main --role client
 ```
 
 Publishing a product cut: create a GitHub Release with a new immutable tag (for example `v0.1.3`). Do not move or reuse old tags; `releases/latest` always points at the newest published release.
