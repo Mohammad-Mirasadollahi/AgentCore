@@ -207,9 +207,9 @@ def resolve_standards_gate(
     ui.blank()
     read = input_fn or _read_yes_no
     answer = read(
-        "Skip syncing nonconforming docs/code this run? [Y/n]: "
+        "Skip syncing nonconforming docs/code this run? [y/N]: "
     ).strip().lower()
-    if answer in {"", "y", "yes"}:
+    if answer in {"y", "yes"}:
         result.skipped = True
         result.skipped_docs = list(docs)
         result.skipped_code = list(code)

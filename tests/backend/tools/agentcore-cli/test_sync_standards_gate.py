@@ -156,7 +156,7 @@ def test_resolve_sync_nonconforming_flag(tmp_path: Path, monkeypatch: pytest.Mon
     assert out["doc_exclude_globs"] == []
 
 
-def test_resolve_ask_default_yes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_resolve_ask_default_no(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     filters = {
         "docs_enabled": True,
         "doc_match_globs": ["**/*.md"],
@@ -167,11 +167,33 @@ def test_resolve_ask_default_yes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         "agentcore_cli.sync_standards_gate.list_nonconforming_docs",
         lambda **_kwargs: ["docs/bad.md"],
     )
-    answers = iter([""])  # default Y
+    answers = iter([""])  # default N = include (do not skip)
     out, result = resolve_standards_gate(
         root_path=tmp_path,
         filters=filters,
         input_fn=lambda _prompt: next(answers),
+        stdin_isatty=True,
+    )
+    assert result.mode == "ask"
+    assert result.skipped is False
+    assert out["doc_exclude_globs"] == []
+
+
+def test_resolve_ask_yes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    filters = {
+        "docs_enabled": True,
+        "doc_match_globs": ["**/*.md"],
+        "doc_exclude_globs": [],
+        "exclude_globs": [],
+    }
+    monkeypatch.setattr(
+        "agentcore_cli.sync_standards_gate.list_nonconforming_docs",
+        lambda **_kwargs: ["docs/bad.md"],
+    )
+    out, result = resolve_standards_gate(
+        root_path=tmp_path,
+        filters=filters,
+        input_fn=lambda _prompt: "y",
         stdin_isatty=True,
     )
     assert result.mode == "ask"
