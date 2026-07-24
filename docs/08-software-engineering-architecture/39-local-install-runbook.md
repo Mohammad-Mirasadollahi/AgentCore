@@ -5,8 +5,9 @@ doc_type: runbook
 status: active
 schema_version: '1.0'
 owner: platform-engineering
-summary: 'Beginner-safe modular install for AgentCore local-dev: system prerequisites, .venv,
-  Compose secrets, PostgreSQL/Neo4j, and verification.'
+summary: 'Beginner-safe modular install for AgentCore local-dev: interactive client/server
+  role, venv or docker MCP mode, system prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j,
+  and verification.'
 tags:
 - install
 - bootstrap
@@ -14,6 +15,8 @@ tags:
 - venv
 - runbook
 - local-dev
+- client
+- server
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/39-local-install-runbook.md
 lifecycle_lane: current
@@ -25,13 +28,16 @@ authority: normative
 visibility: internal
 linked_symbols:
 - tests/backend/tools/install/test_install_smoke.py::test_install_smoke_script_exists_and_executable
+- scripts/install/common.sh::resolve_install_role
+- scripts/install/common.sh::resolve_install_runtime
 related_docs:
 - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
 - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.0.0
+doc_version: 1.2.0
 audience:
 - engineer
 - operator
@@ -57,27 +63,30 @@ From the repository root:
 bash install.sh
 ```
 
-The installer **asks** how to run the AgentCore **server** (not coding-agent clients):
+On a TTY the installer **asks in order**:
 
-1. **host** — Server: Compose Postgres/Neo4j + MCP HTTP from the server `.venv` (`agentcore service start`)
-2. **docker** — Server: Compose Postgres/Neo4j + MCP HTTP in the `mcp-gateway` container (wheels from `/opt/agentcore-wheelhouse`)
+1. **install or upgrade?**
+2. Type **`yes`** to confirm (anything else aborts)
+3. If **install**: **client or server?**
+4. If **server**: **venv or docker** for MCP?
+   - **venv** — MCP HTTP from this machine’s Python `.venv` (recommended; formerly labeled `host`)
+   - **docker** — MCP HTTP in the `mcp-gateway` Compose container
 
-**Client boundary (normative):** Cursor / remote laptop / `agentcore connect` stay on the **client machine**. Do **not** Dockerize the client. Clients only attach to this server over MCP (HTTP or SSH stdio). See [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).
-
-Both **server** choices still install OS prerequisites (when interactive), create `.venv`, and put `agentcore` on the **server** `PATH` (`~/.local/bin` + shell rc).
-
-Non-interactive / CI:
+Non-interactive / CI (skips menus and the `yes` confirm):
 
 ```bash
-bash install.sh --non-interactive --runtime host
-bash install.sh --non-interactive --runtime docker
+bash install.sh --non-interactive --role server --runtime venv
+bash install.sh --upgrade --yes --non-interactive
+bash install.sh --non-interactive --role client
 ```
+
+Legacy: `--runtime host` is an alias for `--runtime venv`. `--skip-infra` is an alias for `--role client`.
 
 Then open a new shell if needed (so `~/.local/bin` is on `PATH`) and run:
 
 ```bash
-agentcore doctor
-agentcore --help
+agentcore doctor          # server
+agentcore connect         # client
 ```
 
 App Docker details: [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-and-wheelhouse-runbook.md).
@@ -86,25 +95,35 @@ App Docker details: [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-an
 
 ```mermaid
 flowchart TD
-  start[bash install.sh] --> ask[Choose runtime host or docker]
-  ask --> s01[01 prerequisites]
+  start[bash install.sh] --> role[Choose client or server]
+  role -->|client| s01c[01 prerequisites]
+  s01c --> s02c[02 venv plus PATH]
+  s02c --> doneClient[Ready: agentcore connect]
+  role -->|server| mcp[Choose venv or docker MCP]
+  mcp --> s01[01 prerequisites]
   s01 --> s02[02 venv plus PATH]
   s02 --> s03[03 compose env]
   s03 --> s04[04 docker infra]
   s04 --> s05[05 verify]
   s05 --> s06[06 runtime bring-up]
-  s06 --> done[Ready: agentcore on PATH plus selected runtime]
+  s06 --> done[Ready: agentcore on PATH plus selected MCP mode]
 ```
+
+| Step | Actor / Action | Outcome |
+| --- | --- | --- |
+| 1 | Operator chooses role | `role=client` or `role=server` in install-state |
+| 2 | If server: choose MCP mode | `runtime=venv` or `runtime=docker` |
+| 3 | Stages 01–06 (client skips infra) | CLI on PATH; server also brings up stores + MCP |
 
 | Step | Stage | What it checks | What it does if missing |
 | --- | --- | --- | --- |
-| 0 | runtime choice | `--runtime` / prompt / default `host` | Persists `runtime=` in `.agentcore/install-state.env` |
+| 0 | role + runtime | `--role` / `--runtime` / prompts / defaults | Persists `role=` and `runtime=` in `.agentcore/install-state.env` |
 | 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker (interactive installs always run this) |
 | 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore` |
-| 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates |
-| 4 | `04_docker_infra` | Postgres + Neo4j `healthy` | `docker compose --profile core up -d` + `wait-healthy.sh` |
+| 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates (server) |
+| 4 | `04_docker_infra` | Postgres + Neo4j `healthy` | `docker compose --profile core up -d` + `wait-healthy.sh` (server) |
 | 5 | `05_verify` | `agentcore doctor` + PATH + infra | Fail with stage hint; optional ai-toolstack |
-| 6 | `06_runtime_bringup` | Host MCP or `mcp-gateway` healthy | `agentcore service start` **or** wheelhouse + Compose `--profile app` |
+| 6 | `06_runtime_bringup` | venv MCP or `mcp-gateway` healthy | `agentcore service start` **or** wheelhouse + Compose `--profile app` |
 
 Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
@@ -112,13 +131,15 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
 | Flag | Meaning |
 | --- | --- |
-| `--runtime MODE` | Server bring-up: `host` or `docker` (skips prompt). Does **not** Dockerize clients. |
-| `--non-interactive` | No prompts; default runtime `host` if `--runtime` omitted |
-| `--upgrade` | Upgrade existing install: backup `install-state`, re-run stages, stamp versions (see [51](./51-software-upgrade-server-and-client.md)) |
+| `--role ROLE` | `client` or `server` (skips first prompt) |
+| `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
+| `--yes` / `-y` | Skip the interactive `yes` confirmation |
+| `--upgrade` | Upgrade path (interactive still requires `yes` unless `--yes` / `--non-interactive`) |
+| `--non-interactive` | No prompts; default `action=install`, `role=server`, `runtime=venv` |
 | `--check` | Verify only; do not install packages or change Compose |
 | `--prerequisites-only` | Stop after OS deps (always installs/checks prerequisites) |
 | `--skip-prerequisites` | Do not apt-install (CI/non-interactive only; ignored for interactive full installs) |
-| `--skip-infra` | Skip Compose env + containers + runtime bring-up (venv/CLI/PATH only) |
+| `--skip-infra` | Same as `--role client` (venv/CLI/PATH only) |
 | `--with-frontend` | Also ensure Node.js 18+ for `frontend/` |
 | `--with-ai-toolstack` | After verify, run `ai-toolstack/scripts/install-agentcore.sh` |
 | `--stage NAME` | Run one stage (see `--list-stages`) |
@@ -129,11 +150,12 @@ Examples:
 
 ```bash
 bash install.sh
-bash install.sh --runtime docker
-bash install.sh --non-interactive --runtime host
-bash install.sh --upgrade --runtime host
-bash install.sh --check --non-interactive --runtime host
-bash install.sh --skip-infra --non-interactive --runtime host
+bash install.sh --role server --runtime docker
+bash install.sh --non-interactive --role server --runtime venv
+bash install.sh --non-interactive --role client
+bash install.sh --upgrade --runtime venv
+bash install.sh --check --non-interactive --role server --runtime venv
+bash install.sh --skip-infra --non-interactive
 bash install.sh --prerequisites-only
 bash install.sh --stage 02_venv
 bash install.sh --with-frontend --with-ai-toolstack

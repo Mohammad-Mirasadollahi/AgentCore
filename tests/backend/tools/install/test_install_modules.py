@@ -162,12 +162,14 @@ def test_install_cli_on_path_writes_shim_and_shell_rc(tmp_path: Path) -> None:
 set -euo pipefail
 export AGENTCORE_ROOT="%s"
 export HOME="%s"
+export SHELL=/bin/bash
 export PATH="%s:${PATH}"
 source "%s/common.sh"
 install_cli_on_path "%s"
 user_cli_on_path
 grep -q 'AgentCore CLI' "${HOME}/.bashrc"
 test -e "${HOME}/.local/bin/agentcore"
+command -v agentcore >/dev/null
 echo OK
 """ % (
         ROOT,
@@ -182,12 +184,49 @@ echo OK
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "HOME": str(home), "AGENTCORE_ROOT": str(ROOT)},
+        env={**os.environ, "HOME": str(home), "AGENTCORE_ROOT": str(ROOT), "SHELL": "/bin/bash"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert "OK" in proc.stdout
     assert (home / ".local" / "bin" / "agentcore").exists()
     assert "AgentCore CLI" in bashrc.read_text(encoding="utf-8")
+
+
+def test_install_cli_on_path_creates_bashrc_when_missing(tmp_path: Path) -> None:
+    """Client machines often lack ~/.bashrc; PATH must still persist by default."""
+    home = tmp_path / "home"
+    home.mkdir()
+    fake_venv = tmp_path / "venv" / "bin"
+    fake_venv.mkdir(parents=True)
+    real_cli = ROOT / ".venv" / "bin" / "agentcore"
+    if not real_cli.is_file():
+        pytest.skip("project .venv/bin/agentcore required")
+    fake_cli = fake_venv / "agentcore"
+    fake_cli.symlink_to(real_cli)
+
+    script = r"""
+set -euo pipefail
+export AGENTCORE_ROOT="%s"
+export HOME="%s"
+export SHELL=/bin/bash
+source "%s/common.sh"
+install_cli_on_path "%s"
+test -f "${HOME}/.bashrc"
+grep -q 'AgentCore CLI' "${HOME}/.bashrc"
+test -e "${HOME}/.local/bin/agentcore"
+echo OK
+""" % (ROOT, home, INSTALL_LIB, fake_cli)
+    proc = subprocess.run(
+        ["bash", "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "HOME": str(home), "AGENTCORE_ROOT": str(ROOT), "SHELL": "/bin/bash"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+    assert "AgentCore CLI" in (home / ".bashrc").read_text(encoding="utf-8")
 
 
 def test_stage_02_requires_path_shim_in_check() -> None:

@@ -269,6 +269,49 @@ def test_path_install_shell_rc_even_when_local_bin_already_on_path(tmp_path, mon
     assert bashrc.read_text(encoding="utf-8").count("# AgentCore CLI") == 1
 
 
+def test_path_install_default_persists_bashrc_when_missing(tmp_path, monkeypatch):
+    """Client install: no pre-existing .bashrc must still get durable PATH."""
+    root = Path("/opt/AgentCore")
+    monkeypatch.setenv("AGENTCORE_ROOT", str(root))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    # Simulate install.sh exporting local bin temporarily — must NOT skip rc write.
+    local_bin = home / ".local" / "bin"
+    monkeypatch.setenv("PATH", f"{local_bin}{os.pathsep}/usr/bin")
+    source = root / ".venv" / "bin" / "agentcore"
+    if not source.is_file():
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("#!/bin/sh\necho agentcore\n", encoding="utf-8")
+        source.chmod(0o755)
+    assert not (home / ".bashrc").exists()
+    assert main(["path", "install"]) == 0
+    bashrc = home / ".bashrc"
+    assert bashrc.is_file()
+    assert "# AgentCore CLI" in bashrc.read_text(encoding="utf-8")
+    assert (home / ".local" / "bin" / "agentcore").is_symlink()
+    profile = home / ".profile"
+    assert profile.is_file()
+    assert "AgentCore CLI bashrc" in profile.read_text(encoding="utf-8")
+
+
+def test_path_install_no_shell_rc_skips_rc(tmp_path, monkeypatch):
+    root = Path("/opt/AgentCore")
+    monkeypatch.setenv("AGENTCORE_ROOT", str(root))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    source = root / ".venv" / "bin" / "agentcore"
+    if not source.is_file():
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("#!/bin/sh\necho agentcore\n", encoding="utf-8")
+        source.chmod(0o755)
+    assert main(["path", "install", "--no-shell-rc"]) == 0
+    assert (home / ".local" / "bin" / "agentcore").is_symlink()
+    assert not (home / ".bashrc").exists()
+
+
 def _write_mini_profile(path: Path) -> None:
     path.write_text(
         json.dumps(
