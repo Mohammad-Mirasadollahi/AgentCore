@@ -55,8 +55,8 @@ Options:
   --role ROLE             client | server (skips role prompt)
   --runtime MODE          SERVER MCP mode: venv | docker (alias: host→venv)
   --non-interactive       No prompts; default action=install, role=server, runtime=venv
-  --yes, -y               Skip the interactive "type yes" confirmation
-  --upgrade               Upgrade existing install (still asks for yes unless --yes/--non-interactive)
+  --yes, -y               Skip the interactive y/n confirmation
+  --upgrade               Upgrade existing install (still asks y/n unless --yes/--non-interactive)
   --check                 Verify stages only (no installs / no compose changes)
   --prerequisites-only    Install/check OS deps (Python, Docker, curl, git) then exit
   --skip-prerequisites    Do not apt-install (non-interactive/CI only; ignored interactively)
@@ -69,10 +69,10 @@ Options:
   -h, --help              Show this help
 
 Interactive (TTY, no flags):
-  1) install or upgrade?
-  2) type yes to confirm
-  3) if install → client or server?
-  4) if server → venv or docker MCP?
+  1) install or upgrade? (no default — choose 1 or 2)
+  2) confirm with y/yes or n/no (no default)
+  3) if install → client or server? (no default)
+  4) if server → venv or docker MCP? (no default)
 
 Roles:
   client  Coding-agent machine: CLI + .venv only; then run agentcore connect

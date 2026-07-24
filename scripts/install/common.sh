@@ -298,20 +298,35 @@ prompt_install_action() {
        force upgrade — bash install.sh --upgrade --yes
 EOF
   while true; do
-    choice="$(install_read_line 'Select action [1=install / 2=upgrade] (default: 1): ')"
-    choice="${choice:-1}"
+    choice="$(install_read_line 'Select action [1=install / 2=upgrade]: ')"
+    choice="$(install_stdout_token "${choice}")"
     case "${choice}" in
       1|install|INSTALL) printf '%s\n' "install"; return 0 ;;
       2|upgrade|UPGRADE) printf '%s\n' "upgrade"; return 0 ;;
+      "")
+        warn "Choose 1 or 2 (no default)"
+        ;;
       *) warn "Enter 1/install or 2/upgrade" ;;
     esac
   done
 }
 
-# Require the operator to type exactly "yes" (unless --yes / --non-interactive).
+# Normalize yes/no answers (y/yes / n/no). Empty → fail (no silent default).
+normalize_yes_no() {
+  local raw
+  raw="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "${raw}" in
+    y | yes) printf '%s\n' "yes" ;;
+    n | no) printf '%s\n' "no" ;;
+    *) return 1 ;;
+  esac
+}
+
+# After choosing install/upgrade: require explicit yes/y or no/n (no default).
 confirm_install_action() {
   local action="${1:-}"
   local answer=""
+  local normalized=""
   if [[ "${INSTALL_ASSUME_YES}" == "1" || "${INSTALL_NONINTERACTIVE}" == "1" ]]; then
     info "Confirmation skipped (--yes or --non-interactive); proceeding with ${action}"
     return 0
@@ -320,11 +335,17 @@ confirm_install_action() {
     fail "refusing ${action} without TTY confirmation; re-run interactively or pass --yes / --non-interactive"
   fi
   banner "Confirm ${action}"
-  answer="$(install_read_line "Type yes to continue with ${action} (anything else aborts): ")"
-  if [[ "${answer}" != "yes" ]]; then
-    fail "aborted: expected exactly 'yes' (got '${answer:-}')"
-  fi
-  ok "Confirmed ${action}"
+  while true; do
+    answer="$(install_read_line "Continue with ${action}? [y/n]: ")"
+    if normalized="$(normalize_yes_no "${answer}" 2>/dev/null)"; then
+      if [[ "${normalized}" == "yes" ]]; then
+        ok "Confirmed ${action}"
+        return 0
+      fi
+      fail "aborted: ${action} not confirmed (answered no)"
+    fi
+    warn "Type y/yes or n/no (no default)"
+  done
 }
 
 # Resolve INSTALL_ACTION (install|upgrade), then require yes confirmation when interactive.
@@ -379,11 +400,14 @@ prompt_install_role() {
        client shortcut: --skip-infra
 EOF
   while true; do
-    choice="$(install_read_line 'Select install target [1=client / 2=server] (default: 2): ')"
-    choice="${choice:-2}"
+    choice="$(install_read_line 'Select install target [1=client / 2=server]: ')"
+    choice="$(install_stdout_token "${choice}")"
     case "${choice}" in
       1|client|CLIENT) printf '%s\n' "client"; return 0 ;;
       2|server|SERVER) printf '%s\n' "server"; return 0 ;;
+      "")
+        warn "Choose 1 or 2 (no default)"
+        ;;
       *) warn "Enter 1/client or 2/server" ;;
     esac
   done
@@ -395,17 +419,20 @@ prompt_install_runtime() {
   cat >&2 <<'EOF'
   Infra (Postgres + Neo4j) always uses Compose on the server. Pick where MCP runs:
 
-  1) venv   — MCP HTTP from this machine's Python .venv (recommended default)
+  1) venv   — MCP HTTP from this machine's Python .venv (recommended)
   2) docker — MCP HTTP inside the mcp-gateway Compose container
 
   (Legacy name for venv was "host"; --runtime host still works as an alias.)
 EOF
   while true; do
-    choice="$(install_read_line 'Select SERVER MCP mode [1=venv / 2=docker] (default: 1): ')"
-    choice="${choice:-1}"
+    choice="$(install_read_line 'Select SERVER MCP mode [1=venv / 2=docker]: ')"
+    choice="$(install_stdout_token "${choice}")"
     case "${choice}" in
       1|venv|VENV|host|HOST) printf '%s\n' "venv"; return 0 ;;
       2|docker|DOCKER) printf '%s\n' "docker"; return 0 ;;
+      "")
+        warn "Choose 1 or 2 (no default)"
+        ;;
       *) warn "Enter 1/venv or 2/docker" ;;
     esac
   done
