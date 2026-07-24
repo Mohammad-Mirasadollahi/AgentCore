@@ -26,8 +26,15 @@ INSTALL_SKIP_INFRA="${INSTALL_SKIP_INFRA:-0}"
 INSTALL_WITH_FRONTEND="${INSTALL_WITH_FRONTEND:-0}"
 INSTALL_WITH_AI_TOOLSTACK="${INSTALL_WITH_AI_TOOLSTACK:-0}"
 INSTALL_COMPOSE_TIMEOUT="${INSTALL_COMPOSE_TIMEOUT:-300}"
-# Runtime bring-up: host (venv MCP) | docker (mcp-gateway container). Empty until resolved.
+# Runtime bring-up (SERVER only): venv MCP | docker mcp-gateway. Empty until resolved.
+# Canonical values: venv | docker. Legacy alias: host → venv.
 INSTALL_RUNTIME="${INSTALL_RUNTIME:-}"
+# Install target: client (CLI only) | server (infra + MCP). Empty until resolved.
+INSTALL_ROLE="${INSTALL_ROLE:-}"
+# Top-level action: install | upgrade. Empty until resolved (interactive asks).
+INSTALL_ACTION="${INSTALL_ACTION:-}"
+# Skip the "type yes" confirmation (CI / --yes).
+INSTALL_ASSUME_YES="${INSTALL_ASSUME_YES:-0}"
 AGENTCORE_WHEELHOUSE="${AGENTCORE_WHEELHOUSE:-/opt/agentcore-wheelhouse}"
 
 log() { printf '%s %s\n' "${INSTALL_LOG_PREFIX}" "$*"; }
@@ -170,25 +177,23 @@ seed_repo_operator_files() {
 install_cli_on_path() {
   local cli="${1:?}"
   local link="${HOME}/.local/bin/agentcore"
-  local shell_rc=""
   [[ -x "${cli}" ]] || fail "agentcore CLI missing at ${cli}"
 
+  # Always persist PATH into the user's shell rc (path install creates rc if missing).
+  # AGENTCORE_SHELL_RC overrides auto-detect (.bashrc/.profile or .zshrc).
   if [[ -n "${AGENTCORE_SHELL_RC:-}" ]]; then
-    shell_rc="${AGENTCORE_SHELL_RC}"
-  elif [[ "${SHELL:-}" == */zsh ]] && [[ -f "${HOME}/.zshrc" ]]; then
-    shell_rc=".zshrc"
-  elif [[ -f "${HOME}/.bashrc" ]]; then
-    shell_rc=".bashrc"
-  fi
-
-  if [[ -n "${shell_rc}" ]]; then
-    run "${cli}" path install --shell-rc "${shell_rc}"
+    run "${cli}" path install --shell-rc "${AGENTCORE_SHELL_RC}"
   else
     run "${cli}" path install
   fi
 
   if [[ ! -e "${link}" && ! -L "${link}" ]]; then
     fail "PATH install failed: missing ${link} (agentcore must be on user PATH)"
+  fi
+  # Current process + child stages see agentcore immediately.
+  export PATH="${HOME}/.local/bin:${PATH}"
+  if ! command -v agentcore >/dev/null 2>&1; then
+    fail "PATH install failed: agentcore not resolvable after exporting ${HOME}/.local/bin"
   fi
   ok "agentcore PATH shim: ${link}"
 }
@@ -198,52 +203,212 @@ user_cli_on_path() {
   [[ -e "${link}" || -L "${link}" ]]
 }
 
-# Normalize and validate INSTALL_RUNTIME (host|docker).
-normalize_install_runtime() {
+# Normalize INSTALL_ROLE → client|server.
+normalize_install_role() {
   local raw="${1:-}"
   case "${raw}" in
-    host|docker) printf '%s\n' "${raw}" ;;
+    client|CLIENT) printf '%s\n' "client" ;;
+    server|SERVER) printf '%s\n' "server" ;;
     *) return 1 ;;
   esac
 }
 
-prompt_install_runtime() {
+# Normalize INSTALL_ACTION → install|upgrade.
+normalize_install_action() {
+  local raw="${1:-}"
+  case "${raw}" in
+    install|INSTALL|new) printf '%s\n' "install" ;;
+    upgrade|UPGRADE|update) printf '%s\n' "upgrade" ;;
+    *) return 1 ;;
+  esac
+}
+
+prompt_install_action() {
   local choice=""
-  banner "Choose AgentCore SERVER runtime (clients are never Dockerized)"
+  banner "Install new or upgrade existing?"
   cat <<'EOF'
-  This choice applies only to the AgentCore SERVER host.
+  1) install — Fresh / full bootstrap (client or server prompts follow)
+  2) upgrade — Re-run stages on an existing install (needs prior install-state)
 
-  1) host   — Server: Compose Postgres/Neo4j + MCP HTTP from server .venv
-  2) docker — Server: Compose Postgres/Neo4j + MCP HTTP in mcp-gateway container
-
-  Coding-agent CLIENTS (Cursor / remote laptop / agentcore connect) stay on the
-  client machine: no client Docker image, no client Compose stack. Clients only
-  talk to this server over MCP (HTTP or SSH stdio).
-
-  Both server options still: install OS prerequisites, create .venv, and put
-  `agentcore` on the SERVER PATH (~/.local/bin + shell rc).
+  Tip: non-interactive — bash install.sh --non-interactive …
+       force upgrade — bash install.sh --upgrade --yes
 EOF
   while true; do
-    printf 'Select SERVER runtime [1=host / 2=docker] (default: 1): ' >&2
+    printf 'Select action [1=install / 2=upgrade] (default: 1): ' >&2
     read -r choice || true
     choice="${choice:-1}"
     case "${choice}" in
-      1|host|HOST) printf '%s\n' "host"; return 0 ;;
-      2|docker|DOCKER) printf '%s\n' "docker"; return 0 ;;
-      *) warn "Enter 1/host or 2/docker" ;;
+      1|install|INSTALL) printf '%s\n' "install"; return 0 ;;
+      2|upgrade|UPGRADE) printf '%s\n' "upgrade"; return 0 ;;
+      *) warn "Enter 1/install or 2/upgrade" ;;
     esac
   done
 }
 
-# Resolve INSTALL_RUNTIME from flag, TTY prompt, or default host.
+# Require the operator to type exactly "yes" (unless --yes / --non-interactive).
+confirm_install_action() {
+  local action="${1:-}"
+  local answer=""
+  if [[ "${INSTALL_ASSUME_YES}" == "1" || "${INSTALL_NONINTERACTIVE}" == "1" ]]; then
+    info "Confirmation skipped (--yes or --non-interactive); proceeding with ${action}"
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    fail "refusing ${action} without TTY confirmation; re-run interactively or pass --yes / --non-interactive"
+  fi
+  banner "Confirm ${action}"
+  printf 'Type yes to continue with %s (anything else aborts): ' "${action}" >&2
+  read -r answer || true
+  if [[ "${answer}" != "yes" ]]; then
+    fail "aborted: expected exactly 'yes' (got '${answer:-}')"
+  fi
+  ok "Confirmed ${action}"
+}
+
+# Resolve INSTALL_ACTION (install|upgrade), then require yes confirmation when interactive.
+# Optional preferred arg locks the action (e.g. --upgrade → upgrade) but still asks for yes.
+resolve_install_action() {
+  local resolved=""
+  local preferred="${1:-}"
+
+  if [[ -n "${INSTALL_ACTION}" ]]; then
+    resolved="$(normalize_install_action "${INSTALL_ACTION}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid INSTALL_ACTION='${INSTALL_ACTION}' (want: install|upgrade)"
+  elif [[ "${INSTALL_ACTION_LOCKED:-0}" == "1" && -n "${preferred}" ]]; then
+    resolved="$(normalize_install_action "${preferred}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid action '${preferred}' (want: install|upgrade)"
+  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+    resolved="$(prompt_install_action)"
+  elif [[ -n "${preferred}" ]]; then
+    resolved="$(normalize_install_action "${preferred}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid action '${preferred}' (want: install|upgrade)"
+  else
+    resolved="install"
+    info "Non-interactive: default action=install (pass --upgrade for upgrade)"
+  fi
+
+  INSTALL_ACTION="${resolved}"
+  export INSTALL_ACTION
+  confirm_install_action "${INSTALL_ACTION}"
+  ok "Install action: ${INSTALL_ACTION}"
+}
+
+# Normalize INSTALL_RUNTIME → venv|docker (legacy host → venv).
+normalize_install_runtime() {
+  local raw="${1:-}"
+  case "${raw}" in
+    venv|VENV|host|HOST) printf '%s\n' "venv" ;;
+    docker|DOCKER) printf '%s\n' "docker" ;;
+    *) return 1 ;;
+  esac
+}
+
+prompt_install_role() {
+  local choice=""
+  banner "Install client or server?"
+  cat <<'EOF'
+  1) client — Coding-agent machine: CLI + venv only (no Postgres/Neo4j Compose).
+              Next step after install: agentcore connect
+  2) server — AgentCore platform host: Compose stores + MCP gateway
+
+  Tip: non-interactive flags — --role client | --role server
+       client shortcut: --skip-infra
+EOF
+  while true; do
+    printf 'Select install target [1=client / 2=server] (default: 2): ' >&2
+    read -r choice || true
+    choice="${choice:-2}"
+    case "${choice}" in
+      1|client|CLIENT) printf '%s\n' "client"; return 0 ;;
+      2|server|SERVER) printf '%s\n' "server"; return 0 ;;
+      *) warn "Enter 1/client or 2/server" ;;
+    esac
+  done
+}
+
+prompt_install_runtime() {
+  local choice=""
+  banner "Choose how the SERVER runs MCP"
+  cat <<'EOF'
+  Infra (Postgres + Neo4j) always uses Compose on the server. Pick where MCP runs:
+
+  1) venv   — MCP HTTP from this machine's Python .venv (recommended default)
+  2) docker — MCP HTTP inside the mcp-gateway Compose container
+
+  (Legacy name for venv was "host"; --runtime host still works as an alias.)
+EOF
+  while true; do
+    printf 'Select SERVER MCP mode [1=venv / 2=docker] (default: 1): ' >&2
+    read -r choice || true
+    choice="${choice:-1}"
+    case "${choice}" in
+      1|venv|VENV|host|HOST) printf '%s\n' "venv"; return 0 ;;
+      2|docker|DOCKER) printf '%s\n' "docker"; return 0 ;;
+      *) warn "Enter 1/venv or 2/docker" ;;
+    esac
+  done
+}
+
+# Resolve INSTALL_ROLE (client|server). Client forces --skip-infra.
+# Persists role=<value> in install-state.env.
+resolve_install_role() {
+  local resolved=""
+  local persisted=""
+
+  if [[ -n "${INSTALL_ROLE}" ]]; then
+    resolved="$(normalize_install_role "${INSTALL_ROLE}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid --role '${INSTALL_ROLE}' (want: client|server)"
+  elif [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
+    resolved="client"
+    info "Install role=client (from --skip-infra)"
+  elif [[ -n "${INSTALL_RUNTIME}" ]]; then
+    # Explicit server MCP mode implies server install.
+    resolved="server"
+    info "Install role=server (from --runtime)"
+  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+    resolved="$(prompt_install_role)"
+  else
+    if [[ -f "${INSTALL_STATE_FILE}" ]]; then
+      persisted="$(grep -E '^role=' "${INSTALL_STATE_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+    fi
+    if resolved="$(normalize_install_role "${persisted}" 2>/dev/null)"; then
+      info "Using persisted role=${resolved}"
+    else
+      resolved="server"
+      info "Non-interactive install: default role=server (pass --role client for CLI-only)"
+    fi
+  fi
+
+  INSTALL_ROLE="${resolved}"
+  export INSTALL_ROLE
+  if [[ "${INSTALL_ROLE}" == "client" ]]; then
+    INSTALL_SKIP_INFRA=1
+    export INSTALL_SKIP_INFRA
+  fi
+  ensure_state_dir
+  mark_stage "role" "${INSTALL_ROLE}"
+  ok "Install role: ${INSTALL_ROLE}"
+}
+
+# Resolve INSTALL_RUNTIME from flag, TTY prompt, or default venv.
 # Persists choice to install-state.env as runtime=<value>.
 resolve_install_runtime() {
   local resolved=""
   local persisted=""
 
+  if [[ "${INSTALL_ROLE:-}" == "client" ]]; then
+    # Client never brings up MCP here; keep a stable label for state/check.
+    INSTALL_RUNTIME="venv"
+    export INSTALL_RUNTIME
+    ensure_state_dir
+    mark_stage "runtime" "${INSTALL_RUNTIME}"
+    ok "Install runtime: venv (client — infra skipped; use agentcore connect next)"
+    return 0
+  fi
+
   if [[ -n "${INSTALL_RUNTIME}" ]]; then
     resolved="$(normalize_install_runtime "${INSTALL_RUNTIME}" || true)"
-    [[ -n "${resolved}" ]] || fail "invalid --runtime '${INSTALL_RUNTIME}' (want: host|docker)"
+    [[ -n "${resolved}" ]] || fail "invalid --runtime '${INSTALL_RUNTIME}' (want: venv|docker; alias: host→venv)"
   elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
     resolved="$(prompt_install_runtime)"
   else
@@ -253,13 +418,13 @@ resolve_install_runtime() {
     if resolved="$(normalize_install_runtime "${persisted}" 2>/dev/null)"; then
       info "Using persisted runtime=${resolved}"
     else
-      resolved="host"
-      info "Non-interactive install: default runtime=host (pass --runtime docker to override)"
+      resolved="venv"
+      info "Non-interactive install: default runtime=venv (pass --runtime docker to override)"
     fi
   fi
 
   if [[ "${resolved}" == "docker" && "${INSTALL_SKIP_INFRA}" == "1" ]]; then
-    fail "runtime=docker requires Compose infra (remove --skip-infra)"
+    fail "runtime=docker requires Compose infra (remove --skip-infra / use --role server)"
   fi
 
   INSTALL_RUNTIME="${resolved}"

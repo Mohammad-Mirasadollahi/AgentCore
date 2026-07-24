@@ -11,7 +11,7 @@ _venv_cli() {
 
 stage_06_runtime_bringup_check() {
   local errors=0
-  local runtime="${INSTALL_RUNTIME:-host}"
+  local runtime="${INSTALL_RUNTIME:-venv}"
 
   if ! user_cli_on_path; then
     warn "agentcore not on user PATH (${HOME}/.local/bin/agentcore)"
@@ -21,13 +21,13 @@ stage_06_runtime_bringup_check() {
   fi
 
   case "${runtime}" in
-    host)
-      if [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
-        ok "host runtime: infra skipped; CLI/PATH only"
+    venv|host)
+      if [[ "${INSTALL_SKIP_INFRA}" == "1" || "${INSTALL_ROLE:-}" == "client" ]]; then
+        ok "venv/client: infra skipped; CLI/PATH only — next: agentcore connect"
         return "${errors}"
       fi
       if ! stage_04_docker_infra_check; then
-        warn "host runtime needs healthy postgres/neo4j"
+        warn "venv runtime needs healthy postgres/neo4j"
         errors=1
       fi
       ;;
@@ -108,8 +108,9 @@ PY
 }
 
 stage_06_runtime_bringup_run() {
-  local runtime="${INSTALL_RUNTIME:-host}"
-  banner "Stage 06/06 — Bring up runtime (${runtime})"
+  local runtime="${INSTALL_RUNTIME:-venv}"
+  local role="${INSTALL_ROLE:-server}"
+  banner "Stage 06/06 — Bring up runtime (${runtime}, role=${role})"
 
   # PATH in every mode (including check / skip-infra).
   if [[ "${INSTALL_CHECK_ONLY}" != "1" ]]; then
@@ -122,14 +123,23 @@ stage_06_runtime_bringup_run() {
     return 0
   fi
 
-  if [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
-    info "Skipping application bring-up (--skip-infra); PATH still installed"
+  if [[ "${INSTALL_SKIP_INFRA}" == "1" || "${role}" == "client" ]]; then
+    info "Skipping application bring-up (client / --skip-infra); PATH still installed"
     mark_stage "06_runtime_bringup" "skipped"
+    echo
+    banner "Client install finished"
+    cat <<EOF
+Next steps:
+  1. Open a new shell if needed so agentcore is on PATH (~/.local/bin)
+  2. From your app repo:  agentcore connect
+     (interactive SSH wizard, or agentcore connect --edit to re-auth)
+  3. Docs: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
+EOF
     return 0
   fi
 
   case "${runtime}" in
-    host) _stage_06_bringup_host ;;
+    venv|host) _stage_06_bringup_host ;;
     docker) _stage_06_bringup_docker ;;
     *) fail "unknown INSTALL_RUNTIME=${runtime}" ;;
   esac
@@ -139,19 +149,18 @@ stage_06_runtime_bringup_run() {
   ok "Stage 06 complete (runtime=${runtime})"
 
   echo
-  banner "AgentCore install finished"
+  banner "AgentCore SERVER install finished"
   cat <<EOF
 Next steps:
   1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
-  2. Server runtime selected: ${runtime}
-  3. Clients (Cursor / laptop) are NOT Dockerized — wire them with agentcore connect / MCP URL
+  2. Server MCP mode: ${runtime}
+  3. On coding-agent machines: bash install.sh --role client   then   agentcore connect
   4. Run:  agentcore --help && agentcore doctor
   5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
   6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
-            docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
-            docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
+            docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 
 Compose env (secrets): ${COMPOSE_ENV_FILE}
-Re-check anytime:       bash install.sh --check --non-interactive --runtime ${runtime}
+Re-check anytime:       bash install.sh --check --non-interactive --role server --runtime ${runtime}
 EOF
 }

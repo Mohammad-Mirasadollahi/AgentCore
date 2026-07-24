@@ -31,27 +31,40 @@ source "{LIB.as_posix()}/common.sh"
     )
 
 
-def test_normalize_install_runtime_accepts_host_and_docker() -> None:
+def test_normalize_install_runtime_accepts_venv_host_docker() -> None:
     proc = _bash_snippet(
-        'normalize_install_runtime host; echo; normalize_install_runtime docker; echo; '
-        'normalize_install_runtime weird || echo bad'
+        "normalize_install_runtime venv; echo; "
+        "normalize_install_runtime host; echo; "
+        "normalize_install_runtime docker; echo; "
+        "normalize_install_runtime weird || echo bad"
     )
     assert proc.returncode == 0, proc.stderr
     lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
-    assert lines[:2] == ["host", "docker"]
+    assert lines[:3] == ["venv", "venv", "docker"]
+    assert "bad" in lines
+
+
+def test_normalize_install_role() -> None:
+    proc = _bash_snippet(
+        "normalize_install_role client; echo; normalize_install_role server; echo; "
+        "normalize_install_role weird || echo bad"
+    )
+    assert proc.returncode == 0, proc.stderr
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[:2] == ["client", "server"]
     assert "bad" in lines
 
 
 def test_resolve_runtime_honors_flag_noninteractive() -> None:
     proc = _bash_snippet(
-        "resolve_install_runtime; printf '%s\\n' \"${INSTALL_RUNTIME}\"",
+        "INSTALL_ROLE=server; resolve_install_runtime; printf '%s\\n' \"${INSTALL_RUNTIME}\"",
         env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_RUNTIME": "docker", "INSTALL_SKIP_INFRA": "0"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert proc.stdout.strip().splitlines()[-1] == "docker"
 
 
-def test_resolve_runtime_defaults_host_when_noninteractive(tmp_path: Path) -> None:
+def test_resolve_runtime_defaults_venv_when_noninteractive(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     state_dir.mkdir()
     state_file = state_dir / "install-state.env"
@@ -60,25 +73,94 @@ def test_resolve_runtime_defaults_host_when_noninteractive(tmp_path: Path) -> No
 INSTALL_STATE_DIR="{state_dir.as_posix()}"
 INSTALL_STATE_FILE="{state_file.as_posix()}"
 INSTALL_RUNTIME=""
+INSTALL_ROLE=server
 resolve_install_runtime
 printf "%s\\n" "${{INSTALL_RUNTIME}}"
 ''',
         env={"INSTALL_NONINTERACTIVE": "1"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    assert proc.stdout.strip().splitlines()[-1] == "host"
+    assert proc.stdout.strip().splitlines()[-1] == "venv"
+
+
+def test_resolve_role_client_from_skip_infra() -> None:
+    proc = _bash_snippet(
+        "INSTALL_ROLE=; resolve_install_role; printf '%s\\n' \"${INSTALL_ROLE}\" \"${INSTALL_SKIP_INFRA}\"",
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_SKIP_INFRA": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[-2:] == ["client", "1"]
+
+
+def test_client_role_skips_runtime_prompt() -> None:
+    proc = _bash_snippet(
+        "INSTALL_ROLE=client; INSTALL_RUNTIME=; resolve_install_runtime; "
+        "printf '%s\\n' \"${INSTALL_RUNTIME}\"",
+        env={"INSTALL_NONINTERACTIVE": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "venv"
 
 
 def test_docker_runtime_rejects_skip_infra() -> None:
     proc = _bash_snippet(
-        "resolve_install_runtime",
+        "INSTALL_ROLE=server; resolve_install_runtime",
         env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_RUNTIME": "docker", "INSTALL_SKIP_INFRA": "1"},
     )
     assert proc.returncode != 0
     assert "skip-infra" in (proc.stderr + proc.stdout).lower()
 
 
-def test_install_help_mentions_runtime() -> None:
+def test_normalize_install_action() -> None:
+    proc = _bash_snippet(
+        "normalize_install_action install; echo; normalize_install_action upgrade; echo; "
+        "normalize_install_action weird || echo bad"
+    )
+    assert proc.returncode == 0, proc.stderr
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[:2] == ["install", "upgrade"]
+    assert "bad" in lines
+
+
+def test_confirm_install_action_requires_exact_yes() -> None:
+    proc = _bash_snippet(
+        "confirm_install_action install <<'EOF'\nno\nEOF",
+        env={"INSTALL_NONINTERACTIVE": "0", "INSTALL_ASSUME_YES": "0"},
+    )
+    # Without TTY, confirm fails closed unless --yes/--non-interactive
+    assert proc.returncode != 0
+
+
+def test_confirm_install_action_skips_with_assume_yes() -> None:
+    proc = _bash_snippet(
+        "confirm_install_action upgrade; echo ok",
+        env={"INSTALL_ASSUME_YES": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "ok" in proc.stdout
+
+
+def test_resolve_action_noninteractive_defaults_install() -> None:
+    proc = _bash_snippet(
+        "resolve_install_action; printf '%s\\n' \"${INSTALL_ACTION}\"",
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "0"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "install"
+
+
+def test_resolve_action_locked_upgrade() -> None:
+    proc = _bash_snippet(
+        "INSTALL_ACTION_LOCKED=1; resolve_install_action upgrade; "
+        "printf '%s\\n' \"${INSTALL_ACTION}\"",
+        env={"INSTALL_NONINTERACTIVE": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "upgrade"
+
+
+def test_install_help_mentions_role_and_venv() -> None:
     proc = subprocess.run(
         ["bash", str(ROOT / "install.sh"), "--help"],
         cwd=ROOT,
@@ -87,17 +169,23 @@ def test_install_help_mentions_runtime() -> None:
         check=False,
     )
     assert proc.returncode == 0
+    assert "--role" in proc.stdout
     assert "--runtime" in proc.stdout
-    assert "host" in proc.stdout and "docker" in proc.stdout
-    assert "SERVER" in proc.stdout or "server" in proc.stdout
-    assert "client" in proc.stdout.lower()
-    assert "never" in proc.stdout.lower() or "not" in proc.stdout.lower()
+    assert "--yes" in proc.stdout
+    assert "venv" in proc.stdout and "docker" in proc.stdout
+    assert "client" in proc.stdout.lower() and "server" in proc.stdout.lower()
+    assert "upgrade" in proc.stdout.lower()
+    assert "yes" in proc.stdout.lower()
 
 
-def test_prompt_copy_says_clients_not_dockerized() -> None:
+def test_prompt_copy_mentions_client_or_server() -> None:
     text = (LIB / "common.sh").read_text(encoding="utf-8")
-    assert "clients are never Dockerized" in text or "Clients are never Dockerized" in text
-    assert "SERVER runtime" in text or "server" in text.lower()
+    assert "Install client or server" in text
+    assert "Install new or upgrade existing" in text
+    assert "1=venv" in text or "venv" in text
+    assert "prompt_install_role" in text
+    assert "prompt_install_action" in text
+    assert "confirm_install_action" in text
 
 
 def test_list_stages_includes_runtime_bringup() -> None:

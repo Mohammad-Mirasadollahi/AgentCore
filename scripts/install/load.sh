@@ -35,7 +35,7 @@ list_install_stages() {
     name="${entry%%:*}"
     echo "  - ${name}"
   done
-  echo "Runtime modes (SERVER only): host | docker — clients are never Dockerized"
+  echo "Roles: client | server — then SERVER MCP mode: venv | docker (alias: host→venv)"
 }
 
 run_install_stage() {
@@ -46,6 +46,7 @@ run_install_stage() {
     fn="${entry#*:}"
     if [[ "${name}" == "${want}" ]]; then
       if [[ "${name}" == "06_runtime_bringup" ]]; then
+        resolve_install_role
         resolve_install_runtime
       fi
       "${fn}"
@@ -60,6 +61,7 @@ run_install_all() {
   ensure_state_dir
 
   # Interactive / flagged choice before stages that depend on it.
+  resolve_install_role
   resolve_install_runtime
 
   # Human full installs must install OS prerequisites (ignore accidental skip).
@@ -93,31 +95,45 @@ run_install_upgrade() {
   fi
   ok "backup → ${backup_dir}"
 
-  # Prefer non-interactive during upgrade unless operator already set flags.
+  # Prefer persisted role/runtime; interactive upgrades still skip re-prompting those
+  # (action+yes already confirmed). Force noninteractive for role/runtime only.
+  if [[ -z "${INSTALL_ROLE}" ]]; then
+    INSTALL_ROLE="$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)"
+    INSTALL_ROLE="${INSTALL_ROLE:-server}"
+    export INSTALL_ROLE
+  fi
   if [[ -z "${INSTALL_RUNTIME}" ]]; then
     INSTALL_RUNTIME="$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)"
-    INSTALL_RUNTIME="${INSTALL_RUNTIME:-host}"
+    INSTALL_RUNTIME="$(normalize_install_runtime "${INSTALL_RUNTIME:-venv}" || printf '%s\n' "venv")"
     export INSTALL_RUNTIME
   fi
-  INSTALL_NONINTERACTIVE="${INSTALL_NONINTERACTIVE:-1}"
+  local saved_ni="${INSTALL_NONINTERACTIVE:-0}"
+  INSTALL_NONINTERACTIVE=1
   export INSTALL_NONINTERACTIVE
 
   run_install_all
 
+  INSTALL_NONINTERACTIVE="${saved_ni}"
+  export INSTALL_NONINTERACTIVE
+
   cli="${AGENTCORE_ROOT}/.venv/bin/agentcore"
-  runtime_arg="${INSTALL_RUNTIME:-host}"
+  runtime_arg="${INSTALL_RUNTIME:-venv}"
   if [[ -x "${cli}" ]]; then
     info "Stamping upgrade evidence via agentcore upgrade finalize"
+    case "${runtime_arg}" in
+      venv) runtime_arg="host" ;;
+    esac
     run "${cli}" upgrade finalize --runtime "${runtime_arg}"
   else
     warn "agentcore CLI missing after upgrade; wrote backup only at ${backup_dir}"
   fi
-  ok "upgrade complete (runtime=${runtime_arg})"
+  ok "upgrade complete (runtime=${INSTALL_RUNTIME:-venv})"
 }
 
 install_main() {
   local mode="${1:-all}"
   local stage_name="${2:-}"
+  local action=""
 
   case "${mode}" in
     list)
@@ -134,10 +150,19 @@ install_main() {
       run_install_stage "01_prerequisites"
       ;;
     upgrade)
+      INSTALL_ACTION_LOCKED=1
+      export INSTALL_ACTION_LOCKED
+      resolve_install_action "upgrade"
       run_install_upgrade
       ;;
     all|*)
-      run_install_all
+      resolve_install_action ""
+      action="${INSTALL_ACTION}"
+      if [[ "${action}" == "upgrade" ]]; then
+        run_install_upgrade
+      else
+        run_install_all
+      fi
       ;;
   esac
 }

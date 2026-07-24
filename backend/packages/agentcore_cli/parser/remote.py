@@ -56,7 +56,12 @@ def register(sub: argparse._SubParsersAction) -> None:
     install.add_argument(
         "--shell-rc",
         default="",
-        help="Optional rc file to append PATH export (e.g. .bashrc)",
+        help="Override rc file for PATH export (default: auto .bashrc+.profile or .zshrc; create if missing)",
+    )
+    install.add_argument(
+        "--no-shell-rc",
+        action="store_true",
+        help="Only create the symlink; do not modify shell rc files",
     )
 
     ports = sub.add_parser("ports", help="Port profile preflight")

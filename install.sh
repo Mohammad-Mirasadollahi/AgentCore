@@ -3,9 +3,10 @@
 #
 # Usage:
 #   bash install.sh
-#   bash install.sh --runtime host
-#   bash install.sh --runtime docker
-#   bash install.sh --non-interactive --runtime host
+#   bash install.sh --role server --runtime venv
+#   bash install.sh --role server --runtime docker
+#   bash install.sh --role client
+#   bash install.sh --non-interactive --role server --runtime venv
 #   bash install.sh --upgrade
 #   bash install.sh --check
 #   bash install.sh --prerequisites-only
@@ -44,13 +45,15 @@ Usage:
   bash install.sh [options]
 
 Options:
-  --runtime MODE          Bring-up mode: host | docker (skip interactive prompt)
-  --non-interactive       No prompts; default --runtime host if omitted
-  --upgrade               Upgrade existing install (backup state, re-run stages, stamp versions)
+  --role ROLE             client | server (skips role prompt)
+  --runtime MODE          SERVER MCP mode: venv | docker (alias: host→venv)
+  --non-interactive       No prompts; default action=install, role=server, runtime=venv
+  --yes, -y               Skip the interactive "type yes" confirmation
+  --upgrade               Upgrade existing install (still asks for yes unless --yes/--non-interactive)
   --check                 Verify stages only (no installs / no compose changes)
   --prerequisites-only    Install/check OS deps (Python, Docker, curl, git) then exit
   --skip-prerequisites    Do not apt-install (non-interactive/CI only; ignored interactively)
-  --skip-infra            Skip Compose env + containers + runtime bring-up
+  --skip-infra            Client shortcut: same as --role client (skip Compose + MCP bring-up)
   --with-frontend         Also ensure Node.js 18+ (for frontend/)
   --with-ai-toolstack     After verify, run ai-toolstack/scripts/install-agentcore.sh
   --stage NAME            Run a single stage (see --list-stages)
@@ -58,21 +61,26 @@ Options:
   --compose-timeout SEC   Health wait timeout (default 180)
   -h, --help              Show this help
 
-Runtime modes (AgentCore SERVER only — clients are never Dockerized):
-  host    Server: Compose Postgres/Neo4j + MCP HTTP from server .venv
-  docker  Server: Compose Postgres/Neo4j + MCP HTTP container (mcp-gateway)
+Interactive (TTY, no flags):
+  1) install or upgrade?
+  2) type yes to confirm
+  3) if install → client or server?
+  4) if server → venv or docker MCP?
 
-Coding-agent clients (Cursor, remote laptop, `agentcore connect`) run on the
-client machine and only connect to this server — no client Docker stack.
+Roles:
+  client  Coding-agent machine: CLI + .venv only; then run agentcore connect
+  server  AgentCore platform: Compose Postgres/Neo4j + MCP
 
-Both server modes always: install prerequisites (interactive), create .venv,
-put agentcore on the SERVER PATH.
+SERVER MCP modes (infra always Compose):
+  venv    MCP HTTP from this machine's Python .venv (recommended; was formerly "host")
+  docker  MCP HTTP in mcp-gateway container
 
 Default flow (all stages):
   01_prerequisites → 02_venv → 03_compose_env → 04_docker_infra → 05_verify → 06_runtime_bringup
+  (client role skips compose/infra/bring-up stages that respect --skip-infra)
 
-Upgrade flow (--upgrade):
-  backup install-state → same stages → agentcore upgrade finalize
+Upgrade flow (--upgrade or interactive choice "upgrade"):
+  confirm yes → backup install-state → same stages → agentcore upgrade finalize
 
 EOF
 }
@@ -84,12 +92,21 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --runtime)
-      [[ $# -ge 2 ]] || { echo "error: --runtime needs host|docker" >&2; exit 64; }
+      [[ $# -ge 2 ]] || { echo "error: --runtime needs venv|docker (alias: host)" >&2; exit 64; }
       export INSTALL_RUNTIME="$2"
+      shift 2
+      ;;
+    --role)
+      [[ $# -ge 2 ]] || { echo "error: --role needs client|server" >&2; exit 64; }
+      export INSTALL_ROLE="$2"
       shift 2
       ;;
     --upgrade)
       MODE="upgrade"
+      shift
+      ;;
+    --yes|-y)
+      export INSTALL_ASSUME_YES=1
       shift
       ;;
     --check)
