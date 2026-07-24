@@ -46,6 +46,37 @@ fail() {
   exit 1
 }
 
+# curl|bash leaves stdin as the script pipe. Prompt via /dev/tty when needed.
+install_can_prompt() {
+  if [[ "${INSTALL_NONINTERACTIVE}" == "1" ]]; then
+    return 1
+  fi
+  if [[ -t 0 ]]; then
+    return 0
+  fi
+  if { true <>/dev/tty; } 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+# Read one operator line (stdin TTY, else /dev/tty). Prints the answer on stdout.
+install_read_line() {
+  local prompt="$1"
+  local ans=""
+  if [[ -t 0 ]]; then
+    printf '%s' "${prompt}" >&2
+    read -r ans || true
+  elif { true <>/dev/tty; } 2>/dev/null; then
+    printf '%s' "${prompt}" >/dev/tty 2>/dev/null || true
+    read -r ans </dev/tty 2>/dev/null || true
+    printf '\n' >/dev/tty 2>/dev/null || true
+  else
+    fail "cannot prompt (no TTY); pass --yes / --non-interactive"
+  fi
+  printf '%s\n' "${ans}"
+}
+
 banner() {
   local title="$1"
   log "================================================================"
@@ -234,8 +265,7 @@ prompt_install_action() {
        force upgrade — bash install.sh --upgrade --yes
 EOF
   while true; do
-    printf 'Select action [1=install / 2=upgrade] (default: 1): ' >&2
-    read -r choice || true
+    choice="$(install_read_line 'Select action [1=install / 2=upgrade] (default: 1): ')"
     choice="${choice:-1}"
     case "${choice}" in
       1|install|INSTALL) printf '%s\n' "install"; return 0 ;;
@@ -253,12 +283,11 @@ confirm_install_action() {
     info "Confirmation skipped (--yes or --non-interactive); proceeding with ${action}"
     return 0
   fi
-  if [[ ! -t 0 ]]; then
+  if ! install_can_prompt; then
     fail "refusing ${action} without TTY confirmation; re-run interactively or pass --yes / --non-interactive"
   fi
   banner "Confirm ${action}"
-  printf 'Type yes to continue with %s (anything else aborts): ' "${action}" >&2
-  read -r answer || true
+  answer="$(install_read_line "Type yes to continue with ${action} (anything else aborts): ")"
   if [[ "${answer}" != "yes" ]]; then
     fail "aborted: expected exactly 'yes' (got '${answer:-}')"
   fi
@@ -277,7 +306,7 @@ resolve_install_action() {
   elif [[ "${INSTALL_ACTION_LOCKED:-0}" == "1" && -n "${preferred}" ]]; then
     resolved="$(normalize_install_action "${preferred}" || true)"
     [[ -n "${resolved}" ]] || fail "invalid action '${preferred}' (want: install|upgrade)"
-  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+  elif install_can_prompt; then
     resolved="$(prompt_install_action)"
   elif [[ -n "${preferred}" ]]; then
     resolved="$(normalize_install_action "${preferred}" || true)"
@@ -315,8 +344,7 @@ prompt_install_role() {
        client shortcut: --skip-infra
 EOF
   while true; do
-    printf 'Select install target [1=client / 2=server] (default: 2): ' >&2
-    read -r choice || true
+    choice="$(install_read_line 'Select install target [1=client / 2=server] (default: 2): ')"
     choice="${choice:-2}"
     case "${choice}" in
       1|client|CLIENT) printf '%s\n' "client"; return 0 ;;
@@ -338,8 +366,7 @@ prompt_install_runtime() {
   (Legacy name for venv was "host"; --runtime host still works as an alias.)
 EOF
   while true; do
-    printf 'Select SERVER MCP mode [1=venv / 2=docker] (default: 1): ' >&2
-    read -r choice || true
+    choice="$(install_read_line 'Select SERVER MCP mode [1=venv / 2=docker] (default: 1): ')"
     choice="${choice:-1}"
     case "${choice}" in
       1|venv|VENV|host|HOST) printf '%s\n' "venv"; return 0 ;;
@@ -365,7 +392,7 @@ resolve_install_role() {
     # Explicit server MCP mode implies server install.
     resolved="server"
     info "Install role=server (from --runtime)"
-  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+  elif install_can_prompt; then
     resolved="$(prompt_install_role)"
   else
     if [[ -f "${INSTALL_STATE_FILE}" ]]; then
@@ -409,7 +436,7 @@ resolve_install_runtime() {
   if [[ -n "${INSTALL_RUNTIME}" ]]; then
     resolved="$(normalize_install_runtime "${INSTALL_RUNTIME}" || true)"
     [[ -n "${resolved}" ]] || fail "invalid --runtime '${INSTALL_RUNTIME}' (want: venv|docker; alias: host→venv)"
-  elif [[ "${INSTALL_NONINTERACTIVE}" != "1" ]] && [[ -t 0 ]]; then
+  elif install_can_prompt; then
     resolved="$(prompt_install_runtime)"
   else
     if [[ -f "${INSTALL_STATE_FILE}" ]]; then

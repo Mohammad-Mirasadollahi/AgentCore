@@ -128,8 +128,18 @@ def test_confirm_install_action_requires_exact_yes() -> None:
         "confirm_install_action install <<'EOF'\nno\nEOF",
         env={"INSTALL_NONINTERACTIVE": "0", "INSTALL_ASSUME_YES": "0"},
     )
-    # Without TTY, confirm fails closed unless --yes/--non-interactive
+    # Without stdin TTY and without usable /dev/tty, confirm fails closed
+    # unless --yes/--non-interactive (curl|bash uses /dev/tty when present).
     assert proc.returncode != 0
+
+
+def test_install_can_prompt_respects_noninteractive() -> None:
+    proc = _bash_snippet(
+        "install_can_prompt && echo yes || echo no",
+        env={"INSTALL_NONINTERACTIVE": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip().splitlines()[-1] == "no"
 
 
 def test_confirm_install_action_skips_with_assume_yes() -> None:
@@ -186,6 +196,9 @@ def test_prompt_copy_mentions_client_or_server() -> None:
     assert "prompt_install_role" in text
     assert "prompt_install_action" in text
     assert "confirm_install_action" in text
+    assert "install_can_prompt" in text
+    assert "install_read_line" in text
+    assert "/dev/tty" in text
 
 
 def test_list_stages_includes_runtime_bringup() -> None:
