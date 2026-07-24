@@ -171,6 +171,9 @@ def cmd_upgrade_client(args: argparse.Namespace) -> int:
     except UpgradeError as exc:
         raise SystemExit(f"error: {exc}") from exc
     print_json(result)
+    from agentcore_cli.client_next_steps import print_client_connect_next_steps
+
+    print_client_connect_next_steps(heading="Next — Usage Profile id (after client upgrade)")
     return 0
 
 

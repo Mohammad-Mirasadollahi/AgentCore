@@ -9,8 +9,11 @@ SSH-only detail:
 ## Quick start
 
 ```bash
-# Dev host — interactive SSH wizard (no connect.yaml required)
+# Dev host — interactive SSH wizard (cwd = that project for MCP + sync)
 cd /opt/MyApp && agentcore connect
+
+# Several apps at once (comma-separated); each gets MCP + sync pin
+agentcore connect /opt/App1,/opt/App2,/opt/App3
 
 # Re-auth / replace AgentCore pubkey
 agentcore connect edit

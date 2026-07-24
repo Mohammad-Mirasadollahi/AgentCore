@@ -441,6 +441,8 @@ prompt_install_role() {
 
   Tip: non-interactive flags — --role client | --role server | --role both
        client shortcut: --skip-infra
+       After client install: cd /your/app && agentcore connect
+       (or: agentcore connect /app1,/app2) — that path is the sync project
 EOF
   while true; do
     choice="$(install_read_line 'Select install target [1=client / 2=server / 3=both]: ')"

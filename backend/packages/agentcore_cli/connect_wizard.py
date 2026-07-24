@@ -58,6 +58,47 @@ def _prompt_line(prompt: str, *, default: str = "", input_fn: PromptFn = input) 
     return raw or default
 
 
+def prompt_usage_profile(
+    *,
+    default: str = "",
+    input_fn: PromptFn = input,
+) -> str:
+    """Ask for a Usage Profile id (catalog). Empty default — chosen at connect, not install."""
+    from usage_profile import list_profile_ids, load_usage_profile
+
+    ids = list(list_profile_ids())
+    if not ids:
+        raise SystemExit("error: no Usage Profiles installed (usage_profile catalog empty)")
+    ui.blank()
+    print("   Usage Profiles (choose at connect — not set during client install):")
+    for index, profile_id in enumerate(ids, start=1):
+        try:
+            title = str(load_usage_profile(profile_id).get("title") or "")
+        except Exception:  # noqa: BLE001 — listing must not fail on one bad profile
+            title = ""
+        label = f"{profile_id}" + (f" — {title}" if title else "")
+        mark = " *" if profile_id == default else ""
+        print(f"     {index}) {label}{mark}")
+    ui.blank()
+    hint = default if default in ids else ""
+    while True:
+        raw = _prompt_line("Usage Profile id or number", default=hint, input_fn=input_fn).strip()
+        if not raw:
+            raise SystemExit(
+                "error: Usage Profile is required at connect "
+                "(pass --usage-profile or choose interactively)"
+            )
+        if raw.isdigit():
+            idx = int(raw)
+            if 1 <= idx <= len(ids):
+                return ids[idx - 1]
+            print(f"   {ui.warn('!')} enter 1–{len(ids)} or a profile id")
+            continue
+        if raw in ids:
+            return raw
+        print(f"   {ui.warn('!')} unknown profile {raw!r}; pick from the list")
+
+
 def run_ssh_connect_wizard(
     *,
     existing: ConnectSettings | None = None,
@@ -78,6 +119,7 @@ def run_ssh_connect_wizard(
     ui.blank()
     ui.bullet("Password is used once to install an AgentCore SSH key; it is never saved.")
     ui.bullet("Remote AgentCore root is auto-discovered from install-root markers after SSH.")
+    ui.bullet("Usage Profile is chosen here at connect (not during client install).")
     ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use connect edit to change SSH identity.")
     ui.blank()
 
@@ -92,6 +134,10 @@ def run_ssh_connect_wizard(
 
     tenant = _prompt_line("Tenant", default=base.tenant or "default", input_fn=input_fn)
     workspace = _prompt_line("Workspace", default=base.workspace or "default", input_fn=input_fn)
+    usage_profile = prompt_usage_profile(
+        default=(base.usage_profile or "").strip(),
+        input_fn=input_fn,
+    )
     project = base.project or work.name or "project"
 
     password = password_fn(f"SSH password for {ssh_target}: ")
@@ -120,15 +166,12 @@ def run_ssh_connect_wizard(
         remote_root = str(discovered)
         print(f"   {ui.ok('✔')} remote root {remote_root}")
     else:
-        hint = (base.remote_root or "").strip() or "/opt/AgentCore"
-        print(
-            f"   {ui.warn('!')} no install-root marker found; "
-            "ask once (server should run install / stamp markers)"
-        )
-        remote_root = _prompt_line(
-            "AgentCore remote root",
-            default=hint,
-            input_fn=input_fn,
+        raise SystemExit(
+            "error: could not discover AgentCore remote root (no install-root marker).\n"
+            "  On the server: finish install so markers are stamped "
+            "(.agentcore/install-root), then retry connect.\n"
+            "  Or set server.remote_root in .agentcore/connect.yaml and re-run "
+            "after markers exist (connect does not prompt for this path)."
         )
 
     settings = replace(
@@ -140,6 +183,7 @@ def run_ssh_connect_wizard(
         workspace=workspace,
         project=project,
         project_name=base.project_name or project,
+        usage_profile=usage_profile,
         prefer_http=False,
         local=False,
         register=bool(base.register),

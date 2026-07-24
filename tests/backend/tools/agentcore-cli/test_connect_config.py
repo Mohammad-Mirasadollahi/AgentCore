@@ -41,23 +41,29 @@ def test_project_defaults_to_cwd_name(tmp_path: Path, monkeypatch):
 
 
 def test_write_connect_template(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.chdir(tmp_path)
     path = write_connect_template()
     assert path == tmp_path / ".agentcore" / "connect.yaml"
     assert path.is_file()
     assert "server:" in path.read_text(encoding="utf-8")
 
 
-def test_default_config_paths_prefer_repo(tmp_path: Path, monkeypatch):
+def test_default_config_paths_prefer_project_cwd(tmp_path: Path, monkeypatch):
     from agentcore_cli.connect_config import default_config_paths, default_connect_yaml_path
 
-    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    project = tmp_path / "MyApp"
+    project.mkdir()
+    install = tmp_path / "AgentCore"
+    install.mkdir()
     home = tmp_path / "home"
     home.mkdir()
+    monkeypatch.chdir(project)
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: install)
     monkeypatch.setattr(Path, "home", lambda: home)
     paths = default_config_paths()
     assert paths[0] == default_connect_yaml_path()
-    assert paths[0] == tmp_path / ".agentcore" / "connect.yaml"
+    assert paths[0] == project / ".agentcore" / "connect.yaml"
+    assert any(p == install / ".agentcore" / "connect.yaml" for p in paths)
     assert any(p == home / ".agentcore" / "connect.yaml" for p in paths)
 
 
@@ -84,7 +90,7 @@ def test_write_connect_template_refuses_overwrite(tmp_path: Path, monkeypatch):
     target = tmp_path / ".agentcore" / "connect.yaml"
     target.parent.mkdir(parents=True)
     target.write_text("existing", encoding="utf-8")
-    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit):
         write_connect_template()
 

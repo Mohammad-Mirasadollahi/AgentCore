@@ -1,7 +1,7 @@
-"""Load connect.yaml from the AgentCore checkout ``.agentcore/`` (client-local).
+"""Load connect.yaml from the app checkout ``.agentcore/`` (client-local).
 
-Primary path: ``<repo_root>/.agentcore/connect.yaml``.
-Legacy fallback: ``~/.agentcore/connect.yaml`` (still read if present).
+Primary path: ``<project-cwd>/.agentcore/connect.yaml``.
+Fallback: AgentCore install ``.agentcore/``, then legacy ``~/.agentcore/``.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class ConnectSettings:
     workspace: str = "default"
     project: str = ""
     project_name: str = ""
-    usage_profile: str = "programming-cursor-mcp"
+    usage_profile: str = ""
     clients: str = "all"
     include_user_clients: bool = False
     register: bool = True
@@ -53,17 +53,29 @@ def repo_agentcore_dir(root: Path | None = None) -> Path:
     return (root or repo_root()) / ".agentcore"
 
 
+def project_agentcore_dir(project_root: Path | None = None) -> Path:
+    """App-checkout state dir: ``<project>/.agentcore`` (defaults to cwd)."""
+    return (project_root or Path.cwd()).resolve() / ".agentcore"
+
+
 def default_connect_yaml_path(root: Path | None = None) -> Path:
-    """Canonical write/read target for new connect configs."""
-    return repo_agentcore_dir(root) / "connect.yaml"
+    """Canonical write target: project checkout ``.agentcore/connect.yaml`` (cwd when omitted)."""
+    return project_agentcore_dir(root) / "connect.yaml"
 
 
 def default_config_paths(root: Path | None = None) -> list[Path]:
-    """Resolve order: checkout ``.agentcore/`` first, then legacy ``~/.agentcore/``."""
-    repo_base = repo_agentcore_dir(root)
+    """Resolve order: project checkout → AgentCore install → legacy ``~/.agentcore/``."""
+    from agentcore_cli.util import repo_root
+
+    project_base = project_agentcore_dir(root)
+    install_base = repo_agentcore_dir()
     home_base = Path.home() / ".agentcore"
+    bases: list[Path] = []
+    for base in (project_base, install_base, home_base):
+        if base not in bases:
+            bases.append(base)
     out: list[Path] = []
-    for base in (repo_base, home_base):
+    for base in bases:
         out.extend(
             [
                 base / "connect.yaml",
@@ -74,16 +86,16 @@ def default_config_paths(root: Path | None = None) -> list[Path]:
     return out
 
 
-def resolve_config_path(explicit: str = "") -> Path:
+def resolve_config_path(explicit: str = "", *, project_root: Path | None = None) -> Path:
     if explicit.strip():
         path = Path(explicit).expanduser()
         if not path.is_file():
             raise SystemExit(f"error: connect config not found: {path}")
         return path
-    for candidate in default_config_paths():
+    for candidate in default_config_paths(project_root):
         if candidate.is_file():
             return candidate
-    hint = default_connect_yaml_path()
+    hint = default_connect_yaml_path(project_root)
     raise SystemExit(
         f"error: no connect config; run `agentcore connect init` or create {hint}"
     )
@@ -113,8 +125,10 @@ def load_connect_settings(
     clients_override: str = "",
     cwd: Path | None = None,
     allow_incomplete: bool = False,
+    project_root: Path | None = None,
 ) -> ConnectSettings:
-    path = resolve_config_path(config_path)
+    work = cwd or project_root or Path.cwd()
+    path = resolve_config_path(config_path, project_root=work)
     doc = _read_config_file(path)
     reject_secrets_in_connect_doc(doc, path)
     server = doc.get("server") or {}
@@ -136,7 +150,7 @@ def load_connect_settings(
         workspace=str(scope.get("workspace") or "default").strip(),
         project=str(scope.get("project") or "").strip(),
         project_name=str(scope.get("name") or scope.get("project_name") or "").strip(),
-        usage_profile=str(doc.get("usage_profile") or "programming-cursor-mcp").strip(),
+        usage_profile=str(doc.get("usage_profile") or "").strip(),
         clients=str(doc.get("clients") or "all").strip(),
         include_user_clients=bool(doc.get("include_user_clients")),
         register=bool(connect.get("register", True)),
@@ -175,7 +189,6 @@ def load_connect_settings(
     if clients_override.strip():
         settings.clients = clients_override.strip()
 
-    work = cwd or Path.cwd()
     if project_override.strip():
         settings.project = project_override.strip()
     elif not settings.project:
@@ -203,8 +216,10 @@ CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-a
 # Lives under this checkout: .agentcore/connect.yaml (gitignored).
 # Preferred first-time path: run `agentcore connect` in a TTY (interactive SSH wizard).
 # Re-auth / replace pubkey: `agentcore connect edit`
+# Multi-project: `agentcore connect /path/a,/path/b` (comma-separated; pins all for sync)
 # Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
 # breaks BatchMode login, run `agentcore connect edit` (do not store OS passwords here).
+# Sync uses the project dir(s) you connected (pinned software paths).
 #
 # --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
 # server:
@@ -239,7 +254,7 @@ scope:
   workspace: eng
   # project: defaults to current directory name
 
-usage_profile: programming-cursor-mcp
+# usage_profile is chosen during `agentcore connect` (not at client install time)
 clients: all
 
 source:
@@ -315,7 +330,8 @@ def write_or_merge_connect_yaml(
     if settings.project_name and settings.project_name != settings.project:
         scope["name"] = settings.project_name
 
-    doc["usage_profile"] = settings.usage_profile or doc.get("usage_profile") or "programming-cursor-mcp"
+    if settings.usage_profile:
+        doc["usage_profile"] = settings.usage_profile
     if settings.clients:
         doc["clients"] = settings.clients
 
@@ -326,6 +342,10 @@ def write_or_merge_connect_yaml(
     if settings.ingest_mode:
         connect["ingest"] = settings.ingest_mode
 
+    if settings.source_server_path:
+        source = _ensure_mapping(doc, "source")
+        source["server_path"] = settings.source_server_path
+
     from agentcore_cli.connect_security import atomic_write_text
 
     body = yaml.safe_dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
@@ -334,12 +354,16 @@ def write_or_merge_connect_yaml(
     return target
 
 
-def try_resolve_config_path(explicit: str = "") -> Path | None:
+def try_resolve_config_path(
+    explicit: str = "",
+    *,
+    project_root: Path | None = None,
+) -> Path | None:
     """Like resolve_config_path but returns None when missing (for wizard entry)."""
     if explicit.strip():
         path = Path(explicit).expanduser()
         return path if path.is_file() else None
-    for candidate in default_config_paths():
+    for candidate in default_config_paths(project_root):
         if candidate.is_file():
             return candidate
     return None

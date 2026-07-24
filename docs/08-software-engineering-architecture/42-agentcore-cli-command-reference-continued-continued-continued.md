@@ -35,7 +35,7 @@ linked_symbols:
 - scripts/stamp_docs_revision.py::main
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
 x: 1
-doc_version: 1.1.4
+doc_version: 1.1.5
 updated_at: '2026-07-24'
 ---
 
@@ -189,13 +189,14 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 
 | | |
 | --- | --- |
-| **Why** | Materialize coding-agent MCP configs from `~/.agentcore/connect.yaml` (SSH, HTTP, or same-host local) |
-| **Required** | For normal connect: a connect config (create with `init`). For `--local`: AgentCore checkout available |
-| **Optional** | word `edit` or `init`, `--local`, `--config`, `--project`, `--ssh`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
-| **Example (template)** | `agentcore connect init` then edit `~/.agentcore/connect.yaml` |
+| **Why** | Materialize coding-agent MCP configs from `<project>/.agentcore/connect.yaml` (SSH, HTTP, or same-host local) |
+| **Required** | For normal connect: TTY wizard or a connect config (create with `init`). For `--local`: AgentCore checkout available |
+| **Optional** | word `edit` or `init`, `PATH[,PATH…]` (comma-separated project dirs; default cwd), `--local`, `--config`, `--project`, `--ssh`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
+| **Example (template)** | `agentcore connect init` then edit `<checkout>/.agentcore/connect.yaml` |
 | **Example (dogfood)** | `agentcore connect --local` (scope from `init` / identity / env — not hardcoded) |
-| **Example (remote)** | `agentcore connect` from the app repo after editing connect.yaml |
-| **What changes** | Writes/merges MCP JSON under project `.cursor/` / `.vscode/` (and optional user-global clients); may register project on server; may ingest/sync depending on connect options |
+| **Example (remote)** | `agentcore connect` from the app repo (cwd = that project for MCP + sync pins) |
+| **Example (multi)** | `agentcore connect /opt/App1,/opt/App2` |
+| **What changes** | Writes/merges MCP JSON under each project `.cursor/` / `.vscode/` (and optional user-global clients); pins software paths for sync; may register project on server; may ingest/sync depending on connect options |
 | **If you change scope in connect.yaml** | Re-run `connect` so MCP env and registration match the new scope |
 
 ### `agentcore sync`

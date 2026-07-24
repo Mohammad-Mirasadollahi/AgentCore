@@ -31,7 +31,7 @@ linked_symbols:
 - backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
 - backend/packages/agentcore_cli/connect_flow.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
-doc_version: 1.2.1
+doc_version: 1.2.2
 updated_at: '2026-07-24'
 ---
 
@@ -165,7 +165,15 @@ SSH mode only needs a completed `install.sh` and a login that can run:
 ```bash
 cd /opt/MyApp
 agentcore connect
-# prompts: host, username, password, remote_root, tenant, workspace
+# prompts: host, username, password, tenant, workspace (remote root auto-discovered)
+```
+
+`connect` uses **this directory** as the project (MCP under the checkout; path pinned for later `sync`).
+
+Several apps in one command (comma-separated):
+
+```bash
+agentcore connect /opt/App1,/opt/App2,/opt/App3
 ```
 
 Prefer a dedicated OS user (for example `ops`). The password is used **once** to install the AgentCore pubkey. After that, IDE MCP spawn uses **BatchMode + key only** — passwords do not work for IDE MCP spawn.
