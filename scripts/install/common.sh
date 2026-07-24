@@ -217,10 +217,11 @@ install_cli_on_path() {
 
   # Always persist PATH into the user's shell rc (path install creates rc if missing).
   # AGENTCORE_SHELL_RC overrides auto-detect (.bashrc/.profile or .zshrc).
+  # --quiet: install logs stay on our banners; skip JSON dump from the CLI.
   if [[ -n "${AGENTCORE_SHELL_RC:-}" ]]; then
-    run "${cli}" path install --shell-rc "${AGENTCORE_SHELL_RC}"
+    run "${cli}" path install --quiet --shell-rc "${AGENTCORE_SHELL_RC}"
   else
-    run "${cli}" path install
+    run "${cli}" path install --quiet
   fi
 
   if [[ ! -e "${link}" && ! -L "${link}" ]]; then
@@ -237,6 +238,33 @@ install_cli_on_path() {
 user_cli_on_path() {
   local link="${HOME}/.local/bin/agentcore"
   [[ -e "${link}" || -L "${link}" ]]
+}
+
+# True when ~/.local/bin/agentcore already points at this checkout's venv CLI.
+path_shim_matches_venv() {
+  local cli="${1:?}"
+  local link="${HOME}/.local/bin/agentcore"
+  [[ -x "${cli}" ]] || return 1
+  [[ -L "${link}" || -e "${link}" ]] || return 1
+  local want have
+  want="$(readlink -f "${cli}" 2>/dev/null || true)"
+  have="$(readlink -f "${link}" 2>/dev/null || true)"
+  [[ -n "${want}" && "${want}" == "${have}" ]]
+}
+
+# Always ensure ~/.local/bin is exported for this process and present on disk.
+ensure_agentcore_on_path() {
+  local venv_cli
+  venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+  export PATH="${HOME}/.local/bin:${PATH}"
+  [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
+  if path_shim_matches_venv "${venv_cli}" && command -v agentcore >/dev/null 2>&1; then
+    ok "PATH ready: ${HOME}/.local/bin/agentcore"
+    return 0
+  fi
+  install_cli_on_path "${venv_cli}"
+  user_cli_on_path || fail "agentcore still not on user PATH after install"
+  ok "PATH ready: ${HOME}/.local/bin/agentcore"
 }
 
 # Normalize INSTALL_ROLE → client|server.
@@ -501,15 +529,4 @@ resolve_install_runtime() {
   ensure_state_dir
   mark_stage "runtime" "${INSTALL_RUNTIME}"
   ok "Install runtime: ${INSTALL_RUNTIME}"
-}
-
-# Always ensure ~/.local/bin is exported for this process and present on disk.
-ensure_agentcore_on_path() {
-  local venv_cli
-  venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
-  export PATH="${HOME}/.local/bin:${PATH}"
-  [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
-  install_cli_on_path "${venv_cli}"
-  user_cli_on_path || fail "agentcore still not on user PATH after install"
-  ok "PATH ready: ${HOME}/.local/bin/agentcore"
 }

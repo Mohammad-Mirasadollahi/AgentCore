@@ -67,7 +67,7 @@ _stage_03_write_env() {
 }
 
 stage_03_compose_env_run() {
-  banner "Stage 03/05 — Compose environment file"
+  banner "Stage 03/06 — Compose environment file"
 
   # Always seed repo-root templates (idempotent; also covers --stage 03 alone).
   if [[ "${INSTALL_CHECK_ONLY}" != "1" ]]; then

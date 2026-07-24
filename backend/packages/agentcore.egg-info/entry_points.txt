@@ -1,2 +1,0 @@
-[console_scripts]
-agentcore = agentcore_cli.main:main

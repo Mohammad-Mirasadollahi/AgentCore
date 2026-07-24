@@ -25,6 +25,7 @@ htmlcov/
 venv/
 env/
 .smoke-temp/
+*.egg-info/
 
 # =============================================================================
 # AgentCore operator runtime (local data / logs / secrets — never commit)

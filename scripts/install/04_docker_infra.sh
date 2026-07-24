@@ -57,7 +57,7 @@ stage_04_docker_infra_check() {
 }
 
 stage_04_docker_infra_run() {
-  banner "Stage 04/05 — Docker infrastructure (PostgreSQL + Neo4j)"
+  banner "Stage 04/06 — Docker infrastructure (PostgreSQL + Neo4j)"
 
   if [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
     info "Skipping Docker infra (--skip-infra)"

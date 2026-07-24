@@ -101,7 +101,7 @@ _stage_01_ensure_python312() {
 }
 
 stage_01_prerequisites_run() {
-  banner "Stage 01/05 — System prerequisites"
+  banner "Stage 01/06 — System prerequisites"
 
   if [[ "${INSTALL_SKIP_PREREQS}" == "1" ]]; then
     info "Skipping prerequisite install (--skip-prerequisites)"
