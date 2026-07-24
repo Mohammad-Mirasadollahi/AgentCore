@@ -167,8 +167,31 @@ def _local_register(settings: ConnectSettings) -> Path:
     return path
 
 
+def _remote_is_dir(settings: ConnectSettings, path: str) -> bool:
+    """True when *path* is a directory on the SSH AgentCore host."""
+    if not path or not settings.ssh:
+        return False
+    return _run_ssh(settings, ["test", "-d", path]) == 0
+
+
+def _missing_server_source_message(path: str) -> str:
+    return (
+        f"{path} is not a directory on the AgentCore server "
+        "(set source.server_path in .agentcore/connect.yaml to a path that exists "
+        "there — NFS mount, clone, or synced tree — not the laptop checkout path)"
+    )
+
+
 def remote_ingest(settings: ConnectSettings) -> int:
     if not settings.source_server_path or not settings.ssh:
+        return 0
+    path = settings.source_server_path
+    if not _remote_is_dir(settings, path):
+        msg = _missing_server_source_message(path)
+        if settings.ingest_mode == "always":
+            print(f"   {ui.warn('!')} {msg}", file=sys.stderr)
+            return 1
+        print(f"   {ui.warn('!')} skipping ingest: {msg}")
         return 0
     root = settings.remote_root.rstrip("/\\")
     agentcore = f"{root}/.venv/bin/agentcore"
@@ -182,9 +205,9 @@ def remote_ingest(settings: ConnectSettings) -> int:
         "--project",
         settings.project,
         "--path",
-        settings.source_server_path,
+        path,
     ]
-    print(f"   {ui.warn('…')} syncing {settings.source_server_path} on server")
+    print(f"   {ui.warn('…')} syncing {path} on server")
     return _run_ssh(settings, remote_cmd)
 
 
@@ -213,6 +236,8 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
             remote_cmd.extend(["--path", str(path)])
         target = ", ".join(str(p) for p in paths)
     elif settings.source_server_path:
+        if not _remote_is_dir(settings, settings.source_server_path):
+            raise SystemExit(f"error: {_missing_server_source_message(settings.source_server_path)}")
         remote_cmd.extend(["--path", settings.source_server_path])
         target = settings.source_server_path
     else:
