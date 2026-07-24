@@ -4,7 +4,8 @@ Module contract:
 - Role: turn skipped nonconforming docs (and optional quality code debt) into
   CoreData tasks + a local JSON mirror the coding agent can read.
 - Source of truth: standards_gate skipped paths; optional quality-audit code rows.
-- Failures: store/create errors are best-effort — never fail sync.
+- Failures: store/create errors are best-effort — never fail sync; surface
+  ``create_errors`` when CoreData write fails (e.g. missing service imports).
 """
 
 from __future__ import annotations
@@ -34,6 +35,26 @@ def _write_mirror(rows: list[dict[str, Any]]) -> Path:
     return path
 
 
+def _ensure_platform_imports() -> None:
+    """Make core-data + MCP platform backends importable from the CLI process."""
+    import sys
+
+    root = Path(repo_root()).resolve()
+    for rel in (
+        ("backend", "services", "mcp-gateway-service", "src"),
+        ("backend", "services", "core-data-service", "src"),
+        ("backend", "services", "memory-service", "src"),
+        ("backend", "services", "code-graph-service", "src"),
+        ("backend", "services", "docs-sync-service", "src"),
+        ("backend", "services", "common-context-service", "src"),
+        ("backend", "packages"),
+    ):
+        path = root.joinpath(*rel)
+        text = str(path)
+        if path.is_dir() and text not in sys.path:
+            sys.path.insert(0, text)
+
+
 def _try_create_core_task(
     *,
     title: str,
@@ -43,6 +64,7 @@ def _try_create_core_task(
 ) -> dict[str, Any] | None:
     backends = None
     try:
+        _ensure_platform_imports()
         from core_data_service.core import Kind
         from mcp_gateway_service.backends.platform import PlatformBackends
 
@@ -70,8 +92,8 @@ def _try_create_core_task(
             },
         )
         return record.public()
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as exc:  # noqa: BLE001 — sync must not fail on follow-up
+        return {"error": f"{type(exc).__name__}: {exc}", "ok": False}
     finally:
         if backends is not None:
             try:
@@ -158,6 +180,7 @@ def create_sync_followup_tasks(
             pass
 
     created: list[dict[str, Any]] = []
+    create_errors: list[str] = []
     mirrored: list[dict[str, Any]] = []
     project = str(getattr(scope, "project_id", "") or "agentcore")
     for spec in specs:
@@ -169,7 +192,9 @@ def create_sync_followup_tasks(
             scope=scope,
             idempotency_key=key,
         )
-        if public:
+        if public and public.get("ok") is False and public.get("error"):
+            create_errors.append(str(public["error"]))
+        elif public:
             created.append(public)
 
     mirror_path = _write_mirror(mirrored)
@@ -178,6 +203,7 @@ def create_sync_followup_tasks(
         "specs_count": len(specs),
         "tasks_created_count": len(created),
         "tasks_created": created,
+        "create_errors": create_errors,
         "mirror_path": str(mirror_path),
         "specs": mirrored,
     }
