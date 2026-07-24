@@ -136,6 +136,20 @@ def _pin_software_paths(settings: ConnectSettings, roots: list[Path]) -> None:
     )
 
 
+def _source_path_for_connect(*, local: bool, work: Path, configured: str = "") -> str:
+    """Ingest path: same-host cwd is fine; remote SSH needs an on-server path (or empty).
+
+    ``source.server_path`` must exist on the AgentCore host (NFS/clone), not the laptop
+    checkout path. Only dogfood ``--local`` may default to the client project dir.
+    """
+    text = (configured or "").strip()
+    if text:
+        return text
+    if local:
+        return str(work)
+    return ""
+
+
 def _connect_one(
     args: argparse.Namespace,
     *,
@@ -151,7 +165,10 @@ def _connect_one(
         settings = _settings_for_local(args, work=work)
         if not project_override:
             settings = replace(settings, project=project_id, project_name=project_id)
-        settings = replace(settings, source_server_path=str(work))
+        settings = replace(
+            settings,
+            source_server_path=_source_path_for_connect(local=True, work=work),
+        )
         settings = _ensure_usage_profile(
             settings, args, allow_prompt=not bool(args.dry_run)
         )
@@ -166,7 +183,11 @@ def _connect_one(
             shared,
             project=project_id,
             project_name=project_override or shared.project_name or project_id,
-            source_server_path=str(work),
+            source_server_path=_source_path_for_connect(
+                local=bool(shared.local),
+                work=work,
+                configured=shared.source_server_path,
+            ),
         )
         if args.include_user_clients:
             settings = replace(settings, include_user_clients=True)
@@ -188,7 +209,7 @@ def _connect_one(
             workspace=str(args.workspace or "default"),
             usage_profile=str(getattr(args, "usage_profile", "") or "").strip(),
             prefer_http=False,
-            source_server_path=str(work),
+            source_server_path="",
         )
         settings = run_ssh_connect_wizard(
             existing=existing,
@@ -199,7 +220,14 @@ def _connect_one(
         )
         if args.include_user_clients:
             settings = replace(settings, include_user_clients=True)
-        settings = replace(settings, source_server_path=settings.source_server_path or str(work))
+        settings = replace(
+            settings,
+            source_server_path=_source_path_for_connect(
+                local=False,
+                work=work,
+                configured=settings.source_server_path,
+            ),
+        )
         settings = _ensure_usage_profile(
             settings, args, allow_prompt=not bool(args.dry_run)
         )
@@ -218,16 +246,20 @@ def _connect_one(
     )
     if args.local:
         settings = replace(settings, local=True, prefer_http=False)
-        if not settings.source_server_path:
-            settings = replace(settings, source_server_path=str(work))
     if args.include_user_clients:
         settings = replace(settings, include_user_clients=True)
     if args.tenant:
         settings = replace(settings, tenant=str(args.tenant))
     if args.workspace:
         settings = replace(settings, workspace=str(args.workspace))
-    if not settings.source_server_path:
-        settings = replace(settings, source_server_path=str(work))
+    settings = replace(
+        settings,
+        source_server_path=_source_path_for_connect(
+            local=bool(settings.local or args.local),
+            work=work,
+            configured=settings.source_server_path,
+        ),
+    )
 
     if not settings.local:
         settings = ensure_ssh_ready(

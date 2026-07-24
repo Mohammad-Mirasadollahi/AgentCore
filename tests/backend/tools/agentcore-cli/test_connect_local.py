@@ -56,3 +56,18 @@ def test_settings_for_local_uses_identity_scope(tmp_path: Path, monkeypatch):
     assert settings.workspace == "eng"
     assert settings.project == "payments"
     assert settings.local is True
+
+
+def test_source_path_for_connect_remote_does_not_use_client_cwd(tmp_path: Path):
+    from agentcore_cli.commands.connect import _source_path_for_connect
+
+    assert _source_path_for_connect(local=False, work=tmp_path) == ""
+    assert _source_path_for_connect(local=True, work=tmp_path) == str(tmp_path)
+    assert (
+        _source_path_for_connect(
+            local=False,
+            work=tmp_path,
+            configured="/srv/repos/MyApp",
+        )
+        == "/srv/repos/MyApp"
+    )
