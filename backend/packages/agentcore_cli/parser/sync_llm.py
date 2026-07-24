@@ -13,7 +13,11 @@ def register(sub: argparse._SubParsersAction) -> None:
         "connect",
         help="One-command coding-agent onboarding (interactive SSH wizard or connect.yaml)",
     )
-    connect.add_argument("--init", action="store_true", help="Write ~/.agentcore/connect.yaml template")
+    connect.add_argument(
+        "--init",
+        action="store_true",
+        help="Write <checkout>/.agentcore/connect.yaml template",
+    )
     connect.add_argument(
         "--edit",
         action="store_true",

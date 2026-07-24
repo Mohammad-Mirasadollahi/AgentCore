@@ -41,3 +41,20 @@ def compose_file(root: Path) -> Path:
 
 def compose_env_file(root: Path) -> Path:
     return compose_dir(root) / ".env.local"
+
+
+def local_compose_stack_present(root: Path) -> bool:
+    """True when this checkout can run local Compose (server install)."""
+    return compose_file(root).is_file() and compose_env_file(root).is_file()
+
+
+def missing_local_stack_message(root: Path) -> str:
+    env = compose_env_file(root)
+    return (
+        f"error: no local AgentCore server stack (missing {env}).\n"
+        "Client installs skip Compose (Postgres/Neo4j) on purpose.\n"
+        "  • Run `agentcore sync` on the AgentCore server, or\n"
+        "  • Configure `.agentcore/connect.yaml` (`agentcore connect`) "
+        "so this CLI can sync over SSH, or\n"
+        "  • Re-install this host as server: bash install.sh --role server"
+    )

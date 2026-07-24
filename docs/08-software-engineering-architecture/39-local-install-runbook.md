@@ -30,6 +30,9 @@ linked_symbols:
 - tests/backend/tools/install/test_install_smoke.py::test_install_smoke_script_exists_and_executable
 - scripts/install/common.sh::resolve_install_role
 - scripts/install/common.sh::resolve_install_runtime
+- scripts/get-agentcore.sh::parse_and_run
+- scripts/get-agentcore.sh::fetch_release_into
+- scripts/get-agentcore.sh::fetch_main_into
 related_docs:
 - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
 - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
@@ -37,7 +40,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.2.0
+doc_version: 1.3.0
 audience:
 - engineer
 - operator
@@ -56,6 +59,33 @@ This runbook explains how to install AgentCore for **local development** with on
 Implementation status: **shipped** for local-dev bootstrap (OS deps on Debian/Ubuntu, `.venv`, Compose Postgres + Neo4j, `agentcore doctor`). Full zero-touch production modes remain covered by [19-zero-touch-installation-and-bootstrap-automation.md](./19-zero-touch-installation-and-bootstrap-automation.md).
 
 ## Quick start
+
+### Empty machine (recommended)
+
+One line downloads AgentCore from GitHub, then runs the installer menus:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+```
+
+You will be asked:
+
+1. **Channel**
+   - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
+   - **main** — tip of the `main` branch (may include unreleased commits)
+2. **Install root** (default `/opt/AgentCore`)
+3. Then the normal `install.sh` prompts (install/upgrade → yes → client/server → venv/docker)
+
+Non-interactive fetch + install example:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh \
+  | bash -s -- --channel release --root /opt/AgentCore --yes --non-interactive --role server --runtime venv
+```
+
+Publishing a product cut: create a GitHub Release with a new immutable tag (for example `v0.1.3`). Do not move or reuse old tags; `releases/latest` always points at the newest published release.
+
+### Already cloned
 
 From the repository root:
 

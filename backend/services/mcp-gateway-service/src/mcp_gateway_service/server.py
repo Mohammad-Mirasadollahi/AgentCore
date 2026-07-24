@@ -1,8 +1,18 @@
+"""MCP JSON-RPC gateway (stdio/HTTP trust boundary).
+
+Role: map Usage Profile tools to in-process AgentCore backends; emit usage/error JSONL.
+SoT: Usage Profile catalog + scope env; tool allow-list is fail-closed.
+Allowed failure: typed JSON-RPC errors + best-effort usage/error logs (never crash the IDE pipe).
+Forbidden: swallow tool failures without a client-visible error; die mid-request without JSON-RPC.
+"""
+
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -19,6 +29,8 @@ from agentcore_cli.mcp_usage_log import (  # noqa: E402
     approx_tokens_from_obj,
 )
 
+_LOG = logging.getLogger("mcp_gateway_service")
+
 from .backends import PlatformBackends, dispatch_capability  # noqa: E402
 from .lazy_facade import (  # noqa: E402
     LAZY_EXECUTE_TOOL,
@@ -34,6 +46,15 @@ from .lazy_facade import (  # noqa: E402
 PROTOCOL_VERSION = "2024-11-05"
 
 
+def _mcp_scope_id(gateway: "McpGateway") -> str:
+    scope = gateway.effective.get("scope") or {}
+    return (
+        f"{scope.get('tenant_id') or ''}/"
+        f"{scope.get('workspace_id') or ''}/"
+        f"{scope.get('project_id') or ''}"
+    ).strip("/") or "unknown"
+
+
 def _log_mcp_tokens(
     gateway: "McpGateway",
     *,
@@ -42,23 +63,60 @@ def _log_mcp_tokens(
     tokens_in: int,
     tokens_out: int,
 ) -> None:
-    scope = gateway.effective.get("scope") or {}
-    scope_id = (
-        f"{scope.get('tenant_id') or ''}/"
-        f"{scope.get('workspace_id') or ''}/"
-        f"{scope.get('project_id') or ''}"
-    ).strip("/")
     append_mcp_usage_event(
         {
             "event": event,
             "tool": tool,
+            "ok": True,
             "tokens_in": int(tokens_in),
             "tokens_out": int(tokens_out),
             "client_id": (os.environ.get("AGENTCORE_MCP_CLIENT_ID") or "unknown").strip()
             or "unknown",
-            "scope": scope_id or "unknown",
+            "scope": _mcp_scope_id(gateway),
             "usage_profile": str(gateway.effective.get("profile_id") or ""),
         }
+    )
+
+
+def _log_mcp_error(
+    gateway: "McpGateway",
+    *,
+    event: str,
+    tool: str,
+    code: int,
+    message: str,
+    tokens_in: int = 0,
+    detail: str | None = None,
+) -> None:
+    """Best-effort error breadcrumb for operators (JSONL + stderr). Never raises."""
+    row: dict[str, Any] = {
+        "event": event,
+        "tool": tool,
+        "ok": False,
+        "error_code": int(code),
+        "error_message": str(message)[:2000],
+        "tokens_in": int(tokens_in),
+        "tokens_out": 0,
+        "client_id": (os.environ.get("AGENTCORE_MCP_CLIENT_ID") or "unknown").strip()
+        or "unknown",
+        "scope": _mcp_scope_id(gateway),
+        "usage_profile": str(gateway.effective.get("profile_id") or ""),
+    }
+    if detail:
+        row["error_detail"] = str(detail)[:4000]
+    append_mcp_usage_event(row)
+    _LOG.error(
+        "mcp %s tool=%s code=%s message=%s",
+        event,
+        tool,
+        code,
+        message,
+    )
+    # Stdio MCP: stderr is the only operator-visible channel Cursor already tails.
+    print(
+        f"error: mcp {event} tool={tool} code={code} message={message}",
+        file=sys.stderr,
+        flush=True,
     )
 
 
@@ -223,8 +281,12 @@ def handle_message(gateway: McpGateway, message: dict[str, Any]) -> dict[str, An
     if req_id is None and method.startswith("notifications/"):
         return None
 
+    tool_for_log = method or "unknown"
+    tokens_in = 0
     try:
         if method == "initialize":
+            tool_for_log = "initialize"
+            tokens_in = approx_tokens_from_obj(params)
             result = {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
@@ -237,10 +299,11 @@ def handle_message(gateway: McpGateway, message: dict[str, Any]) -> dict[str, An
                 gateway,
                 event="initialize",
                 tool="initialize",
-                tokens_in=approx_tokens_from_obj(params),
+                tokens_in=tokens_in,
                 tokens_out=approx_tokens_from_obj(result),
             )
         elif method == "tools/list":
+            tool_for_log = "tools/list"
             tools = gateway.tools_list()
             result = {"tools": tools}
             _log_mcp_tokens(
@@ -252,7 +315,9 @@ def handle_message(gateway: McpGateway, message: dict[str, Any]) -> dict[str, An
             )
         elif method == "tools/call":
             name = str(params.get("name") or "")
+            tool_for_log = name or "tools/call"
             arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
+            tokens_in = approx_tokens_from_obj(arguments)
             result = gateway.call_tool(name, arguments)
             out_text = ""
             for block in result.get("content") or []:
@@ -262,19 +327,45 @@ def handle_message(gateway: McpGateway, message: dict[str, Any]) -> dict[str, An
                 gateway,
                 event="tools/call",
                 tool=name,
-                tokens_in=approx_tokens_from_obj(arguments),
+                tokens_in=tokens_in,
                 tokens_out=approx_tokens_from_chars(len(out_text.encode("utf-8"))),
             )
         elif method == "ping":
+            tool_for_log = "ping"
             result = {}
         else:
             raise McpGatewayError(-32601, f"method not found: {method}")
         return {"jsonrpc": "2.0", "id": req_id, "result": result}
     except McpGatewayError as exc:
+        _log_mcp_error(
+            gateway,
+            event=str(method or "unknown"),
+            tool=tool_for_log,
+            code=exc.code,
+            message=exc.message,
+            tokens_in=tokens_in,
+        )
         return {
             "jsonrpc": "2.0",
             "id": req_id,
             "error": {"code": exc.code, "message": exc.message},
+        }
+    except Exception as exc:  # noqa: BLE001 — keep IDE pipe alive; surface cause
+        detail = traceback.format_exc()
+        message = f"backend error: {exc}"
+        _log_mcp_error(
+            gateway,
+            event=str(method or "unknown"),
+            tool=tool_for_log,
+            code=-32000,
+            message=message,
+            tokens_in=tokens_in,
+            detail=detail,
+        )
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32000, "message": message},
         }
 
 
@@ -309,7 +400,15 @@ def main() -> int:
             sys.stdout.write(json.dumps(err) + "\n")
             sys.stdout.flush()
             continue
-        response = handle_message(gateway, message)
+        try:
+            response = handle_message(gateway, message)
+        except Exception as exc:  # noqa: BLE001 — last resort; handle_message already catches
+            print(f"error: MCP handle_message crashed: {exc}", file=sys.stderr, flush=True)
+            response = {
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "error": {"code": -32000, "message": f"backend error: {exc}"},
+            }
         if response is not None:
             sys.stdout.write(json.dumps(response) + "\n")
             sys.stdout.flush()

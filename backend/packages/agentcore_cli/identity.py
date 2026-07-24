@@ -1,4 +1,4 @@
-"""Active operator identity (tenant / workspace / project) under ~/.agentcore."""
+"""Active operator identity (tenant / workspace / project) under checkout ``.agentcore/``."""
 
 from __future__ import annotations
 
@@ -15,7 +15,16 @@ IDENTITY_FILENAME = "identity.yaml"
 
 
 def identity_path() -> Path:
-    return Path.home() / ".agentcore" / IDENTITY_FILENAME
+    """Prefer ``<repo>/.agentcore/identity.yaml``; legacy ``~/.agentcore/`` if present."""
+    from agentcore_cli.util import repo_root
+
+    preferred = repo_root() / ".agentcore" / IDENTITY_FILENAME
+    if preferred.is_file():
+        return preferred
+    legacy = Path.home() / ".agentcore" / IDENTITY_FILENAME
+    if legacy.is_file():
+        return legacy
+    return preferred
 
 
 def slugify(raw: str, *, fallback: str = "user") -> str:
@@ -84,7 +93,7 @@ def write_identity(
 
 
 def merge_identity_into_connect_yaml(*, tenant: str, workspace: str, project: str) -> Path | None:
-    """Update scope in ~/.agentcore/connect.yaml when the file already exists."""
+    """Update scope in checkout ``.agentcore/connect.yaml`` when the file already exists."""
     from agentcore_cli.connect_config import default_config_paths
 
     for path in default_config_paths():

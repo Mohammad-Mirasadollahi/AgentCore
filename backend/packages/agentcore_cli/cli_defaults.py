@@ -56,7 +56,7 @@ def load_dotenv_files(*, root: Path | None = None) -> list[Path]:
 
 
 def peek_connect_scope() -> dict[str, str]:
-    """Read scope from ~/.agentcore/connect.yaml if present (soft; never raises)."""
+    """Read scope from checkout ``.agentcore/connect.yaml`` if present (soft; never raises)."""
     try:
         from agentcore_cli.connect_config import default_config_paths, _read_config_file
     except Exception:

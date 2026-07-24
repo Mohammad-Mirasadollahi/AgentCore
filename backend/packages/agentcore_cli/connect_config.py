@@ -1,4 +1,8 @@
-"""Load ~/.agentcore/connect.yaml (or .json) for `agentcore connect`."""
+"""Load connect.yaml from the AgentCore checkout ``.agentcore/`` (client-local).
+
+Primary path: ``<repo_root>/.agentcore/connect.yaml``.
+Legacy fallback: ``~/.agentcore/connect.yaml`` (still read if present).
+"""
 
 from __future__ import annotations
 
@@ -42,13 +46,32 @@ class ConnectSettings:
     actor_id: str = "connect-cli"
 
 
-def default_config_paths() -> list[Path]:
-    base = Path.home() / ".agentcore"
-    return [
-        base / "connect.yaml",
-        base / "connect.yml",
-        base / "connect.json",
-    ]
+def repo_agentcore_dir(root: Path | None = None) -> Path:
+    """Checkout-local AgentCore state dir (``<repo>/.agentcore``)."""
+    from agentcore_cli.util import repo_root
+
+    return (root or repo_root()) / ".agentcore"
+
+
+def default_connect_yaml_path(root: Path | None = None) -> Path:
+    """Canonical write/read target for new connect configs."""
+    return repo_agentcore_dir(root) / "connect.yaml"
+
+
+def default_config_paths(root: Path | None = None) -> list[Path]:
+    """Resolve order: checkout ``.agentcore/`` first, then legacy ``~/.agentcore/``."""
+    repo_base = repo_agentcore_dir(root)
+    home_base = Path.home() / ".agentcore"
+    out: list[Path] = []
+    for base in (repo_base, home_base):
+        out.extend(
+            [
+                base / "connect.yaml",
+                base / "connect.yml",
+                base / "connect.json",
+            ]
+        )
+    return out
 
 
 def resolve_config_path(explicit: str = "") -> Path:
@@ -60,8 +83,9 @@ def resolve_config_path(explicit: str = "") -> Path:
     for candidate in default_config_paths():
         if candidate.is_file():
             return candidate
+    hint = default_connect_yaml_path()
     raise SystemExit(
-        "error: no connect config; run `agentcore connect --init` or create ~/.agentcore/connect.yaml"
+        f"error: no connect config; run `agentcore connect --init` or create {hint}"
     )
 
 
@@ -176,6 +200,7 @@ def load_connect_settings(
 
 CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 #
+# Lives under this checkout: .agentcore/connect.yaml (gitignored).
 # Preferred first-time path: run `agentcore connect` in a TTY (interactive SSH wizard).
 # Re-auth / replace pubkey: `agentcore connect --edit`
 # Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
@@ -193,7 +218,7 @@ CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-a
 #   ssh: ops@agentcore.example.internal
 #   remote_root: /opt/AgentCore
 # auth:
-#   ssh_key: ~/.ssh/id_ed25519_agentcore
+#   ssh_key: .agentcore/ssh/id_ed25519_agentcore
 # connect:
 #   prefer_http: false
 #
@@ -207,7 +232,7 @@ server:
 
 auth:
   token_env: AGENTCORE_TOKEN
-  # ssh_key: ~/.ssh/id_ed25519_agentcore
+  # ssh_key: .agentcore/ssh/id_ed25519_agentcore
 
 scope:
   tenant: acme
@@ -229,7 +254,7 @@ connect:
 
 
 def write_connect_template(path: Path | None = None) -> Path:
-    target = path or (Path.home() / ".agentcore" / "connect.yaml")
+    target = path or default_connect_yaml_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_file():
         raise SystemExit(f"error: refusing to overwrite existing {target}")
@@ -254,7 +279,7 @@ def write_or_merge_connect_yaml(
     prefer_http: bool | None = None,
 ) -> Path:
     """Create or merge SSH/wizard fields into connect.yaml without wiping hand-tuned keys."""
-    target = path or (Path.home() / ".agentcore" / "connect.yaml")
+    target = path or default_connect_yaml_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     doc: dict[str, Any] = {}
     if target.is_file():

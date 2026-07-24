@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from agentcore_cli.commands import sync as sync_cmd
+from agentcore_cli.commands.sync import cmd as sync_cmd_impl
 
 
 def test_cmd_sync_keyboard_interrupt_exits_clean(monkeypatch, capsys):
@@ -13,7 +14,7 @@ def test_cmd_sync_keyboard_interrupt_exits_clean(monkeypatch, capsys):
     def boom(_args):
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(sync_cmd, "_cmd_sync_body", boom)
+    monkeypatch.setattr(sync_cmd_impl, "_cmd_sync_body", boom)
     code = sync_cmd.cmd_sync(SimpleNamespace())
     assert code == 130
     out = capsys.readouterr().out
