@@ -183,6 +183,9 @@ def sync_one_root(
                     f"mirror={followup.get('mirror_path')}"
                 ),
             )
+            errs = list(followup.get("create_errors") or [])
+            if errs:
+                ui.kv("Follow-up create errors", "; ".join(errs[:2]))
     except Exception as exc:  # noqa: BLE001 — never fail sync on follow-up
         followup = {"ok": False, "error": str(exc)}
 
