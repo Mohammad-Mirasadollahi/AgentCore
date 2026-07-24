@@ -10,10 +10,8 @@ from typing import Any
 from agentcore_cli.commands.docs_standards.check import (
     DESIGN_TYPES,
     SOFT_BODY_LINES,
-    check_markdown_doc,
 )
 from agentcore_cli.commands.docs_standards.collect import (
-    DEFAULT_DOC_ROOTS,
     build_docs_standards_report,
 )
 from agentcore_cli.commands.quality_audit.categories import (
@@ -67,18 +65,11 @@ def _cited_path_tokens(body: str, *, root: Path) -> list[str]:
     return extract_evidence_link_tokens(body, repo=root, max_tokens=64)
 
 
-def _iter_product_docs(root: Path):
-    for name in DEFAULT_DOC_ROOTS:
-        base = root / name
-        if not base.is_dir():
-            continue
-        yield from sorted(p for p in base.rglob("*.md") if p.is_file())
-
-
 def _audit_docs(root: Path) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     standards = build_docs_standards_report(repo=root)
-    for row in (standards.get("nonconforming") or []) + (standards.get("conforming") or []):
+    rows = list(standards.get("nonconforming") or []) + list(standards.get("conforming") or [])
+    for row in rows:
         path = str(row.get("file") or "")
         issues = [str(i) for i in (row.get("issues") or [])]
         warnings = [str(w) for w in (row.get("warnings") or [])]
@@ -133,21 +124,25 @@ def _audit_docs(root: Path) -> list[dict[str, Any]]:
                     evidence=rev_warns,
                 )
             )
-
-    for path in _iter_product_docs(root):
-        rel = str(path.relative_to(root)).replace("\\", "/")
-        text = path.read_text(encoding="utf-8", errors="replace")
-        row = check_markdown_doc(relative_path=rel, text=text)
-        for warning in row.get("warnings") or []:
-            if str(warning).startswith("body_over_soft_budget"):
-                findings.append(
-                    _finding(
-                        category=CATEGORY_DOCS_SIZE_SOFT,
-                        path=rel,
-                        detail=str(warning),
-                        evidence=[str(warning)],
-                    )
+        soft = [w for w in warnings if str(w).startswith("body_over_soft_budget")]
+        if soft:
+            findings.append(
+                _finding(
+                    category=CATEGORY_DOCS_SIZE_SOFT,
+                    path=path,
+                    detail="; ".join(soft),
+                    evidence=soft,
                 )
+            )
+
+    for row in rows:
+        rel = str(row.get("file") or "")
+        if not rel:
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
         fm, body = parse_markdown_frontmatter(text)
         concern = str((fm or {}).get("concern_lane") or "").strip()
         if concern and concern not in VALID_CONCERNS:
@@ -172,26 +167,26 @@ def _audit_docs(root: Path) -> list[dict[str, Any]]:
                     category=CATEGORY_DOCS_LINKING_GAP,
                     path=rel,
                     detail=(
-                        "cited code paths lack linked_symbols"
+                        "missing linked_symbols"
                         if not existing
-                        else f"missing {len(missing)} linked token(s)"
+                        else f"missing_linked_symbols:{len(missing)}"
                     ),
                     evidence=missing[:12] or cited[:12],
                 )
             )
-        doc_type = str((fm or {}).get("doc_type") or "")
-        if (
-            doc_type in DESIGN_TYPES
-            and "```mermaid" in body.lower()
-            and not FLOW_TABLE_RE.search(body)
-        ):
-            findings.append(
-                _finding(
-                    category=CATEGORY_DOCS_FLOW_TABLE,
-                    path=rel,
-                    detail="design Mermaid present without Step/Actor flow table",
+        doc_type = str((fm or {}).get("doc_type") or "").strip()
+        if doc_type in DESIGN_TYPES:
+            if "```mermaid" not in body.lower():
+                continue
+            if not FLOW_TABLE_RE.search(body):
+                findings.append(
+                    _finding(
+                        category=CATEGORY_DOCS_FLOW_TABLE,
+                        path=rel,
+                        detail="design doc has Mermaid but no agent-readable flow table",
+                        evidence=["mermaid_without_flow_table"],
+                    )
                 )
-            )
     return findings
 
 

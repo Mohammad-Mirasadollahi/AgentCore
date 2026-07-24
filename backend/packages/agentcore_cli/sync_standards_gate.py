@@ -2,9 +2,10 @@
 
 Module contract:
 - Role: decide whether Phase-2 human-doc ingest should exclude paths that fail
-  ``agentcore docs-standards`` for this sync run.
-- Source of truth: ``check_file`` / ``docs-standards`` machine findings on files
-  that Phase 2 would discover; operator choice or CLI flags.
+  Full-tier ``docs-standards`` for this sync run.
+- Source of truth: ``check_file`` on Phase-2-discovered paths that pass docs
+  audit eligibility (``is_docs_audit_path`` + ``docs.audit.exclude`` from sync
+  YAML). Package README / AGENTS basenames are never gated.
 - Failures: non-TTY without ``--skip-nonconforming`` does not skip (CI-safe).
   Missing discovery/check never blocks sync — returns empty skip set.
 """
@@ -17,6 +18,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 from agentcore_cli import ui
+from agentcore_cli.docs_audit_scope import (
+    is_docs_audit_path,
+    normalize_repo_rel,
+)
 
 ReadFn = Callable[[str], str]
 
@@ -43,14 +48,9 @@ class StandardsGateResult:
         }
 
 
-def _normalize_rel(path: str) -> str:
-    return str(path or "").strip().replace("\\", "/").lstrip("./")
-
-
 def path_to_exclude_glob(relative_path: str) -> str:
     """Exact relative path as an exclude glob (fnmatch-friendly)."""
-    rel = _normalize_rel(relative_path)
-    return rel
+    return normalize_repo_rel(relative_path)
 
 
 def list_nonconforming_docs(
@@ -58,7 +58,11 @@ def list_nonconforming_docs(
     root_path: Path,
     filters: dict[str, Any],
 ) -> list[str]:
-    """Return relative paths Phase 2 would see that fail docs-standards."""
+    """Return audit-eligible Phase-2 docs that fail docs-standards.
+
+    Eligibility: discovered via ``docs.match`` / ``docs.exclude``, then
+    ``is_docs_audit_path`` (README/AGENTS hard-skip + ``docs.audit.exclude``).
+    """
     if not filters.get("docs_enabled", True):
         return []
     match_globs = list(filters.get("doc_match_globs") or [])
@@ -84,11 +88,14 @@ def list_nonconforming_docs(
     except Exception:  # noqa: BLE001
         return []
 
+    audit_globs = list(filters.get("doc_audit_exclude_globs") or [])
     bad: list[str] = []
     for item in discovered:
-        rel = _normalize_rel(getattr(item, "relative_path", "") or "")
+        rel = normalize_repo_rel(getattr(item, "relative_path", "") or "")
         abs_path = Path(getattr(item, "absolute_path", "") or "")
         if not rel or not abs_path.is_file():
+            continue
+        if not is_docs_audit_path(rel, audit_exclude_globs=audit_globs):
             continue
         try:
             row = check_file(abs_path, root=root_path)
@@ -152,7 +159,11 @@ def resolve_standards_gate(
         )
 
     docs = list_nonconforming_docs(root_path=root_path, filters=filters)
-    code = [_normalize_rel(p) for p in (code_nonconforming or []) if _normalize_rel(p)]
+    code = [
+        normalize_repo_rel(p)
+        for p in (code_nonconforming or [])
+        if normalize_repo_rel(p)
+    ]
     result = StandardsGateResult(
         docs_nonconforming=docs,
         code_nonconforming=code,
