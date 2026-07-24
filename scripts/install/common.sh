@@ -77,6 +77,11 @@ install_read_line() {
   printf '%s\n' "${ans}"
 }
 
+# Last non-empty line from a captured prompt (guards banner leaks into $()).
+install_stdout_token() {
+  printf '%s' "${1:-}" | tr -d '\r' | awk 'NF { line = $0 } END { print line }'
+}
+
 banner() {
   local title="$1"
   log "================================================================"
@@ -316,10 +321,9 @@ resolve_install_action() {
     info "Non-interactive: default action=install (pass --upgrade for upgrade)"
   fi
 
-  INSTALL_ACTION="${resolved}"
-  export INSTALL_ACTION
-  # Strip accidental whitespace/newlines if a prompt ever leaked UI to stdout.
-  INSTALL_ACTION="$(printf '%s' "${INSTALL_ACTION}" | tr -d '\r' | awk 'NF{line=$0} END{print line}')"
+  INSTALL_ACTION="$(install_stdout_token "${resolved}")"
+  INSTALL_ACTION="$(normalize_install_action "${INSTALL_ACTION}" || true)"
+  [[ -n "${INSTALL_ACTION}" ]] || fail "invalid install action '${resolved}' (want: install|upgrade)"
   export INSTALL_ACTION
   confirm_install_action "${INSTALL_ACTION}"
   ok "Install action: ${INSTALL_ACTION}"
@@ -384,10 +388,23 @@ EOF
 resolve_install_role() {
   local resolved=""
   local persisted=""
+  local raw="${INSTALL_ROLE:-}"
 
-  if [[ -n "${INSTALL_ROLE}" ]]; then
-    resolved="$(normalize_install_role "${INSTALL_ROLE}" || true)"
-    [[ -n "${resolved}" ]] || fail "invalid --role '${INSTALL_ROLE}' (want: client|server)"
+  # Drop garbage from older prompt-capture bugs (banner text in env / state).
+  if [[ -n "${raw}" ]]; then
+    raw="$(install_stdout_token "${raw}")"
+    if resolved="$(normalize_install_role "${raw}" 2>/dev/null)"; then
+      :
+    else
+      warn "Ignoring invalid INSTALL_ROLE='${raw}' (want: client|server)"
+      INSTALL_ROLE=""
+      export INSTALL_ROLE
+      resolved=""
+    fi
+  fi
+
+  if [[ -n "${resolved}" ]]; then
+    :
   elif [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
     resolved="client"
     info "Install role=client (from --skip-infra)"
@@ -396,14 +413,19 @@ resolve_install_role() {
     resolved="server"
     info "Install role=server (from --runtime)"
   elif install_can_prompt; then
-    resolved="$(prompt_install_role)"
+    resolved="$(install_stdout_token "$(prompt_install_role)")"
+    resolved="$(normalize_install_role "${resolved}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid role choice (want: client|server)"
   else
     if [[ -f "${INSTALL_STATE_FILE}" ]]; then
-      persisted="$(grep -E '^role=' "${INSTALL_STATE_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+      persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)")"
     fi
     if resolved="$(normalize_install_role "${persisted}" 2>/dev/null)"; then
       info "Using persisted role=${resolved}"
     else
+      if [[ -n "${persisted}" ]]; then
+        warn "Ignoring invalid persisted role='${persisted}'"
+      fi
       resolved="server"
       info "Non-interactive install: default role=server (pass --role client for CLI-only)"
     fi
@@ -425,6 +447,7 @@ resolve_install_role() {
 resolve_install_runtime() {
   local resolved=""
   local persisted=""
+  local raw="${INSTALL_RUNTIME:-}"
 
   if [[ "${INSTALL_ROLE:-}" == "client" ]]; then
     # Client never brings up MCP here; keep a stable label for state/check.
@@ -436,18 +459,34 @@ resolve_install_runtime() {
     return 0
   fi
 
-  if [[ -n "${INSTALL_RUNTIME}" ]]; then
-    resolved="$(normalize_install_runtime "${INSTALL_RUNTIME}" || true)"
-    [[ -n "${resolved}" ]] || fail "invalid --runtime '${INSTALL_RUNTIME}' (want: venv|docker; alias: host→venv)"
+  if [[ -n "${raw}" ]]; then
+    raw="$(install_stdout_token "${raw}")"
+    if resolved="$(normalize_install_runtime "${raw}" 2>/dev/null)"; then
+      :
+    else
+      warn "Ignoring invalid INSTALL_RUNTIME='${raw}' (want: venv|docker)"
+      INSTALL_RUNTIME=""
+      export INSTALL_RUNTIME
+      resolved=""
+    fi
+  fi
+
+  if [[ -n "${resolved}" ]]; then
+    :
   elif install_can_prompt; then
-    resolved="$(prompt_install_runtime)"
+    resolved="$(install_stdout_token "$(prompt_install_runtime)")"
+    resolved="$(normalize_install_runtime "${resolved}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid runtime choice (want: venv|docker)"
   else
     if [[ -f "${INSTALL_STATE_FILE}" ]]; then
-      persisted="$(grep -E '^runtime=' "${INSTALL_STATE_FILE}" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+      persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)")"
     fi
     if resolved="$(normalize_install_runtime "${persisted}" 2>/dev/null)"; then
       info "Using persisted runtime=${resolved}"
     else
+      if [[ -n "${persisted}" ]]; then
+        warn "Ignoring invalid persisted runtime='${persisted}'"
+      fi
       resolved="venv"
       info "Non-interactive install: default runtime=venv (pass --runtime docker to override)"
     fi

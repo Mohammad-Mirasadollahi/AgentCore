@@ -83,6 +83,32 @@ printf "%s\\n" "${{INSTALL_RUNTIME}}"
     assert proc.stdout.strip().splitlines()[-1] == "venv"
 
 
+def test_resolve_role_ignores_polluted_banner_value(tmp_path: Path) -> None:
+    """Older prompt-capture bugs wrote banner text into role=; must heal."""
+    state = tmp_path / "install-state.env"
+    state.write_text("role=server\n", encoding="utf-8")
+    proc = _bash_snippet(
+        f'INSTALL_STATE_DIR={tmp_path.as_posix()!r}; '
+        f'INSTALL_STATE_FILE={state.as_posix()!r}; '
+        'INSTALL_ROLE="[agentcore-install] ================================================================"; '
+        'resolve_install_role; printf "%s\\n" "${INSTALL_ROLE}"',
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "server"
+    assert "Ignoring invalid INSTALL_ROLE" in (proc.stderr + proc.stdout)
+
+
+def test_install_stdout_token_keeps_last_line() -> None:
+    proc = _bash_snippet(
+        'install_stdout_token $\'banner\\nclient\\n\'; echo; '
+        'install_stdout_token "server"'
+    )
+    assert proc.returncode == 0, proc.stderr
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[:2] == ["client", "server"]
+
+
 def test_resolve_role_client_from_skip_infra() -> None:
     proc = _bash_snippet(
         "INSTALL_ROLE=; resolve_install_role; printf '%s\\n' \"${INSTALL_ROLE}\" \"${INSTALL_SKIP_INFRA}\"",
