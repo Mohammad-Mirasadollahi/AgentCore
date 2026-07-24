@@ -57,7 +57,7 @@ Full examples (SSH vs HTTP, security, troubleshooting) → [One-command connect 
 Requires Python 3.12+ and Docker (Compose). On an empty machine, fetch + install in one line:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
 # prompts: release (recommended) or main → then install.sh menus (default root /opt/AgentCore)
 # new shell so agentcore is on PATH
 agentcore doctor
@@ -86,7 +86,7 @@ Install the CLI only (no Docker required on the client):
 
 ```bash
 # empty machine (choose role client in install menus), or:
-curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh \
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
   | bash -s -- --channel release --yes --non-interactive --role client
 # or from an existing clone:
 bash install.sh --skip-infra

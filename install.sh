@@ -3,7 +3,7 @@
 #
 # Usage:
 #   # Empty machine (recommended one-liner):
-#   curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
 #   bash install.sh
 #   bash install.sh --role server --runtime venv
 #   bash install.sh --role server --runtime docker
@@ -45,7 +45,7 @@ usage() {
 AgentCore installer — modular local-dev bootstrap
 
 Empty machine (fetch from GitHub, then this installer):
-  curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
   # prompts: release (latest GitHub Release) or main (tip of main), then install.sh menus
 
 Already cloned — from the repository root:

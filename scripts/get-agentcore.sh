@@ -2,7 +2,8 @@
 # AgentCore one-line bootstrap: fetch from GitHub, then run install.sh.
 #
 # Empty machine:
-#   curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
+# Prefer refs/heads/main over /main/ — GitHub raw CDN often serves a stale /main/ tip.
 #
 # Channels:
 #   release — latest GitHub Release (immutable tag + source tarball)
@@ -340,7 +341,7 @@ usage() {
 AgentCore get/bootstrap — fetch from GitHub then run install.sh
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/${AGENTCORE_REPO_SLUG}/main/scripts/get-agentcore.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/${AGENTCORE_REPO_SLUG}/refs/heads/main/scripts/get-agentcore.sh | bash
   bash scripts/get-agentcore.sh [get-options] [-- install.sh options...]
 
 Get options:
