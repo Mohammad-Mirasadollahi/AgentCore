@@ -279,6 +279,41 @@ def test_run_install_role_implies_noninteractive(tmp_path: Path) -> None:
     assert "INSTALL_ARGS:--yes --non-interactive --role client" in proc.stdout
 
 
+def test_discard_generated_checkout_dirt_removes_egg_info(tmp_path: Path) -> None:
+    """Editable-install egg-info must not block ff-only pull."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    egg = repo / "backend" / "packages" / "agentcore.egg-info"
+    egg.mkdir(parents=True)
+    (egg / "PKG-INFO").write_text("Name: agentcore\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
+    (egg / "PKG-INFO").write_text("Name: agentcore\nVersion: dirty\n", encoding="utf-8")
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "PKG-INFO" in dirty.stdout
+
+    proc = _source_helpers(f"discard_generated_checkout_dirt {repo.as_posix()!r}")
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert not egg.exists()
+    clean = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "egg-info" not in clean.stdout
+
+
 def test_noninteractive_requires_channel() -> None:
     proc = subprocess.run(
         [
