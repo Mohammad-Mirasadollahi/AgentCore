@@ -1,4 +1,4 @@
-# Stage 01: system prerequisites (Python 3.12+, Docker, Compose, curl, git).
+# Stage 01: system prerequisites (Python 3.12+, curl, git; Docker only for server).
 # shellcheck shell=bash
 
 stage_01_prerequisites_check() {
@@ -27,7 +27,7 @@ stage_01_prerequisites_check() {
   fi
 
   if [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
-    ok "Docker checks skipped (--skip-infra)"
+    ok "Docker checks skipped (client / --skip-infra)"
   else
     if ! have_cmd docker; then
       warn "docker missing"
@@ -123,7 +123,16 @@ stage_01_prerequisites_run() {
   fi
 
   if ! linux_debian_family; then
-    cat >&2 <<'EOF'
+    if [[ "${INSTALL_SKIP_INFRA}" == "1" ]]; then
+      cat >&2 <<'EOF'
+FAIL: automatic OS package install supports Debian/Ubuntu (apt) only.
+
+Install manually, then re-run (client / --skip-infra):
+  - Python 3.12+ with venv module
+  - curl, git, ca-certificates
+EOF
+    else
+      cat >&2 <<'EOF'
 FAIL: automatic OS package install supports Debian/Ubuntu (apt) only.
 
 Install manually, then re-run:
@@ -132,6 +141,7 @@ Install manually, then re-run:
   - Docker Engine + Docker Compose v2 plugin
   - (optional) Node.js 18+ if you pass --with-frontend
 EOF
+    fi
     fail "unsupported OS for auto prerequisite install"
   fi
 
@@ -140,28 +150,33 @@ EOF
   as_root apt-get install -y ca-certificates curl git openssl
   _stage_01_ensure_python312
 
-  if ! have_cmd docker || ! docker compose version >/dev/null 2>&1; then
-    info "Installing Docker Engine + Compose plugin…"
-    as_root apt-get install -y docker.io docker-compose-v2
-  fi
+  # Client / --skip-infra: CLI + venv only — never install or start Docker.
+  if [[ "${INSTALL_SKIP_INFRA}" != "1" ]]; then
+    if ! have_cmd docker || ! docker compose version >/dev/null 2>&1; then
+      info "Installing Docker Engine + Compose plugin…"
+      as_root apt-get install -y docker.io docker-compose-v2
+    fi
 
-  if have_cmd docker; then
-    as_root systemctl enable --now docker 2>/dev/null \
-      || as_root service docker start 2>/dev/null \
-      || true
+    if have_cmd docker; then
+      as_root systemctl enable --now docker 2>/dev/null \
+        || as_root service docker start 2>/dev/null \
+        || true
+    fi
+
+    # Non-root users need docker group for daemon access without sudo.
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]] && have_cmd docker; then
+      if ! groups | grep -qw docker; then
+        info "Adding ${USER} to docker group (re-login may be required)…"
+        as_root usermod -aG docker "${USER}" || true
+        warn "If docker still fails, log out and back in (or run: newgrp docker)"
+      fi
+    fi
+  else
+    info "Skipping Docker Engine install (client / --skip-infra)"
   fi
 
   if [[ "${INSTALL_WITH_FRONTEND}" == "1" ]]; then
     _stage_01_install_node20
-  fi
-
-  # Non-root users need docker group for daemon access without sudo.
-  if [[ "${EUID:-$(id -u)}" -ne 0 ]] && have_cmd docker; then
-    if ! groups | grep -qw docker; then
-      info "Adding ${USER} to docker group (re-login may be required)…"
-      as_root usermod -aG docker "${USER}" || true
-      warn "If docker still fails, log out and back in (or run: newgrp docker)"
-    fi
   fi
 
   stage_01_prerequisites_check || fail "prerequisites still failing after install"
