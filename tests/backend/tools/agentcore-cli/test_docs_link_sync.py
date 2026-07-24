@@ -211,13 +211,12 @@ def test_sync_human_docs_progress_only_counts_work_queue(tmp_path: Path, monkeyp
     started = next(e for e in events if e.get("status") == "started")
     assert started["phase"] == "docs"
     assert started["queue_new"] == 1
-    # overview (unlinked unchanged) dropped; login stays as link_refresh.
-    assert started["queue_unchanged"] == 1
-    assert started["total"] == 2
+    # overview + login are body-stable; without refresh_unchanged_links both drop.
+    assert started["queue_unchanged"] == 0
+    assert started["total"] == 1
     finished = next(e for e in events if e.get("status") == "finished")
-    assert finished["done"] == finished["total"] == 2
-    assert result.docs_indexed == 2
-    assert any(e.get("status") == "unchanged" for e in events)
+    assert finished["done"] == finished["total"] == 1
+    assert result.docs_indexed == 1
 
 
 def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch):
@@ -552,3 +551,184 @@ def test_phase2_priority_orders_evidence_first(tmp_path: Path, monkeypatch):
         evidence_enabled=True,
     )
     assert ev < plain
+
+
+def test_sync_skips_when_stale_duplicate_human_hash_last(tmp_path: Path, monkeypatch):
+    """Regression: path with provisional + stable doc symbols must not re-queue as changed."""
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "overview.md").write_text(UNLINKED_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    filters = {
+        "docs_enabled": True,
+        "doc_match_globs": ["**/*.md"],
+        "doc_exclude_dirs": [],
+        "doc_exclude_globs": [],
+        "doc_paths": [],
+        "max_files": 50,
+    }
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-seed",
+        repo_name="fixture",
+    )
+    # Simulate remediator renaming doc_id: leave stale symbol, add current one.
+    from code_graph_service.domain.enums import DocStatus, SymbolKind
+    from code_graph_service.domain.hashing import digest
+    from code_graph_service.domain.models import GraphSymbol
+    from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
+
+    text = (tmp_path / "docs" / "overview.md").read_text(encoding="utf-8")
+    _, body = parse_markdown_frontmatter(text)
+    body_hash = digest(body)
+    current = store.get_symbol("doc:human:docs-link:doc-overview", SCOPE)
+    assert current is not None
+    assert current.hash_value == body_hash
+    store.put_symbol(
+        GraphSymbol(
+            id="doc:human:docs-link:doc-stale-orphan",
+            scope=SCOPE,
+            kind=SymbolKind.DOCUMENTATION,
+            file_path="docs/overview.md",
+            name="overview.md",
+            qualified_name="human:doc-stale-orphan",
+            signature="stale",
+            body="old body",
+            hash_value=digest("old body"),
+            ai_documentation="",
+            doc_status=DocStatus.HUMAN,
+            embedding=[],
+            version=1,
+            created_at=current.created_at,
+            updated_at=current.updated_at,
+            language="",
+        )
+    )
+    events: list[dict] = []
+    again = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-dup",
+        repo_name="fixture",
+        on_progress=events.append,
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["queue_new"] == 0
+    assert started["queue_changed"] == 0
+    assert started["total"] == 0
+    assert again.docs_indexed == 0
+
+
+def test_sync_refresh_unchanged_links_requeues_linked(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "src" / "auth.py").write_text(AUTH_SOURCE, encoding="utf-8")
+    (tmp_path / "docs" / "login.md").write_text(LINKED_DOC, encoding="utf-8")
+    (tmp_path / "docs" / "overview.md").write_text(UNLINKED_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    graph.ingest_file(
+        SCOPE,
+        "test",
+        "c1",
+        "k1",
+        {"file_path": "src/auth.py", "source": AUTH_SOURCE, "language": "python"},
+    )
+    filters = {
+        "docs_enabled": True,
+        "doc_match_globs": ["**/*.md"],
+        "doc_exclude_dirs": [],
+        "doc_exclude_globs": [],
+        "doc_paths": [],
+        "max_files": 50,
+    }
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-seed",
+        repo_name="fixture",
+    )
+    events: list[dict] = []
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-refresh",
+        repo_name="fixture",
+        on_progress=events.append,
+        refresh_unchanged_links=True,
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["queue_unchanged"] == 1
+    assert started["total"] == 1
+
+
+def test_sync_retires_stale_human_doc_symbol_for_path(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    (tmp_path / "docs").mkdir()
+    # Body-tier provisional id first.
+    body_tier = UNLINKED_DOC.replace("doc_id: doc-overview\n", "")
+    (tmp_path / "docs" / "overview.md").write_text(body_tier, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    filters = {
+        "docs_enabled": True,
+        "doc_match_globs": ["**/*.md"],
+        "doc_exclude_dirs": [],
+        "doc_exclude_globs": [],
+        "doc_paths": [],
+        "max_files": 50,
+    }
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-a",
+        repo_name="fixture",
+    )
+    provisional_ids = [
+        s.id
+        for s in store.list_symbols(SCOPE)
+        if str(s.file_path) == "docs/overview.md"
+    ]
+    assert len(provisional_ids) == 1
+    # Upgrade to stable doc_id (remediate) — must retire provisional symbol.
+    (tmp_path / "docs" / "overview.md").write_text(UNLINKED_DOC, encoding="utf-8")
+    sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-b",
+        repo_name="fixture",
+    )
+    remaining = [
+        s.id
+        for s in store.list_symbols(SCOPE)
+        if str(s.file_path) == "docs/overview.md"
+    ]
+    assert remaining == ["doc:human:docs-link:doc-overview"]
+    assert provisional_ids[0] not in remaining

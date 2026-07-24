@@ -5,8 +5,10 @@ resolved ``linked_symbols`` (catalog orders the queue; evidence may merge tokens
 Source of truth: docs-sync Document/DocAnchor; Neo4j human ``doc:human:…`` nodes.
 Parallelism: same ``sync_max_file_workers`` pool as code ingest; docs-sync stores
 are thread-safe (Postgres per-thread connections; in-memory ``RLock``).
-Allowed: soft-fail per doc; skip unchanged unlinked bodies; concurrent docs-sync
-writes under workers. Forbidden: invent edges for unresolved tokens.
+Allowed: soft-fail per doc; skip unchanged bodies on re-sync (optional link
+refresh after code ingest); concurrent docs-sync writes under workers.
+Forbidden: invent edges for unresolved tokens; treat stale duplicate
+``doc:human`` hashes for the same path as content changes.
 """
 
 from __future__ import annotations
@@ -95,15 +97,24 @@ def _docs_sync_service():
     return get_docs_sync_service(backend=backend, factory=_factory)
 
 
-def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
-    """Map relative doc path → body hash for existing *human* DOCUMENTATION symbols."""
+def _indexed_doc_hashes(
+    graph_service: Any, graph_scope: Any
+) -> tuple[dict[str, set[str]], dict[str, list[str]]]:
+    """Map relative doc path → body hashes / symbol ids for human DOCUMENTATION nodes.
+
+    One path can have multiple ``doc:human:…`` symbols when ``doc_id`` changed
+    (provisional ``doc-…`` → stable id). Classification must treat the body as
+    unchanged if *any* stored hash matches; last-wins single hash falsely marks
+    paths as changed forever.
+    """
     from code_graph_service.domain.enums import DocStatus, SymbolKind
 
-    out: dict[str, str] = {}
+    hashes: dict[str, set[str]] = {}
+    symbol_ids: dict[str, list[str]] = {}
     try:
         symbols = graph_service.store.list_symbols(graph_scope)
     except Exception:  # noqa: BLE001
-        return out
+        return hashes, symbol_ids
     for sym in symbols:
         kind = sym.kind.value if hasattr(sym.kind, "value") else str(sym.kind)
         if kind != SymbolKind.DOCUMENTATION.value:
@@ -114,8 +125,13 @@ def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
         rel = str(sym.file_path or "").replace("\\", "/").strip()
         if not rel:
             continue
-        out[rel] = str(getattr(sym, "hash_value", "") or "")
-    return out
+        digest_value = str(getattr(sym, "hash_value", "") or "")
+        if digest_value:
+            hashes.setdefault(rel, set()).add(digest_value)
+        sid = str(getattr(sym, "id", "") or "").strip()
+        if sid:
+            symbol_ids.setdefault(rel, []).append(sid)
+    return hashes, symbol_ids
 
 
 def _catalog_by_path(root_path: Path) -> dict[str, dict[str, Any]]:
@@ -252,8 +268,14 @@ def sync_human_docs(
     correlation_id: str = "",
     repo_name: str = "repo",
     on_progress: ProgressCallback | None = None,
+    refresh_unchanged_links: bool = False,
 ) -> DocsLinkSyncResult:
-    """Discover Markdown via docs.match globs, index in docs-sync, project edges."""
+    """Discover Markdown via docs.match globs, index in docs-sync, project edges.
+
+    Body-stable docs are skipped on re-sync. Pass ``refresh_unchanged_links=True``
+    (e.g. after code files were ingested this run) to re-resolve ``linked_symbols``.
+    """
+    from code_graph_service.application.ingest.human_docs import human_doc_symbol_id
     from code_graph_service.domain.doc_discovery import discover_documentation_files
     from code_graph_service.domain.hashing import digest
 
@@ -284,7 +306,7 @@ def sync_human_docs(
     if not discovered:
         return result
 
-    prior_hashes = _indexed_doc_hashes(graph_service, graph_scope)
+    prior_hashes, prior_symbol_ids = _indexed_doc_hashes(graph_service, graph_scope)
     prior_indexed = len(prior_hashes)
     catalog_index = _catalog_by_path(root_path)
     result.catalog_ordered = bool(catalog_index)
@@ -304,14 +326,18 @@ def sync_human_docs(
         partial, body = parse_markdown_frontmatter(text)
         frontmatter = provisional_frontmatter(rel, body, partial)
         body_hash = digest(body)
-        previous = prior_hashes.get(rel)
+        doc_id = str(frontmatter.get("doc_id") or "").strip()
+        keep_id = human_doc_symbol_id(graph_scope.project_id, doc_id) if doc_id else ""
+        previous_hashes = prior_hashes.get(rel) or set()
+        previous_ids = prior_symbol_ids.get(rel) or []
         body_unchanged = False
-        if previous is None:
+        if not previous_hashes:
             queue_new += 1
-        elif previous != body_hash:
-            queue_changed += 1
-        else:
+        elif body_hash in previous_hashes and keep_id in previous_ids:
             body_unchanged = True
+        else:
+            # Content edit, or doc_id remapped (provisional → stable) with same body.
+            queue_changed += 1
         prepared.append((item, rel, body, frontmatter, body_hash, body_unchanged))
 
     prepared.sort(
@@ -328,12 +354,11 @@ def sync_human_docs(
     def _has_linked(frontmatter: dict[str, Any]) -> bool:
         return any(str(t).strip() for t in (frontmatter.get("linked_symbols") or []))
 
-    # Skip body-stable docs with no linked_symbols (nothing to process / show).
-    # Keep body-stable + linked as link_refresh work after code symbols change.
+    # Skip body-stable docs unless this run must refresh links after code ingest.
     work: list[tuple[Any, str, str, dict[str, Any], str, bool]] = [
         row
         for row in prepared
-        if (not row[5]) or _has_linked(row[3])
+        if (not row[5]) or (refresh_unchanged_links and _has_linked(row[3]))
     ]
     queue_unchanged = sum(1 for row in work if row[5])
     prepared = work
@@ -456,6 +481,15 @@ def sync_human_docs(
             title=str(frontmatter.get("title") or doc_id),
             linked_symbol_tokens=linked_tokens,
         )
+        keep_id = human_doc_symbol_id(graph_scope.project_id, doc_id)
+        for stale_id in prior_symbol_ids.get(rel) or []:
+            if stale_id == keep_id:
+                continue
+            try:
+                graph_service.store.delete_symbol(stale_id, graph_scope)
+            except Exception as exc:  # noqa: BLE001 — orphan cleanup must not fail sync
+                with state_lock:
+                    result.errors.append(f"{rel}: stale human doc cleanup failed: {exc}")
         with state_lock:
             result.links_created += int(projection.get("edges_written") or 0)
             for token in projection.get("unresolved_tokens") or []:
