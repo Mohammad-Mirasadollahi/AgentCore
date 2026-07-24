@@ -1,3 +1,32 @@
+---
+doc_id: ac.doc.rule-engine.phase-4-api-contract
+title: Rule Engine Service Phase 4 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: rule-engine-service
+summary: This contract documents the Phase 4 vertical slice for Rule Engine and Orchestration.
+  The service owns scoped Rules, RuleEvaluations, ApprovalRequests, ImpactMaps, RoutedTasks,
+  AnomalySignals, rule feedback, and rule-engine outbox events.
+tags:
+- api
+- contract
+- phase-4
+- rule-engine
+phase: phase-4
+canonical_path: backend/services/rule-engine-service/docs/phase-4-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Rule Engine Service Phase 4 API Contract
 
 Path: `backend/services/rule-engine-service/docs/phase-4-api-contract.md`
@@ -57,3 +86,8 @@ Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `p
 ## Compatibility
 
 This is an active Phase 4 contract. Breaking changes require a new contract note, matching tests, and a migration or compatibility statement before promotion to shared contracts.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

@@ -1,3 +1,32 @@
+---
+doc_id: ac.doc.memory.phase-2-api-contract
+title: Memory Service Phase 2 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: memory-service
+summary: This contract documents the Phase 2 vertical slice for Memory and Context. The service
+  owns scoped MemoryItems, QuestionMemory, ContextBundles, WorkBatches, and memory-service
+  outbox events.
+tags:
+- api
+- contract
+- memory
+- phase-2
+phase: phase-2
+canonical_path: backend/services/memory-service/docs/phase-2-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Memory Service Phase 2 API Contract
 
 Path: `backend/services/memory-service/docs/phase-2-api-contract.md`
@@ -59,3 +88,8 @@ Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `p
 ## Compatibility
 
 This is an active Phase 2 contract. Breaking changes require a new contract note, matching tests, and a migration or compatibility statement before promotion to shared contracts.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

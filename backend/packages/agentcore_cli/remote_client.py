@@ -232,6 +232,9 @@ def remote_register_project(
     remote_os: str = "unix",
     identity_file: str | None = None,
 ) -> None:
+    """Register project on the AgentCore host; suppress remote JSON (one local line)."""
+    from agentcore_cli import ui
+
     root = remote_root.rstrip("/\\")
     if remote_os == "windows":
         agentcore = f"{root}/.venv/Scripts/agentcore.exe"
@@ -239,10 +242,7 @@ def remote_register_project(
             f"cd /d {root} && "
             f"{agentcore} project register "
             f"--tenant {tenant} --workspace {workspace} --project {project_id} "
-            f"--name {json.dumps(project_name)} --usage-profile {usage_profile} --force && "
-            f"{agentcore} project activate "
-            f"--tenant {tenant} --workspace {workspace} --project {project_id} "
-            f"--usage-profile {usage_profile}"
+            f"--name {json.dumps(project_name)} --usage-profile {usage_profile} --force >nul"
         )
         remote_cmd = ["cmd", "/c", shell]
     else:
@@ -252,16 +252,14 @@ def remote_register_project(
             f"{shlex.quote(agentcore)} project register "
             f"--tenant {shlex.quote(tenant)} --workspace {shlex.quote(workspace)} "
             f"--project {shlex.quote(project_id)} "
-            f"--name {json.dumps(project_name)} --usage-profile {shlex.quote(usage_profile)} --force; "
-            f"{shlex.quote(agentcore)} project activate "
-            f"--tenant {shlex.quote(tenant)} --workspace {shlex.quote(workspace)} "
-            f"--project {shlex.quote(project_id)} "
-            f"--usage-profile {shlex.quote(usage_profile)}"
+            f"--name {json.dumps(project_name)} --usage-profile {shlex.quote(usage_profile)} "
+            f"--force >/dev/null"
         )
         remote_cmd = ["bash", "-lc", shell]
     code = run_ssh(ssh_target, remote_cmd, identity_file=identity_file)
     if code != 0:
-        raise SystemExit(f"error: remote project register/activate failed (exit {code})")
+        raise SystemExit(f"error: remote project register failed (exit {code})")
+    print(f"   {ui.ok('✔')} registered {ui.scope_line(tenant, workspace, project_id)}")
 
 
 def wire_remote_dev_host(

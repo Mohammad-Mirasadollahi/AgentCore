@@ -1,3 +1,32 @@
+---
+doc_id: ac.doc.docs-sync.phase-3-api-contract
+title: Docs Sync Service Phase 3 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: docs-sync-service
+summary: This contract documents the Phase 3 vertical slice for Docs-as-Code synchronization.
+  The service owns scoped CodeSymbol projections used for drift, Documents, DocAnchors, DriftFindings,
+  DocumentationDrafts, Bloom filter lookups, CI gate evaluation, and docs-sync outbox events.
+tags:
+- api
+- contract
+- docs-sync
+- phase-3
+phase: phase-3
+canonical_path: backend/services/docs-sync-service/docs/phase-3-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Docs Sync Service Phase 3 API Contract
 
 Path: `backend/services/docs-sync-service/docs/phase-3-api-contract.md`
@@ -55,3 +84,8 @@ Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `p
 ## Compatibility
 
 This is an active Phase 3 contract. Breaking changes require a new contract note, matching tests, and a migration or compatibility statement before promotion to shared contracts.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

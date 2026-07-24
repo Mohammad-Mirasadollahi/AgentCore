@@ -1,3 +1,33 @@
+---
+doc_id: ac.doc.adapter.phase-5-api-contract
+title: Adapter Service Phase 5 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: adapter-service
+summary: This contract documents the Phase 5 interoperability vertical slice. The service
+  owns scoped connectors, adapter mappings, Universal Agent JSON validation/normalization,
+  in-service broker publish/subscribe/delivery/replay/dead-letter handling, external tickets,
+  department work...
+tags:
+- adapter
+- api
+- contract
+- phase-5
+phase: phase-5
+canonical_path: backend/services/adapter-service/docs/phase-5-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Adapter Service Phase 5 API Contract
 
 Path: `backend/services/adapter-service/docs/phase-5-api-contract.md`
@@ -58,3 +88,8 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 ## Compatibility
 
 This is an active Phase 5 contract. A future split into standalone `broker-service` should preserve these message and subscription semantics.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice
