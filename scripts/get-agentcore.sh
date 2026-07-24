@@ -299,11 +299,34 @@ fetch_release_into() {
   cleanup_release
 }
 
+# Drop local setuptools dirt so ff-only pull is not blocked after editable installs.
+# Does not touch operator state (.agentcore, .env, compose .env.local, …).
+discard_generated_checkout_dirt() {
+  local root="$1"
+  local dir
+  [[ -d "${root}/.git" ]] || return 0
+
+  while IFS= read -r dir; do
+    [[ -n "${dir}" ]] || continue
+    # Reset tracked copies first (pull may delete them once clean).
+    git -C "${root}" checkout -- "${dir}" >/dev/null 2>&1 || true
+    git -C "${root}" clean -fd -- "${dir}" >/dev/null 2>&1 || true
+    rm -rf "${dir}"
+  done < <(find "${root}" -type d -name '*.egg-info' ! -path '*/.git/*' 2>/dev/null)
+
+  # Any remaining modified tracked egg-info paths.
+  while IFS= read -r dir; do
+    [[ -n "${dir}" ]] || continue
+    git -C "${root}" checkout -- "${dir}" >/dev/null 2>&1 || true
+  done < <(git -C "${root}" diff --name-only --diff-filter=M -- '*.egg-info/*' '**/*.egg-info/**' 2>/dev/null || true)
+}
+
 fetch_main_into() {
   local root="$1"
   require_cmds git
   if is_agentcore_git_checkout "${root}"; then
     info "Updating existing git checkout at ${root}"
+    discard_generated_checkout_dirt "${root}"
     git -C "${root}" fetch --tags origin
     git -C "${root}" checkout "${AGENTCORE_DEFAULT_BRANCH}"
     git -C "${root}" pull --ff-only origin "${AGENTCORE_DEFAULT_BRANCH}"
