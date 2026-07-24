@@ -44,17 +44,21 @@ def print_progress_line(snap: dict[str, Any]) -> None:
         f"rate {rate_txt}"
     )
     print(line)
-    prior = int(snap.get("prior_indexed") or 0)
+    # Only show work this run will process — never prior/already-synced counts.
     q_new = int(snap.get("queue_new") or 0)
     q_changed = int(snap.get("queue_changed") or 0)
     q_unchanged = int(snap.get("queue_unchanged") or 0)
-    if prior or q_new or q_changed or q_unchanged:
-        prior_label = "prior docs" if phase == "docs" else "prior file symbols"
-        print(
-            f"   {ui.dim('graph')} {prior_label} {prior}  "
-            f"{ui.dim('queue')} new={q_new}  changed={q_changed}  "
-            f"unchanged_recheck={q_unchanged}"
-        )
+    # Code lang_backfill / docs link-refresh of body-stable linked docs.
+    recheck_label = "link_refresh" if phase == "docs" else "lang_backfill"
+    parts: list[str] = []
+    if q_new:
+        parts.append(f"new={q_new}")
+    if q_changed:
+        parts.append(f"changed={q_changed}")
+    if q_unchanged:
+        parts.append(f"{recheck_label}={q_unchanged}")
+    if parts:
+        print(f"   {ui.dim('queue')} {'  '.join(parts)}")
         if int(snap["done"]) == 0 and int(snap.get("files_in_flight") or 0) > 0:
             print(
                 f"   {ui.dim('note')} 0 of {snap['total']} files finished yet "

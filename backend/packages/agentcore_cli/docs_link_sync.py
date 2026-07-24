@@ -325,8 +325,19 @@ def sync_human_docs(
         )
     )
 
-    queue_unchanged = max(0, len(prepared) - queue_new - queue_changed)
-    # done/total = every file this loop considers (including fast unchanged skips).
+    def _has_linked(frontmatter: dict[str, Any]) -> bool:
+        return any(str(t).strip() for t in (frontmatter.get("linked_symbols") or []))
+
+    # Skip body-stable docs with no linked_symbols (nothing to process / show).
+    # Keep body-stable + linked as link_refresh work after code symbols change.
+    work: list[tuple[Any, str, str, dict[str, Any], str, bool]] = [
+        row
+        for row in prepared
+        if (not row[5]) or _has_linked(row[3])
+    ]
+    queue_unchanged = sum(1 for row in work if row[5])
+    prepared = work
+    # done/total = files this run actually processes (new/changed/link_refresh).
     progress_total = len(prepared)
     progress_done = 0
     state_lock = threading.Lock()

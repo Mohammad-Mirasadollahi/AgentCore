@@ -172,5 +172,26 @@ def print_human(
 
 
 def print_sync_preflight(report: dict[str, Any]) -> None:
-    """Same snapshot as ``agentcore stats``, shown at the start of sync."""
-    print_human(report, detail=False, title="Before sync", show_hint=False)
+    """Work-only preview before sync — pending code/docs/LLM, not already-synced totals."""
+    summary = report["summary"]
+    code = summary["code"]
+    docs = summary["docs"]
+    llm = summary["llm"]
+    ui.blank()
+    ui.heading("Before sync")
+    ui.blank()
+    scope = report["scope"]
+    ui.kv("Scope", ui.scope_line(scope["tenant"], scope["workspace"], scope["project"]))
+    for path in report.get("paths") or []:
+        ui.bullet(str(path))
+    ui.blank()
+    ui.section("Need sync")
+    ui.kv("Code", format_pending_work_line(code))
+    ui.kv("Docs", format_pending_work_line(docs))
+    remaining_llm = int(llm.get("remaining_count") or 0)
+    if remaining_llm:
+        ui.kv(
+            "LLM",
+            f"{remaining_llm} symbols still need documentation",
+        )
+    ui.blank()

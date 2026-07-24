@@ -1,4 +1,12 @@
-"""Auto sync policy and purge."""
+"""Auto sync policy and purge.
+
+Role: choose full / pending / incremental / noop and orchestrate ingest.
+SoT: graph symbols + freshness pending list; ingest hash/language for skip.
+Invariants: callers never pick mode; noop when nothing to visit or only
+hash-stable skips; truncated sync must be re-runnable.
+Allowed failure: per-file ingest failures bubble via ingest result counts.
+Forbidden: forcing full re-index when symbols already exist and content is stable.
+"""
 
 from __future__ import annotations
 
@@ -94,15 +102,17 @@ class SyncMixin:
             )
 
         ingest = self.ingest_repo(scope, actor_id, correlation_id, idempotency_key, ingest_payload)
-        mode = "noop" if ingest.files_discovered == 0 else "incremental"
+        mode = "incremental"
         hint = ""
         if ingest.truncated:
             hint = "truncated: run sync again to continue indexing more files"
-        elif mode == "noop":
-            hint = "up to date (no source files discovered)"
         elif ingest.files_ingested == 0 and ingest.files_skipped > 0:
+            # Hash-stable files may be counted skipped without a worker visit.
             mode = "noop"
             hint = "up to date (no content changes)"
+        elif ingest.files_discovered == 0:
+            mode = "noop"
+            hint = "up to date (no source files discovered)"
         if hasattr(self, "record_sync_stamp"):
             self.record_sync_stamp(scope)
         return SyncRepoResult.from_ingest(

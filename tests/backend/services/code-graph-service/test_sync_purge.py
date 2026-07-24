@@ -73,11 +73,12 @@ def test_sync_with_symbols_no_pending_is_incremental_walk(tmp_path: Path):
         "key-b",
         {"root_path": str(tmp_path), "include_outcomes": True},
     )
-    # Unchanged content → durable noop (hash short-circuit), not a full re-index.
+    # Unchanged content → durable noop (hash-stable not enqueued; counted skipped).
     assert result.mode == "noop"
-    assert result.files_discovered == 2
+    assert result.files_discovered == 0
     assert result.files_ingested == 0
     assert result.files_skipped >= 2
+    assert "no content changes" in (result.hint or "")
 
 
 def test_sync_detects_content_change(tmp_path: Path):

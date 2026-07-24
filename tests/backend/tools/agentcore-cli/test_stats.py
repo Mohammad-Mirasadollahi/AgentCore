@@ -184,14 +184,13 @@ def test_print_sync_preflight(capsys, monkeypatch):
     print_sync_preflight(report)
     out = capsys.readouterr().out
     assert "Before sync" in out
-    assert "100 files" in out
-    assert "20 files" in out
     assert "Need sync" in out
     assert "5 edited" in out
     assert "85 not indexed yet" in out
-    assert "already synced" in out
-    assert "symbols documented" in out
-    assert "python" in out
+    assert "already synced" not in out
+    assert "Totals" not in out
+    assert "By language" not in out
+    assert "7 symbols still need documentation" in out
     assert "agentcore stats detail" not in out
 
 

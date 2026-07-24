@@ -155,7 +155,7 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     assert stale == []
 
 
-def test_sync_human_docs_emits_progress_including_unchanged_recheck(tmp_path: Path, monkeypatch):
+def test_sync_human_docs_progress_only_counts_work_queue(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
     monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
     (tmp_path / "src").mkdir()
@@ -211,12 +211,11 @@ def test_sync_human_docs_emits_progress_including_unchanged_recheck(tmp_path: Pa
     started = next(e for e in events if e.get("status") == "started")
     assert started["phase"] == "docs"
     assert started["queue_new"] == 1
-    assert started["queue_unchanged"] == 2
-    # done/total counts every file considered this run (1 new + 2 recheck/skip).
-    assert started["total"] == 3
+    # overview (unlinked unchanged) dropped; login stays as link_refresh.
+    assert started["queue_unchanged"] == 1
+    assert started["total"] == 2
     finished = next(e for e in events if e.get("status") == "finished")
-    assert finished["done"] == finished["total"] == 3
-    # Unlinked unchanged overview skipped; linked login rechecks; new indexes.
+    assert finished["done"] == finished["total"] == 2
     assert result.docs_indexed == 2
     assert any(e.get("status") == "unchanged" for e in events)
 

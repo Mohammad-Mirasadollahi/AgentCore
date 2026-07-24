@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 
 from code_graph_service.core import CodeGraphService, Scope
+from code_graph_service.domain.enums import SymbolKind
 from code_graph_service.domain.repo_discovery import discover_source_files
 from code_graph_service.locked_store import LockedStore
 from code_graph_service.testing import InMemoryStore
@@ -225,14 +226,14 @@ def test_ingest_repo_progress_reports_prior_vs_queue(tmp_path: Path):
     assert started["prior_indexed"] == 2
     assert started["queue_new"] == 0
     assert started["queue_changed"] == 0
-    assert started["queue_unchanged"] == 2
+    # Hash-stable + language → not enqueued (no worker recheck).
+    assert started["queue_unchanged"] == 0
     assert started["done"] == 0
-    # Recheck-only: denominator falls back to all selected files.
-    assert started["total"] == 2
+    assert started["total"] == 0
 
 
-def test_ingest_repo_progress_total_includes_unchanged_recheck(tmp_path: Path):
-    """Progress done/total counts every selected file; queue line keeps new/changed/recheck."""
+def test_ingest_repo_progress_total_excludes_hash_stable_files(tmp_path: Path):
+    """Progress done/total counts only new/changed/lang_backfill — not hash-stable."""
     _write_tree(tmp_path)
     service = CodeGraphService(InMemoryStore())
     scope = Scope("t", "w", "progress-need")
@@ -264,7 +265,48 @@ def test_ingest_repo_progress_total_includes_unchanged_recheck(tmp_path: Path):
     assert started["prior_indexed"] == 2
     assert started["queue_new"] == 1
     assert started["queue_changed"] == 1
-    assert started["queue_unchanged"] == 1
-    assert started["total"] == 3  # includes unchanged recheck
+    assert started["queue_unchanged"] == 0
+    assert started["total"] == 2
     finished = next(e for e in events if e.get("status") == "finished")
-    assert finished["done"] == finished["total"] == 3
+    assert finished["done"] == finished["total"] == 2
+
+
+def test_ingest_repo_queues_language_backfill_only(tmp_path: Path):
+    """Hash-stable files missing language stay in queue_unchanged for backfill."""
+    _write_tree(tmp_path)
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "lang-queue")
+    service.ingest_repo(
+        scope,
+        "tester",
+        "corr-a",
+        "repo-a",
+        {"root_path": str(tmp_path), "exclude_dirs": ["node_modules"]},
+    )
+    for sym in service.store.list_symbols(scope):
+        if sym.kind == SymbolKind.FILE:
+            sym.language = ""
+            service.store.put_symbol(sym)
+    events: list[dict] = []
+    result = service.ingest_repo(
+        scope,
+        "tester",
+        "corr-b",
+        "repo-b",
+        {
+            "root_path": str(tmp_path),
+            "exclude_dirs": ["node_modules"],
+            "on_progress": events.append,
+        },
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["queue_new"] == 0
+    assert started["queue_changed"] == 0
+    assert started["queue_unchanged"] == 2
+    assert started["total"] == 2
+    assert all(
+        s.language == "python"
+        for s in service.store.list_symbols(scope)
+        if s.kind == SymbolKind.FILE
+    )
+    assert result.files_discovered == 2
