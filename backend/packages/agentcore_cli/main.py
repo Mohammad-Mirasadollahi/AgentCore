@@ -44,12 +44,29 @@ from agentcore_cli.commands.mcp_cmd import (
 )
 from agentcore_cli.commands.path_cmd import cmd_path_install
 from agentcore_cli.commands.ports import cmd_ports_check, cmd_ports_show
+from agentcore_cli.commands.approval import (
+    cmd_approval_accept,
+    cmd_approval_enqueue,
+    cmd_approval_mode_set,
+    cmd_approval_mode_show,
+    cmd_approval_queue,
+    cmd_approval_reject,
+    cmd_approval_show,
+)
 from agentcore_cli.commands.profile import cmd_profile_list, cmd_profile_show
 from agentcore_cli.commands.project import (
     cmd_project_activate,
     cmd_project_effective,
     cmd_project_register,
     cmd_project_show,
+)
+from agentcore_cli.commands.weight_profile import (
+    cmd_weight_profile_activate,
+    cmd_weight_profile_active,
+    cmd_weight_profile_list,
+    cmd_weight_profile_rollback,
+    cmd_weight_profile_show,
+    cmd_weight_profile_validate,
 )
 from agentcore_cli.commands.service_cmd import (
     cmd_boot_disable,
@@ -59,6 +76,17 @@ from agentcore_cli.commands.service_cmd import (
     cmd_service_start,
     cmd_service_status,
     cmd_service_stop,
+)
+from agentcore_cli.commands.upgrade import (
+    cmd_upgrade_check,
+    cmd_upgrade_client,
+    cmd_upgrade_finalize,
+    cmd_upgrade_plan,
+    cmd_upgrade_prepare,
+    cmd_upgrade_rollback,
+    cmd_upgrade_run,
+    cmd_upgrade_status,
+    cmd_upgrade_versions,
 )
 from agentcore_cli.parser import build_parser
 
@@ -196,6 +224,54 @@ def _dispatch(argv: list[str] | None = None) -> int:
             return cmd_graph_smoke(args)
         if args.graph_command == "watch":
             return cmd_graph_watch(args)
+    if args.command == "approval":
+        if args.approval_command == "mode":
+            if args.approval_mode_command == "show":
+                return cmd_approval_mode_show(args)
+            if args.approval_mode_command == "set":
+                return cmd_approval_mode_set(args)
+        if args.approval_command == "queue":
+            return cmd_approval_queue(args)
+        if args.approval_command == "show":
+            return cmd_approval_show(args)
+        if args.approval_command == "enqueue":
+            return cmd_approval_enqueue(args)
+        if args.approval_command == "accept":
+            return cmd_approval_accept(args)
+        if args.approval_command == "reject":
+            return cmd_approval_reject(args)
+    if args.command == "weight-profile":
+        if args.weight_profile_command == "list":
+            return cmd_weight_profile_list(args)
+        if args.weight_profile_command == "show":
+            return cmd_weight_profile_show(args)
+        if args.weight_profile_command == "validate":
+            return cmd_weight_profile_validate(args)
+        if args.weight_profile_command == "active":
+            return cmd_weight_profile_active(args)
+        if args.weight_profile_command == "activate":
+            return cmd_weight_profile_activate(args)
+        if args.weight_profile_command == "rollback":
+            return cmd_weight_profile_rollback(args)
+    if args.command == "upgrade":
+        if args.upgrade_command == "versions":
+            return cmd_upgrade_versions(args)
+        if args.upgrade_command == "check":
+            return cmd_upgrade_check(args)
+        if args.upgrade_command == "plan":
+            return cmd_upgrade_plan(args)
+        if args.upgrade_command == "prepare":
+            return cmd_upgrade_prepare(args)
+        if args.upgrade_command == "run":
+            return cmd_upgrade_run(args)
+        if args.upgrade_command == "status":
+            return cmd_upgrade_status(args)
+        if args.upgrade_command == "rollback":
+            return cmd_upgrade_rollback(args)
+        if args.upgrade_command == "finalize":
+            return cmd_upgrade_finalize(args)
+        if args.upgrade_command == "client":
+            return cmd_upgrade_client(args)
     parser.print_help()
     return 2
 

@@ -46,6 +46,7 @@ Give agents the right context at the right time while keeping prompts fast, chea
 - 09-chat-qa-rag-incremental-documentation.md defines chat Q&A write-back into project RAG, retention of derived docs, freshness on code change, code-as-authority, and staged code-vs-doc contradiction disclosure.
 - 10-chat-quality-prior-art-license-and-method.md defines license-verified OSS chat/RAG study method, clean-room policy, and index of quality idea catalogs.
 - 11-chat-quality-retrieval-ranking-and-context-packing.md catalogs hybrid retrieval, rerank, RAPTOR/GraphRAG modes, thresholds, pins, and context budgets.
+- 12-weight-profile-governance.md closes GAP-006: ownership, approval, activation, and rollback for WeightProfiles (CLI included).
 - 12-chat-quality-grounding-citations-refusal.md catalogs grounding, citations, empty/query refusal, relevance warnings, and contradiction-stage alignment.
 - 13-chat-quality-query-rewrite-memory-feedback.md catalogs query rewrite, keyword expansion, history fitting, chunk feedback, and branching.
 

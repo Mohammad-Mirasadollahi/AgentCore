@@ -29,6 +29,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-hld
 - ac.doc.ckg.rpm-session-parallel-sync-lld
 - ac.doc.ckg.rpm-session-parallel-sync-risks
+- ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 - ac.doc.stack.litellm-llm-gateway
 - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
 - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md

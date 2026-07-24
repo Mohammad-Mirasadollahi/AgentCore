@@ -132,12 +132,22 @@ def main() -> int:
 
         seed = by_name.get("require_login") or by_name.get("login")
         if seed is not None:
-            impact = svc.structural_query(scope, seed.id, max_depth=3)
-            step("structural_impact", len(impact.get("edges") or []) >= 1, f"edges={len(impact.get('edges') or [])}")
+            impact = svc.impact_analysis(scope, seed.id, direction="both", max_depth=3)
+            step(
+                "directed_impact",
+                len(impact.get("blast") or []) >= 1 or len(impact.get("edges") or []) >= 1,
+                f"blast={len(impact.get('blast') or [])} edges={len(impact.get('edges') or [])}",
+            )
+            callers = svc.callers(scope, seed.id, top_k=20)
+            step("callers", "callers" in callers and "escalate_hint" in callers, f"n={callers.get('caller_count')}")
+            community = svc.community_of_symbol(scope, seed.id, member_limit=20)
+            step("community", "community_id" in community, f"id={community.get('community_id')}")
             ctx = svc.build_generation_context(scope, seed.id, max_symbols=8)
             step("generation_context", ctx.get("symbol_count", 0) >= 2, f"symbols={ctx.get('symbol_count')}")
         else:
-            step("structural_impact", False, "seed missing")
+            step("directed_impact", False, "seed missing")
+            step("callers", False, "seed missing")
+            step("community", False, "seed missing")
             step("generation_context", False, "seed missing")
     finally:
         closer = getattr(svc.store, "close", None)
@@ -189,12 +199,34 @@ def main() -> int:
         impact = dispatch_capability(
             backends,
             "code_graph.impact",
-            {"symbol_id": got["symbol"]["id"], "max_depth": 3},
+            {"symbol_id": got["symbol"]["id"], "max_depth": 3, "direction": "both"},
             scope=mcp_scope,
             usage_profile="programming-cursor-mcp",
             correlation_id=str(uuid4()),
         )
-        step("mcp_impact", len(impact.get("edges") or []) >= 1, f"edges={len(impact.get('edges') or [])}")
+        step(
+            "mcp_impact",
+            len(impact.get("blast") or []) >= 1 or len(impact.get("edges") or []) >= 1,
+            f"blast={len(impact.get('blast') or [])} edges={len(impact.get('edges') or [])}",
+        )
+        callers = dispatch_capability(
+            backends,
+            "code_graph.callers",
+            {"symbol_id": got["symbol"]["id"], "top_k": 10},
+            scope=mcp_scope,
+            usage_profile="programming-cursor-mcp",
+            correlation_id=str(uuid4()),
+        )
+        step("mcp_callers", "callers" in callers and "escalate_hint" in callers, f"n={callers.get('caller_count')}")
+        community = dispatch_capability(
+            backends,
+            "code_graph.community",
+            {"symbol_id": got["symbol"]["id"]},
+            scope=mcp_scope,
+            usage_profile="programming-cursor-mcp",
+            correlation_id=str(uuid4()),
+        )
+        step("mcp_community", "community_id" in community, f"id={community.get('community_id')}")
     finally:
         backends.close()
 

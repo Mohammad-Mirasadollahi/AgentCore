@@ -34,9 +34,11 @@ Shared LiteLLM adapter for AgentCore services. Implements the stack ADR
 | `AGENTCORE_LITELLM_DOCS_ENABLED` | `true` | Use LiteLLM for symbol docs (heuristic fallback) |
 | `AGENTCORE_LITELLM_EMBEDDINGS_ENABLED` | `false` | Use LiteLLM embeddings (stub fallback; vectors reduced to 16-d) |
 | `AGENTCORE_LITELLM_MODEL_DOCS` / `_EMBED` / `_JUDGE` / `_CODEGEN` | _(empty)_ | Per-task model overrides |
+| `AGENTCORE_LITELLM_ROUTING_ENV` | `local` | Select `default.json` (`local`) or `cloud.json` profile |
+| `AGENTCORE_LITELLM_ROUTING_PROFILE` | _(empty)_ | Optional path to a custom ModelRoutingProfile JSON |
 | `AGENTCORE_LITELLM_FALLBACK_MODELS` | _(empty)_ | Comma-separated fallback aliases |
 | `AGENTCORE_LITELLM_RISK_LEVEL` | `low` | Routing risk: `low` / `medium` / `high` |
-| `AGENTCORE_LITELLM_PROFILE_ID` | `env-default` | Route profile label |
+| `AGENTCORE_LITELLM_PROFILE_ID` | _(profile file)_ | Route profile label override |
 
 Auto Base URL: `http://{HOST}:{PORT}` when no override is set.
 

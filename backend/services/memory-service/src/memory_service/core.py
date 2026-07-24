@@ -100,25 +100,57 @@ class WeightProfile:
     episodic_penalty: float = 1.5
 
     @classmethod
-    def default(cls) -> WeightProfile:
+    def from_catalog(cls, data: dict[str, Any]) -> WeightProfile:
+        weights = data.get("feature_weights") or {}
+        thresholds = data.get("thresholds") or {}
         return cls(
-            profile_id="default-memory-profile",
-            version=1,
-            semantic_weight=3.0,
-            episodic_weight=1.0,
-            working_weight=2.0,
-            evidence_weight=1.5,
-            recency_weight=0.25,
-            min_relevance_score=2.0,
-            faq_min_observations=2,
-            faq_min_evidence=1,
-            context_token_budget=1200,
-            curiosity_min_observations=2,
-            documentation_draft_min_confidence=0.75,
-            documentation_task_min_confidence=0.4,
-            current_state_boost=2.0,
-            episodic_penalty=1.5,
+            profile_id=str(data.get("profile_id") or "default-memory-profile"),
+            version=int(data.get("version") or 1),
+            semantic_weight=float(weights.get("semantic_weight", 3.0)),
+            episodic_weight=float(weights.get("episodic_weight", 1.0)),
+            working_weight=float(weights.get("working_weight", 2.0)),
+            evidence_weight=float(weights.get("evidence_weight", 1.5)),
+            recency_weight=float(weights.get("recency_weight", 0.25)),
+            min_relevance_score=float(thresholds.get("min_relevance_score", 2.0)),
+            faq_min_observations=int(thresholds.get("faq_min_observations", 2)),
+            faq_min_evidence=int(thresholds.get("faq_min_evidence", 1)),
+            context_token_budget=int(thresholds.get("context_token_budget", 1200)),
+            curiosity_min_observations=int(thresholds.get("curiosity_min_observations", 2)),
+            documentation_draft_min_confidence=float(
+                thresholds.get("documentation_draft_min_confidence", 0.75)
+            ),
+            documentation_task_min_confidence=float(
+                thresholds.get("documentation_task_min_confidence", 0.4)
+            ),
+            current_state_boost=float(weights.get("current_state_boost", 2.0)),
+            episodic_penalty=float(weights.get("episodic_penalty", 1.5)),
         )
+
+    @classmethod
+    def default(cls) -> WeightProfile:
+        try:
+            from weight_profiles import get_active_profile_id, load_profile
+
+            return cls.from_catalog(load_profile(get_active_profile_id()))
+        except Exception:  # noqa: BLE001 — keep hardcoded baseline if catalog missing
+            return cls(
+                profile_id="default-memory-profile",
+                version=1,
+                semantic_weight=3.0,
+                episodic_weight=1.0,
+                working_weight=2.0,
+                evidence_weight=1.5,
+                recency_weight=0.25,
+                min_relevance_score=2.0,
+                faq_min_observations=2,
+                faq_min_evidence=1,
+                context_token_budget=1200,
+                curiosity_min_observations=2,
+                documentation_draft_min_confidence=0.75,
+                documentation_task_min_confidence=0.4,
+                current_state_boost=2.0,
+                episodic_penalty=1.5,
+            )
 
 
 @dataclass

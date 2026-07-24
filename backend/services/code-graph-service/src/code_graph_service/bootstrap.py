@@ -128,19 +128,33 @@ def build_llm_gateway():
 def build_container(settings: Settings | None = None) -> ServiceContainer:
     """Composition root: bind adapters and return a frozen service container."""
     from .llm_wiring import maybe_preload_embeddings
-    from .locked_store import LockedEmbeddings, LockedStore
+    from .locked_store import LockedEmbeddings, LockedStore, apply_sync_compute_limits
 
     resolved = settings or Settings.from_environment()
+    cpu_plan = apply_sync_compute_limits()
     gateway = build_llm_gateway()
     embeddings = build_embeddings(gateway, settings=gateway.settings)
     if embeddings.local is not None:
-        embeddings.local = LockedEmbeddings(embeddings.local)
+        embeddings.local = LockedEmbeddings(
+            embeddings.local,
+            max_concurrency=cpu_plan.embed_concurrency,
+        )
     maybe_preload_embeddings(embeddings)
     emb_index = build_embedding_index(resolved)
+    store = build_store(resolved)
+    # Neo4j: concurrent sessions are safe for reads — only serialize mutations,
+    # and cap total in-flight store ops so a small Neo4j heap is not flooded.
+    # Postgres: one psycopg connection — serialize all store traffic.
+    lock_reads = isinstance(store, PostgresStore)
+    store_conc = None if lock_reads else int(cpu_plan.store_concurrency)
     if emb_index is not None:
-        emb_index = LockedStore(emb_index)
+        emb_index = LockedStore(
+            emb_index,
+            lock_reads=lock_reads,
+            max_concurrent=store_conc,
+        )
     graph = CodeGraphService(
-        LockedStore(build_store(resolved)),
+        LockedStore(store, lock_reads=lock_reads, max_concurrent=store_conc),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=embeddings,
         embedding_index=emb_index,

@@ -33,7 +33,7 @@ The **canonical Neo4j runtime model** for `code-graph-service` is:.
 The **canonical Neo4j runtime model** for `code-graph-service` is:
 
 - Label `CodeSymbol` with a `kind` property (`file`, `class`, `function`, `method`, `import`, `module`, `documentation`, …)
-- Relationship type `CODE_REL` with a `rel_type` property (`CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`, `DOCUMENTED_BY`)
+- Relationship type `CODE_REL` with a `rel_type` property (`CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`, `DOCUMENTED_BY`, `ROUTES_TO`, `TESTED_BY`, `HTTP_CALLS`, `ASYNC_CALLS`)
 
 See ADR: `13-codesymbol-projection-adr.md`. The typed catalog below is the **logical product vocabulary** and a future optional enrichment path — not what `Neo4jStore` writes today.
 

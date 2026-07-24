@@ -316,3 +316,92 @@ class Neo4jRetrievalMixin:
             }
             for row in rows
         ]
+
+    def neighborhood_edges(
+        self,
+        scope: Scope,
+        seed_id: str,
+        *,
+        max_depth: int = 3,
+        direction: str = "both",
+        rel_types: list[str] | None = None,
+        limit: int = 2000,
+    ) -> list[GraphEdge]:
+        """Directed multi-hop CODE_REL edges around a seed (Cypher; scale path for callers/impact)."""
+        depth = max(1, min(int(max_depth), 8))
+        limit = max(1, min(int(limit), 5000))
+        direction_n = (direction or "both").strip().lower()
+        if direction_n not in {"upstream", "downstream", "both"}:
+            direction_n = "both"
+        rels = [r.upper() for r in (rel_types or ["CALLS", "HTTP_CALLS", "ASYNC_CALLS", "ROUTES_TO"])]
+        patterns: list[str] = []
+        if direction_n in {"upstream", "both"}:
+            patterns.append(
+                f"(seed)<-[r:{_REL}*1..{depth}]-(other:CodeSymbol)"
+            )
+        if direction_n in {"downstream", "both"}:
+            patterns.append(
+                f"(seed)-[r:{_REL}*1..{depth}]->(other:CodeSymbol)"
+            )
+        edges: list[GraphEdge] = []
+        seen: set[str] = set()
+        with self._driver.session(database=self._database) as session:
+            for pattern in patterns:
+                cypher = f"""
+                    MATCH (seed:CodeSymbol {{id: $seed_id}})
+                    WHERE seed.tenant_id = $tenant_id
+                      AND seed.workspace_id = $workspace_id
+                      AND seed.project_id = $project_id
+                    MATCH p = {pattern}
+                    WHERE other.tenant_id = $tenant_id
+                      AND other.workspace_id = $workspace_id
+                      AND other.project_id = $project_id
+                      AND all(rel IN relationships(p) WHERE rel.rel_type IN $rels)
+                    UNWIND relationships(p) AS edge
+                    WITH DISTINCT edge
+                    MATCH (a:CodeSymbol)-[edge]->(b:CodeSymbol)
+                    RETURN edge.id AS id,
+                           edge.rel_type AS rel_type,
+                           a.id AS source_id,
+                           b.id AS target_id,
+                           edge.confidence AS confidence,
+                           edge.metadata_json AS metadata_json
+                    LIMIT $limit
+                    """
+                try:
+                    rows = list(
+                        session.run(
+                            cypher,
+                            seed_id=seed_id,
+                            tenant_id=scope.tenant_id,
+                            workspace_id=scope.workspace_id,
+                            project_id=scope.project_id,
+                            rels=rels,
+                            limit=limit,
+                        )
+                    )
+                except Exception:
+                    continue
+                for row in rows:
+                    eid = str(row["id"] or "")
+                    if eid and eid in seen:
+                        continue
+                    if eid:
+                        seen.add(eid)
+                    conf_raw = row["confidence"] or CallConfidence.EXACT.value
+                    try:
+                        conf = CallConfidence(str(conf_raw))
+                    except ValueError:
+                        conf = CallConfidence.PROBABLE
+                    edges.append(
+                        GraphEdge(
+                            id=eid or f"cypher:{row['source_id']}:{row['target_id']}",
+                            scope=scope,
+                            rel_type=str(row["rel_type"] or "CALLS"),
+                            source_id=str(row["source_id"]),
+                            target_id=str(row["target_id"]),
+                            confidence=conf,
+                            metadata=json.loads(row["metadata_json"] or "{}"),
+                        )
+                    )
+        return edges

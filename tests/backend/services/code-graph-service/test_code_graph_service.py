@@ -361,6 +361,10 @@ def test_normalization_and_api_routes():
     assert "/api/v1/projects/{project_id}/graph/generation-context" in routes
     assert "/api/v1/projects/{project_id}/graph/generated-code:validate" in routes
     assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors" in routes
+    assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/callers" in routes
+    assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/impact" in routes
+    assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/community" in routes
+    assert "/api/v1/projects/{project_id}/graph/symbols/{symbol_id}/call-path" in routes
     assert "/api/v1/llm/providers" in routes
     assert "/api/v1/llm/config" in routes
     assert "/api/v1/llm/complete" in routes
@@ -393,6 +397,12 @@ def test_language_matrix_python_required_and_multi_lang_supported():
         raise AssertionError("unknown language should raise")
     except ValidationError as exc:
         assert "unsupported language" in exc.message
+    assert matrix["java"]["status"] == "planned"
+    try:
+        assert_language_supported("java")
+        raise AssertionError("planned language should raise")
+    except ValidationError as exc:
+        assert "planned" in exc.message
 
 
 def test_import_alias_probable_calls_and_file_imports():

@@ -203,7 +203,7 @@
       },
       {
         "name": "agentcore_code_graph_neighbors",
-        "description": "Return structural neighbors (CALLS/IMPORTS/…) for a symbol; uses Neo4j expand when available.",
+        "description": "Return STRUCTURAL graph neighbors (CALLS/IMPORTS/…) for a symbol (reference_kind=structural). For IDE-precise find-references use agentcore_code_graph_ide_references.",
         "maps_to": "code_graph.neighbors",
         "input_schema": {
           "type": "object",
@@ -230,7 +230,7 @@
       },
       {
         "name": "agentcore_code_graph_impact",
-        "description": "Multi-hop impact neighborhood around a symbol (structural expand + importance hints when Neo4j GDS/APOC available).",
+        "description": "Directed multi-hop impact / blast radius around a symbol (upstream callers, downstream callees, or both). Prefer before wide file reads. Includes escalate_hint.",
         "maps_to": "code_graph.impact",
         "input_schema": {
           "type": "object",
@@ -241,16 +241,172 @@
             "qualified_name": {
               "type": "string"
             },
+            "direction": {
+              "type": "string",
+              "enum": ["upstream", "downstream", "both"],
+              "default": "both"
+            },
             "rel_type": {
               "type": "string"
+            },
+            "rel_types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "min_confidence": {
+              "type": "string",
+              "description": "exact|probable|ambiguous|external|unresolved floor"
             },
             "max_depth": {
               "type": "integer",
               "minimum": 1,
               "maximum": 8,
               "default": 3
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
             }
           },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_callers",
+        "description": "Ranked inbound callers (fan-in) for a symbol. Prefer for 'who calls X' before Grep. Includes escalate_hint.",
+        "maps_to": "code_graph.callers",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8,
+              "default": 1
+            },
+            "min_confidence": {
+              "type": "string"
+            },
+            "rel_types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_community",
+        "description": "Leiden/Louvain community membership for one symbol (label, size, members). Prefer for module-boundary questions.",
+        "maps_to": "code_graph.community",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "member_limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 30
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_call_path",
+        "description": "Compact outbound call-path pack from a seed symbol (CALLS/HTTP_CALLS/ASYNC_CALLS). Prefer for 'what does X call' before wide Grep. Includes escalate_hint.",
+        "maps_to": "code_graph.call_path",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "symbol_id": {
+              "type": "string"
+            },
+            "qualified_name": {
+              "type": "string"
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8,
+              "default": 4
+            },
+            "max_nodes": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 200,
+              "default": 40
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_unused_candidates",
+        "description": "Task-scoped unused-symbol candidates from the code graph (no inbound CALLS/IMPORTS). Prefer after replace/retire; AgentCore never deletes files — prove then delete locally. Requires anchor_symbols and/or anchor_paths (no whole-repo scan).",
+        "maps_to": "code_graph.unused_candidates",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "Optional; must match active MCP project scope when set"
+            },
+            "scope_mode": {
+              "type": "string",
+              "enum": ["task_neighborhood", "changed_symbols", "explicit_paths"],
+              "default": "changed_symbols"
+            },
+            "anchor_symbols": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Symbol ids, qualified names, or short names in the change neighborhood"
+            },
+            "anchor_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Repo-relative path prefixes for explicit_paths / anchors"
+            },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "include_uncertain": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": ["scope_mode"],
           "additionalProperties": false
         }
       },
@@ -292,6 +448,77 @@
               "type": "string",
               "description": "If set, mark this path pending until next ingest"
             }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_ide_references",
+        "description": "IDE-semantic find-references via local Language Server (reference_kind=ide_semantic). Does NOT write durable CODE_REL. Prefer agentcore_code_graph_neighbors for structural graph edges.",
+        "maps_to": "code_graph.ide_references",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "root_path": { "type": "string" },
+            "file_path": { "type": "string" },
+            "line": { "type": "integer", "minimum": 0 },
+            "character": { "type": "integer", "minimum": 0 },
+            "language": { "type": "string" }
+          },
+          "required": ["root_path", "file_path", "line", "character"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_ide_definition",
+        "description": "IDE-semantic go-to-definition via local Language Server (reference_kind=ide_semantic). Not a durable graph edge lookup.",
+        "maps_to": "code_graph.ide_definition",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "root_path": { "type": "string" },
+            "file_path": { "type": "string" },
+            "line": { "type": "integer", "minimum": 0 },
+            "character": { "type": "integer", "minimum": 0 },
+            "language": { "type": "string" }
+          },
+          "required": ["root_path", "file_path", "line", "character"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_ide_rename",
+        "description": "IDE-semantic rename via local Language Server, then AST reconcile_after_edit (reference_kind=ide_semantic). Never dual-writes CODE_REL from LSP.",
+        "maps_to": "code_graph.ide_rename",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "root_path": { "type": "string" },
+            "file_path": { "type": "string" },
+            "line": { "type": "integer", "minimum": 0 },
+            "character": { "type": "integer", "minimum": 0 },
+            "new_name": { "type": "string" },
+            "language": { "type": "string" },
+            "apply": { "type": "boolean", "default": true },
+            "run_sync": { "type": "boolean", "default": true },
+            "idempotency_key": { "type": "string" }
+          },
+          "required": ["root_path", "file_path", "line", "character", "new_name"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_code_graph_reconcile_after_edit",
+        "description": "After IDE/LSP edits: mark paths pending and optionally AST re-ingest (reference_kind=structural converge). ADR 48 one-way reconcile.",
+        "maps_to": "code_graph.reconcile_after_edit",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "file_paths": { "type": "array", "items": { "type": "string" } },
+            "file_path": { "type": "string" },
+            "root_path": { "type": "string" },
+            "run_sync": { "type": "boolean", "default": false },
+            "idempotency_key": { "type": "string" }
           },
           "additionalProperties": false
         }

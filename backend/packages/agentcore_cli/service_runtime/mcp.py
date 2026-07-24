@@ -15,6 +15,7 @@ from typing import Any
 from agentcore_cli.service_runtime.paths import (
     DEFAULT_MCP_HOST,
     DEFAULT_MCP_PORT,
+    MCP_HTTP_READY_TIMEOUT_SEC,
     mcp_log_path,
     mcp_pid_path,
     mcp_secret_path,
@@ -70,6 +71,8 @@ def prepare_mcp_env(root: Path) -> dict[str, str]:
         ]
     ).strip(os.pathsep)
     env["PYTHONPATH"] = pythonpath
+    # File-redirected uvicorn logs stay empty on early kill unless unbuffered.
+    env.setdefault("PYTHONUNBUFFERED", "1")
     return env
 
 
@@ -145,6 +148,63 @@ def _clear_mcp_pid(root: Path) -> None:
     mcp_pid_path(root).unlink(missing_ok=True)
 
 
+def _terminate_mcp_proc(proc: subprocess.Popen[Any]) -> int | None:
+    """SIGTERM (then SIGKILL) a session-leader MCP process; return exit code if known."""
+    code = proc.poll()
+    if code is not None:
+        return code
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            return proc.poll()
+    for _ in range(25):
+        code = proc.poll()
+        if code is not None:
+            return code
+        time.sleep(0.1)
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+    return proc.poll()
+
+
+def _raise_mcp_start_error(
+    root: Path,
+    summary: str,
+    *,
+    host: str,
+    port: int,
+    pid: int | None = None,
+    waited_sec: float | None = None,
+    exit_code: int | None = None,
+    still_running: bool = False,
+) -> None:
+    """Fail closed with actionable diagnostics (caller may also print log tail)."""
+    log_path = mcp_log_path(root)
+    lines = [f"error: {summary}"]
+    lines.append(f"  listen: {host}:{port}")
+    if pid is not None:
+        lines.append(f"  pid: {pid}")
+    if waited_sec is not None:
+        lines.append(
+            f"  waited: {waited_sec:.1f}s / {MCP_HTTP_READY_TIMEOUT_SEC:.0f}s budget"
+        )
+    if exit_code is not None:
+        lines.append(f"  exit_code: {exit_code}")
+    if still_running:
+        lines.append("  process: still running after stop attempt")
+    lines.append(f"  log: {log_path}")
+    lines.append("  next: agentcore service detail")
+    raise SystemExit("\n".join(lines))
+
+
 def start_mcp_http(root: Path) -> dict[str, Any]:
     existing = read_mcp_pid(root)
     if existing is not None:
@@ -172,57 +232,92 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
 
     stop_mcp_gateway(root)
     if not _wait_port_free(host, port):
-        raise SystemExit(
-            f"error: MCP HTTP port {port} is still in use after stopping "
-            f"compose mcp-gateway. Free the port, then retry: "
-            f"agentcore service start (see {log_path})"
+        _raise_mcp_start_error(
+            root,
+            f"MCP HTTP port {port} is still in use after stopping compose mcp-gateway",
+            host=host,
+            port=port,
         )
 
     progress(f"MCP HTTP: starting on {host}:{port}")
-    log_f = open(log_path, "a", encoding="utf-8")  # noqa: SIM115 — kept open for daemon
     try:
-        proc = subprocess.Popen(
-            [exe, "-m", "mcp_gateway_service", "--http", "--host", host, "--port", str(port)],
-            cwd=str(root),
-            env=env,
-            stdout=log_f,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
+        log_f = open(log_path, "a", encoding="utf-8")  # noqa: SIM115 — closed after Popen
+    except OSError as exc:
+        _raise_mcp_start_error(
+            root,
+            f"MCP HTTP could not open log file ({exc})",
+            host=host,
+            port=port,
         )
+    try:
+        try:
+            proc = subprocess.Popen(
+                [exe, "-m", "mcp_gateway_service", "--http", "--host", host, "--port", str(port)],
+                cwd=str(root),
+                env=env,
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            _raise_mcp_start_error(
+                root,
+                f"MCP HTTP failed to launch ({exc})",
+                host=host,
+                port=port,
+            )
     finally:
         log_f.close()
     mcp_pid_path(root).write_text(str(proc.pid) + "\n", encoding="utf-8")
     progress(f"MCP HTTP: process launched (pid {proc.pid}); waiting until reachable")
 
-    for _ in range(30):
-        if proc.poll() is not None:
+    wait_started = time.monotonic()
+    deadline = wait_started + MCP_HTTP_READY_TIMEOUT_SEC
+    reachable = False
+    while time.monotonic() < deadline:
+        code = proc.poll()
+        if code is not None:
             _clear_mcp_pid(root)
-            raise SystemExit(
-                f"error: MCP HTTP exited early (code={proc.returncode}); see {log_path}"
+            _raise_mcp_start_error(
+                root,
+                "MCP HTTP exited before becoming reachable",
+                host=host,
+                port=port,
+                pid=proc.pid,
+                waited_sec=time.monotonic() - wait_started,
+                exit_code=code,
             )
         if tcp_ok(host, port):
+            reachable = True
             break
         time.sleep(0.2)
-    else:
-        if proc.poll() is None:
-            try:
-                os.killpg(proc.pid, signal.SIGTERM)
-            except (ProcessLookupError, PermissionError, OSError):
-                try:
-                    proc.terminate()
-                except ProcessLookupError:
-                    pass
+    if not reachable:
+        waited = time.monotonic() - wait_started
+        exit_code = _terminate_mcp_proc(proc)
         _clear_mcp_pid(root)
-        raise SystemExit(
-            f"error: MCP HTTP not reachable on {host}:{port}; see {log_path}"
+        _raise_mcp_start_error(
+            root,
+            f"MCP HTTP not reachable on {host}:{port}",
+            host=host,
+            port=port,
+            pid=proc.pid,
+            waited_sec=waited,
+            exit_code=exit_code,
+            still_running=exit_code is None,
         )
 
     # Reject the false-success race: foreign listener answered TCP while our
     # process already failed to bind and exited.
-    if proc.poll() is not None or not tcp_ok(host, port):
+    code = proc.poll()
+    if code is not None or not tcp_ok(host, port):
         _clear_mcp_pid(root)
-        raise SystemExit(
-            f"error: MCP HTTP failed to stay up on {host}:{port}; see {log_path}"
+        _raise_mcp_start_error(
+            root,
+            f"MCP HTTP failed to stay up on {host}:{port}",
+            host=host,
+            port=port,
+            pid=proc.pid,
+            exit_code=code,
         )
 
     progress(f"MCP HTTP: is up on {host}:{port}")

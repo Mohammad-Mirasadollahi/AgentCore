@@ -11,9 +11,12 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Start/stop/restart/status for Compose infra + MCP HTTP backend",
     )
     service_sub = service.add_subparsers(dest="service_command", required=True)
-    service_sub.add_parser("start", help="Start postgres/neo4j + MCP HTTP daemon")
-    service_sub.add_parser("stop", help="Stop MCP HTTP daemon + postgres/neo4j")
-    service_sub.add_parser("restart", help="Restart Compose infra + MCP HTTP")
+    service_start = service_sub.add_parser("start", help="Start postgres/neo4j + MCP HTTP daemon")
+    service_start.add_argument("--json", action="store_true", help="Print JSON only")
+    service_stop = service_sub.add_parser("stop", help="Stop MCP HTTP daemon + postgres/neo4j")
+    service_stop.add_argument("--json", action="store_true", help="Print JSON only")
+    service_restart = service_sub.add_parser("restart", help="Restart Compose infra + MCP HTTP")
+    service_restart.add_argument("--json", action="store_true", help="Print JSON only")
     service_status = service_sub.add_parser(
         "status",
         help="Show Compose + MCP HTTP + boot enablement",

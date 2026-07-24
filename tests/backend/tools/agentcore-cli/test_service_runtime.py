@@ -289,6 +289,7 @@ def test_prepare_mcp_env_creates_secret(tmp_path: Path, monkeypatch):
     assert secret.is_file()
     assert env["AGENTCORE_MCP_TOKEN_SECRET"] == secret.read_text(encoding="utf-8").strip()
     assert env["AGENTCORE_MCP_HTTP_PORT"] == str(runtime.DEFAULT_MCP_PORT)
+    assert env.get("PYTHONUNBUFFERED") == "1"
 
 
 def test_service_state_names_what_is_wrong():
@@ -604,6 +605,7 @@ def test_start_mcp_http_refuses_when_port_still_busy(tmp_path: Path, monkeypatch
         msg = str(exc)
     assert raised
     assert "still in use" in msg
+    assert "next: agentcore service detail" in msg
     assert launched == []
 
 
@@ -647,8 +649,110 @@ def test_start_mcp_http_clears_pid_when_process_exits_early(tmp_path: Path, monk
         raised = True
         msg = str(exc)
     assert raised
-    assert "exited early" in msg
+    assert "exited before becoming reachable" in msg
+    assert "exit_code: 1" in msg
+    assert "next: agentcore service detail" in msg
     assert not pid_path.is_file()
+
+
+def test_start_mcp_http_not_reachable_reports_wait_budget_and_exit(
+    tmp_path: Path, monkeypatch
+):
+    import subprocess
+    import time
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+    from agentcore_cli.service_runtime.paths import MCP_HTTP_READY_TIMEOUT_SEC
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "127.0.0.1",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: True)
+    monkeypatch.setattr(mcp_mod, "tcp_ok", lambda *_a, **_k: False)
+    monkeypatch.setattr(mcp_mod, "MCP_HTTP_READY_TIMEOUT_SEC", 0.0)
+    monkeypatch.setattr(time, "sleep", lambda _s: None)
+
+    class LiveThenDead:
+        pid = 9090
+        returncode = None
+        _alive = True
+
+        def poll(self):
+            return None if self._alive else -15
+
+    proc = LiveThenDead()
+
+    def fake_terminate(p):
+        p._alive = False
+        return -15
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_a, **_k: proc)
+    monkeypatch.setattr(mcp_mod, "_terminate_mcp_proc", fake_terminate)
+    pid_path = mcp_mod.mcp_pid_path(tmp_path)
+    try:
+        mcp_mod.start_mcp_http(tmp_path)
+        raised = False
+        msg = ""
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+    assert raised
+    assert "not reachable" in msg
+    assert f"/ {MCP_HTTP_READY_TIMEOUT_SEC:.0f}s budget" in msg or "/ 0s budget" in msg
+    assert "exit_code: -15" in msg
+    assert "next: agentcore service detail" in msg
+    assert not pid_path.is_file()
+
+
+def test_start_mcp_http_launch_oserror_is_actionable(tmp_path: Path, monkeypatch):
+    import subprocess
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "127.0.0.1",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: True)
+
+    def boom(*_a, **_k):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr(subprocess, "Popen", boom)
+    try:
+        mcp_mod.start_mcp_http(tmp_path)
+        raised = False
+        msg = ""
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+    assert raised
+    assert "failed to launch" in msg
+    assert "Permission denied" in msg
+    assert "next: agentcore service detail" in msg
 
 
 def test_start_mcp_http_ok_when_own_process_reachable(tmp_path: Path, monkeypatch, capsys):
@@ -689,4 +793,57 @@ def test_start_mcp_http_ok_when_own_process_reachable(tmp_path: Path, monkeypatc
     assert mcp_mod.mcp_pid_path(tmp_path).read_text(encoding="utf-8").strip() == "7777"
     out = capsys.readouterr().out
     assert "is up on" in out
+
+
+def test_start_mcp_http_ready_wait_covers_cold_start_beyond_six_seconds(
+    tmp_path: Path, monkeypatch
+):
+    """Regression: cold MCP bind is ~4–8s; old 30×0.2s budget killed a live process."""
+    import subprocess
+    import time
+
+    from agentcore_cli.service_runtime import compose as compose_mod
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+    from agentcore_cli.service_runtime.paths import MCP_HTTP_READY_TIMEOUT_SEC
+
+    assert MCP_HTTP_READY_TIMEOUT_SEC >= 30.0
+
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "prepare_mcp_env",
+        lambda _r: {
+            "AGENTCORE_MCP_HTTP_HOST": "127.0.0.1",
+            "AGENTCORE_MCP_HTTP_PORT": "32500",
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+    monkeypatch.setattr(compose_mod, "stop_mcp_gateway", lambda _r: {"ok": True})
+    monkeypatch.setattr(mcp_mod, "_wait_port_free", lambda *_a, **_k: True)
+    monkeypatch.setattr(time, "sleep", lambda _s: None)
+
+    polls = {"n": 0}
+
+    def fake_tcp(*_a, **_k):
+        polls["n"] += 1
+        # Succeed only after the old 6s / 30-poll budget would have given up.
+        return polls["n"] >= 40
+
+    monkeypatch.setattr(mcp_mod, "tcp_ok", fake_tcp)
+
+    class LiveProc:
+        pid = 8888
+        returncode = None
+
+        def poll(self):
+            return None
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_a, **_k: LiveProc())
+    report = mcp_mod.start_mcp_http(tmp_path)
+    assert report["ok"] is True
+    assert report["pid"] == 8888
+    assert polls["n"] >= 40
 

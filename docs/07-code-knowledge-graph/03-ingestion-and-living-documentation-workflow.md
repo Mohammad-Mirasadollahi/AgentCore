@@ -217,15 +217,17 @@ Loads a user record by ID, validates that the record exists, and returns a norma
 
 ## Parallel sync under RPM sessions
 
-`agentcore sync` / `ingest_repo` uses bounded file workers
-(`AGENTCORE_SYNC_MAX_FILE_WORKERS`, default **auto** =
+`agentcore sync` / `ingest_repo` uses bounded file workers from
+`AGENTCORE_SYNC_CPU_PERCENT` (preferred) or `AGENTCORE_SYNC_MAX_FILE_WORKERS`
+(exact override; default **auto** =
 `min(cpu_count, AGENTCORE_LITELLM_RPM)`). LiteLLM `complete`/`embed` calls
 are gated by tracked RPM sessions (start + end) under `AGENTCORE_LITELLM_RPM`.
-Graph store mutations go through `LockedStore` so the single Postgres connection
-stays correct. Observe sessions via `GET /api/v1/llm/sessions` or
-`agentcore llm sessions`.
+Graph store access goes through `LockedStore`: Postgres stays fully serialized;
+Neo4j uses a small concurrent Bolt budget (`store_concurrency`). Observe
+sessions via `GET /api/v1/llm/sessions` or `agentcore llm sessions`.
 
 Design pack: [`37`](37-rpm-session-parallel-sync-feature-specification.md) →
 [`38`](38-rpm-session-parallel-sync-high-level-design.md) →
 [`39`](39-rpm-session-parallel-sync-low-level-design.md) →
-[`40`](40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md).
+[`40`](40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md) →
+[`50`](50-sync-cpu-budget-and-store-concurrency-lld.md) (CPU percent + store concurrency).

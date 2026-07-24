@@ -171,6 +171,8 @@ Markdown under `docs/` is not enough for best AgentCore results. On ingest, Agen
 | D2 | **Explain non-obvious WHY**, not restating the next line | Prefer intent, constraint, failure mode, tradeoff | Graph + agents use rationale bodies as context |
 | D3 | **Tagged rationale comments** (ingested as `RATIONALE`) | `# WHY: …` · `# NOTE: …` · `# HACK: …` (language-appropriate comment syntax) | Extracted on file ingest → symbol + `DOCUMENTED_BY` from the file |
 | D4 | **Useful docstrings / API docs** on public surfaces | Short contract: inputs, outputs, errors — not marketing | Helps humans and living-doc / explore packs; do not duplicate a novel in every function |
+| D4a | **Module contract docstring** on hard modules only | File-top 3–6 lines: role + source of truth / invariants + allowed vs forbidden failures | Stops agents inventing wrong SoT or crash policy; normative: `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md` |
+| D4b | **Package/folder README map** (selective) | Purpose + boundaries + 2–5 start-here files; **not** a paragraph per file | Orients agents to ownership; normative: `docs/08-software-engineering-architecture/50-package-folder-readme-standard.md` |
 | D5 | **Stopgaps only when user approved** | `# tsoc-defer: <reason>; remove when <trigger>; real fix: <one line>` | Tracked debt; never fake “done” |
 | D6 | **Never** commit `ponytail:` markers | Plain English or `tsoc-defer` only | Repo law overrides upstream ponytail skill text |
 
@@ -187,6 +189,7 @@ def pack_context(items: list[str]) -> str:
 | Anti-pattern | Do instead |
 | --- | --- |
 | Long architecture essays in comments | Full-tier Markdown under `docs/` + evidence `linked_symbols` (LIST A + B) |
+| Per-file encyclopedia in every folder `README.md` | Short ownership map only (`50-…`); hard contracts in module docstrings (`49-…`) |
 | Invented `# WHY:` that does not match the code | Fix code or delete the comment |
 | Persian (or non-English) in committed source comments | English only |
 | `ponytail:` or “agent will wire later” stubs | Ship the work, open an issue/ADR, or `tsoc-defer` with user approval |
@@ -196,6 +199,8 @@ def pack_context(items: list[str]) -> str:
 | # | Name | Path (repo root) | Role |
 | --- | --- | --- | --- |
 | D7 | Source-comments skill | `.agents/skills/tsoc-source-comments/SKILL.md` | Law for comments: English / `tsoc-defer` / no `ponytail:` |
+| D7a | Module contract docstrings | `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md` | When/how to write selective module-level SoT + failure-policy headers |
+| D7b | Package/folder README maps | `docs/08-software-engineering-architecture/50-package-folder-readme-standard.md` | Short ownership maps; rejects per-file encyclopedias in folder READMEs |
 | D8 | Ponytail project rule | `.cursor/rules/ponytail.mdc` | YAGNI + comment policy (no `ponytail:` in source) |
 | D9 | Code intelligence enhancements (rationale wave) | `docs/07-code-knowledge-graph/22-code-intelligence-enhancements-feature-specification.md` | `WHY` / `NOTE` / `HACK` → `RATIONALE` + `DOCUMENTED_BY` |
 | D10 | Ingestion and living documentation workflow | `docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md` | Sync ingest: symbols + living docs; human Markdown is separate |

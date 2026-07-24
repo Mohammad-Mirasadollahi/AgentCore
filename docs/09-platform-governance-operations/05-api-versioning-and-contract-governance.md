@@ -74,7 +74,13 @@ CI should run contract tests for:
 
 ## Schema Registry
 
-The platform should maintain a schema registry or equivalent versioned schema catalog. It should include schema owners, versions, status, and compatibility rules.
+The platform maintains a **repository-directory** schema registry for v1:
+
+- Authoritative schemas under `backend/configs/` (and peers).
+- Discovery index: `backend/tools/schema-registry/catalog.json`.
+- Normative decision: `12-schema-registry-architecture.md` (closes GAP-008).
+
+A networked or database-backed registry requires a new ADR.
 
 ## Acceptance Criteria
 

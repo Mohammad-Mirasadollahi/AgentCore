@@ -234,16 +234,20 @@ If the same idempotency key is reused with a different request hash, the system 
 
 ## Schema Registry
 
-AgentCore should maintain a schema registry inside tools/schema-registry or packages/contracts.
+AgentCore maintains a **repository-directory** schema registry for v1
+(`docs/09-platform-governance-operations/12-schema-registry-architecture.md`):
+
+- schemas under `backend/configs/` (and peers),
+- discovery index at `backend/tools/schema-registry/catalog.json`.
 
 The registry should provide:
 
 - schema discovery.
-- compatibility checks.
+- compatibility checks (pytest / gates).
 - generated examples.
 - producer validation.
 - consumer validation.
-- changelog generation.
+- changelog generation (docs).
 - deprecated field reporting.
 - ownership metadata.
 

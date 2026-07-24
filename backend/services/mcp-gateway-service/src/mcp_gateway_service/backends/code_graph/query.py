@@ -79,18 +79,29 @@ def impact(
     scope: dict[str, str],
     base: dict[str, Any],
 ) -> dict[str, Any]:
-    """Impact-style neighborhood: multi-hop structural expand around a seed symbol."""
+    """Directed impact / blast radius around a seed symbol (Codebase-Memory hybrid)."""
     backends.ensure_graph_seed(scope)
     symbol_id = resolve_symbol_id(backends, scope, arguments)
     rel_type = str(arguments.get("rel_type") or "").strip() or None
+    rel_types = arguments.get("rel_types")
+    if rel_types is not None and not isinstance(rel_types, list):
+        raise ValueError("rel_types must be an array of strings")
+    if rel_type and not rel_types:
+        rel_types = [rel_type]
     max_depth = int(arguments.get("max_depth") or 3)
     max_depth = max(1, min(max_depth, 8))
+    direction = str(arguments.get("direction") or "both").strip() or "both"
+    min_confidence = str(arguments.get("min_confidence") or "").strip() or None
+    top_k = int(arguments.get("top_k") or 50)
     try:
-        payload = backends.graph.structural_query(
+        payload = backends.graph.impact_analysis(
             backends.graph_scope(scope),
             symbol_id,
-            rel_type,
+            direction=direction,
             max_depth=max_depth,
+            min_confidence=min_confidence,
+            rel_types=[str(x) for x in (rel_types or [])] or None,
+            top_k=top_k,
         )
     except NotFoundError as exc:
         raise ValueError(str(exc.message)) from exc
@@ -100,6 +111,118 @@ def impact(
         "impact_of": symbol_id,
         **payload,
     }
+
+
+def callers(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Ranked inbound callers (fan-in) for a seed symbol."""
+    backends.ensure_graph_seed(scope)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
+    top_k = int(arguments.get("top_k") or 20)
+    max_depth = max(1, min(int(arguments.get("max_depth") or 1), 8))
+    min_confidence = str(arguments.get("min_confidence") or "").strip() or None
+    rel_types = arguments.get("rel_types")
+    if rel_types is not None and not isinstance(rel_types, list):
+        raise ValueError("rel_types must be an array of strings")
+    try:
+        payload = backends.graph.callers(
+            backends.graph_scope(scope),
+            symbol_id,
+            top_k=top_k,
+            max_depth=max_depth,
+            min_confidence=min_confidence,
+            rel_types=[str(x) for x in (rel_types or [])] or None,
+        )
+    except NotFoundError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, "callers_of": symbol_id, **payload}
+
+
+def community(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Community membership for one symbol (Leiden/Louvain)."""
+    backends.ensure_graph_seed(scope)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
+    member_limit = max(1, min(int(arguments.get("member_limit") or 30), 200))
+    try:
+        payload = backends.graph.community_of_symbol(
+            backends.graph_scope(scope),
+            symbol_id,
+            member_limit=member_limit,
+        )
+    except NotFoundError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+
+
+def call_path(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Compact outbound call-path pack from a seed symbol."""
+    backends.ensure_graph_seed(scope)
+    symbol_id = resolve_symbol_id(backends, scope, arguments)
+    max_depth = max(1, min(int(arguments.get("max_depth") or 4), 8))
+    max_nodes = max(2, min(int(arguments.get("max_nodes") or 40), 200))
+    try:
+        payload = backends.graph.call_path_pack(
+            backends.graph_scope(scope),
+            symbol_id,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+        )
+    except NotFoundError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+
+
+def unused_candidates(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Task-scoped unused-symbol candidates (AgentCore does not delete files)."""
+    scope_mode = str(arguments.get("scope_mode") or "changed_symbols").strip()
+    anchors = arguments.get("anchor_symbols")
+    paths = arguments.get("anchor_paths")
+    if anchors is not None and not isinstance(anchors, list):
+        raise ValueError("anchor_symbols must be an array of strings")
+    if paths is not None and not isinstance(paths, list):
+        raise ValueError("anchor_paths must be an array of strings")
+    max_results = int(arguments.get("max_results") or 50)
+    include_uncertain = bool(arguments.get("include_uncertain") or False)
+    # project_id from session scope; optional arg must match when provided
+    requested = str(arguments.get("project_id") or "").strip()
+    if requested and requested != scope.get("project_id"):
+        raise ValueError("project_id does not match the active MCP project scope")
+    backends.ensure_graph_seed(scope)
+    try:
+        payload = backends.graph.unused_candidates(
+            backends.graph_scope(scope),
+            scope_mode=scope_mode,
+            anchor_symbols=[str(x) for x in (anchors or [])],
+            anchor_paths=[str(x) for x in (paths or [])],
+            max_results=max_results,
+            include_uncertain=include_uncertain,
+        )
+    except CodeGraphError as exc:
+        raise ValueError(str(getattr(exc, "message", exc))) from exc
+    return {**base, "graph_mode": backends.graph_mode, "project_id": scope.get("project_id"), **payload}
 
 
 def explore(

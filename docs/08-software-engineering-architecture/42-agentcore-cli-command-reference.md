@@ -43,12 +43,11 @@ placeholder: 1
 
 # 42 - AgentCore CLI Command Reference
 
-## 42 - AgentCore CLI Command Reference
 ## Purpose
 
 This document is the **canonical operator reference** for the `agentcore` CLI: every shipped subcommand, why it exists, which flags are required, a copy-paste example, and what changes on disk or in stores when you run it.
 
-For install / PATH / package layout, see [36-agentcore-cli.md](./36-agentcore-cli.md). For remote MCP onboarding flows, see [41](./41-one-command-cross-platform-agent-onboarding.md).
+For install / PATH / package layout, see [36-agentcore-cli.md](./36-agentcore-cli.md). For remote MCP onboarding flows, see [41](./41-one-command-cross-platform-agent-onboarding.md). For **server/client upgrade** (`agentcore upgrade *`, `install.sh --upgrade`), see [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md).
 
 ## How to read each command
 
@@ -136,3 +135,5 @@ agentcore sync
 ## Related Documents
 
 - Continued in `docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-continued.md`
+- Upgrade CLI catalog: [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md#cli-catalog-agentcore-upgrade)
+- Overview: [36-agentcore-cli.md](./36-agentcore-cli.md)

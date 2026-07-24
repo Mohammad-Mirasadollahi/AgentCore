@@ -218,6 +218,8 @@ Tool name: `agentcore_code_graph_unused_candidates`
 
 Implementation of the handler and CLI is **follow-on** after this contract; Usage Profiles must advertise the tool only when implemented. Until then, the skill requires graph explore + local `rg` proof (same safety bar).
 
+**Status (2026-07):** Tool is implemented and advertised on `programming-cursor-mcp` (`maps_to: code_graph.unused_candidates`). Default remains task-scoped (anchors required; no whole-repo scan).
+
 ## Agent Workflow (with guidance)
 
 1. After replacing or retiring behavior, call unused-candidates (or explore + reference proof).

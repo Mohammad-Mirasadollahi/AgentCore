@@ -120,12 +120,16 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 1. Search then execute `agentcore_guidance_resolve` before substantive coding.
 2. For capabilities AgentCore exposes on the active Usage Profile, prefer the matching MCP tool over inventing a local-only substitute.
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
-4. Do not skip code-graph search when locating symbols AgentCore can index.
+4. Do not skip code-graph search when locating symbols AgentCore can index. Prefer structural tools (`callers` / directed `impact` / `community`) before wide Read/Grep; escalate via `explore` / hybrid when sparse or semantic. Use `ide_references` / `ide_definition` / `ide_rename` only for local-LSP IDE-semantic edits (`reference_kind=ide_semantic`); never dual-write LSP into durable `CODE_REL` — reconcile via AST re-ingest.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
 6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
 7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance.
 8. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
 9. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
+10. When editing **hard modules** (queues, dual-store durability, workers, state machines, trust boundaries, fail-open/fail-closed): read then keep/update a selective file-top **module contract docstring** (role + source of truth / invariants + allowed vs forbidden failures) per `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md`. Skip trivial helpers. Follow skill `agentcore-source-contracts`.
+11. When working at a **package/folder seam** agents confuse: ensure a short **README map** (purpose + boundaries + 2–5 start-here files) per `docs/08-software-engineering-architecture/50-package-folder-readme-standard.md` — never a per-file encyclopedia. Follow skill `agentcore-source-contracts`.
+12. **Fix-on-read (docs):** After you Read product Markdown under `docs/` / `backend/docs/` / `frontend/docs/` / `ai-toolstack/docs/` / `deploy-toolkit` and it fails Full-tier authoring law: load `agentcore-documentation-authoring` + `agentcore_docs_authoring_standards`, then remediate **that file in the same turn** before continuing. Do not leave a known nonconforming doc you already opened.
+13. **Fix-on-read (module contracts):** After you Read a **hard module** (standard 49) that lacks an accurate file-top module contract docstring: load `agentcore-source-contracts` and add/fix the header **in the same turn**. Skip trivial helpers per 49.
 ```
 ## Agents Entry Pointers
 
@@ -150,8 +154,9 @@ The project `agents_entry` body **must** list high-signal MCP skills (at minimum
 | `agentcore-code-graph` | Finding symbols, call paths, or ownership via the code graph |
 | `agentcore-remove-dead-code` | After replace/retire: prove and delete orphaned symbols, imports, tests |
 | `agentcore-durable-write` | Persisting memory, task, activity, or decision records |
-| `agentcore-documentation-authoring` | How to write docs; Full-tier Markdown law (required before product doc edits) |
+| `agentcore-documentation-authoring` | Full-tier Markdown law; required on write **and** fix-on-read of nonconforming product docs |
 | `agentcore-docs-sync` | Docs drift, coverage, Body-tier validate, note, draft, or index |
+| `agentcore-source-contracts` | Hard-module contracts (49) + package README maps (50); fix-on-read when header missing |
 | `agentcore-create-task` | Creating a durable follow-up Task in AgentCore |
 ```
 ## Skill Catalog
@@ -164,11 +169,12 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | --- | --- | --- | --- |
 | `agentcore-session-bootstrap` | Connect / guidance / profile | `agentcore_ping`, `agentcore_get_effective_profile`, `agentcore_guidance_resolve`, `agentcore_guidance_list_skills`, `agentcore_guidance_get_skill` | Session start; before first substantive edit |
 | `agentcore-memory` | Memory retrieve / recall | `agentcore_memory_retrieve`; optional write via `agentcore_write` (`resource=memory`) | Need prior facts, decisions, or task context |
-| `agentcore-code-graph` | Code knowledge graph | `agentcore_code_graph_explore` (primary), hybrid search, detect_changes, architecture/path | Locate symbols, flows, review impact, and architecture before wide filesystem search |
+| `agentcore-code-graph` | Code knowledge graph | Structural-first: `agentcore_code_graph_callers`, directed `impact`, `community`, `call_path`; then `explore` / hybrid / detect_changes / architecture | Locate symbols, callers, blast radius, flows, review impact, and architecture before wide filesystem search |
 | `agentcore-remove-dead-code` | Unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (when listed); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
-| `agentcore-documentation-authoring` | Full-tier Markdown authoring law | `agentcore_docs_authoring_standards`; optional Read of `docs/agents/documentation-authoring.md` | How documentation works; before writing/remediating product docs |
+| `agentcore-documentation-authoring` | Full-tier Markdown authoring law | `agentcore_docs_authoring_standards`; optional Read of `docs/agents/documentation-authoring.md` | How documentation works; before writing/remediating product docs; **fix-on-read** of nonconforming product Markdown |
 | `agentcore-docs-sync` | Docs-as-code sync (Body-tier) | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, Body-tier validate, note, draft, index |
+| `agentcore-source-contracts` | In-source contracts (49/50) | Prefer graph sync after edits; local Read of standards 49/50 | Hard modules / package seams; **fix-on-read** when hard-module header missing |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
 
 Guidance tools (`agentcore_guidance_*`) are specified in phase 15 contracts; other tools match the `programming-cursor-mcp` catalog (and successors).
@@ -242,17 +248,25 @@ description: Search AgentCore code knowledge graph before wide local search.
 
 ## How
 
-1. Prefer `agentcore_code_graph_explore` for "how does X work", flows, or surveying an area (one call: seeds + call path + budgeted source).
-2. Use `agentcore_code_graph_hybrid_search` or `agentcore_code_graph_search` for name/meaning lookup when you only need ids.
-3. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
-4. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
-5. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, or empty graph; report degraded mode when tools fail.
-6. After replacing or retiring symbols, open `agentcore-remove-dead-code` for orphan cleanup in the same change.
+1. For **who calls X / blast radius / community / outbound path** first use structural tools:
+   `agentcore_code_graph_callers`, `agentcore_code_graph_impact` (set `direction`),
+   `agentcore_code_graph_community`, or `agentcore_code_graph_call_path`. Prefer these before wide Read/`rg`.
+2. Prefer `agentcore_code_graph_explore` for "how does X work", flows, or surveying an area (one call: seeds + call path + budgeted source) when structural tools are sparse or the question is semantic — follow any `escalate_hint.next_tools` in payloads.
+3. Use `agentcore_code_graph_hybrid_search` or `agentcore_code_graph_search` for name/meaning lookup when you only need ids.
+4. When you need related **human Markdown**, call `agentcore_docs_catalog` with tag/concern/lifecycle/query filters (cached lane enums + tag index). Then Read only the matched paths — do not invent DOCUMENTED_BY.
+5. For a seed symbol, call `agentcore_code_graph_generation_context` and prefer `hybrid_documentation` (human → living → rationale → AST).
+6. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
+7. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
+8. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, empty graph, or after structural + explore/hybrid; report degraded mode when tools fail.
+9. After replacing or retiring symbols, open `agentcore-remove-dead-code` for orphan cleanup in the same change.
+10. Prefer hybrid packs that surface module-contract rationale (`MODULE_CONTRACT`) and near-code package README maps after sync — they encode SoT/fail policy for hard modules.
 
 ## Do not
 
-- Prefer exhaustive workspace crawl when graph explore/search is available and healthy.
+- Prefer exhaustive workspace crawl when graph structural/explore/search is available and healthy.
 - Re-verify explore results with wide Grep when the pack already returned verbatim source.
+- Treat docs catalog matches as graph edges; sync still owns DOCUMENTED_BY after evidence linked_symbols.
+- Skip `escalate_hint` and jump straight to dumping full files.
 ```
 
 ### Skill body: `agentcore-remove-dead-code`
@@ -401,21 +415,23 @@ MCP connect
 - `programming-cursor-mcp` (and successors) **should** advertise the tools referenced above as they are implemented.
 - When guidance MCP tools are not yet implemented, seed skills still document the intended names; session bootstrap degrades to ping + effective profile until guidance tools ship.
 - Adding a new AgentCore MCP capability requires: tool catalog entry, skill (or always-on update), agents_entry row, and contract tests.
-- `agentcore_code_graph_unused_candidates` is normative in [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md); advertise only when implemented. Until then the remove-dead-code skill fails closed to explore + local proof.
+- `agentcore_code_graph_unused_candidates` is normative in [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md) and is advertised on `programming-cursor-mcp` when implemented (task-scoped; requires anchors).
 
 ## Acceptance Criteria
 
-- Seed pack defines `mcp-first-agentcore` (including same-change dead-code cleanup) plus the seven skills in the matrix.
+- Seed pack defines `mcp-first-agentcore` (including same-change dead-code cleanup, module-contract/README map clauses, and **fix-on-read** for nonconforming product docs + hard-module headers) plus the nine skills in the matrix.
 - Exported Cursor layout yields always-apply rule + skill folders an agent can load.
 - Feature/product docs state that coding agents must route in-scope work through MCP per this document.
 - New MCP tools cannot ship in a programming profile without an owning skill or an explicit always-on clause update.
 - Dead-code cleanup skill instructs agents to prove before delete and never asks AgentCore to mutate the repository.
+- Connect / client wire materializes the MCP-first seed into the project workspace (conflict-safe) so always-apply rules exist before the first `guidance_resolve`.
+- Store upgrade (`ensure_mcp_first_seed`) is not add-only: it refreshes outdated pack bodies, stamps `seed_pack_version`, and suppresses pack skills retired from the catalog so MCP resolve does not serve obsolete text.
+- Disk rematerialize on connect refreshes managed pack files when content advances and deletes retired managed `agentcore-*` skill paths (conflict-safe; unmanaged locals stay).
 
 ## Open Gaps
 
 | Gap | Notes |
 | --- | --- |
-| Guidance MCP tools not yet in `programming-cursor-mcp.json` | Specified in phase 15 contracts; add at implementation |
-| `agentcore_code_graph_unused_candidates` not yet implemented | Contract in phase 7 doc `36`; skill degrades to explore + `rg` |
-| Hard enforcement of “resolve before write” | Soft via this rule/skill; optional gateway gate later |
-| Non-Cursor agents | Same skill/rule bodies; layout profile maps paths |
+| Hard block of writes before resolve | Soft only: always-on rule + `guidance_hint` on durable writes when resolve not yet called in-process |
+| Non-Cursor agents | Same skill/rule bodies; layout profile maps paths (`claude_compatible`, `generic_agents_md`) |
+| Unused-candidate Neo4j-native query | v1 uses store `list_symbols`/`list_edges`; optional Cypher optimization later |

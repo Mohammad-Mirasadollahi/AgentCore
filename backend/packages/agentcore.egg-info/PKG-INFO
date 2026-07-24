@@ -188,18 +188,40 @@ Or set `server.local: true` and `connect.prefer_http: false` in `~/.agentcore/co
 
 ## Quick architecture
 
+AgentCore sits **between** coding agents / IDEs and durable project truth. It is a knowledge + control plane — **not** the executor. External agents and humans still do the work; AgentCore owns ingest, scoped retrieval, governance hooks, and evidence.
+
 ```mermaid
-flowchart TD
-  User[Developer or operator] --> Admin[Admin console]
-  User --> SDK[AgentCore SDK package]
-  Admin --> API[FastAPI service APIs]
-  SDK --> API
-  API --> Services[Modular backend services]
-  Services --> Postgres[(PostgreSQL)]
-  Services --> Graph[Code graph projection]
-  Services --> Adapters[Adapter / broker boundary]
-  Adapters --> Agents[External agent runtimes]
+flowchart TB
+  subgraph Clients["Clients"]
+    IDE["IDE / coding agent<br/>(MCP)"]
+    CLI["agentcore CLI"]
+    Admin["Admin console"]
+  end
+
+  subgraph Plane["AgentCore plane"]
+    MCP["MCP gateway<br/>(Usage Profile tools)"]
+    Domain["Domain services<br/>graph · docs · memory · rules · tickets · audit"]
+    MCP --> Domain
+    CLI --> Domain
+    Admin --> Domain
+  end
+
+  subgraph Data["Stores"]
+    PG[("PostgreSQL<br/>records · vectors")]
+    Neo[("Neo4j<br/>code + docs graph")]
+  end
+
+  Ext["External runtimes / tools<br/>(via adapters)"]
+
+  IDE --> MCP
+  Domain --> PG
+  Domain --> Neo
+  Domain -.-> Ext
 ```
+
+**v1 wedge (what ships first):** connect a repo → `sync` / ingest → code + linked docs graph → MCP explore / hybrid retrieval / change-risk → better agent context. Broader control-plane pieces (tickets, multi-agent routing, approval, cross-domain packs) build on that same plane.
+
+Deeper design → [Global Architecture HLD](docs/00-master-plan/03-global-architecture-hld.md) · narrative → [Complete System Blueprint](docs/00-master-plan/05-complete-system-blueprint.md) · services list → [backend/services/README.md](backend/services/README.md).
 
 ---
 

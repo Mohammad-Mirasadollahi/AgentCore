@@ -100,5 +100,76 @@ def test_neo4j_store_python_ingest_live():
         assert any(edge["rel_type"] == "CALLS" for edge in neighbors["edges"])
         events = store.outbox()
         assert any(event["event_type"] == "FileIngested" for event in events)
+
+        check_id = f"sym:{scope.project_id}:src.auth.check_password"
+        callers = service.callers(scope, check_id, top_k=10)
+        assert any(c.get("name") == "login" for c in callers.get("callers") or [])
+        assert "escalate_hint" in callers
+        impact = service.impact_analysis(scope, check_id, direction="upstream", max_depth=2)
+        assert impact.get("direction") == "upstream"
+        assert "blast" in impact
+        community = service.community_of_symbol(scope, check_id, member_limit=20)
+        assert "community_id" in community
+    finally:
+        store.close()
+
+
+@pytest.mark.live
+def test_neo4j_hybrid_callers_impact_live():
+    """Release-gate: directed impact + callers on Neo4j (Codebase-Memory hybrid)."""
+    _assert_non_default_ports()
+    _require_tcp("127.0.0.1", NEO4J_BOLT_PORT)
+    store = Neo4jStore(
+        uri=f"bolt://127.0.0.1:{NEO4J_BOLT_PORT}",
+        user=NEO4J_USER,
+        password=NEO4J_PASSWORD,
+        ensure_schema=True,
+    )
+    try:
+        scope = Scope("tenant-live", "ws-live", f"proj-hyb-{uuid.uuid4().hex[:8]}")
+        service = CodeGraphService(store)
+        service.ingest_file(
+            scope,
+            "agent",
+            "corr-hyb",
+            f"idem-hyb-{uuid.uuid4().hex}",
+            {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
+        )
+        check_id = f"sym:{scope.project_id}:src.auth.check_password"
+        callers = service.callers(scope, check_id, top_k=10)
+        assert any(c.get("name") == "login" for c in callers.get("callers") or [])
+        impact = service.impact_analysis(scope, check_id, direction="both", max_depth=3)
+        assert "blast" in impact and "escalate_hint" in impact
+        community = service.community_of_symbol(scope, check_id)
+        assert "community_id" in community
+        login_id = f"sym:{scope.project_id}:src.auth.login"
+        path_pack = service.call_path_pack(scope, login_id, max_depth=3)
+        assert path_pack.get("call_path_ids")
+        # HTTP_CALLS / ASYNC_CALLS live fixture
+        routes = (
+            "from fastapi import FastAPI\napp = FastAPI()\n\n"
+            '@app.get("/api/v1/users")\ndef list_users():\n    return []\n'
+        )
+        client_src = (
+            "import httpx\n\ndef fetch_users():\n    return httpx.get(\"/api/v1/users\")\n"
+        )
+        service.ingest_file(
+            scope,
+            "agent",
+            "corr-http",
+            f"idem-http-{uuid.uuid4().hex}",
+            {"file_path": "api_routes.py", "source": routes, "language": "python"},
+        )
+        service.ingest_file(
+            scope,
+            "agent",
+            "corr-http2",
+            f"idem-http2-{uuid.uuid4().hex}",
+            {"file_path": "api_client.py", "source": client_src, "language": "python"},
+        )
+        async_edges = [
+            e for e in store.list_edges(scope) if e.rel_type in {"HTTP_CALLS", "ASYNC_CALLS"}
+        ]
+        assert async_edges
     finally:
         store.close()

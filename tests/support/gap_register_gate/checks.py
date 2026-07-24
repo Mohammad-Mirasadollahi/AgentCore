@@ -77,17 +77,22 @@ def verify_open_decisions_have_artifacts() -> list[CheckResult]:
         for g in open_gaps
         if not str(g.get("proposed_resolution_artifact") or "").strip()
     ]
+    if missing:
+        status = "failed"
+        detail = f"missing_artifacts={missing}"
+    elif not open_gaps:
+        status = "passed"
+        detail = "open=0 artifacts_ok"
+    else:
+        status = "passed"
+        detail = f"open={len(open_gaps)} artifacts_ok"
     return [
         CheckResult(
             "open-decisions-have-artifacts",
             "triage",
             "open-decisions",
-            "passed" if open_gaps and not missing else "failed",
-            (
-                f"open={len(open_gaps)} artifacts_ok"
-                if open_gaps and not missing
-                else f"missing_artifacts={missing or 'no open gaps'}"
-            ),
+            status,
+            detail,
             [g["gap_id"] for g in open_gaps],
             "docs/10-gap-analysis/05-gap-triage-and-resolution-process.md",
         )

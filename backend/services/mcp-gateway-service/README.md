@@ -15,8 +15,16 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_memory_retrieve` | read | Retrieve memory for a query |
 | `agentcore_code_graph_search` | read | Semantic search over the code-knowledge graph |
 | `agentcore_code_graph_get_symbol` | read | Fetch one symbol by id or qualified_name |
-| `agentcore_code_graph_neighbors` | read | Structural neighbors (CALLS/IMPORTS/…) |
-| `agentcore_code_graph_impact` | read | Multi-hop impact neighborhood around a symbol |
+| `agentcore_code_graph_neighbors` | read | **Structural** neighbors (CALLS/IMPORTS/…); `reference_kind=structural` |
+| `agentcore_code_graph_ide_references` | read | **IDE-semantic** find-references via local LSP (`reference_kind=ide_semantic`) |
+| `agentcore_code_graph_ide_definition` | read | **IDE-semantic** go-to-definition via local LSP |
+| `agentcore_code_graph_ide_rename` | write | **IDE-semantic** rename + AST `reconcile_after_edit` (never dual-writes CODE_REL) |
+| `agentcore_code_graph_reconcile_after_edit` | write | Mark edited paths pending; optional AST re-ingest |
+| `agentcore_code_graph_impact` | read | Directed multi-hop impact / blast radius |
+| `agentcore_code_graph_callers` | read | Ranked inbound callers (fan-in) |
+| `agentcore_code_graph_community` | read | Community membership for one symbol |
+| `agentcore_code_graph_call_path` | read | Compact outbound call-path pack |
+| `agentcore_code_graph_unused_candidates` | read | Task-scoped unused-symbol candidates (anchors required; never deletes) |
 | `agentcore_code_graph_explore` | read | **Primary** surgical context: seeds + call path + budgeted source |
 | `agentcore_code_graph_detect_changes` | read | Risk-scored review context for changed files |
 | `agentcore_code_graph_architecture_overview` | read | Communities, hubs, bridges, gaps, surprises |

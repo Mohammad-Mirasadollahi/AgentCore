@@ -91,3 +91,46 @@ def extract_rationale_comments(source: str) -> list[RationaleHit]:
             )
         )
     return hits
+
+
+_MODULE_DOC_MIN_CHARS = 40
+_CONTRACT_HINT = re.compile(
+    r"\b(source of truth|fail-?open|fail-?closed|durability|invariant|must not|"
+    r"PostgreSQL|Redis|rebuild|wake|queue|lease|tenant)\b",
+    re.IGNORECASE,
+)
+
+
+def extract_module_contract_docstring(source: str, language: str = "python") -> str | None:
+    """Return a selective module-level contract docstring when present.
+
+    Python uses ``ast.get_docstring``. Other languages: leading block comment only when
+    it looks like a multi-line contract (length + keyword hints). Short one-liners skipped.
+    """
+    lang = (language or "python").strip().lower()
+    text = source or ""
+    if lang == "python":
+        try:
+            import ast
+
+            tree = ast.parse(text)
+            doc = ast.get_docstring(tree)
+        except SyntaxError:
+            return None
+        if not doc:
+            return None
+        cleaned = doc.strip()
+        if len(cleaned) < _MODULE_DOC_MIN_CHARS:
+            return None
+        return cleaned
+
+    # JS/TS / C-like: opening /** ... */ or /* ... */ before first import/export/function
+    block = re.match(r"^\s*/\*\*?(?P<body>.*?)\*/", text, re.DOTALL)
+    if not block:
+        return None
+    body = re.sub(r"^\s*\*\s?", "", block.group("body"), flags=re.MULTILINE).strip()
+    if len(body) < _MODULE_DOC_MIN_CHARS:
+        return None
+    if not _CONTRACT_HINT.search(body) and body.count("\n") < 2:
+        return None
+    return body

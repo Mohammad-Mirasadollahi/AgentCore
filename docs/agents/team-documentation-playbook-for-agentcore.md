@@ -43,7 +43,7 @@ security_classification: internal
 
 Tell engineering and documentation teams **exactly which documents to follow** when writing or fixing Markdown so AgentCore can index docs, link them to code, and give connected coding agents reliable context. This playbook is the **team entry**; deeper rules live in the linked standards—do not invent a parallel style.
 
-**Single complete handout for team delivery (full LIST A/B/C/D/E):** [`TEAM-HANDOUT-agentcore-documentation-complete.md`](./TEAM-HANDOUT-agentcore-documentation-complete.md) (also copied under `.agentcore/handouts/` — originals are not moved). LIST D covers **in-source** documentation (`# WHY:` / `# NOTE:` / `# HACK:`, English comments, `tsoc-defer`). LIST E covers **hybrid** layers (human → living → rationale → AST) and `agentcore docs-suggest-links`.
+**Single complete handout for team delivery (full LIST A/B/C/D/E):** [`TEAM-HANDOUT-agentcore-documentation-complete.md`](./TEAM-HANDOUT-agentcore-documentation-complete.md) (also copied under `.agentcore/handouts/` — originals are not moved). LIST D covers **in-source** documentation (`# WHY:` / `# NOTE:` / `# HACK:`, English comments, `tsoc-defer`, selective module contract docstrings per `../08-software-engineering-architecture/49-module-contract-docstrings-standard.md`, selective package/folder README maps per `../08-software-engineering-architecture/50-package-folder-readme-standard.md`). LIST E covers **hybrid** layers (human → living → rationale → AST) and `agentcore docs-suggest-links`.
 
 ## Why this method exists
 

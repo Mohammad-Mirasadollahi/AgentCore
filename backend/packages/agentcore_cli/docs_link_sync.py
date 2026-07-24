@@ -62,20 +62,33 @@ def _ensure_docs_sync_import() -> None:
 
 
 def _docs_sync_service():
-    """In-process docs-sync (Postgres when URL set; else memory)."""
+    """In-process docs-sync (Postgres when URL set; else memory).
+
+    Reuses one composition root per process (Phase D DI).
+    """
     from agentcore_cli.cli_defaults import load_dotenv_files
+    from agentcore_cli.process_containers import get_docs_sync_service
 
     load_dotenv_files()
     _ensure_docs_sync_import()
     url = os.environ.get("AGENTCORE_DOCS_SYNC_DATABASE_URL", "").strip()
-    if url.startswith(("postgresql://", "postgresql+psycopg://")):
-        from docs_sync_service.bootstrap import Settings, build_service
+    backend = (
+        "postgres"
+        if url.startswith(("postgresql://", "postgresql+psycopg://"))
+        else "memory"
+    )
 
-        return build_service(Settings(database_url=url))
-    from docs_sync_service.core import DocsSyncService
-    from docs_sync_service.testing import InMemoryStore
+    def _factory():
+        if backend == "postgres":
+            from docs_sync_service.bootstrap import Settings, build_container
 
-    return DocsSyncService(InMemoryStore())
+            return build_container(Settings(database_url=url))
+        from docs_sync_service.core import DocsSyncService
+        from docs_sync_service.testing import InMemoryStore
+
+        return DocsSyncService(InMemoryStore())
+
+    return get_docs_sync_service(backend=backend, factory=_factory)
 
 
 def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:

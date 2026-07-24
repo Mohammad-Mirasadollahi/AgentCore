@@ -7,7 +7,17 @@ from __future__ import annotations
 
 import argparse
 
-from agentcore_cli.parser import graph, identity, profiles, remote, reporting, service, sync_llm
+from agentcore_cli.parser import (
+    governance,
+    graph,
+    identity,
+    profiles,
+    remote,
+    reporting,
+    service,
+    sync_llm,
+    upgrade,
+)
 from agentcore_cli.parser._core import AgentCoreArgumentParser
 
 __all__ = ["build_parser"]
@@ -33,5 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     profiles.register(sub)
     remote.register(sub)
     graph.register(sub)
+    governance.register(sub)
+    upgrade.register(sub)
 
     return parser

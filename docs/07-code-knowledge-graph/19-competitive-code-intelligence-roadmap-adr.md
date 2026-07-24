@@ -36,6 +36,8 @@ external_refs:
 - https://github.com/colbymchenry/codegraph
 - https://github.com/tirth8205/code-review-graph
 - https://github.com/Graphify-Labs/graphify
+- https://arxiv.org/abs/2603.27277
+- https://github.com/DeusData/codebase-memory-mcp
 doc_version: 1.0.0
 audience:
 - engineer
@@ -89,6 +91,15 @@ only partially cover:
 AgentCore keeps **Neo4j (+ Postgres/pgvector)** as SoR. We adopt algorithms and
 agent UX patterns, not local SQLite clones.
 
+### Codebase-Memory (2026) — Wave-adjacent prior art
+
+[Codebase-Memory](https://arxiv.org/abs/2603.27277) shows Tree-Sitter knowledge
+graphs exposed via MCP can approach file-exploration answer quality at far lower
+token cost when stored in SQLite. AgentCore **must not** switch SoR to SQLite.
+Instead we adopt the **structural-first tool UX** and combine it with existing
+explore / hybrid RAG (**hybrid escalate**) for best quality. Normative pack:
+`44`–`47` in this folder. Clean-room only — see `21`.
+
 ## Decision
 
 ### Wave 1 (now) — agent surgical context + change risk
@@ -140,8 +151,12 @@ ops follow-up (not a v1 launch blocker).
 ### Explicit non-goals
 
 - Replacing Neo4j with per-project SQLite as the durable graph store.
-- Shipping 30+ MCP tools by default (follow CodeGraph: one strong primary tool).
+- Vendoring DeusData Codebase-Memory binaries or copying their source.
+- Shipping 30+ MCP tools by default (follow CodeGraph: one strong primary tool;
+  Codebase-Memory hybrid adds a few narrow structural tools only).
 - Claiming impact “recall 1.0” from graph-derived circular ground truth.
+- Marketing Codebase-Memory’s published 83% / 10× figures as AgentCore metrics
+  without an AgentCore-owned evaluation.
 
 ## Consequences
 
@@ -166,5 +181,6 @@ ops follow-up (not a v1 launch blocker).
 - Projection: `13-codesymbol-projection-adr.md`
 - Prior art + MIT compliance: `21-code-intelligence-prior-art-ideas-and-license.md`, `THIRD_PARTY_NOTICES.md`
 - Feature / HLD / LLD / contracts / risks: `22`–`26` in this folder
+- Codebase-Memory Neo4j hybrid: `44`–`47` in this folder
 - Implementation: `backend/services/code-graph-service/src/code_graph_service/domain/`
-  (`framework_routes`, `test_links`, `flows`, `risk`, `explore`)
+  (`framework_routes`, `test_links`, `flows`, `risk`, `explore`, `impact`, `http_calls`)

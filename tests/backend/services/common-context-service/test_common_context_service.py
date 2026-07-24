@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from httpx import ASGITransport, AsyncClient
 
@@ -571,6 +572,170 @@ def test_mcp_first_seed_upgrades_missing_skills():
     assert "agentcore-documentation-authoring" not in names_before
     upgraded = service.ensure_mcp_first_seed(org, "ops", "corr-upgrade")
     assert upgraded["seeded"] is True
-    assert upgraded["reason"] == "skills_upgraded"
+    assert "skills_added" in upgraded["reason"]
     bundle = service.resolve_guidance(project_scope("t", "w", "p"), user_id="alice")
     assert any(s["name"] == "agentcore-documentation-authoring" for s in bundle["skills"])
+
+
+def test_mcp_first_seed_refreshes_stale_bodies():
+    from common_context_service.core import org_scope, project_scope
+    from common_context_service.seed_mcp_first import MCP_FIRST_RULE_BODY, SEED_PACK_VERSION
+
+    service = CommonContextService(InMemoryStore())
+    org = org_scope("t", "w")
+    service.ensure_mcp_first_seed(org, "ops", "corr-org")
+    rule = next(
+        i
+        for i in service.store.list_items(org)
+        if i.get("item_type") == "always_rule" and i.get("slug") == "mcp-first-agentcore"
+    )
+    stale = dict(rule)
+    stale["body"] = "# obsolete MCP-first rule\n"
+    stale["seed_pack_version"] = "2020.01.01.0"
+    service.store.put_item(stale)
+    upgraded = service.ensure_mcp_first_seed(org, "ops", "corr-refresh")
+    assert upgraded["seeded"] is True
+    assert "bodies_refreshed" in upgraded["reason"]
+    bundle = service.resolve_guidance(project_scope("t", "w", "p"), user_id="alice")
+    refreshed = next(r for r in bundle["always_rules"] if r.get("slug") == "mcp-first-agentcore")
+    assert refreshed["body"] == MCP_FIRST_RULE_BODY.strip()
+    assert "obsolete MCP-first" not in refreshed["body"]
+    stored = next(
+        i
+        for i in service.store.list_items(org)
+        if i.get("item_type") == "always_rule" and i.get("slug") == "mcp-first-agentcore"
+    )
+    assert stored["seed_pack_version"] == SEED_PACK_VERSION
+    assert stored["body"] == MCP_FIRST_RULE_BODY.strip()
+
+
+def test_mcp_first_seed_suppresses_retired_pack_skills():
+    from common_context_service.core import org_scope, project_scope
+    from common_context_service.seed_mcp_first import SEED_PACK_ID
+
+    service = CommonContextService(InMemoryStore())
+    org = org_scope("t", "w")
+    service.ensure_mcp_first_seed(org, "ops", "corr-org")
+    retired = service.propose_item(
+        org,
+        "ops",
+        "corr-retire",
+        "awg-seed-retired-skill",
+        {
+            "item_type": "skill",
+            "name": "agentcore-obsolete-skill",
+            "title": "Obsolete",
+            "body": "# obsolete\n",
+            "seed_pack": SEED_PACK_ID,
+            "seed_pack_version": "2020.01.01.0",
+            "priority": 10,
+        },
+    )
+    service.approve_item(org, retired["id"], "ops")
+    upgraded = service.ensure_mcp_first_seed(org, "ops", "corr-suppress")
+    assert upgraded["seeded"] is True
+    assert "retired_suppressed" in upgraded["reason"]
+    bundle = service.resolve_guidance(project_scope("t", "w", "p"), user_id="alice")
+    assert all(s["name"] != "agentcore-obsolete-skill" for s in bundle["skills"])
+
+
+def test_export_guidance_writes_cursor_layout(tmp_path):
+    from pathlib import Path
+
+    from common_context_service.core import project_scope
+
+    service = CommonContextService(InMemoryStore())
+    scope = project_scope("t", "w", "p")
+    service.ensure_mcp_first_seed(scope, "ops", "corr-export")
+    root = Path(tmp_path)
+    result = service.export_guidance_layout(
+        scope,
+        layout="cursor",
+        dry_run=False,
+        target_root=str(root),
+    )
+    assert result["dry_run"] is False
+    assert result["written"]
+    rule = root / ".cursor/rules/mcp-first-agentcore.mdc"
+    assert rule.is_file()
+    text = rule.read_text(encoding="utf-8")
+    assert "alwaysApply: true" in text
+    assert "agentcore_guidance_resolve" in text
+    skill = root / ".cursor/skills/agentcore-remove-dead-code/SKILL.md"
+    assert skill.is_file()
+    assert "live until proven" in skill.read_text(encoding="utf-8")
+    (root / "AGENTS.md").write_text("# local\n", encoding="utf-8")
+    manifest = root / ".agentcore/guidance-export-manifest.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["files"].pop("AGENTS.md", None)
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    again = service.export_guidance_layout(
+        scope,
+        layout="cursor",
+        dry_run=False,
+        target_root=str(root),
+    )
+    assert any(c.get("path") == "AGENTS.md" for c in again["conflicts"])
+    assert (root / "AGENTS.md").read_text(encoding="utf-8") == "# local\n"
+
+
+def test_materialize_mcp_first_seed_pack(tmp_path):
+    from pathlib import Path
+
+    from common_context_service.guidance_export import materialize_mcp_first_seed
+    from common_context_service.seed_mcp_first import SEED_PACK_VERSION
+
+    root = Path(tmp_path)
+    result = materialize_mcp_first_seed(root)
+    assert result["written"]
+    assert result["seed_pack_version"] == SEED_PACK_VERSION
+    assert (root / ".cursor/rules/mcp-first-agentcore.mdc").is_file()
+    assert (root / ".cursor/skills/agentcore-session-bootstrap/SKILL.md").is_file()
+    assert (root / ".cursor/skills/agentcore-source-contracts/SKILL.md").is_file()
+
+
+def test_materialize_mcp_first_seed_refreshes_and_prunes(tmp_path):
+    import json
+    from pathlib import Path
+
+    from common_context_service.guidance_export import (
+        content_sha256,
+        materialize_mcp_first_seed,
+    )
+    from common_context_service.seed_mcp_first import SEED_PACK_ID, SEED_PACK_VERSION
+
+    root = Path(tmp_path)
+    first = materialize_mcp_first_seed(root)
+    assert first["written"]
+    rule = root / ".cursor/rules/mcp-first-agentcore.mdc"
+    rule.write_text("---\ndescription: stale\nalwaysApply: true\n---\n\n# obsolete\n", encoding="utf-8")
+    # Keep managed (no drift relative to stamped hash) so rematerialize may refresh.
+    manifest_path = root / ".agentcore/guidance-export-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"][".cursor/rules/mcp-first-agentcore.mdc"] = {
+        "content_hash": content_sha256(rule.read_text(encoding="utf-8")),
+        "item_id": "mcp-first-agentcore",
+        "item_type": "always_rule",
+        "seed_pack": SEED_PACK_ID,
+        "seed_pack_version": "2020.01.01.0",
+    }
+    obsolete_rel = ".cursor/skills/agentcore-obsolete-skill/SKILL.md"
+    obsolete = root / obsolete_rel
+    obsolete.parent.mkdir(parents=True, exist_ok=True)
+    obsolete.write_text("# obsolete skill\n", encoding="utf-8")
+    manifest["files"][obsolete_rel] = {
+        "content_hash": content_sha256("# obsolete skill\n"),
+        "item_id": "agentcore-obsolete-skill",
+        "item_type": "skill",
+        "seed_pack": SEED_PACK_ID,
+        "seed_pack_version": "2020.01.01.0",
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    again = materialize_mcp_first_seed(root)
+    assert any(w.get("path") == ".cursor/rules/mcp-first-agentcore.mdc" for w in again["written"])
+    assert "obsolete" not in rule.read_text(encoding="utf-8")
+    assert "agentcore_guidance_resolve" in rule.read_text(encoding="utf-8")
+    assert not obsolete.is_file()
+    assert any(r.get("path") == obsolete_rel for r in again["removed"])
+    assert again["seed_pack_version"] == SEED_PACK_VERSION

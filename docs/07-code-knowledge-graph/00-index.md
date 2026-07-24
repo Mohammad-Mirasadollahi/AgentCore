@@ -70,15 +70,27 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `33-production-retrieval-live-test-gates.md` live/fuzzer/challenge gates, pythonpath, AuthError skip policy, anti-cascade acceptance.
 - `35-wedge-operator-connect-runbook.md` operator connect → ingest → explore/hybrid smoke.
 - `36-dead-code-candidates-and-cleanup-loop.md` unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
-- `37-rpm-session-parallel-sync-feature-specification.md` requirements for RPM-session-gated parallel `agentcore sync` (designed, not shipped).
-- `38-rpm-session-parallel-sync-high-level-design.md` topology: file workers, LLM queue, session registry, serialized store writer, CLI/HTTP observe.
-- `39-rpm-session-parallel-sync-low-level-design.md` session lifecycle, dual capacity gate, fairness, writer serialization, status API.
-- `40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md` challenges, known limits, acceptance gates before coding claims shipped.
+- `37-rpm-session-parallel-sync-feature-specification.md` requirements for RPM-session-gated parallel `agentcore sync` (**implemented**).
+- `38-rpm-session-parallel-sync-high-level-design.md` topology: file workers, LLM queue, session registry, LockedStore, CLI/HTTP observe.
+- `39-rpm-session-parallel-sync-low-level-design.md` session lifecycle, dual capacity gate, fairness, store concurrency, status API.
+- `40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md` challenges, known limits, acceptance gates.
 - `41-hybrid-documentation-coverage.md` layered hybrid coverage (AST + living + human + rationale), read/write paths, optional behaviors, no invented edges.
 - `42-documentation-catalog-and-lane-cache.md` cached docs frontmatter catalog (tags + closed lane enums) for agent retrieval narrowing.
+- `43-wiki-and-graph-composed-retrieval.md` composes Repository Code Wiki (coarse) with graph / hybrid retrieval / hybrid docs (fine) for higher-understanding Q&A — future; not a v1 wedge claim.
+- `44-codebase-memory-neo4j-hybrid-feature-specification.md` Codebase-Memory-inspired structural MCP on Neo4j with hybrid escalate (best-quality path; not SQLite).
+- `45-codebase-memory-neo4j-hybrid-high-level-design.md` topology and module ownership for structural tools + escalate.
+- `46-codebase-memory-neo4j-hybrid-low-level-design.md` algorithms, contracts, and implementation progress checklist.
+- `47-codebase-memory-neo4j-hybrid-risks-and-acceptance.md` risks, honesty vs paper metrics, acceptance gates.
+- `48-ast-and-lsp-hybrid-parsing-adr.md` accepts AST / tree-sitter as the durable knowledge↔code SoR and reserves LSP for optional edit-session enrichment (not a second graph SoR).
+- `49-lsp-edit-session-feature-specification.md` ships IDE-semantic find-refs / definition / rename via local LSP + reconcile.
+- `50-sync-cpu-budget-and-store-concurrency-lld.md` CPU percent → workers/embeds/Torch pins; Neo4j bounded store slots; list_symbols without embeddings.
 
 ## History
 
+- 2026-07-24: Added `50-sync-cpu-budget-and-store-concurrency-lld.md`; corrected Neo4j store concurrency vs exclusive write lock in `03`/`38`/`39` and LiteLLM env knobs.
+- 2026-07-23: Added `49-lsp-edit-session-feature-specification.md` and shipped edit-session tools (ADR 48 ID5).
+- 2026-07-23: Added `48-ast-and-lsp-hybrid-parsing-adr.md` (AST durable SoR + optional LSP edit layer).
+- 2026-07-23: Added `43-wiki-and-graph-composed-retrieval.md` (Wiki + graph composed Q&A / context packs; `lifecycle_lane: future`).
 - 2026-07-22: Added `42-documentation-catalog-and-lane-cache.md` (docs catalog CLI/MCP + cache).
 - 2026-07-22: Added `41-hybrid-documentation-coverage.md` (hybrid read pack + evidence `docs-suggest-links` write path).
 - 2026-07-22: Added RPM-session parallel sync design pack `37`–`40` (`lifecycle_lane: future`; docs only until implementation).
@@ -95,7 +107,7 @@ BM25 lexical, Neo4j Lucene / Postgres FTS, real BGE embeddings, RRF hybrid, APOC
 
 ## Repository Code Wiki (future)
 
-Holistic, architecture-aware repository documentation (overview, module pages, diagrams, incremental update, admin browse + MCP). Complements symbol-level living documentation. Reading order: `14` → `15` → `16` → `17` → `18` → `20` (ideas + license). Status: draft / `lifecycle_lane: future` (docs only until implementation).
+Holistic, architecture-aware repository documentation (overview, module pages, diagrams, incremental update, admin browse + MCP). Complements symbol-level living documentation. Reading order: `14` → `15` → `16` → `17` → `18` → `20` (ideas + license) → `43` (composed Wiki + graph Q&A). Status: draft / `lifecycle_lane: future` (docs only until implementation).
 
 ## Dead-code cleanup loop (current)
 
@@ -123,7 +135,11 @@ Phase 7 vertical slice service:
 
 ## Language Policy (non-negotiable)
 
-**Python must remain supported.** TypeScript, JavaScript, Go, and Rust are also supported via tree-sitter. Details: `10-language-support-policy.md`.
+**Python must remain supported.** TypeScript, JavaScript, Go, and Rust are also supported via tree-sitter. Details: `10-language-support-policy.md`. Durable ingest vs optional LSP edit enrichment: `48-ast-and-lsp-hybrid-parsing-adr.md`.
+
+## AST vs LSP hybrid (current)
+
+Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session tools (`49`) are IDE-semantic and must re-ingest via `reconcile_after_edit`. Reading order: `10` → `48` → `49`.
 
 ## Relationship to Other Sections
 
@@ -131,9 +147,11 @@ Phase 7 vertical slice service:
 - `../06-technical-logic/03-docs-sync-technical-logic.md` covers AST anchors, doc drift, and CI gates.
 - This section adds the explicit Neo4j-backed code graph and graph-guided code generation layer.
 - Repository Code Wiki (`14`–`18`, `20`) adds repository-level wiki generation on top of the graph; published pages feed docs-sync.
+- Wiki + graph composed retrieval (`43`) defines how wiki narrative and graph/hybrid evidence combine for higher-understanding Q&A after Wiki ships.
 - Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`) add explore/risk/routes analytics inspired by MIT prior art.
 - Production Retrieval Stack (`27`–`31`) adds BM25/FTS/BGE/APOC/free Leiden for agent search quality.
 - Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
+- AST vs LSP hybrid (`48`–`49`) keeps durable knowledge↔code edges on AST ingest; LSP edit-session tools are IDE-semantic and reconcile via re-ingest.
 - RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
 - `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.

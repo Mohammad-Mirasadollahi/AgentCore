@@ -45,7 +45,7 @@ agentcore = "agentcore_cli.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "backend/packages"}
-packages = ["agentcore_cli", "usage_profile", "outbox_relay", "llm_gateway", "port_profile"]
+packages = ["agentcore_cli", "usage_profile", "outbox_relay", "llm_gateway", "port_profile", "approval_modes", "weight_profiles"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -5,8 +5,8 @@ doc_type: lld
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: '**Not shipped.** Phased file-level migration for AgentCore DI composition roots,
-  ServiceContainer shapes, FastAPI wiring, and import-gate rules.'
+summary: 'Phased file-level migration for AgentCore DI composition roots, ServiceContainer
+  shapes, FastAPI wiring, and import-gate rules (Phases A–D shipped).'
 tags:
 - dependency-injection
 - composition-root
@@ -41,8 +41,9 @@ security_classification: internal
 
 ## Implementation status
 
-**Phase A+B implemented.** Phases C–D remain design-ahead. Do not mark the whole
-backend “on DI” until Phase C acceptance in `48` is checked.
+**Phases A–D implemented.** Thin services expose `ports.py` (re-exporting `Store`);
+gate enforces PostgresStore allowlists; CLI caches composition roots via
+`agentcore_cli.process_containers`.
 
 ## Purpose
 
@@ -142,17 +143,16 @@ Apply the same `ServiceContainer` + `build_app` pattern to:
 
 Each PR: one service + its unit tests. Shared checklist only—no shared mega-container across processes.
 
-### Phase C — Port hygiene
+### Phase C — Port hygiene (done)
 
-Where application code still imports concrete stores:
+Thin services: `ports.py` re-exports `Store` from `core.py`. Concrete `PostgresStore`
+construction stays in `bootstrap.py`; gate allowlists `bootstrap.py` /
+`postgres_store.py` / `__init__.py` / `testing.py` only.
 
-1. Extract Protocol in `domain/ports.py` (or existing ports module).
-2. Move construction solely into bootstrap.
-3. Expand import gate to that service.
+### Phase D — CLI (done)
 
-### Phase D — CLI
-
-`agentcore` long-running paths that embed services must call composition roots once per process, not per subcommand silently rebuilding pools when avoidable.
+`agentcore_cli.process_containers` caches graph and docs-sync composition roots per
+process (`get_graph_service` / `get_docs_sync_service`).
 
 ## Compatibility strategy
 

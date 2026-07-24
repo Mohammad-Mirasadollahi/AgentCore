@@ -19,6 +19,16 @@ _HF_UNAUTH_NOISE = "unauthenticated requests to the HF Hub"
 _hf_noise_filter_installed = False
 _MODEL_LOAD_LOCK = threading.Lock()
 _MODEL_SLOTS = threading.BoundedSemaphore(4)
+_MODEL_SLOTS_LOCK = threading.Lock()
+
+
+def configure_local_embed_slots(max_concurrency: int) -> int:
+    """Replace the process-wide local BGE encode semaphore (call before sync work)."""
+    global _MODEL_SLOTS
+    slots = max(1, int(max_concurrency))
+    with _MODEL_SLOTS_LOCK:
+        _MODEL_SLOTS = threading.BoundedSemaphore(slots)
+    return slots
 
 
 class _DropUnauthenticatedHfHubNoise(logging.Filter):

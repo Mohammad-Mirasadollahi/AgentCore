@@ -31,6 +31,15 @@ from agentcore_cli import ui
 from usage_profile import load_usage_profile
 
 
+def _materialize_mcp_first_guidance(work: Path) -> dict[str, Any]:
+    """Write always-apply MCP-first rule/skills so agents prefer AgentCore without waiting on resolve."""
+    try:
+        from common_context_service.guidance_export import materialize_mcp_first_seed
+    except ImportError:
+        return {"written": [], "skipped": [], "conflicts": [], "error": "common_context_service unavailable"}
+    return materialize_mcp_first_seed(work, layout="cursor", force=False)
+
+
 def _ssh_command(settings: ConnectSettings, remote_command: list[str], *, connect_timeout: int = 15) -> list[str]:
     from agentcore_cli.remote_client import ssh_argv
 
@@ -216,6 +225,29 @@ def _write_clients(work: Path, fragment: dict[str, Any], settings: ConnectSettin
     )
 
 
+def _guidance_connect_notes(guidance: dict[str, Any]) -> list[str]:
+    notes: list[str] = []
+    if guidance.get("error"):
+        notes.append(f"MCP-first guidance skip: {guidance['error']}")
+        return notes
+    written = guidance.get("written") or []
+    conflicts = guidance.get("conflicts") or []
+    removed = guidance.get("removed") or []
+    version = guidance.get("seed_pack_version")
+    if written:
+        ver = f" @ {version}" if version else ""
+        notes.append(f"Materialized MCP-first guidance ({len(written)} file(s){ver})")
+    elif version and not conflicts and not removed:
+        notes.append(f"MCP-first guidance up to date ({version})")
+    if removed:
+        notes.append(f"Removed retired MCP-first guidance file(s): {len(removed)}")
+    if conflicts:
+        paths = ", ".join(str(c.get("path")) for c in conflicts[:3])
+        more = "" if len(conflicts) <= 3 else f" (+{len(conflicts) - 3} more)"
+        notes.append(f"Skipped conflicting guidance path(s): {paths}{more}")
+    return notes
+
+
 def _print_connect_summary(
     *,
     settings: ConnectSettings,
@@ -301,6 +333,7 @@ def run_connect(
             return 0
         written = _write_clients(work, fragment, settings)
         notes = ["Transport is local stdio (same-host dogfood; no SSH/HTTP required)"]
+        notes.extend(_guidance_connect_notes(_materialize_mcp_first_guidance(work)))
         if _should_ingest(settings) and not dry_run:
             path = settings.source_server_path or str(work)
             code = _local_ingest(settings, path)
@@ -325,6 +358,7 @@ def run_connect(
             return 0
         written = _write_clients(work, fragment, settings)
         notes = [f"Transport is Streamable HTTP ({http_url})"]
+        notes.extend(_guidance_connect_notes(_materialize_mcp_first_guidance(work)))
         if settings.smoke_test and not mcp_http_smoke(http_url, http_headers):
             print(
                 f"   {ui.warn('!')} MCP HTTP smoke (initialize) failed; check serve-http and token",
@@ -383,6 +417,7 @@ def run_connect(
         return 0
     written = _write_clients(work, fragment, settings)
     notes = [f"Transport is SSH stdio via {settings.ssh}"]
+    notes.extend(_guidance_connect_notes(_materialize_mcp_first_guidance(work)))
     if _should_ingest(settings) and not dry_run:
         if settings.api_url:
             result = api_ingest(settings)

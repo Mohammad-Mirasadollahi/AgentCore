@@ -29,6 +29,7 @@ related_docs:
 - ac.doc.ckg.repository-code-wiki-feature-spec
 - ac.doc.ckg.repository-code-wiki-hld
 - ac.doc.ckg.repository-code-wiki-risks
+- ac.doc.ckg.wiki-and-graph-composed-retrieval
 external_refs:
 - https://github.com/FSoft-AI4Code/CodeWiki
 - https://codewiki.google/
@@ -125,7 +126,7 @@ Each idea is tagged:
 | I-16 | **Interactive HTML viewer** (GitHub Pages style) | Adapt | Optional export artifact only; SoT remains Markdown + APIs |
 | I-17 | **Browse overview → modules → diagrams** as first-class IA | Adopt | Admin Code Wiki viewer |
 | I-18 | **MCP / IDE-driven generation tools** (CodeWiki exposes tools to agents) | Adapt | AgentCore MCP: resolve / get-page / search; generation via governed jobs not unconstrained agent writes |
-| I-19 | **Google Code Wiki-style “ask the wiki” Q&A over generated docs** | Adapt | Later: RAG over published wiki + graph; must use AgentCore retrieval stack (pgvector/turbovec), not Google |
+| I-19 | **Google Code Wiki-style “ask the wiki” Q&A over generated docs** | Adapt | Normative composition: [`43-wiki-and-graph-composed-retrieval.md`](43-wiki-and-graph-composed-retrieval.md) (wiki + graph + hybrid docs; AgentCore retrieval stack only, not Google) |
 
 ### D. Quality and evaluation
 

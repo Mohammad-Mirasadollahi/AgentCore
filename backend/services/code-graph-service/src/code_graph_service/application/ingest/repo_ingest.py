@@ -8,8 +8,7 @@ from typing import Any
 
 from .parallel_files import run_parallel_file_jobs
 
-from ...domain.package_manifests import load_package_aliases
-from ...domain.enums import SymbolKind
+from ...domain.enums import RelType, SymbolKind
 from ...domain.errors import ValidationError
 from ...domain.hashing import digest, normalize_source
 from ...domain.models import (
@@ -17,6 +16,7 @@ from ...domain.models import (
     RepoIngestResult,
     Scope,
 )
+from ...domain.package_manifests import load_package_aliases
 from ...domain.repo_discovery import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
@@ -150,6 +150,20 @@ class RepoIngestMixin:
         progress_done = 0
         active_files: set[str] = set()
         workers = min(sync_max_file_workers(), max(1, total_files or 1))
+        shared_resolution = {
+            "indexes": None,
+            "by_qualified": {},
+            "short_names": {},
+        }
+        try:
+            indexes, by_qualified, short_names = self._resolution_indexes(scope)
+            shared_resolution = {
+                "indexes": indexes,
+                "by_qualified": by_qualified,
+                "short_names": short_names,
+            }
+        except Exception:  # noqa: BLE001 — empty graph / store ok on cold start
+            pass
 
         def _rpm_progress_fields() -> dict[str, Any]:
             llm = getattr(self, "llm", None)
@@ -266,6 +280,8 @@ class RepoIngestMixin:
                         "source": text,
                         "language": item.language,
                         "package_aliases": package_aliases,
+                        "defer_cross_file_pass": True,
+                        "shared_resolution": shared_resolution,
                     },
                 )
             except Exception as exc:  # noqa: BLE001 — soft-fail per file for bulk jobs
@@ -321,9 +337,25 @@ class RepoIngestMixin:
         if total_files:
             run_parallel_file_jobs(workers=workers, items=discovered, fn=_process_one)
 
+        try:
+            finals = self.finalize_cross_file_resolution(
+                scope,
+                package_aliases=package_aliases,
+            )
+            with state_lock:
+                totals["edges_written"] += int(finals or 0)
+        except Exception:  # noqa: BLE001 — finalize must not fail the ingest walk
+            pass
+
         _emit(progress_total, status="finished")
 
         resolved_root = str(Path(root_path).expanduser().resolve())
+        try:
+            readme_edges = self._ingest_package_readme_maps(scope, resolved_root)
+            totals["edges_written"] += readme_edges
+        except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
+            readme_edges = 0
+
         return RepoIngestResult(
             root_path=resolved_root,
             files_discovered=len(discovered),
@@ -337,3 +369,85 @@ class RepoIngestMixin:
             truncated=truncated,
             outcomes=outcomes,
         )
+
+    def _ingest_package_readme_maps(self, scope: Scope, root_path: str) -> int:
+        """Index near-code package README maps as human DOCUMENTATION + DOCUMENTED_BY from FILEs."""
+        root = Path(root_path)
+        if not root.is_dir():
+            return 0
+        skip_parts = {
+            ".git",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "dist",
+            "build",
+            "vendor",
+            ".tox",
+        }
+        upsert = getattr(self, "upsert_human_documentation", None)
+        put_edge = getattr(self, "_put_edge", None)
+        if not callable(upsert) or not callable(put_edge):
+            return 0
+
+        edges = 0
+        for readme in root.rglob("README.md"):
+            try:
+                rel = readme.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            if set(rel.split("/")) & skip_parts:
+                continue
+            parent = readme.parent
+            has_code = (
+                any(parent.glob("*.py"))
+                or any(parent.glob("*.ts"))
+                or any(parent.glob("*.tsx"))
+                or any(parent.glob("*.js"))
+                or any(parent.glob("*.go"))
+                or any(parent.glob("*.rs"))
+            )
+            if not has_code:
+                continue
+            try:
+                body = readme.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if len(body.strip()) < 40:
+                continue
+            doc_id = f"package-readme:{rel}"
+            result = upsert(
+                scope,
+                doc_id=doc_id,
+                relative_path=rel,
+                body=body[:8000],
+                title=f"Package map: {parent.name}",
+                linked_symbol_tokens=[],
+                metadata={"origin": "package_readme", "provenance": "package_folder_readme"},
+            )
+            dir_prefix = str(Path(rel).parent).replace("\\", "/")
+            if dir_prefix in {".", ""}:
+                dir_prefix = ""
+            doc_sid = str(result.get("doc_symbol_id") or "")
+            if not doc_sid:
+                continue
+            for sym in self.store.list_symbols(scope):
+                if sym.kind != SymbolKind.FILE:
+                    continue
+                fp = (sym.file_path or "").replace("\\", "/")
+                parent_dir = str(Path(fp).parent).replace("\\", "/")
+                if parent_dir in {".", ""}:
+                    parent_dir = ""
+                if parent_dir != dir_prefix:
+                    continue
+                edges += put_edge(
+                    scope,
+                    RelType.DOCUMENTED_BY.value,
+                    sym.id,
+                    doc_sid,
+                    file_path=fp,
+                    metadata={"doc_id": doc_id, "origin": "package_readme"},
+                    link_key=f"package_readme:{doc_id}:{sym.id}",
+                )
+        return edges

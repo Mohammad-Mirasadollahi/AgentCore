@@ -31,7 +31,8 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
-doc_version: 1.3.0
+- docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
+doc_version: 1.4.0
 audience:
 - engineer
 - operator
@@ -136,8 +137,9 @@ agentcore purge --yes   # graph only
 | `agentcore path install` | Symlink CLI onto `~/.local/bin` |
 | `agentcore ports show` / `check` | Port profile preflight |
 | `agentcore graph *` | Ingest, freshness, explore, hybrid, smoke, watch |
+| `agentcore upgrade *` | Server/client upgrade, contract check, control-plane jobs |
 
-Every row above is expanded in [doc 42](./42-agentcore-cli-command-reference.md).
+Every row above is expanded in [doc 42](./42-agentcore-cli-command-reference.md). Upgrade details: [51 - Software Upgrade Server And Client](./51-software-upgrade-server-and-client.md).
 
 ## Port preflight
 
@@ -163,6 +165,7 @@ agentcore ports check
 ## Related Documents
 
 - [42-agentcore-cli-command-reference.md](./42-agentcore-cli-command-reference.md) — **full command reference**
+- [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md) — server/client upgrade + `agentcore upgrade` catalog
 - [44-mcp-token-accounting.md](./44-mcp-token-accounting.md) — MCP connect cost and usage history
 - [39-local-install-runbook.md](./39-local-install-runbook.md)
 - [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md)

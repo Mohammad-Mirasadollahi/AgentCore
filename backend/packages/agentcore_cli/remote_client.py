@@ -296,5 +296,15 @@ def wire_remote_dev_host(
         )
         for path in written:
             print(f"wrote {path}")
+    try:
+        from common_context_service.guidance_export import materialize_mcp_first_seed
+
+        guidance = materialize_mcp_first_seed(base, layout="cursor", force=False)
+        for row in guidance.get("written") or []:
+            print(f"wrote guidance {row.get('path')}")
+        for row in guidance.get("conflicts") or []:
+            print(f"skipped guidance conflict {row.get('path')} ({row.get('reason_code')})")
+    except ImportError:
+        print("warning: common_context_service unavailable; skipped MCP-first guidance materialize")
     print("Reload MCP in your coding agent / IDE.")
     return 0

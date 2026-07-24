@@ -13,12 +13,23 @@ from usage_profile import list_profile_ids
 
 
 def cmd_version(_: argparse.Namespace) -> int:
+    from agentcore_cli.upgrade.versions import CONTRACT_VERSION, PRODUCT_VERSION
+
     print(f"agentcore {__version__}")
+    print(f"product {PRODUCT_VERSION}")
+    print(f"contract {CONTRACT_VERSION}")
     print(f"root {repo_root()}")
     return 0
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
+    from agentcore_cli.upgrade.versions import (
+        CONTRACT_VERSION,
+        PRODUCT_VERSION,
+        read_install_versions,
+        server_version_payload,
+    )
+
     root = repo_root()
     venv_dir = os.environ.get("AGENTCORE_VENV_DIR", ".venv")
     venv_python = root / venv_dir / "bin" / "python"
@@ -31,6 +42,10 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "agentcore_on_venv_path": agentcore_bin.is_file(),
         "which_agentcore": shutil.which("agentcore"),
         "profiles": list_profile_ids(),
+        "product_version": PRODUCT_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "install_versions": read_install_versions(root),
+        "server_advertisement": server_version_payload(),
     }
     for name in ("fastapi", "usage_profile", "agentcore_cli", "mcp_gateway_service"):
         try:

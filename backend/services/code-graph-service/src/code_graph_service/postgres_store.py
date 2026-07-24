@@ -220,6 +220,19 @@ class PostgresStore:
             except Exception:
                 pass
 
+    def delete_symbol(self, symbol_id: str, scope: Scope) -> None:
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM code_graph.symbols
+                WHERE id = %s
+                  AND tenant_id = %s
+                  AND workspace_id = %s
+                  AND project_id = %s
+                """,
+                (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:
         with self._connection.cursor() as cur:
             cur.execute(
@@ -229,6 +242,21 @@ class PostgresStore:
                 ORDER BY qualified_name, id
                 """,
                 (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            rows = cur.fetchall()
+        return [self._symbol(row, scope) for row in rows]
+
+    def list_symbols_for_file(self, scope: Scope, file_path: str) -> list[GraphSymbol]:
+        path = str(file_path or "").replace("\\", "/")
+        with self._connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT * FROM code_graph.symbols
+                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                  AND file_path = %s
+                ORDER BY qualified_name, id
+                """,
+                (scope.tenant_id, scope.workspace_id, scope.project_id, path),
             )
             rows = cur.fetchall()
         return [self._symbol(row, scope) for row in rows]

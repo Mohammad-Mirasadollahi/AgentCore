@@ -169,6 +169,8 @@ class McpGateway:
         scope = self.effective["scope"]
         correlation_id = str(uuid4())
         if maps_to == "platform.ping":
+            from agentcore_cli.upgrade.versions import server_version_payload
+
             return {
                 "maps_to": maps_to,
                 "usage_profile": self.effective["profile_id"],
@@ -180,6 +182,7 @@ class McpGateway:
                 "backend": "in_process",
                 "store_mode": self.backends.store_mode,
                 "mcp_protocol": PROTOCOL_VERSION,
+                **server_version_payload(),
             }
         if maps_to == "profile.effective":
             return {

@@ -61,12 +61,15 @@
       "category": "Technical Implementation",
       "severity": "High",
       "owner": "AI Platform Lead",
-      "status": "DECISION_NEEDED",
+      "status": "CLOSED",
       "linked_phase_gates": [5, 11],
-      "proposed_resolution_artifact": "docs/05-adapters-and-integrations/model-routing-profile.md",
-      "documentation_ref": "docs/10-gap-analysis/03-technical-implementation-gaps.md",
-      "decision_needed": "Define model routing profiles by task type, risk level, tenant, and environment.",
-      "resolution_path": "Benchmark models and create default ModelRoutingProfile."
+      "proposed_resolution_artifact": "docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md",
+      "documentation_ref": "docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md",
+      "decision_needed": "None — LiteLLM gateway + published local/cloud ModelRoutingProfile tables.",
+      "resolution_path": "ADR 09 + profile JSON under backend/configs/model-routing + resolve_route loader.",
+      "closed_in": "docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md",
+      "approver": "Platform Architect",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-004",
@@ -74,12 +77,15 @@
       "category": "Product and Workflow",
       "severity": "Medium",
       "owner": "Product Lead",
-      "status": "OPEN",
+      "status": "CLOSED",
       "linked_phase_gates": [5, 11],
-      "proposed_resolution_artifact": "docs/05-rule-engine/approval-ux-contract.md",
-      "documentation_ref": "docs/10-gap-analysis/02-architecture-gaps.md",
-      "decision_needed": "Choose first approval surface and required approval interaction model.",
-      "resolution_path": "Design approval workflow and add UI/API contract."
+      "proposed_resolution_artifact": "docs/04-rule-engine-orchestration/10-approval-cli-first-surface.md",
+      "documentation_ref": "docs/04-rule-engine-orchestration/10-approval-cli-first-surface.md",
+      "decision_needed": "None — first Accept surface is AgentCore CLI.",
+      "resolution_path": "ApprovalModeProfile catalog + approval_modes package + agentcore approval CLI.",
+      "closed_in": "docs/04-rule-engine-orchestration/10-approval-cli-first-surface.md",
+      "approver": "Product Lead",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-005",
@@ -100,12 +106,15 @@
       "category": "Memory and Retrieval",
       "severity": "Medium",
       "owner": "Memory Platform Lead",
-      "status": "OPEN",
+      "status": "CLOSED",
       "linked_phase_gates": [4],
-      "proposed_resolution_artifact": "docs/04-memory/weight-profile-governance.md",
-      "documentation_ref": "docs/10-gap-analysis/03-technical-implementation-gaps.md",
-      "decision_needed": "Define who can change profiles and how changes are validated.",
-      "resolution_path": "Add governance workflow and profile change tests."
+      "proposed_resolution_artifact": "docs/02-memory-and-context/12-weight-profile-governance.md",
+      "documentation_ref": "docs/02-memory-and-context/12-weight-profile-governance.md",
+      "decision_needed": "None — owner/approval/rollback policy published with CLI.",
+      "resolution_path": "WeightProfile catalog + weight_profiles governance package + agentcore weight-profile CLI.",
+      "closed_in": "docs/02-memory-and-context/12-weight-profile-governance.md",
+      "approver": "Memory Platform Lead",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-007",
@@ -127,12 +136,15 @@
       "category": "Contract Governance",
       "severity": "Medium",
       "owner": "Platform Architect",
-      "status": "DECISION_NEEDED",
+      "status": "CLOSED",
       "linked_phase_gates": [5, 9],
-      "proposed_resolution_artifact": "docs/09-platform-governance-operations/schema-registry-architecture.md",
-      "documentation_ref": "docs/10-gap-analysis/04-governance-operations-gaps.md",
-      "decision_needed": "Decide whether schema registry is a service, repo directory, or database-backed registry.",
-      "resolution_path": "Create schema registry architecture note."
+      "proposed_resolution_artifact": "docs/09-platform-governance-operations/12-schema-registry-architecture.md",
+      "documentation_ref": "docs/09-platform-governance-operations/12-schema-registry-architecture.md",
+      "decision_needed": "None — v1 is a repository-directory catalog (not a service or DB registry).",
+      "resolution_path": "Architecture ADR + backend/tools/schema-registry/catalog.json + unit tests.",
+      "closed_in": "docs/09-platform-governance-operations/12-schema-registry-architecture.md",
+      "approver": "Platform Architect",
+      "review_date": "2026-07-23"
     },
     {
       "gap_id": "GAP-009",

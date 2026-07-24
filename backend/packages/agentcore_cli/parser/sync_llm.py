@@ -49,6 +49,17 @@ def register(sub: argparse._SubParsersAction) -> None:
     sync.set_defaults(max_files=DEFAULT_SYNC_MAX_FILES)
     sync.epilog = "Limit file count with bare: max-file <n>  (example: agentcore sync max-file 50)"
     sync.add_argument(
+        "--cpu-percent",
+        default=None,
+        metavar="N",
+        help=(
+            "Target host CPU share for sync (1-100 or 'auto'). "
+            "Derives file workers, local-embed concurrency, and Torch/OMP threads. "
+            "Overrides AGENTCORE_SYNC_CPU_PERCENT for this run. "
+            "Default: env AGENTCORE_SYNC_CPU_PERCENT or auto"
+        ),
+    )
+    sync.add_argument(
         "--progress-interval",
         type=float,
         default=30.0,

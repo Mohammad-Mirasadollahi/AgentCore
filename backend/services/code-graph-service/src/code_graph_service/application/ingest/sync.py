@@ -139,6 +139,20 @@ class SyncMixin:
         total_files = len(pending_paths)
         state_lock = threading.Lock()
         done_count = 0
+        shared_resolution: dict[str, Any] = {
+            "indexes": None,
+            "by_qualified": {},
+            "short_names": {},
+        }
+        try:
+            indexes, by_qualified, short_names = self._resolution_indexes(scope)
+            shared_resolution = {
+                "indexes": indexes,
+                "by_qualified": by_qualified,
+                "short_names": short_names,
+            }
+        except Exception:  # noqa: BLE001
+            pass
 
         def _emit(done: int, *, file: str = "", status: str = "") -> None:
             if not callable(on_progress):
@@ -237,6 +251,8 @@ class SyncMixin:
                         "source": text_body,
                         "language": language,
                         "package_aliases": package_aliases,
+                        "defer_cross_file_pass": True,
+                        "shared_resolution": shared_resolution,
                     },
                 )
             except Exception as exc:  # noqa: BLE001
@@ -291,6 +307,15 @@ class SyncMixin:
         workers = min(sync_max_file_workers(), max(1, total_files))
         if total_files:
             run_parallel_file_jobs(workers=workers, items=pending_paths, fn=_process_one)
+        try:
+            finals = self.finalize_cross_file_resolution(
+                scope,
+                package_aliases=package_aliases,
+            )
+            with state_lock:
+                totals["edges_written"] += int(finals or 0)
+        except Exception:  # noqa: BLE001
+            pass
         _emit(total_files, status="finished")
         return RepoIngestResult(
             root_path=str(root),

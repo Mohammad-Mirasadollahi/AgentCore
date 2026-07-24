@@ -8,10 +8,10 @@ Phase 7 Code-Knowledge Graph vertical slice for AgentCore.
 code_graph_service/
   domain/          # enums, models, languages, parsing, parsers/, ports, embeddings, docs
   application/     # ingest / queries / generation use cases + CodeGraphService facade
+  api/             # FastAPI build_app + route modules (ingest, query, edit_session, …)
   core.py          # compatibility re-exports (prefer domain/application imports)
   postgres_store.py
   neo4j_store.py
-  api.py
   bootstrap.py
   testing.py
 ```
@@ -23,9 +23,12 @@ code_graph_service/
 - Polyglot project profiling (`language-profile`) that detects related multi-language clusters
 - Normalized symbol hashing and change detection
 - Local documentation generation for **changed symbols only** (`LlmBackedDocGenerator` via LiteLLM when enabled; heuristic fallback)
-- Graph edges: `CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`, `DOCUMENTED_BY`, `ROUTES_TO`, `TESTED_BY`
-- Call resolution confidence: `exact` / `probable` / `ambiguous` / `unresolved` (import-alias aware)
+- Graph edges: `CONTAINS`, `CALLS`, `IMPORTS`, `INHERITS_FROM`, `DOCUMENTED_BY`, `ROUTES_TO`, `TESTED_BY`, `HTTP_CALLS`, `ASYNC_CALLS`
+- ADR 48 parsing authority: durable `CODE_REL` rejects LSP/IDE session writers; `reconcile_after_edit` marks pending and optionally AST re-ingests
+- Feature 49 edit session: local LSP `ide_references` / `ide_definition` / `ide_rename` (`reference_kind=ide_semantic`); never dual-writes the graph
+- Call resolution confidence: `exact` / `probable` / `ambiguous` / `unresolved` (import-alias aware; `getattr(obj, "name")` call refs)
 - Wave 1–3 intelligence: framework routes, `TESTED_BY`, surgical `explore`, risk-scored `detect_changes`, architecture overview, hybrid search, freshness
+- Codebase-Memory hybrid (docs `44`–`47`): ranked `callers`, directed `impact`, `community`, structural-first `escalate_hint`
 - Production retrieval: BM25 + Neo4j/Postgres FTS + BGE (default) / LiteLLM / stub via RRF (docs `07-code-knowledge-graph/27`–`31`)
 - Local BGE / LiteLLM embeddings for semantic ranking (pgvector when `AGENTCORE_CODE_GRAPH_DATABASE_URL` set; default dims 1024)
 - Structural neighbor queries (APOC expand when available) and graph-guided generation context packs (`uses_full_repository=false`)

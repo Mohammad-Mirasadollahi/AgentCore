@@ -5,8 +5,8 @@ doc_type: standard
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: '**Not shipped.** Risks, challenges, and acceptance gates for migrating AgentCore
-  backends onto explicit composition-root DI.'
+summary: 'Risks, challenges, and acceptance gates for AgentCore composition-root DI
+  (Phases A–D acceptance checked).'
 tags:
 - dependency-injection
 - composition-root
@@ -39,9 +39,9 @@ security_classification: internal
 
 ## Implementation status
 
-**Phase A acceptance in progress via gate** `tests/backend/gates/di-composition-verification/`.
-Phases B–D unchecked. Do not claim “backend is on DI” until Phase A list is fully
-checked and later phases complete.
+**Phases A–D acceptance checked** via gate
+`tests/backend/gates/di-composition-verification/` (including thin ports / store
+allowlist and CLI process containers).
 
 ## Purpose
 
@@ -81,13 +81,13 @@ so implementation PRs stay scoped and verifiable.
 
 - [x] Each listed thin service has `build_container` + `build_app(container)` (or documented CLI-only exception).
 - [x] No thin-service route module calls `build_service()` per request.
-- [ ] Import gate covers those services’ `application/` / `domain/` trees (or equivalent layout).
+- [x] Import gate covers those services’ equivalent layout (`core.py` / `api.py` / `ports.py`).
 
 ## Acceptance — Phase C–D
 
-- [ ] No application module imports concrete Store/Neo4j/LiteLLM client modules (gate enforced).
-- [ ] CLI long-lived paths reuse one container per process where pools exist.
-- [ ] Doc `30` linked examples match the shipped pattern.
+- [x] No application module imports concrete Store/Neo4j/LiteLLM client modules (gate enforced).
+- [x] CLI long-lived paths reuse one container per process where pools exist.
+- [x] Doc `30` linked examples match the shipped pattern.
 
 ## Definition of done (program)
 

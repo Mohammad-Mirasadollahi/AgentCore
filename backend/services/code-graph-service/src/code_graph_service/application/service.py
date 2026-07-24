@@ -10,13 +10,20 @@ from ..domain.freshness import FreshnessState
 from ..domain.languages import assert_required_languages_supported
 from ..domain.ports import Store
 from ..postgres_side import EmbeddingIndex
+from .edit_session import EditSessionFactory, EditSessionUseCases
 from .generation import GenerationUseCases
 from .ingest import IngestUseCases
 from .intelligence import IntelligenceUseCases
 from .queries import QueryUseCases
 
 
-class CodeGraphService(IngestUseCases, QueryUseCases, GenerationUseCases, IntelligenceUseCases):
+class CodeGraphService(
+    IngestUseCases,
+    QueryUseCases,
+    GenerationUseCases,
+    IntelligenceUseCases,
+    EditSessionUseCases,
+):
     """Application service entrypoint for the Code-Knowledge Graph."""
 
     def __init__(
@@ -26,6 +33,7 @@ class CodeGraphService(IngestUseCases, QueryUseCases, GenerationUseCases, Intell
         embeddings: LocalEmbeddingStub | None = None,
         embedding_index: EmbeddingIndex | None = None,
         llm: Any | None = None,
+        edit_session_factory: EditSessionFactory | None = None,
     ) -> None:
         assert_required_languages_supported()
         self.store = store
@@ -34,6 +42,7 @@ class CodeGraphService(IngestUseCases, QueryUseCases, GenerationUseCases, Intell
         self.embedding_index = embedding_index
         self.llm = llm
         self.freshness = FreshnessState()
+        self.edit_session_factory = edit_session_factory
 
     def llm_providers(self) -> list[dict[str, Any]]:
         if self.llm is None:

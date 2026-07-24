@@ -36,8 +36,22 @@ class InMemoryStore:
     def put_symbol(self, symbol: GraphSymbol) -> None:
         self._symbols[symbol.id] = deepcopy(symbol)
 
+    def delete_symbol(self, symbol_id: str, scope: Scope) -> None:
+        item = self._symbols.get(symbol_id)
+        if item is not None and self._same_project(item.scope, scope):
+            del self._symbols[symbol_id]
+
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:
         items = [item for item in self._symbols.values() if self._same_project(item.scope, scope)]
+        return deepcopy(sorted(items, key=lambda item: (item.qualified_name, item.id)))
+
+    def list_symbols_for_file(self, scope: Scope, file_path: str) -> list[GraphSymbol]:
+        path = str(file_path or "").replace("\\", "/")
+        items = [
+            item
+            for item in self._symbols.values()
+            if self._same_project(item.scope, scope) and str(item.file_path or "").replace("\\", "/") == path
+        ]
         return deepcopy(sorted(items, key=lambda item: (item.qualified_name, item.id)))
 
     def get_symbol_by_qualified_name(self, scope: Scope, qualified_name: str) -> GraphSymbol | None:

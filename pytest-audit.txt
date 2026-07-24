@@ -1,0 +1,10 @@
+.......F........                                                         [100%]
+=================================== FAILURES ===================================
+____________________ test_lsp_edit_session_over_fake_server ____________________
+tests/backend/services/code-graph-service/test_edit_session_jsonrpc.py:167: in test_lsp_edit_session_over_fake_server
+    assert refs.count >= 1
+           ^^^^^^^^^^
+E   AttributeError: 'IdeReferencesResult' object has no attribute 'count'
+=========================== short test summary info ============================
+FAILED tests/backend/services/code-graph-service/test_edit_session_jsonrpc.py::test_lsp_edit_session_over_fake_server
+1 failed, 15 passed in 0.54s

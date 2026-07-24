@@ -1,12 +1,13 @@
 ---
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-lld
 title: 39 - RPM Session Parallel Sync Low Level Design
-doc_type: hld
-status: draft
+doc_type: lld
+status: active
 schema_version: '1.0'
 owner: code-graph-lead
 summary: Algorithms for RPM session lifecycle, dual capacity (window + in-flight), file/LLM
-  worker scheduling, serialized store writes, retries, and status API. Designed ahead of implementation.
+  worker scheduling, LockedStore concurrency (Postgres exclusive / Neo4j bounded), retries,
+  and status API.
 tags:
 - sync
 - rpm
@@ -28,6 +29,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-hld
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.rpm-session-parallel-sync-risks
+- ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
 doc_version: 1.0.0
 audience:
@@ -36,7 +38,7 @@ primary_entities:
 - RpmSession
 - SessionRegistry
 - RpmSessionGate
-- SerializedStoreWriter
+- LockedStore
 relations_declared:
 - type: depends_on
   target: ac.doc.ckg.rpm-session-parallel-sync-hld
@@ -222,7 +224,8 @@ all in-flight slots while other files idle.
 ### Serialized store writer
 
 Postgres store uses a **single** `psycopg` connection today — concurrent
-`put_symbol` is unsafe.
+`put_symbol` is unsafe. `LockedStore(lock_reads=True)` serializes **all**
+Postgres store traffic.
 
 ```text
 writer_thread:
@@ -233,9 +236,12 @@ writer_thread:
         progress.emit(...)
 ```
 
-Neo4j per-call sessions are safer, but v1 **still** serializes application-level
-writes through the same writer to keep idempotency and edge ordering simple.
-Connection pooling is an explicit **follow-up**, not required for v1.
+Neo4j uses **per-call sessions** and a **bounded** concurrent slot budget
+(`store_concurrency`, typically 2–8), **not** a process-wide exclusive write
+lock. A global write RLock left file workers idle on futex despite
+`parallel N active`. Idempotency keys remain per-file; nested store calls are
+re-entrant on the same thread. See
+[`50`](50-sync-cpu-budget-and-store-concurrency-lld.md).
 
 ### Cross-file edges
 

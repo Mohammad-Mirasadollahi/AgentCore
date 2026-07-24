@@ -122,12 +122,18 @@ flowchart LR
 
 ## Backend migration pack
 
-Standing principles in this file are **current**. The executable migration to uniform `ServiceContainer` / `build_app` wiring is specified (not yet shipped) in:
+Standing principles in this file are **current**. The executable migration to uniform
+`ServiceContainer` / `build_container` / `build_app` wiring is **shipped (Phases A–D)**
+and specified in:
 
 - `45-backend-di-composition-feature-specification.md`
 - `46-backend-di-composition-high-level-design.md`
 - `47-backend-di-composition-low-level-design.md`
 - `48-backend-di-composition-risks-challenges-and-acceptance.md`
+
+Shipped pattern: one frozen `ServiceContainer` per process from `bootstrap.build_container`,
+FastAPI `app.state.container`, thin-service `ports.Store`, CLI reuse via
+`agentcore_cli.process_containers`.
 
 ## Acceptance Criteria
 

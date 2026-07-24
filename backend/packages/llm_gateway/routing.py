@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
+from pathlib import Path
 from typing import Any
 
 
@@ -50,85 +52,79 @@ _TASK_ENV = {
     "embed.symbol": "AGENTCORE_LITELLM_MODEL_EMBED",
 }
 
-_TASK_DEFAULTS: dict[tuple[str, str], dict[str, Any]] = {
-    ("docs.generate", "low"): {
-        "max_tokens": 512,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("docs.generate", "medium"): {
-        "max_tokens": 768,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("docs.generate", "high"): {
-        "max_tokens": 1024,
-        "json_mode": False,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-    ("rules.judge", "low"): {
-        "max_tokens": 512,
-        "json_mode": True,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("rules.judge", "medium"): {
-        "max_tokens": 768,
-        "json_mode": True,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-    ("rules.judge", "high"): {
-        "max_tokens": 1024,
-        "json_mode": True,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-    ("codegen.synthesize", "low"): {
-        "max_tokens": 1024,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("codegen.synthesize", "medium"): {
-        "max_tokens": 2048,
-        "json_mode": False,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-    ("codegen.synthesize", "high"): {
-        "max_tokens": 4096,
-        "json_mode": False,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-    ("embed.symbol", "low"): {
-        "max_tokens": None,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("embed.symbol", "medium"): {
-        "max_tokens": None,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    },
-    ("embed.symbol", "high"): {
-        "max_tokens": None,
-        "json_mode": False,
-        "allow_stub": False,
-        "builtin_primary": "",
-    },
-}
+_MODEL_ROUTING_DIR = Path(__file__).resolve().parents[2] / "configs" / "model-routing"
+_PROFILE_CACHE: dict[str, dict[str, Any]] = {}
 
 
 def _parse_fallbacks(raw: str) -> tuple[str, ...]:
     parts = [p.strip() for p in raw.replace(";", ",").split(",")]
     return tuple(p for p in parts if p)
+
+
+def _profile_path() -> Path:
+    override = os.environ.get("AGENTCORE_LITELLM_ROUTING_PROFILE", "").strip()
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        return path
+    env_name = os.environ.get("AGENTCORE_LITELLM_ROUTING_ENV", "local").strip().lower() or "local"
+    if env_name == "cloud":
+        return _MODEL_ROUTING_DIR / "cloud.json"
+    return _MODEL_ROUTING_DIR / "default.json"
+
+
+def load_routing_profile(path: Path | None = None) -> dict[str, Any]:
+    """Load a ModelRoutingProfile JSON document (cached by resolved path)."""
+    resolved = (path or _profile_path()).resolve()
+    key = str(resolved)
+    cached = _PROFILE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    if not resolved.is_file():
+        empty: dict[str, Any] = {
+            "profile_id": "missing-profile",
+            "version": "0.0.0",
+            "title": "Missing",
+            "environment": "local",
+            "routes": [],
+        }
+        _PROFILE_CACHE[key] = empty
+        return empty
+    data = json.loads(resolved.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"ModelRoutingProfile must be an object: {resolved}")
+    _PROFILE_CACHE[key] = data
+    return data
+
+
+def clear_routing_profile_cache() -> None:
+    """Test helper: drop cached profile documents."""
+    _PROFILE_CACHE.clear()
+
+
+def _route_from_profile(
+    profile: dict[str, Any],
+    *,
+    task_class: str,
+    risk_level: str,
+) -> dict[str, Any] | None:
+    routes = profile.get("routes") or []
+    if not isinstance(routes, list):
+        return None
+    exact: dict[str, Any] | None = None
+    low_fallback: dict[str, Any] | None = None
+    for item in routes:
+        if not isinstance(item, dict):
+            continue
+        if item.get("task_class") != task_class:
+            continue
+        if item.get("risk_level") == risk_level:
+            exact = item
+            break
+        if item.get("risk_level") == "low":
+            low_fallback = item
+    return exact or low_fallback
 
 
 def resolve_route(
@@ -138,41 +134,52 @@ def resolve_route(
     default_model: str = "",
     profile_id: str | None = None,
 ) -> RouteDecision:
-    """Resolve LiteLLM model aliases for a task class from env + built-in defaults."""
+    """Resolve LiteLLM model aliases for a task class from env + profile defaults."""
     risk = (risk_level or os.environ.get("AGENTCORE_LITELLM_RISK_LEVEL", "low")).strip().lower() or "low"
     if risk not in {"low", "medium", "high"}:
         risk = "low"
 
-    meta = _TASK_DEFAULTS.get((task_class, risk)) or _TASK_DEFAULTS.get((task_class, "low")) or {
-        "max_tokens": 512,
-        "json_mode": False,
-        "allow_stub": True,
-        "builtin_primary": "",
-    }
+    profile = load_routing_profile()
+    route = _route_from_profile(profile, task_class=task_class, risk_level=risk) or {}
 
     env_key = _TASK_ENV.get(task_class, "")
     primary = (os.environ.get(env_key, "").strip() if env_key else "") or ""
     if not primary:
         primary = default_model.strip()
     if not primary:
-        primary = str(meta.get("builtin_primary") or "").strip()
+        primary = str(route.get("primary_model") or "").strip()
 
     fallback_env = os.environ.get("AGENTCORE_LITELLM_FALLBACK_MODELS", "").strip()
-    fallbacks = _parse_fallbacks(fallback_env)
+    if fallback_env:
+        fallbacks = _parse_fallbacks(fallback_env)
+    else:
+        raw_fallbacks = route.get("fallback_models") or []
+        fallbacks = tuple(
+            str(item).strip() for item in raw_fallbacks if str(item).strip()
+        )
 
-    allow_stub = bool(meta["allow_stub"])
+    allow_stub = bool(route.get("allow_stub", True))
+    json_mode = bool(route.get("json_mode", task_class == "rules.judge"))
+    max_tokens = route.get("max_tokens", 512 if task_class != "embed.symbol" else None)
+    if max_tokens is not None:
+        max_tokens = int(max_tokens)
+
     # Force stub-friendly behavior when no model is configured.
     if not primary:
         allow_stub = True
 
     return RouteDecision(
-        profile_id=profile_id or os.environ.get("AGENTCORE_LITELLM_PROFILE_ID", "env-default").strip() or "env-default",
+        profile_id=(
+            profile_id
+            or os.environ.get("AGENTCORE_LITELLM_PROFILE_ID", "").strip()
+            or str(profile.get("profile_id") or "env-default")
+        ),
         task_class=task_class,
         risk_level=risk,
         primary_model=primary,
         fallback_models=fallbacks,
-        max_tokens=meta.get("max_tokens"),  # type: ignore[arg-type]
-        json_mode=bool(meta.get("json_mode")),
+        max_tokens=max_tokens,
+        json_mode=json_mode,
         allow_stub=allow_stub,
     )
 

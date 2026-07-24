@@ -186,20 +186,22 @@ def test_print_sync_preflight(capsys, monkeypatch):
     assert "Before sync" in out
     assert "100 files" in out
     assert "20 files" in out
-    assert "Code edited" in out or "edited" in out.lower()
-    assert "5/100" in out
-    assert "needs sync" in out
-    assert "indexed symbols" in out
+    assert "Need sync" in out
+    assert "5 edited" in out
+    assert "85 not indexed yet" in out
+    assert "already synced" in out
+    assert "symbols documented" in out
     assert "python" in out
     assert "agentcore stats detail" not in out
 
 
-def test_edited_percent_line_omits_needs_sync_when_zero():
-    from agentcore_cli.commands.inventory.util import edited_percent_line
+def test_pending_work_line_is_count_only():
+    from agentcore_cli.commands.inventory.util import edited_percent_line, format_pending_work_line
 
-    assert edited_percent_line({"edited_count": 0, "total": 534, "percent_edited": 0.0}) == "0/534  (0.0%)"
-    assert "needs sync" in edited_percent_line(
-        {"edited_count": 4, "total": 237, "percent_edited": 1.7}
+    assert format_pending_work_line({"edited_count": 0, "remaining_count": 0}) == "none"
+    assert edited_percent_line({"edited_count": 4, "remaining_count": 0}) == "4 edited"
+    assert format_pending_work_line({"edited_count": 1, "remaining_count": 2}) == (
+        "1 edited, 2 not indexed yet"
     )
 
 
@@ -236,6 +238,9 @@ def test_print_human_omits_needs_sync_for_zero_edited(capsys, monkeypatch):
     }
     print_human(report, detail=False, show_hint=False)
     out = capsys.readouterr().out
-    assert "needs sync" not in out
-    assert "indexed symbols" in out
-    assert "3/4" in out
+    assert "Need sync" in out
+    assert "1 not indexed yet" in out
+    # Zero edited must not claim edited work.
+    assert "edited" not in out.split("Need sync", 1)[1].split("By language", 1)[0]
+    assert "symbols documented" in out
+    assert "3 of 4" in out

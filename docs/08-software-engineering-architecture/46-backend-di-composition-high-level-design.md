@@ -5,8 +5,7 @@ doc_type: hld
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: '**Not shipped.** High-level topology for AgentCore process composition roots,
-  ServiceContainer, FastAPI/MCP adapters, and port/adapter boundaries.'
+summary: 'Phases A–D shipped: process composition roots, ServiceContainer, FastAPI/MCP adapters, ports.'
 tags:
 - dependency-injection
 - composition-root
@@ -39,8 +38,9 @@ security_classification: internal
 
 ## Implementation status
 
-**Phase A+B shipped** for code-graph, MCP, and thin-service composition roots. HLD
-still describes the full target; port hygiene is Phase C.
+**Phases A–D shipped** for code-graph, MCP, thin-service composition roots, port
+hygiene (`ports.py` + allowlisted `PostgresStore` imports), and CLI process-scoped
+container reuse.
 
 ## Purpose
 

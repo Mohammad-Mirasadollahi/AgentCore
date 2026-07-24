@@ -25,4 +25,7 @@ This directory documents the domain layer boundary for `code-graph-service`. Run
 
 ## Status
 
-Active via `code_graph_service.domain` (enums, models, languages, parsing, ports, embeddings, documentation).
+Active via `code_graph_service.domain` (enums, models, languages, parsing,
+ports, embeddings, documentation, `impact`, `http_calls`, communities, explore).
+
+Canonical map: `../code_graph_service/domain/README.md`.

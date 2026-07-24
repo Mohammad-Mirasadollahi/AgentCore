@@ -46,6 +46,7 @@ def test_install_help_exits_zero() -> None:
     assert proc.returncode == 0
     assert "AgentCore installer" in proc.stdout
     assert "--check" in proc.stdout
+    assert "--upgrade" in proc.stdout
 
 
 def test_install_list_stages_order() -> None:

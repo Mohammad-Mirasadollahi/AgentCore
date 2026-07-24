@@ -43,11 +43,14 @@ Coordinate agents and humans through semantic policies, risk detection, escalati
 - `06-detailed-section-design.md` provides deep rationale, policy design, LLM judge behavior, escalation details, edge cases, and phase output.
 - `07-custom-rule-authoring-and-suggestion-workflows.md` defines user-authored rules, domain-scoped rules, conversation-derived rule suggestions, **guided business and process intake**, **challenge-by-challenge rule discovery**, **LLM-managed rule authoring**, feature profile rules, rule lifecycle, conflict handling, and admin-console rule workflows.
 - `08-domain-pack-feature-profile-and-rule-suggestion-schemas.md` defines normative JSON schemas, ownership, activation workflow, and conflict precedence for DomainPack, FeatureProfile, and RuleSuggestion (closes GAP-009).
+- `09-approval-modes-and-auto-approve.md` defines the three user-selectable Accept modes: `manual`, `auto_approve`, and `system_routed`, plus hard-block overrides and audit.
+- `10-approval-cli-first-surface.md` closes GAP-004: CLI is the first Accept surface (`agentcore approval`).
 
 ## Features Covered
 
 - Semantic Rules and LLM-as-a-Judge
 - Escalation and Human-in-the-Loop
+- Approval Modes And Auto-Approve
 - Hybrid Anomaly Detection
 - Dependency and Impact Analysis
 - Domain-Scoped Feature Rules

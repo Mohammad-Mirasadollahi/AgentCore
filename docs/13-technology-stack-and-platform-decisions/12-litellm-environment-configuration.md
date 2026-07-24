@@ -24,12 +24,14 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-placeholder: 1
+related_docs:
+- ac.doc.stack.litellm-llm-gateway
+- ac.doc.ckg.rpm-session-parallel-sync-feature-spec
+- ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 ---
 
 # 12 - LiteLLM Environment Configuration
 
-## 12 - LiteLLM Environment Configuration
 ## Purpose
 
 This document is the normative **configuration contract** for AgentCore LiteLLM settings and the related code-graph store variables that operators copy from the repository-root `.env.example` into `.env`.
@@ -311,9 +313,13 @@ AGENTCORE_LITELLM_DEFAULT_MODEL=gpt-4o-mini
 call waits until both `starts_in_window < rpm` and `inflight < inflight_cap`
 (v1: inflight_cap = rpm). See
 [`37`–`40` RPM-session parallel sync](../07-code-knowledge-graph/37-rpm-session-parallel-sync-feature-specification.md).
-Companion knob: `AGENTCORE_SYNC_MAX_FILE_WORKERS` (default **auto** =
-`min(cpu_count, AGENTCORE_LITELLM_RPM)`) for parse/hash parallelism; store writes stay
-serialized via `LockedStore`.
+Companion knob: `AGENTCORE_SYNC_CPU_PERCENT` (preferred) or
+`AGENTCORE_SYNC_MAX_FILE_WORKERS` for parse/hash/embed parallelism.
+Neo4j store traffic is **bounded** (not single-flight) via `LockedStore`
+`store_concurrency` (typically `max(2, min(8, workers))`); Postgres still
+serializes all store calls on one connection. Torch/OMP threads are pinned to 1
+when limits are applied so workers do not multiply into host RAM exhaustion.
+Details: [`50` sync CPU budget LLD](../07-code-knowledge-graph/50-sync-cpu-budget-and-store-concurrency-lld.md).
 
 **Example — strict local quota:**
 
@@ -321,18 +327,29 @@ serialized via `LockedStore`.
 AGENTCORE_LITELLM_RPM=10
 ## After 10 starts in ~60s, the next acquire blocks until the oldest start ages out
 ## or an in-flight session ends (whichever frees capacity first).
-## Sync file workers auto-cap at min(cpu_count, 10) unless overridden.
+## Sync file workers auto-cap at min(cpu_count, 10) unless CPU percent / workers override.
 ```
+
+### `AGENTCORE_SYNC_CPU_PERCENT`
+
+| | |
+| --- | --- |
+| **Purpose** | Operator CPU budget for `agentcore sync` / `ingest_repo`. |
+| **Default** | **auto** |
+| **If `auto` / unset** | Workers = `min(cpu_count, AGENTCORE_LITELLM_RPM)`; local-embed concurrency capped at 4. |
+| **If `1`–`100`** | Workers and local-embed concurrency ≈ that percent of `cpu_count`; Torch/OMP = 1; Neo4j `store_concurrency` = `max(2, min(8, workers))`. |
+| **CLI** | `agentcore sync --cpu-percent 25` overrides env for one run. |
+| **Design** | [`50` sync CPU budget LLD](../07-code-knowledge-graph/50-sync-cpu-budget-and-store-concurrency-lld.md). |
 
 ### `AGENTCORE_SYNC_MAX_FILE_WORKERS`
 
 | | |
 | --- | --- |
-| **Purpose** | Max parallel file workers for `agentcore sync` / `ingest_repo`. |
-| **Default** | **auto** — `min(os.cpu_count(), AGENTCORE_LITELLM_RPM)` |
-| **If unset / `auto`** | Computed from CPU cores and current RPM so workers track the operator's RPM setting. |
-| **If set to a positive int** | Explicit override (still ≥ 1). |
-| **If invalid / `0`** | Falls back to auto. |
+| **Purpose** | Advanced override: exact parallel file worker count. |
+| **Default** | **auto** — see `AGENTCORE_SYNC_CPU_PERCENT` |
+| **If unset / `auto`** | Falls through to CPU percent, then `min(cpu_count, AGENTCORE_LITELLM_RPM)`. |
+| **If set to a positive int** | Wins over `AGENTCORE_SYNC_CPU_PERCENT` (still ≥ 1). |
+| **If invalid / `0`** | Falls back to auto / CPU percent. |
 
 ### `AGENTCORE_LITELLM_DROP_PARAMS`
 

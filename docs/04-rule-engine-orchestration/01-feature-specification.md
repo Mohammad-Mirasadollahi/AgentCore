@@ -56,6 +56,8 @@ Organization policies can be written in natural language. Deterministic checks r
 
 Risky automation pauses and creates approval tickets with evidence, policy references, proposed action, options, and rollback plan.
 
+Accept gates support three user-selectable modes (`manual`, `auto_approve`, `system_routed`). Normative design: `09-approval-modes-and-auto-approve.md`.
+
 ## Feature 3 - Hybrid Anomaly Detection
 
 The system combines static checks, statistical signals, graph context, and LLM review for suspicious or ambiguous cases.
@@ -79,6 +81,7 @@ The system can analyze repeated corrections, preferences, rejected outputs, appr
 - Evaluate changes against relevant policies.
 - Create RuleEvaluation records with evidence.
 - Create EscalationTickets for high-risk actions.
+- Resolve Accept gates according to effective ApprovalMode (`manual`, `auto_approve`, or `system_routed`) with hard-block overrides and durable audit.
 - Create ImpactMaps and downstream Tasks.
 - Route work to agents or human owners.
 - Store user-authored rule drafts and active rule versions.

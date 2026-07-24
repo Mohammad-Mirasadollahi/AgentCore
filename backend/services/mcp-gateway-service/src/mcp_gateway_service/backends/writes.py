@@ -20,13 +20,24 @@ def write_resource(
     if resource not in {"memory", "task", "activity", "decision"}:
         raise ValueError("resource must be one of: memory, task, activity, decision")
 
+    hint = None
+    if not backends.guidance_was_resolved(scope):
+        hint = (
+            "Prefer agentcore_guidance_resolve (MCP-first) before durable writes "
+            "so always-on rules and skills are loaded for this project."
+        )
+
     if resource == "memory":
-        return _write_memory(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
-    if resource == "task":
-        return _write_task(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
-    if resource == "activity":
-        return _write_activity(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
-    return _write_decision(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+        result = _write_memory(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+    elif resource == "task":
+        result = _write_task(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+    elif resource == "activity":
+        result = _write_activity(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+    else:
+        result = _write_decision(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+    if hint:
+        result = {**result, "guidance_hint": hint}
+    return result
 
 
 def _write_memory(

@@ -89,6 +89,7 @@ def _function_symbol(
             for n in ast.walk(node)
             if isinstance(n, ast.Call)
         }
+        | {_normalize_call_name(name) for name in _getattr_call_names(node)}
     )
     calls = [c for c in calls if c]
     return ParsedSymbol(
@@ -102,6 +103,22 @@ def _function_symbol(
         bases=[],
         visibility="private" if node.name.startswith("_") else "public",
     )
+
+
+def _getattr_call_names(node: ast.AST) -> set[str]:
+    """Capture getattr(obj, 'method') as call refs for denser CALLS resolution (Wave D)."""
+    names: set[str] = set()
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call):
+            continue
+        if not isinstance(child.func, ast.Name) or child.func.id != "getattr":
+            continue
+        if len(child.args) < 2:
+            continue
+        attr = child.args[1]
+        if isinstance(attr, ast.Constant) and isinstance(attr.value, str):
+            names.add(attr.value)
+    return names
 
 
 def _expr_name(node: ast.AST) -> str:

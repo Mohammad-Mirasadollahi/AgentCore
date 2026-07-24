@@ -29,7 +29,8 @@ linked_symbols:
 related_docs:
 - ac.doc.codegraph.neo4j-migration-plan
 - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
-doc_version: 1.1.0
+- docs/07-code-knowledge-graph/48-ast-and-lsp-hybrid-parsing-adr.md
+doc_version: 1.2.0
 audience:
 - engineer
 - architect
@@ -57,6 +58,8 @@ security_classification: internal
 
 Defines which programming languages the Code-Knowledge Graph may ingest, which parsers own each language, and the non-negotiable Python baseline. All supported languages normalize into the same symbol/edge schema so retrieval and generation context remain language-agnostic at the Store port.
 
+Durable ingest uses AST adapters only (stdlib `ast` / tree-sitter). Language Server Protocol is **not** a language-matrix mechanism and must not dual-write the durable graph; see `48-ast-and-lsp-hybrid-parsing-adr.md`.
+
 ## Mandatory Baseline: Python
 
 **Python must remain supported.** It is the required baseline language for the Code-Knowledge Graph.
@@ -81,8 +84,9 @@ Current Python parser: stdlib `ast` (`parser=stdlib_ast`).
 | JavaScript | supported | false    | tree_sitter   | `.js`, `.jsx`, `.mjs`, `.cjs`      |
 | Go         | supported | false    | tree_sitter   | `.go`                              |
 | Rust       | supported | false    | tree_sitter   | `.rs`                              |
+| Java       | planned   | false    | tree_sitter   | (extensions deferred until parser) |
 
-Unsupported languages return a validation error. Planned languages must not be silently skipped with empty graphs.
+Unsupported languages return a validation error. Planned languages must not be silently skipped with empty graphs. Call resolution also captures `getattr(obj, "name")` string attributes as call refs (Codebase-Memory hybrid Wave D).
 
 ## Module Ownership
 
@@ -143,3 +147,4 @@ Unsupported languages return a validation error. Planned languages must not be s
 - Registry: `backend/services/code-graph-service/src/code_graph_service/domain/parsers/__init__.py`
 - Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 - Migration: `11-neo4j-migration-plan.md`
+- AST vs optional LSP: `48-ast-and-lsp-hybrid-parsing-adr.md`

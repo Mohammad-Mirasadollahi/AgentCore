@@ -86,7 +86,8 @@ Decide which records live in relational storage, graph storage, object storage, 
 
 ### Decision 2 - Model Routing Defaults
 
-**Gateway decided:** LiteLLM (`docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`). Remaining open item: publish concrete default `ModelRoutingProfile` tables (exact LiteLLM model aliases by task type and risk level).
+**Closed (2026-07-23):** LiteLLM gateway + published local/cloud profiles under
+`backend/configs/model-routing/` (see `10-model-routing-profiles-with-litellm.md`). Closes GAP-003 / DEC-001.
 
 ### Decision 3 - WeightProfile Governance
 
@@ -94,7 +95,9 @@ Define who can create, approve, and change memory and graph retrieval weighting 
 
 ### Decision 4 - Schema Registry Implementation
 
-Choose whether schema registry is a dedicated service, repository directory, or platform database module.
+**Closed (2026-07-23):** Repository-directory catalog
+(`12-schema-registry-architecture.md` + `backend/tools/schema-registry/catalog.json`).
+Closes GAP-008.
 
 ### Decision 5 - SDK Scope And First Integration Targets
 

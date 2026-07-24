@@ -168,3 +168,128 @@ def purge_scope(
     return {**base, "graph_mode": backends.graph_mode, "purge": result}
 
 
+def _position_args(arguments: dict[str, Any]) -> tuple[str, str, int, int, str]:
+    root_path = str(arguments.get("root_path") or "").strip()
+    file_path = str(arguments.get("file_path") or "").strip()
+    if not root_path or not file_path:
+        raise ValueError("root_path and file_path are required")
+    line = int(arguments.get("line") if arguments.get("line") is not None else -1)
+    character = int(arguments.get("character") if arguments.get("character") is not None else -1)
+    if line < 0 or character < 0:
+        raise ValueError("line and character are required (0-based)")
+    language = str(arguments.get("language") or "").strip()
+    return root_path, file_path, line, character, language
+
+
+def ide_references(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """IDE-semantic find-references (LSP). Not durable graph neighbors."""
+    _ = scope
+    root_path, file_path, line, character, language = _position_args(arguments)
+    try:
+        payload = backends.graph.ide_references(
+            root_path=root_path,
+            file_path=file_path,
+            line=line,
+            character=character,
+            language=language,
+        )
+    except CodeGraphError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+
+
+def ide_definition(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """IDE-semantic go-to-definition (LSP). Not durable graph edges."""
+    _ = scope
+    root_path, file_path, line, character, language = _position_args(arguments)
+    try:
+        payload = backends.graph.ide_definition(
+            root_path=root_path,
+            file_path=file_path,
+            line=line,
+            character=character,
+            language=language,
+        )
+    except CodeGraphError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+
+
+def ide_rename(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    correlation_id: str,
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """IDE-semantic rename (LSP) then AST reconcile_after_edit. Never dual-writes CODE_REL."""
+    root_path, file_path, line, character, language = _position_args(arguments)
+    new_name = str(arguments.get("new_name") or "").strip()
+    if not new_name:
+        raise ValueError("new_name is required")
+    apply = bool(arguments.get("apply", True))
+    run_sync = bool(arguments.get("run_sync", True))
+    try:
+        payload = backends.graph.ide_rename(
+            root_path=root_path,
+            file_path=file_path,
+            line=line,
+            character=character,
+            new_name=new_name,
+            language=language,
+            apply=apply,
+            scope=backends.graph_scope(scope),
+            actor_id=backends.actor_id,
+            correlation_id=correlation_id or str(uuid4()),
+            idempotency_key=str(arguments.get("idempotency_key") or f"mcp-ide-rename:{correlation_id}"),
+            run_sync=run_sync,
+        )
+    except CodeGraphError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+
+
+def reconcile_after_edit(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    correlation_id: str,
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Mark edited paths pending; optional AST sync_repo (ADR 48)."""
+    paths = arguments.get("file_paths") or []
+    if not isinstance(paths, list) or not paths:
+        single = str(arguments.get("file_path") or "").strip()
+        paths = [single] if single else []
+    if not paths:
+        raise ValueError("file_paths or file_path is required")
+    run_sync = bool(arguments.get("run_sync", False))
+    root_path = str(arguments.get("root_path") or "").strip() or None
+    try:
+        payload = backends.graph.reconcile_after_edit(
+            [str(p) for p in paths],
+            scope=backends.graph_scope(scope) if run_sync else None,
+            root_path=root_path,
+            actor_id=backends.actor_id,
+            correlation_id=correlation_id or str(uuid4()),
+            idempotency_key=str(arguments.get("idempotency_key") or f"mcp-reconcile:{correlation_id}"),
+            run_sync=run_sync,
+        )
+    except CodeGraphError as exc:
+        raise ValueError(str(exc.message)) from exc
+    return {**base, "graph_mode": backends.graph_mode, **payload}
+

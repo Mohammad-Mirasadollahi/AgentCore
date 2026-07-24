@@ -6,6 +6,7 @@ from typing import Any
 
 from ..domain.embeddings import cosine
 from ..domain.errors import NotFoundError, ValidationError
+from ..domain.impact import directed_impact, escalate_hint, rank_callers
 from ..domain.models import GraphSymbol, Scope
 from ..domain.polyglot_profile import PolyglotProjectProfile, build_polyglot_profile
 from ..domain.rag import (
@@ -14,12 +15,54 @@ from ..domain.rag import (
     DEFAULT_EXPAND_SEEDS,
     SEARCHABLE_SYMBOL_KINDS,
 )
+from ..domain.unused_candidates import find_unused_candidates
 from .support import GraphServiceSupport
 
 
 class QueryUseCases(GraphServiceSupport):
     def get_symbol(self, scope: Scope, symbol_id: str) -> GraphSymbol:
         return self.store.get_symbol(symbol_id, scope)
+
+    def unused_candidates(
+        self,
+        scope: Scope,
+        *,
+        scope_mode: str,
+        anchor_symbols: list[str] | None = None,
+        anchor_paths: list[str] | None = None,
+        max_results: int = 50,
+        include_uncertain: bool = False,
+    ) -> dict[str, Any]:
+        banner = (
+            self.freshness_status(scope)
+            if hasattr(self, "freshness_status")
+            else {"pending_files": [], "is_stale": False}
+        )
+        pending = banner.get("pending_files") or banner.get("pending") or []
+        if pending:
+            freshness = "pending_sync"
+        elif banner.get("is_stale") or banner.get("stale"):
+            freshness = "stale"
+        else:
+            freshness = "ok"
+        try:
+            payload = find_unused_candidates(
+                self.store.list_symbols(scope),
+                self.store.list_edges(scope),
+                scope_mode=scope_mode,
+                anchor_symbols=anchor_symbols,
+                anchor_paths=anchor_paths,
+                max_results=max_results,
+                include_uncertain=include_uncertain,
+                freshness=freshness,
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        payload["freshness_detail"] = {
+            "pending_files": pending if isinstance(pending, list) else [],
+            "last_sync_at": banner.get("last_sync_at"),
+        }
+        return payload
 
     def get_polyglot_profile(self, scope: Scope) -> PolyglotProjectProfile:
         return build_polyglot_profile(self.store.list_symbols(scope), self.store.list_edges(scope))
@@ -52,6 +95,7 @@ class QueryUseCases(GraphServiceSupport):
             "symbol": self._symbol_view(symbol),
             "max_depth": max_depth,
             "expansion": expansion,
+            "reference_kind": "structural",
             "edges": [
                 {
                     "id": edge.id,
@@ -69,7 +113,123 @@ class QueryUseCases(GraphServiceSupport):
             payload["neo4j_capabilities"] = cap_map
         if callable(rank) and max_depth > 1:
             payload["importance_hints"] = rank(scope, top_k=8)
+        payload["escalate_hint"] = escalate_hint(sparse=len(payload["edges"]) == 0)
+        freshness_fn = getattr(self, "freshness_status", None)
+        if callable(freshness_fn):
+            payload["freshness"] = freshness_fn(scope)
         return payload
+
+    def callers(
+        self,
+        scope: Scope,
+        symbol_id: str,
+        *,
+        top_k: int = 20,
+        max_depth: int = 1,
+        min_confidence: str | None = None,
+        rel_types: list[str] | None = None,
+    ) -> dict[str, Any]:
+        symbol = self.store.get_symbol(symbol_id, scope)
+        symbols = {s.id: s for s in self.store.list_symbols(scope)}
+        allowed = frozenset(r.upper() for r in rel_types) if rel_types else None
+        edges = self._structural_edges_for_seed(
+            scope,
+            symbol.id,
+            max_depth=max_depth,
+            direction="upstream",
+            rel_types=list(allowed) if allowed else None,
+        )
+        payload = rank_callers(
+            symbol.id,
+            symbols,
+            edges,
+            top_k=top_k,
+            max_depth=max_depth,
+            min_confidence=min_confidence,
+            rel_types=allowed,
+        )
+        payload["symbol"] = self._symbol_view(symbol)
+        freshness_fn = getattr(self, "freshness_status", None)
+        if callable(freshness_fn):
+            payload["freshness"] = freshness_fn(scope)
+        return payload
+
+    def impact_analysis(
+        self,
+        scope: Scope,
+        symbol_id: str,
+        *,
+        direction: str = "both",
+        max_depth: int = 3,
+        min_confidence: str | None = None,
+        rel_types: list[str] | None = None,
+        top_k: int = 50,
+        include_legacy_expand: bool = True,
+    ) -> dict[str, Any]:
+        symbol = self.store.get_symbol(symbol_id, scope)
+        symbols = {s.id: s for s in self.store.list_symbols(scope)}
+        allowed = frozenset(r.upper() for r in rel_types) if rel_types else None
+        edges = self._structural_edges_for_seed(
+            scope,
+            symbol.id,
+            max_depth=max_depth,
+            direction=direction,
+            rel_types=list(allowed) if allowed else None,
+        )
+        payload = directed_impact(
+            symbol.id,
+            symbols,
+            edges,
+            direction=direction,
+            max_depth=max_depth,
+            min_confidence=min_confidence,
+            rel_types=allowed,
+            top_k=top_k,
+        )
+        payload["symbol"] = self._symbol_view(symbol)
+        if include_legacy_expand:
+            legacy = self.structural_query(
+                scope,
+                symbol.id,
+                None if not rel_types else rel_types[0],
+                max_depth=max_depth,
+            )
+            payload["edges"] = legacy.get("edges") or []
+            payload["expansion"] = legacy.get("expansion")
+            if "importance_hints" in legacy:
+                payload["importance_hints"] = legacy["importance_hints"]
+            if "neo4j_capabilities" in legacy:
+                payload["neo4j_capabilities"] = legacy["neo4j_capabilities"]
+        freshness_fn = getattr(self, "freshness_status", None)
+        if callable(freshness_fn):
+            payload["freshness"] = freshness_fn(scope)
+        return payload
+
+    def _structural_edges_for_seed(
+        self,
+        scope: Scope,
+        seed_id: str,
+        *,
+        max_depth: int,
+        direction: str,
+        rel_types: list[str] | None,
+    ) -> list[Any]:
+        """Prefer Neo4j Cypher neighborhood when available; else full in-memory edge list."""
+        fetch = getattr(self.store, "neighborhood_edges", None)
+        if callable(fetch):
+            try:
+                edges = fetch(
+                    scope,
+                    seed_id,
+                    max_depth=max_depth,
+                    direction=direction,
+                    rel_types=rel_types,
+                )
+                if edges:
+                    return list(edges)
+            except Exception:
+                pass
+        return list(self.store.list_edges(scope))
 
     def semantic_search(
         self,

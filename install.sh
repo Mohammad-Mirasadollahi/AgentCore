@@ -6,6 +6,7 @@
 #   bash install.sh --runtime host
 #   bash install.sh --runtime docker
 #   bash install.sh --non-interactive --runtime host
+#   bash install.sh --upgrade
 #   bash install.sh --check
 #   bash install.sh --prerequisites-only
 #   bash install.sh --skip-infra
@@ -17,6 +18,7 @@
 # Docs:
 #   docs/08-software-engineering-architecture/39-local-install-runbook.md
 #   docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
+#   docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,6 +46,7 @@ Usage:
 Options:
   --runtime MODE          Bring-up mode: host | docker (skip interactive prompt)
   --non-interactive       No prompts; default --runtime host if omitted
+  --upgrade               Upgrade existing install (backup state, re-run stages, stamp versions)
   --check                 Verify stages only (no installs / no compose changes)
   --prerequisites-only    Install/check OS deps (Python, Docker, curl, git) then exit
   --skip-prerequisites    Do not apt-install (non-interactive/CI only; ignored interactively)
@@ -68,6 +71,9 @@ put agentcore on the SERVER PATH.
 Default flow (all stages):
   01_prerequisites → 02_venv → 03_compose_env → 04_docker_infra → 05_verify → 06_runtime_bringup
 
+Upgrade flow (--upgrade):
+  backup install-state → same stages → agentcore upgrade finalize
+
 EOF
 }
 
@@ -81,6 +87,10 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "error: --runtime needs host|docker" >&2; exit 64; }
       export INSTALL_RUNTIME="$2"
       shift 2
+      ;;
+    --upgrade)
+      MODE="upgrade"
+      shift
       ;;
     --check)
       export INSTALL_CHECK_ONLY=1
