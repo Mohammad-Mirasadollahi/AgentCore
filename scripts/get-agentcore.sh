@@ -70,12 +70,41 @@ normalize_channel() {
   esac
 }
 
+# curl|bash leaves stdin as the script pipe (not a TTY). Prompt via /dev/tty instead.
+can_prompt() {
+  if [[ "${AGENTCORE_NONINTERACTIVE:-0}" == "1" ]]; then
+    return 1
+  fi
+  if [[ -t 0 ]]; then
+    return 0
+  fi
+  if [[ -r /dev/tty && -w /dev/tty ]]; then
+    return 0
+  fi
+  return 1
+}
+
+# Read one line from the operator (stdin TTY, or /dev/tty when piped).
+read_prompt() {
+  local prompt="$1"
+  local ans=""
+  if [[ -t 0 ]]; then
+    read -r -p "${prompt}" ans || true
+  else
+    # Prompt on the real terminal; do not consume the curl|bash script pipe.
+    printf '%s' "${prompt}" >/dev/tty
+    read -r ans </dev/tty || true
+    printf '\n' >/dev/tty || true
+  fi
+  printf '%s\n' "${ans}"
+}
+
 prompt_channel() {
   if [[ -n "${AGENTCORE_CHANNEL:-}" ]]; then
     normalize_channel "${AGENTCORE_CHANNEL}" || fail "invalid AGENTCORE_CHANNEL=${AGENTCORE_CHANNEL} (use release|main)"
     return 0
   fi
-  if [[ ! -t 0 ]]; then
+  if ! can_prompt; then
     fail "non-interactive: pass --channel release|main (or AGENTCORE_CHANNEL)"
   fi
   echo >&2
@@ -83,7 +112,7 @@ prompt_channel() {
   echo "  1) release  — latest GitHub Release (recommended)" >&2
   echo "  2) main     — latest commits on ${AGENTCORE_DEFAULT_BRANCH} (may be unreleased)" >&2
   local ans=""
-  read -r -p "Choose [1/2] (default 1): " ans || true
+  ans="$(read_prompt "Choose [1/2] (default 1): ")"
   case "${ans}" in
     "" | 1 | release | r | R) printf '%s\n' release ;;
     2 | main | m | M) printf '%s\n' main ;;
@@ -99,12 +128,12 @@ prompt_root() {
     printf '%s\n' "${root}"
     return 0
   fi
-  if [[ ! -t 0 ]]; then
+  if ! can_prompt; then
     printf '%s\n' "${root}"
     return 0
   fi
   local ans=""
-  read -r -p "Install root [${root}]: " ans || true
+  ans="$(read_prompt "Install root [${root}]: ")"
   if [[ -n "${ans}" ]]; then
     root="${ans}"
   fi

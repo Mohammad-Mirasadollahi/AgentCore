@@ -220,10 +220,23 @@ def test_noninteractive_requires_channel() -> None:
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "AGENTCORE_CHANNEL": ""},
+        env={
+            **os.environ,
+            "AGENTCORE_CHANNEL": "",
+            "AGENTCORE_NONINTERACTIVE": "1",
+        },
         stdin=subprocess.DEVNULL,
     )
     assert proc.returncode != 0
     assert "non-interactive" in (proc.stderr + proc.stdout).lower() or "channel" in (
         proc.stderr + proc.stdout
     ).lower()
+
+
+def test_can_prompt_respects_noninteractive_flag() -> None:
+    proc = _source_helpers(
+        "can_prompt && echo yes || echo no",
+        env={"AGENTCORE_NONINTERACTIVE": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip().splitlines()[-1] == "no"
