@@ -56,6 +56,14 @@ run_install_stage() {
   fail "unknown stage: ${want} (use --list-stages)"
 }
 
+run_install_stages_only() {
+  local entry fn
+  for entry in "${INSTALL_STAGES[@]}"; do
+    fn="${entry#*:}"
+    "${fn}"
+  done
+}
+
 run_install_all() {
   local entry fn
   ensure_state_dir
@@ -71,15 +79,13 @@ run_install_all() {
     export INSTALL_SKIP_PREREQS
   fi
 
-  for entry in "${INSTALL_STAGES[@]}"; do
-    fn="${entry#*:}"
-    "${fn}"
-  done
+  run_install_stages_only
 }
 
 # Backup install-state, re-run stages, stamp product/contract via CLI finalize.
 run_install_upgrade() {
   local stamp backup_dir cli runtime_arg
+  local persisted=""
   ensure_state_dir
   if [[ ! -f "${INSTALL_STATE_FILE}" ]]; then
     fail "upgrade requires an existing install (missing ${INSTALL_STATE_FILE}); run bash install.sh first"
@@ -95,27 +101,47 @@ run_install_upgrade() {
   fi
   ok "backup → ${backup_dir}"
 
-  # Prefer persisted role/runtime; interactive upgrades still skip re-prompting those
-  # (action+yes already confirmed). Force noninteractive for role/runtime only.
+  # Prefer persisted role/runtime; heal garbage from older prompt-capture bugs.
   if [[ -z "${INSTALL_ROLE}" ]]; then
-    INSTALL_ROLE="$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)"
-    INSTALL_ROLE="${INSTALL_ROLE:-server}"
-    export INSTALL_ROLE
-  fi
-  if [[ "${INSTALL_ROLE}" == "client" ]]; then
-    INSTALL_SKIP_INFRA=1
-    export INSTALL_SKIP_INFRA
+    persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)")"
+    if INSTALL_ROLE="$(normalize_install_role "${persisted}" 2>/dev/null)"; then
+      export INSTALL_ROLE
+    else
+      if [[ -n "${persisted}" ]]; then
+        warn "Ignoring invalid persisted role='${persisted}'"
+      fi
+      INSTALL_ROLE=""
+      export INSTALL_ROLE
+    fi
   fi
   if [[ -z "${INSTALL_RUNTIME}" ]]; then
-    INSTALL_RUNTIME="$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)"
-    INSTALL_RUNTIME="$(normalize_install_runtime "${INSTALL_RUNTIME:-venv}" || printf '%s\n' "venv")"
-    export INSTALL_RUNTIME
+    persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)")"
+    if INSTALL_RUNTIME="$(normalize_install_runtime "${persisted}" 2>/dev/null)"; then
+      export INSTALL_RUNTIME
+    else
+      if [[ -n "${persisted}" ]]; then
+        warn "Ignoring invalid persisted runtime='${persisted}'"
+      fi
+      INSTALL_RUNTIME=""
+      export INSTALL_RUNTIME
+    fi
   fi
+
+  # Resolve while TTY prompts are still allowed (if role was cleared as invalid).
+  resolve_install_role
+  resolve_install_runtime
+
   local saved_ni="${INSTALL_NONINTERACTIVE:-0}"
   INSTALL_NONINTERACTIVE=1
   export INSTALL_NONINTERACTIVE
 
-  run_install_all
+  if [[ "${INSTALL_SKIP_PREREQS}" == "1" ]]; then
+    warn "Ignoring --skip-prerequisites for upgrade (prerequisites are required)"
+    INSTALL_SKIP_PREREQS=0
+    export INSTALL_SKIP_PREREQS
+  fi
+
+  run_install_stages_only
 
   INSTALL_NONINTERACTIVE="${saved_ni}"
   export INSTALL_NONINTERACTIVE

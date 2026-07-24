@@ -29,7 +29,7 @@ AGENTCORE_DEFAULT_BRANCH="${AGENTCORE_DEFAULT_BRANCH:-main}"
 
 CURL_BIN="${AGENTCORE_CURL:-curl}"
 
-log() { printf '[agentcore-get] %s\n' "$*"; }
+log() { printf '[agentcore-get] %s\n' "$*" >&2; }
 info() { log "INFO  $*"; }
 ok() { log "OK    $*"; }
 warn() { log "WARN  $*" >&2; }
@@ -439,6 +439,9 @@ parse_and_run() {
   fi
   if [[ "${assume_yes}" == "1" ]]; then
     export INSTALL_ASSUME_YES=1
+  else
+    # Do not inherit a stale INSTALL_ASSUME_YES from the operator environment.
+    unset INSTALL_ASSUME_YES || true
   fi
 
   channel="$(prompt_channel)"
