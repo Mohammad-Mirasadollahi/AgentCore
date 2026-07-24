@@ -276,6 +276,10 @@ diagnostics/
 reports/generated/
 artifacts/generated/
 
+# Synthetic CPU-bench modules (local load fixtures — never commit / never sync-ingest)
+_cpu_bench/
+**/_cpu_bench/
+
 # Local infrastructure data volumes / bind mounts + local wheel caches
 .docker-data/
 docker-data/

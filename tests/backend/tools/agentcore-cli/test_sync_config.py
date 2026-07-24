@@ -167,3 +167,26 @@ def test_discover_exclude_globs_and_include_glob(tmp_path: Path):
     assert "src/ok.py" in rels
     assert "src/app.min.js" not in rels
     assert "lib/nested/x.py" not in rels
+
+
+def test_discover_skips_cpu_bench_when_excluded(tmp_path: Path):
+    pkg = tmp_path / "pkg" / "_cpu_bench"
+    pkg.mkdir(parents=True)
+    (pkg / "mod_00.py").write_text("x=1\n", encoding="utf-8")
+    (tmp_path / "pkg" / "real.py").write_text("x=1\n", encoding="utf-8")
+    found = discover_source_files(
+        tmp_path,
+        include_extensions=[".py"],
+        exclude_dirs=["_cpu_bench"],
+        exclude_globs=["**/_cpu_bench/**"],
+    )
+    rels = {f.relative_path for f in found}
+    assert "pkg/real.py" in rels
+    assert not any("_cpu_bench" in r for r in rels)
+
+
+def test_tracked_sync_example_excludes_cpu_bench():
+    example = Path(__file__).resolve().parents[4] / "agentcore.sync.yaml.example"
+    text = example.read_text(encoding="utf-8")
+    assert "_cpu_bench" in text
+    assert "**/_cpu_bench/**" in text
