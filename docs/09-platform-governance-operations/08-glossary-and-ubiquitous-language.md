@@ -83,6 +83,10 @@ A record of a policy evaluation result, including verdict, confidence, rationale
 
 A human approval request created when automation reaches a risk boundary.
 
+### ApprovalMode
+
+User-selectable policy for how Accept gates are resolved: `manual` (always human Accept), `auto_approve` (system Accept for eligible gates), or `system_routed` (platform chooses auto vs human per item). Hard-block policies may still force human Accept. See `../04-rule-engine-orchestration/09-approval-modes-and-auto-approve.md`.
+
 ### AgentTicket
 
 A durable control-plane assignment of work to a registered agent, with claim, progress, block, review, completion, failure, cancellation, and reassignment.

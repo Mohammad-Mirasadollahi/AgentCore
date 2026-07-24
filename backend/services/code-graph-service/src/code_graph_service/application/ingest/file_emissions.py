@@ -7,15 +7,16 @@ from ...domain.di_injections import extract_injections
 from ...domain.dispatch_synth import synthesize_interface_dispatch
 from ...domain.enums import CallConfidence, DocStatus, RelType, SymbolKind
 from ...domain.framework_routes import extract_routes, route_symbol_id
-from ...domain.freshness import extract_rationale_comments
+from ...domain.freshness import extract_module_contract_docstring, extract_rationale_comments
 from ...domain.hashing import digest
+from ...domain.http_calls import extract_http_calls, normalize_http_path
 from ...domain.models import GraphSymbol, Scope
 from ...domain.test_links import suggest_test_links
 from ..support import unresolved_symbol_id
 
 
 class FileEmissionsMixin:
-    """Framework routes, DI injections, test links, rationale comments, dynamic dispatch."""
+    """Framework routes, HTTP client calls, DI injections, test links, rationale, dispatch."""
 
     def _emit_framework_routes(
         self,
@@ -25,13 +26,17 @@ class FileEmissionsMixin:
         source: str,
         language: str,
         stamp: str,
+        short_names: dict[str, list[str]] | None = None,
     ) -> int:
         """Create ROUTE symbols and ROUTES_TO edges for framework handlers."""
         written = 0
-        by_name: dict[str, list[str]] = {}
-        for sym in self.store.list_symbols(scope):
-            if sym.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD}:
-                by_name.setdefault(sym.name, []).append(sym.id)
+        if short_names is None:
+            by_name: dict[str, list[str]] = {}
+            for sym in self.store.list_symbols(scope):
+                if sym.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD}:
+                    by_name.setdefault(sym.name, []).append(sym.id)
+        else:
+            by_name = short_names
 
         for route in extract_routes(source, language=language, file_path=file_path):
             rid = route_symbol_id(scope.project_id, route.method, route.path)
@@ -100,6 +105,97 @@ class FileEmissionsMixin:
                             "provenance": "framework_route",
                         },
                         link_key=f"route:{route.method}:{route.path}:{hid}",
+                    )
+        return written
+
+    def _emit_http_calls(
+        self,
+        scope: Scope,
+        *,
+        file_path: str,
+        source: str,
+        language: str,
+    ) -> int:
+        """Emit HTTP_CALLS from client call sites to ROUTE/handler or unresolved targets."""
+        calls = extract_http_calls(source, language=language, file_path=file_path)
+        if not calls:
+            return 0
+
+        # Prefer file-level caller: functions in this file that contain the call line (best-effort: all funcs in file)
+        file_funcs = [
+            s
+            for s in self.store.list_symbols(scope)
+            if s.file_path == file_path
+            and s.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD}
+        ]
+        routes_by_path: dict[str, list[str]] = {}
+        for sym in self.store.list_symbols(scope):
+            if sym.kind != SymbolKind.ROUTE:
+                continue
+            # qualified_name: route:METHOD:/path
+            parts = sym.qualified_name.split(":", 2)
+            path = parts[2] if len(parts) >= 3 else ""
+            if path:
+                routes_by_path.setdefault(normalize_http_path(path), []).append(sym.id)
+
+        written = 0
+        for call in calls:
+            path = normalize_http_path(call.url_or_path)
+            targets = list(routes_by_path.get(path, []))
+            # Also match ROUTES_TO handlers via route metadata path
+            if not targets:
+                for edge in self.store.list_edges(scope):
+                    if edge.rel_type != RelType.ROUTES_TO.value:
+                        continue
+                    meta_path = normalize_http_path(str(edge.metadata.get("path") or ""))
+                    if meta_path == path:
+                        targets.append(edge.source_id)  # route node
+            targets = list(dict.fromkeys(targets))
+            confidence = (
+                CallConfidence.EXACT
+                if len(targets) == 1
+                else CallConfidence.AMBIGUOUS
+                if targets
+                else CallConfidence.UNRESOLVED
+            )
+            if not targets:
+                targets = [unresolved_symbol_id(scope, f"http:{call.method}:{path}")]
+            # Prefer functions whose body contains this URL/path (line-local attribution).
+            body_hits = [
+                s
+                for s in file_funcs
+                if call.url_or_path in (s.body or "") or path in (s.body or "")
+            ]
+            sources = body_hits[:3] if body_hits else file_funcs[:3]
+            if not sources:
+                file_id = f"file:{scope.project_id}:{file_path}"
+                sources_ids = [file_id]
+            else:
+                sources_ids = [s.id for s in sources]
+            rel = (
+                RelType.ASYNC_CALLS.value
+                if call.is_async or call.framework in {"httpx", "aiohttp"}
+                else RelType.HTTP_CALLS.value
+            )
+            for sid in sources_ids:
+                for tid in targets[:5]:
+                    written += self._put_edge(
+                        scope,
+                        rel,
+                        sid,
+                        tid,
+                        file_path=file_path,
+                        confidence=confidence,
+                        metadata={
+                            "method": call.method,
+                            "url_or_path": call.url_or_path,
+                            "path": path,
+                            "framework": call.framework,
+                            "line": call.line_hint,
+                            "is_async": bool(call.is_async),
+                            "provenance": "http_client_call",
+                        },
+                        link_key=f"http:{sid}:{call.method}:{path}:{tid}",
                     )
         return written
 
@@ -247,6 +343,52 @@ class FileEmissionsMixin:
                 link_key=f"rationale:{hit.line}:{hit.tag}",
             )
         return written
+
+    def _emit_module_contract_node(
+        self,
+        scope: Scope,
+        *,
+        file_path: str,
+        source: str,
+        stamp: str,
+        language: str = "",
+    ) -> int:
+        """Index selective module contract docstring as RATIONALE (tag MODULE_CONTRACT)."""
+        contract = extract_module_contract_docstring(source, language)
+        if not contract:
+            return 0
+        file_id = f"file:{scope.project_id}:{file_path}"
+        rid = f"rationale:{scope.project_id}:{file_path}:1:MODULE_CONTRACT"
+        body = f"MODULE_CONTRACT: {contract}"
+        self.store.put_symbol(
+            GraphSymbol(
+                id=rid,
+                scope=scope,
+                kind=SymbolKind.RATIONALE,
+                file_path=file_path,
+                name="MODULE_CONTRACT:1",
+                qualified_name=f"{file_path}::MODULE_CONTRACT@1",
+                signature="MODULE_CONTRACT",
+                body=body,
+                hash_value=digest(body),
+                ai_documentation=contract,
+                doc_status=DocStatus.UNCHANGED,
+                embedding=self.embeddings.embed(contract).vector,
+                created_at=stamp,
+                updated_at=stamp,
+                language=language,
+            )
+        )
+        return self._put_edge(
+            scope,
+            RelType.DOCUMENTED_BY.value,
+            file_id,
+            rid,
+            file_path=file_path,
+            confidence=CallConfidence.EXACT,
+            metadata={"tag": "MODULE_CONTRACT", "line": 1, "provenance": "module_contract_docstring"},
+            link_key="rationale:1:MODULE_CONTRACT",
+        )
 
     def _emit_dynamic_dispatch(self, scope: Scope) -> int:
         symbols = list(self.store.list_symbols(scope))

@@ -184,12 +184,18 @@ Constraints: `top_k` 1–40; `max_depth` 1–4; `budget_chars` optional 2000–1
 | --- | --- | --- |
 | `agentcore_code_graph_explore` | `code_graph.explore` | `query` |
 | `agentcore_code_graph_detect_changes` | `code_graph.detect_changes` | `changed_files` |
+| `agentcore_code_graph_callers` | `code_graph.callers` | `symbol_id` or `qualified_name` |
+| `agentcore_code_graph_impact` | `code_graph.impact` | `symbol_id` or `qualified_name` |
+| `agentcore_code_graph_community` | `code_graph.community` | `symbol_id` or `qualified_name` |
 
 Profile: `backend/configs/usage-profiles/programming-cursor-mcp.json`.
 Dispatch: `mcp_gateway_service.backends.dispatch`.
 
-Agent guidance: prefer `explore` for structural questions; use `detect_changes`
-for review/PR deltas.
+Agent guidance: prefer structural `callers` / directed `impact` / `community` for
+fan-in and blast questions; use `explore` for semantic “how does X work”; use
+`detect_changes` for review/PR deltas. Follow `escalate_hint` before raw Read.
+
+See also Codebase-Memory hybrid pack `44`–`47`.
 
 ## Edge Metadata Contracts
 
@@ -203,6 +209,19 @@ for review/PR deltas.
   "handler": "get_user",
   "line": 12,
   "provenance": "framework_route"
+}
+```
+
+### HTTP_CALLS / ASYNC_CALLS
+
+```json
+{
+  "method": "GET|POST|…|ANY",
+  "url_or_path": "/api/v1/users",
+  "path": "/api/v1/users",
+  "framework": "httpx|requests|fetch|axios|…",
+  "line": 18,
+  "provenance": "http_client_call"
 }
 ```
 

@@ -350,3 +350,44 @@ def test_litellm_gateway_releases_sessions_on_failures(monkeypatch):
         "TimeoutError",
     ]
     assert "sk-secret-value" not in str(snap)
+
+
+def test_resolve_route_uses_local_profile_defaults(monkeypatch):
+    from llm_gateway.routing import clear_routing_profile_cache, resolve_route
+
+    clear_routing_profile_cache()
+    monkeypatch.delenv("AGENTCORE_LITELLM_MODEL_DOCS", raising=False)
+    monkeypatch.delenv("AGENTCORE_LITELLM_FALLBACK_MODELS", raising=False)
+    monkeypatch.delenv("AGENTCORE_LITELLM_ROUTING_PROFILE", raising=False)
+    monkeypatch.setenv("AGENTCORE_LITELLM_ROUTING_ENV", "local")
+    monkeypatch.setenv("AGENTCORE_LITELLM_RISK_LEVEL", "low")
+    decision = resolve_route("docs.generate")
+    assert decision.profile_id == "agentcore-local-default"
+    assert decision.primary_model.startswith("ollama/")
+    assert decision.allow_stub is True
+    assert decision.models_in_order()[0] == decision.primary_model
+
+
+def test_resolve_route_env_override_beats_profile(monkeypatch):
+    from llm_gateway.routing import clear_routing_profile_cache, resolve_route
+
+    clear_routing_profile_cache()
+    monkeypatch.setenv("AGENTCORE_LITELLM_ROUTING_ENV", "local")
+    monkeypatch.setenv("AGENTCORE_LITELLM_MODEL_DOCS", "openai/gpt-4o-mini")
+    monkeypatch.setenv("AGENTCORE_LITELLM_FALLBACK_MODELS", "openai/gpt-4o")
+    decision = resolve_route("docs.generate", risk_level="high")
+    assert decision.primary_model == "openai/gpt-4o-mini"
+    assert decision.fallback_models == ("openai/gpt-4o",)
+
+
+def test_resolve_route_cloud_profile(monkeypatch):
+    from llm_gateway.routing import clear_routing_profile_cache, resolve_route
+
+    clear_routing_profile_cache()
+    monkeypatch.delenv("AGENTCORE_LITELLM_MODEL_JUDGE", raising=False)
+    monkeypatch.delenv("AGENTCORE_LITELLM_FALLBACK_MODELS", raising=False)
+    monkeypatch.setenv("AGENTCORE_LITELLM_ROUTING_ENV", "cloud")
+    decision = resolve_route("rules.judge", risk_level="high")
+    assert decision.profile_id == "agentcore-cloud-default"
+    assert decision.json_mode is True
+    assert decision.primary_model.startswith("anthropic/")

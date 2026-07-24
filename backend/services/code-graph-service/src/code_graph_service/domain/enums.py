@@ -28,6 +28,8 @@ class RelType(StrEnum):
     DOCUMENTED_BY = "DOCUMENTED_BY"
     ROUTES_TO = "ROUTES_TO"
     TESTED_BY = "TESTED_BY"
+    HTTP_CALLS = "HTTP_CALLS"
+    ASYNC_CALLS = "ASYNC_CALLS"
 
 
 class CallConfidence(StrEnum):

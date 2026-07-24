@@ -28,7 +28,9 @@ def dispatch_capability(
         "graph_mode": backends.graph_mode,
     }
     if maps_to == "platform.ping":
-        return {**base, "ok": True}
+        from agentcore_cli.upgrade.versions import server_version_payload
+
+        return {**base, "ok": True, **server_version_payload()}
     if maps_to == "profile.effective":
         return {**base, "ok": True}
 
@@ -43,6 +45,14 @@ def dispatch_capability(
         return code_graph.neighbors(backends, arguments, scope=scope, base=base)
     if maps_to == "code_graph.impact":
         return code_graph.impact(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.callers":
+        return code_graph.callers(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.community":
+        return code_graph.community(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.call_path":
+        return code_graph.call_path(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.unused_candidates":
+        return code_graph.unused_candidates(backends, arguments, scope=scope, base=base)
     if maps_to == "code_graph.explore":
         return code_graph.explore(backends, arguments, scope=scope, base=base)
     if maps_to == "code_graph.detect_changes":
@@ -73,6 +83,18 @@ def dispatch_capability(
         return code_graph.purge_scope(backends, arguments, scope=scope, base=base)
     if maps_to == "code_graph.language_profile":
         return code_graph.language_profile(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.ide_references":
+        return code_graph.ide_references(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.ide_definition":
+        return code_graph.ide_definition(backends, arguments, scope=scope, base=base)
+    if maps_to == "code_graph.ide_rename":
+        return code_graph.ide_rename(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "code_graph.reconcile_after_edit":
+        return code_graph.reconcile_after_edit(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
 
     if maps_to == "core_data.create_task":
         return _create_task(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)

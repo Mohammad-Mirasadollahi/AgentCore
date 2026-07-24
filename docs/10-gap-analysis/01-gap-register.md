@@ -19,7 +19,8 @@ audience_lane:
 - agents
 authority: informative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- tests/backend/configs/test_domain_customization_schemas.py::test_first_party_configs_match_schemas
 ---
 
 # Master Gap Register
@@ -93,19 +94,23 @@ Why it matters: Cost, latency, privacy, and quality depend on model routing and 
 
 Current assumption: **LiteLLM is the approved LLM gateway** for all AgentCore-initiated model calls. `ModelRoutingProfile` maps task type / risk / tenant / environment to LiteLLM model aliases (local Ollama/OpenAI-compatible and cloud providers). Durable embedding **storage** remains PostgreSQL+pgvector. See `docs/13-technology-stack-and-platform-decisions/09-litellm-llm-gateway.md`.
 
-Decision needed: None for gateway selection. Remaining work is publishing concrete default `ModelRoutingProfile` tables (exact model aliases per task class).
+Decision needed: None — LiteLLM gateway accepted; default local/cloud `ModelRoutingProfile`
+tables published under `backend/configs/model-routing/`.
 
 Suggested owner: AI Platform Lead
 
 Approver: Platform Architect
 
-Review date: 2026-07-20
+Review date: 2026-07-23
 
-Resolution path: Accepted ADR `09-litellm-llm-gateway.md`; implement `LlmCompletionPort` / LiteLLM adapter in services that leave heuristic stubs; keep tiered routing guidance in `docs/07-code-knowledge-graph/05-token-optimization-and-model-routing.md`.
+Resolution path: ADR `09-litellm-llm-gateway.md`; profile standard
+`10-model-routing-profiles-with-litellm.md`; JSON profiles + schema; `llm_gateway.resolve_route`
+loads file defaults with env overrides.
 
 Status: CLOSED
 
-Closed in: LiteLLM LLM Gateway ADR (2026-07-20).
+Closed in: `docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md`
++ `backend/configs/model-routing/` (2026-07-23).
 
 ## GAP-004 - Human Approval UX
 
@@ -117,15 +122,18 @@ Impact: The system defines escalation tickets but does not yet define the exact 
 
 Why it matters: Poor approval UX will slow teams and cause rubber-stamping.
 
-Current assumption: Approval can happen through platform UI, IDE, Slack, Jira, or other workflow tools.
+Current assumption: Approval can happen through platform UI, IDE, Slack, Jira, or other workflow tools. Interaction model for Accept vs Auto-Approve is specified in `docs/04-rule-engine-orchestration/09-approval-modes-and-auto-approve.md` (`manual`, `auto_approve`, `system_routed`).
 
-Decision needed: Choose first approval surface and required approval interaction model.
+Decision needed: None — first surface is AgentCore CLI (`agentcore approval`).
 
 Suggested owner: Product Lead
 
-Resolution path: Design approval workflow and add UI/API contract.
+Resolution path: CLI Accept queue + ApprovalModeProfile catalog; web/IDE deferred.
 
-Status: OPEN
+Status: CLOSED
+
+Closed in: `docs/04-rule-engine-orchestration/10-approval-cli-first-surface.md` +
+`backend/packages/approval_modes/` + `agentcore approval` CLI (2026-07-23).
 
 ## GAP-005 - Tenant Isolation Implementation Details
 
@@ -163,13 +171,16 @@ Why it matters: Bad weights can hide important memory or over-prioritize stale c
 
 Current assumption: Profiles are versioned and auditable.
 
-Decision needed: Define who can change profiles and how changes are validated.
+Decision needed: None — Memory Platform Lead approves catalog profiles; CLI activate/rollback is the operator path.
 
 Suggested owner: Memory Platform Lead
 
-Resolution path: Add governance workflow and profile change tests.
+Resolution path: Governance standard + catalog + CLI activate/rollback tests.
 
-Status: OPEN
+Status: CLOSED
+
+Closed in: `docs/02-memory-and-context/12-weight-profile-governance.md` +
+`backend/packages/weight_profiles/` + `agentcore weight-profile` CLI (2026-07-23).
 
 ## GAP-007 - Development Port Profile Ownership
 
@@ -205,13 +216,20 @@ Why it matters: Without schema registry, broker events and adapter contracts may
 
 Current assumption: A versioned schema catalog exists.
 
-Decision needed: Decide whether schema registry is a service, repo directory, or database-backed registry.
+Decision needed: None — v1 schema registry is a **repository-directory catalog**.
 
 Suggested owner: Platform Architect
 
-Resolution path: Create schema registry architecture note.
+Approver: Platform Architect
 
-Status: DECISION_NEEDED
+Review date: 2026-07-23
+
+Resolution path: Architecture ADR + `backend/tools/schema-registry/catalog.json` indexing
+first-party schemas under `backend/configs/`; pytest validates catalog paths.
+
+Status: CLOSED
+
+Closed in: `docs/09-platform-governance-operations/12-schema-registry-architecture.md` (2026-07-23).
 
 ## GAP-009 - Domain Pack, Feature Profile, And Rule Suggestion Governance
 

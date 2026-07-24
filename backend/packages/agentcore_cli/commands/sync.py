@@ -43,12 +43,6 @@ def _sync_one_root(
     print(f"{ui.accent('→')}  Syncing {ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id)}")
     ui.kv("Path", str(root_path))
     ui.kv("Progress", f"updates about every {int(args.progress_interval)}s (adapts ETA from observed rate)")
-    try:
-        from code_graph_service.locked_store import sync_max_file_workers
-
-        workers_auto = sync_max_file_workers()
-    except Exception:  # noqa: BLE001
-        workers_auto = None
     rpm_snap: dict[str, Any] = {}
     try:
         if hasattr(svc, "llm_sessions_snapshot"):
@@ -56,8 +50,32 @@ def _sync_one_root(
     except Exception:  # noqa: BLE001
         rpm_snap = {}
     rpm_limit = int(rpm_snap.get("rpm") or 0)
-    if workers_auto is not None:
-        ui.kv("Parallel files", f"up to {workers_auto} workers (auto from CPU × RPM)")
+    try:
+        from code_graph_service.locked_store import resolve_sync_cpu_plan
+
+        plan = resolve_sync_cpu_plan()
+        if plan.mode == "percent":
+            ui.kv(
+                "CPU budget",
+                f"{plan.cpu_percent}% of {plan.cpu_count} CPUs → "
+                f"{plan.workers} workers, {plan.embed_concurrency} embeds, "
+                f"torch/OMP={plan.torch_threads}",
+            )
+        elif plan.mode == "workers":
+            ui.kv(
+                "CPU budget",
+                f"explicit {plan.workers} workers "
+                f"(embeds={plan.embed_concurrency}, torch/OMP={plan.torch_threads})",
+            )
+        else:
+            ui.kv(
+                "CPU budget",
+                f"auto → {plan.workers} workers "
+                f"(embeds≤{plan.embed_concurrency}, torch/OMP={plan.torch_threads}; "
+                f"CPU×RPM)",
+            )
+    except Exception:  # noqa: BLE001
+        pass
     if rpm_limit:
         ui.kv(
             "RPM",
@@ -289,8 +307,16 @@ def cmd_sync(args: argparse.Namespace) -> int:
 
 
 def _cmd_sync_body(args: argparse.Namespace) -> int:
+    import os
+
     from agentcore_cli.service_runtime import ensure_running_or_offer_start
     from agentcore_cli.util import repo_root
+    from code_graph_service.locked_store import apply_sync_compute_limits, resolve_sync_cpu_plan
+
+    cpu_percent = getattr(args, "cpu_percent", None)
+    if cpu_percent is not None and str(cpu_percent).strip() != "":
+        os.environ["AGENTCORE_SYNC_CPU_PERCENT"] = str(cpu_percent).strip()
+    apply_sync_compute_limits(resolve_sync_cpu_plan())
 
     started = ensure_running_or_offer_start(repo_root())
     if started is not None:

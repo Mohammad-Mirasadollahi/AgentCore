@@ -36,6 +36,17 @@ class PlatformBackends:
         self.actor_id = "mcp-gateway"
         self.store_mode = self._stores.mode
         self.graph_mode = self._stores.graph_mode
+        # Soft MCP-first gate: projects that called guidance_resolve this process
+        self._guidance_resolved_projects: set[str] = set()
+
+    def mark_guidance_resolved(self, scope: dict[str, str]) -> None:
+        pid = str(scope.get("project_id") or "").strip()
+        if pid:
+            self._guidance_resolved_projects.add(pid)
+
+    def guidance_was_resolved(self, scope: dict[str, str]) -> bool:
+        pid = str(scope.get("project_id") or "").strip()
+        return bool(pid) and pid in self._guidance_resolved_projects
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> PlatformBackends:

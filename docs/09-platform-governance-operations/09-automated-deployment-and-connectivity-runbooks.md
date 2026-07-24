@@ -20,6 +20,9 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
+related_docs:
+- docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
 ---
 
 # 09 - Automated Deployment And Connectivity Runbooks
@@ -159,6 +162,10 @@ Failure response:
 ## Runbook: Automated Upgrade
 
 Goal: upgrade an existing AgentCore installation safely.
+
+**Implementation (local-dev + CLI control plane):** see
+[51 - Software Upgrade Server And Client](../08-software-engineering-architecture/51-software-upgrade-server-and-client.md)
+(`bash install.sh --upgrade`, `agentcore upgrade …`, client handshake via `platform.ping`).
 
 Automated steps:
 

@@ -144,3 +144,23 @@ class FileRelinkMixin:
                     link_key=f"base:{base}",
                 )
         return written
+
+    def finalize_cross_file_resolution(
+        self,
+        scope: Scope,
+        *,
+        source_language: str = "python",
+        package_aliases: dict[str, str] | None = None,
+    ) -> int:
+        """One post-parallel pass: relink + test/dispatch edges for the whole scope."""
+        aliases = package_aliases if isinstance(package_aliases, dict) else {}
+        written = 0
+        written += self._relink_unresolved_calls(scope, source_language=source_language)
+        written += self._relink_unresolved_references(
+            scope,
+            source_language=source_language,
+            package_aliases=aliases,
+        )
+        written += self._emit_test_links(scope)
+        written += self._emit_dynamic_dispatch(scope)
+        return written

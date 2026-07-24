@@ -43,6 +43,8 @@ _AST_REL_TYPES = frozenset(
         RelType.INHERITS_FROM.value,
         RelType.ROUTES_TO.value,
         RelType.TESTED_BY.value,
+        RelType.HTTP_CALLS.value,
+        RelType.ASYNC_CALLS.value,
     }
 )
 
@@ -135,16 +137,16 @@ def build_symbol_doc_coverage(
                 continue
             origin = str(meta.get("origin") or "")
             if (
-                origin == "human"
+                origin in {"human", "package_readme"}
                 or doc.id.startswith("doc:human:")
                 or doc.doc_status == DocStatus.HUMAN
             ):
-                human_docs.append(_doc_view(doc, origin="human"))
+                human_docs.append(_doc_view(doc, origin="human" if origin != "package_readme" else "package_readme"))
             else:
                 living_docs.append(_doc_view(doc, origin="living"))
             continue
 
-        # Optional: rationale linked from FILE → RATIONALE (ingest default)
+        # Optional: rationale / package README linked from FILE → doc
         if rel == RelType.DOCUMENTED_BY.value and source_id == file_id:
             try:
                 doc = store.get_symbol(target_id, scope)
@@ -152,6 +154,19 @@ def build_symbol_doc_coverage(
                 continue
             if doc.kind == SymbolKind.RATIONALE:
                 rationale.append(_doc_view(doc, origin="rationale"))
+            elif doc.kind == SymbolKind.DOCUMENTATION:
+                origin = str(meta.get("origin") or "")
+                if (
+                    origin in {"human", "package_readme"}
+                    or doc.id.startswith("doc:human:")
+                    or doc.doc_status == DocStatus.HUMAN
+                ):
+                    human_docs.append(
+                        _doc_view(
+                            doc,
+                            origin="package_readme" if origin == "package_readme" else "human",
+                        )
+                    )
             continue
 
         if rel not in _AST_REL_TYPES:

@@ -47,6 +47,7 @@ def guidance_resolve(
         if isinstance(arguments.get("task_overrides"), dict)
         else None,
     )
+    backends.mark_guidance_resolved(scope)
     return {**base, "bundle": bundle}
 
 

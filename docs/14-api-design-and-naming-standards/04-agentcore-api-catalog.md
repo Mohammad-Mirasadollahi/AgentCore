@@ -154,9 +154,22 @@ GET  /api/v1/projects/{project_id}/repositories/{repository_id}/code-metadata
 POST /api/v1/projects/{project_id}/repositories/{repository_id}/code-metadata:search
 GET  /api/v1/projects/{project_id}/code-symbols/{symbol_id}
 POST /api/v1/projects/{project_id}/code-context-packs:resolve
-GET  /api/v1/projects/{project_id}/code-graph/impact
+GET  /api/v1/projects/{project_id}/graph/symbols/{symbol_id}
+GET  /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/neighbors
+POST /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/callers
+POST /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/impact
+POST /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/community
+POST /api/v1/projects/{project_id}/graph/symbols/{symbol_id}/call-path
+POST /api/v1/projects/{project_id}/graph/explore
+POST /api/v1/projects/{project_id}/graph/detect-changes
+POST /api/v1/projects/{project_id}/graph/architecture-overview
+POST /api/v1/projects/{project_id}/graph/path
+POST /api/v1/projects/{project_id}/graph/search:hybrid
+GET  /api/v1/projects/{project_id}/graph/freshness
 ```
 
+Canonical Phase 7 contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`.
+Codebase-Memory hybrid (Neo4j): `docs/07-code-knowledge-graph/44`–`47`.
 ## Documentation Sync APIs
 
 ```text

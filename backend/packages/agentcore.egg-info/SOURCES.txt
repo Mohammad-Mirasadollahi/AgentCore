@@ -12,12 +12,17 @@ backend/packages/agentcore_cli/cli_defaults.py
 backend/packages/agentcore_cli/connect_config.py
 backend/packages/agentcore_cli/connect_flow.py
 backend/packages/agentcore_cli/connect_security.py
+backend/packages/agentcore_cli/docs_catalog.py
+backend/packages/agentcore_cli/docs_link_suggest.py
 backend/packages/agentcore_cli/docs_link_sync.py
 backend/packages/agentcore_cli/identity.py
 backend/packages/agentcore_cli/local_mcp.py
 backend/packages/agentcore_cli/main.py
 backend/packages/agentcore_cli/markdown_frontmatter.py
 backend/packages/agentcore_cli/mcp_client_targets.py
+backend/packages/agentcore_cli/mcp_token_report.py
+backend/packages/agentcore_cli/mcp_usage_log.py
+backend/packages/agentcore_cli/process_containers.py
 backend/packages/agentcore_cli/remote_client.py
 backend/packages/agentcore_cli/remote_mcp_serve.py
 backend/packages/agentcore_cli/software_paths.py
@@ -26,6 +31,9 @@ backend/packages/agentcore_cli/sync_config.py
 backend/packages/agentcore_cli/sync_usage_log.py
 backend/packages/agentcore_cli/ui.py
 backend/packages/agentcore_cli/util.py
+backend/packages/approval_modes/__init__.py
+backend/packages/approval_modes/modes.py
+backend/packages/approval_modes/queue.py
 backend/packages/llm_gateway/__init__.py
 backend/packages/llm_gateway/__main__.py
 backend/packages/llm_gateway/gateway.py
@@ -47,3 +55,5 @@ backend/packages/port_profile/loader.py
 backend/packages/usage_profile/__init__.py
 backend/packages/usage_profile/loader.py
 backend/packages/usage_profile/mcp_tokens.py
+backend/packages/weight_profiles/__init__.py
+backend/packages/weight_profiles/governance.py

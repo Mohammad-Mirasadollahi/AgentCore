@@ -5,8 +5,7 @@ doc_type: feature_spec
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: 'Phase A+B shipped (code-graph, MCP, and thin-service composition roots). Phases
-  C–D for port hygiene and CLI remain future work.'
+summary: 'Phases A–D shipped: composition roots, thin ports/store gate, CLI process containers.'
 tags:
 - dependency-injection
 - composition-root
@@ -56,11 +55,10 @@ security_classification: internal
 
 ## Implementation status
 
-**Phase A+B shipped (2026-07-23):** pathfinders (`code-graph`, MCP) plus all
-listed thin services use `ServiceContainer` / `build_container` / `build_app` with
-`app.state.container`. Gate includes `di-thin-services-phase-b`.
-
-Phases C–D (port hygiene, CLI) remain **not shipped** — see `47` / `48`.
+**Phases A–D shipped (2026-07-23):** pathfinders (`code-graph`, MCP), thin-service
+`ServiceContainer` / `build_container` / `build_app`, thin `ports.py` + store-import
+gate, and CLI `process_containers` reuse. Gate package covers checks through
+`di-cli-process-containers-phase-d`.
 
 ## Purpose
 

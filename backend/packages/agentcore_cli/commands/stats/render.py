@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from agentcore_cli import ui
-from agentcore_cli.commands.inventory.util import edited_percent_line
+from agentcore_cli.commands.inventory.util import (
+    format_pending_work_line,
+    format_synced_beside_total,
+)
 
 
 def format_bytes(n: int) -> str:
@@ -23,17 +26,22 @@ def format_language_line(row: dict[str, Any], *, detail: bool) -> str:
     lang = str(row.get("language") or "unknown")
     files = int(row.get("files") or 0)
     pct_code = row.get("percent_of_code")
-    base = f"{lang}  files={files}  ({pct_code}% of code)  {format_bytes(int(row.get('bytes') or 0))}"
+    pending = format_pending_work_line(
+        {
+            "edited_count": row.get("edited_count") or 0,
+            "remaining_count": row.get("remaining_count") or 0,
+        }
+    )
+    base = (
+        f"{lang}  {files} files ({pct_code}% of code)  "
+        f"{format_bytes(int(row.get('bytes') or 0))}  ·  "
+        f"{int(row.get('done_count') or 0)} already synced"
+    )
     if not detail:
-        return (
-            f"{base}  done={row.get('percent_done')}%  "
-            f"edited={row.get('percent_edited')}%  remaining={row.get('percent_remaining')}%"
-        )
+        return f"{base}  ·  need sync: {pending}"
     return (
-        f"{base}  bytes={row.get('percent_of_bytes')}% of code bytes  "
-        f"done {row.get('done_count')}/{files} ({row.get('percent_done')}%)  "
-        f"edited {row.get('edited_count')}/{files} ({row.get('percent_edited')}%)  "
-        f"remaining {row.get('remaining_count')}/{files} ({row.get('percent_remaining')}%)"
+        f"{base}  ·  need sync: {pending}  ·  "
+        f"{row.get('percent_of_bytes')}% of code bytes"
     )
 
 
@@ -44,27 +52,26 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
     docs = summary["docs"]
     llm = summary["llm"]
     scope = report["scope"]
+    code_size = (
+        f"{totals.get('code_files', code.get('total', 0))} files "
+        f"({format_bytes(int(totals.get('code_bytes') or 0))})"
+    )
+    docs_size = (
+        f"{totals.get('docs_files', docs.get('total', 0))} files "
+        f"({format_bytes(int(totals.get('docs_bytes') or 0))})"
+    )
     return [
         "AgentCore stats",
         f"Scope: {scope['tenant']}/{scope['workspace']}/{scope['project']}",
         f"Paths: {len(report.get('paths') or [])}",
+        f"Code:  {format_synced_beside_total(code, size_label=code_size)}",
+        f"Docs:  {format_synced_beside_total(docs, size_label=docs_size)}",
+        f"Need sync (code): {format_pending_work_line(code)}",
+        f"Need sync (docs): {format_pending_work_line(docs)}",
         (
-            f"Totals: code_files={totals.get('code_files', 0)}  "
-            f"code_bytes={format_bytes(int(totals.get('code_bytes') or 0))}  "
-            f"docs_files={totals.get('docs_files', 0)}  "
-            f"docs_bytes={format_bytes(int(totals.get('docs_bytes') or 0))}"
+            f"LLM:   {llm['done_count']} of {llm['total']} symbols documented  "
+            f"({llm['percent_done']}%)"
         ),
-        (
-            f"Code:  done {code['done_count']}/{code['total']} ({code['percent_done']}%)  "
-            f"edited {edited_percent_line(code)}  "
-            f"remaining {code['remaining_count']}/{code['total']} ({code.get('percent_remaining', 0)}%)"
-        ),
-        (
-            f"Docs:  done {docs['done_count']}/{docs['total']} ({docs['percent_done']}%)  "
-            f"edited {edited_percent_line(docs)}  "
-            f"remaining {docs['remaining_count']}/{docs['total']} ({docs.get('percent_remaining', 0)}%)"
-        ),
-        f"LLM:   {llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
     ]
 
 
@@ -112,38 +119,43 @@ def print_human(
     for path in report.get("paths") or []:
         ui.bullet(str(path))
 
+    code = summary["code"]
+    docs = summary["docs"]
+    llm = summary["llm"]
     ui.blank()
     ui.section("Totals")
     ui.kv(
         "Code",
-        f"{totals.get('code_files', 0)} files  ({format_bytes(int(totals.get('code_bytes') or 0))})",
+        format_synced_beside_total(
+            code,
+            size_label=(
+                f"{totals.get('code_files', code.get('total', 0))} files "
+                f"({format_bytes(int(totals.get('code_bytes') or 0))})"
+            ),
+        ),
     )
     ui.kv(
         "Docs",
-        f"{totals.get('docs_files', 0)} files  ({format_bytes(int(totals.get('docs_bytes') or 0))})",
-    )
-
-    ui.blank()
-    ui.section("Processing")
-    code = summary["code"]
-    docs = summary["docs"]
-    llm = summary["llm"]
-    ui.kv("Code done", f"{code['done_count']}/{code['total']}  ({code['percent_done']}%)")
-    ui.kv("Code edited", edited_percent_line(code))
-    ui.kv(
-        "Code remaining",
-        f"{code['remaining_count']}/{code['total']}  ({code.get('percent_remaining', 0)}%)",
-    )
-    ui.kv("Docs done", f"{docs['done_count']}/{docs['total']}  ({docs['percent_done']}%)")
-    ui.kv("Docs edited", edited_percent_line(docs))
-    ui.kv(
-        "Docs remaining",
-        f"{docs['remaining_count']}/{docs['total']}  ({docs.get('percent_remaining', 0)}%)",
+        format_synced_beside_total(
+            docs,
+            size_label=(
+                f"{totals.get('docs_files', docs.get('total', 0))} files "
+                f"({format_bytes(int(totals.get('docs_bytes') or 0))})"
+            ),
+        ),
     )
     ui.kv(
         "LLM",
-        f"{llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
+        (
+            f"{llm['done_count']} of {llm['total']} symbols documented  "
+            f"({llm['percent_done']}%)"
+        ),
     )
+
+    ui.blank()
+    ui.section("Need sync")
+    ui.kv("Code", format_pending_work_line(code))
+    ui.kv("Docs", format_pending_work_line(docs))
 
     ui.blank()
     ui.section("By language")

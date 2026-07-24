@@ -8,6 +8,9 @@ UNIT_NAME = "agentcore.service"
 COMPOSE_SERVICES = ("postgres", "neo4j")
 DEFAULT_MCP_HOST = "0.0.0.0"
 DEFAULT_MCP_PORT = 32500
+# Host MCP builds postgres/neo4j stores before uvicorn binds; cold start is ~4–8s
+# and can exceed the old 6s poll budget under load after compose restart.
+MCP_HTTP_READY_TIMEOUT_SEC = 60.0
 
 
 def run_dir(root: Path) -> Path:

@@ -30,7 +30,8 @@ related_docs:
 - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
-doc_version: 1.0.0
+- docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
@@ -112,6 +113,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 | --- | --- |
 | `--runtime MODE` | Server bring-up: `host` or `docker` (skips prompt). Does **not** Dockerize clients. |
 | `--non-interactive` | No prompts; default runtime `host` if `--runtime` omitted |
+| `--upgrade` | Upgrade existing install: backup `install-state`, re-run stages, stamp versions (see [51](./51-software-upgrade-server-and-client.md)) |
 | `--check` | Verify only; do not install packages or change Compose |
 | `--prerequisites-only` | Stop after OS deps (always installs/checks prerequisites) |
 | `--skip-prerequisites` | Do not apt-install (CI/non-interactive only; ignored for interactive full installs) |
@@ -128,6 +130,7 @@ Examples:
 bash install.sh
 bash install.sh --runtime docker
 bash install.sh --non-interactive --runtime host
+bash install.sh --upgrade --runtime host
 bash install.sh --check --non-interactive --runtime host
 bash install.sh --skip-infra --non-interactive --runtime host
 bash install.sh --prerequisites-only
@@ -171,6 +174,16 @@ backend/deployments/compose/wait-healthy.sh --timeout 300 \
 | `agentcore doctor` fail | Incomplete venv | `bash install.sh --stage 02_venv` |
 
 State markers (optional resume hints): `.agentcore/install-state.env`.
+
+## Upgrade (existing install)
+
+After a successful first install, upgrade the **server** without a wipe:
+
+```bash
+bash install.sh --upgrade --runtime host
+```
+
+This backs up `.agentcore/install-state.env`, re-runs install stages, and stamps product/contract versions via `agentcore upgrade finalize`. Full control-plane and client paths: [51 - Software Upgrade Server And Client](./51-software-upgrade-server-and-client.md).
 
 ## Smoke test
 

@@ -109,6 +109,19 @@ The model should not receive full code unless necessary. Context should be hiera
 
 For most generation tasks, signatures plus documentation plus graph relationships are enough.
 
+## Strategy 4b - Structural-First Then Escalate
+
+Coding agents **must** prefer cheap structural MCP tools before wide repository
+reads (Codebase-Memory hybrid — docs `44`–`46`):
+
+1. `agentcore_code_graph_callers` / directed `impact` / `community` / `neighbors`
+2. `agentcore_code_graph_explore` or `hybrid_search` when the question is semantic
+   or structural results are sparse
+3. Raw file Read/Grep only under a remaining budget
+
+Structural payloads include an `escalate_hint` so agents know the next tool.
+Do not default to dumping full source into the prompt.
+
 ## Strategy 5 - Cheap Embeddings
 
 Embeddings are used to find relevant graph nodes. They should be generated from compact semantic text rather than full raw source code.

@@ -123,12 +123,27 @@ def _overall(report: dict[str, Any]) -> str:
 
 def _rpm_status_snapshot() -> dict[str, Any]:
     """Idle or in-process RPM view (sync process publishes live stats via progress file)."""
+    cpu_plan: dict[str, Any] | None = None
     try:
-        from code_graph_service.locked_store import sync_max_file_workers
+        from code_graph_service.locked_store import resolve_sync_cpu_plan
 
-        file_workers = sync_max_file_workers()
+        plan = resolve_sync_cpu_plan()
+        file_workers = plan.workers
+        cpu_plan = {
+            "mode": plan.mode,
+            "cpu_percent": plan.cpu_percent,
+            "cpu_count": plan.cpu_count,
+            "workers": plan.workers,
+            "embed_concurrency": plan.embed_concurrency,
+            "torch_threads": plan.torch_threads,
+        }
     except Exception:  # noqa: BLE001
-        file_workers = None
+        try:
+            from code_graph_service.locked_store import sync_max_file_workers
+
+            file_workers = sync_max_file_workers()
+        except Exception:  # noqa: BLE001
+            file_workers = None
     try:
         svc = _graph_service()
         snap = svc.llm_sessions_snapshot() if hasattr(svc, "llm_sessions_snapshot") else {}
@@ -137,6 +152,7 @@ def _rpm_status_snapshot() -> dict[str, Any]:
             "ok": False,
             "error": str(exc)[:300],
             "file_workers_auto": file_workers,
+            "cpu_plan": cpu_plan,
         }
     return {
         "ok": True,
@@ -147,6 +163,7 @@ def _rpm_status_snapshot() -> dict[str, Any]:
         "starts_in_window": int(snap.get("starts_in_window") or 0),
         "history_len": len(snap.get("history") or []),
         "file_workers_auto": file_workers,
+        "cpu_plan": cpu_plan,
     }
 
 

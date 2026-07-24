@@ -26,6 +26,7 @@ linked_symbols:
 - backend/configs/domain-packs/domain-pack.schema.json
 - backend/configs/feature-profiles/feature-profile.schema.json
 - backend/configs/rule-packs/rule-suggestion.schema.json
+- tests/backend/configs/test_domain_customization_schemas.py::test_first_party_configs_match_schemas
 related_docs:
 - docs/08-software-engineering-architecture/26-domain-customization-and-feature-control.md
 - docs/04-rule-engine-orchestration/07-custom-rule-authoring-and-suggestion-workflows.md

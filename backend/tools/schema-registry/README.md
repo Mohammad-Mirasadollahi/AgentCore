@@ -4,26 +4,32 @@ Path: `backend/tools/schema-registry`
 
 ## Purpose
 
-Schema registry tools and compatibility checks.
+Repository-directory schema catalog for AgentCore contracts (GAP-008). Normative
+decision:
+[`docs/09-platform-governance-operations/12-schema-registry-architecture.md`](../../../docs/09-platform-governance-operations/12-schema-registry-architecture.md).
 
-## Modular Boundary
+## Shape (v1)
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+- **Not** a runtime microservice.
+- **Not** database-backed.
+- Authoritative schemas: `backend/configs/**/*.schema.json` (and peers).
+- Discovery index: `catalog.json` in this directory.
 
-## Allowed Contents
+## Files
 
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
+| File | Role |
+|------|------|
+| `catalog.json` | Machine-readable index (id, path, owner, status, compatibility) |
+| `README.md` | Operator / agent entry |
 
 ## Rules
 
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+- Add a catalog entry whenever a new first-party JSON Schema ships.
+- Keep ownership clear; do not hard-code credentials or tenant IDs.
+- Validate examples in unit tests (see `tests/backend/tools/schema-registry/` and
+  `tests/backend/configs/`).
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active for v1 discovery. Compatibility automation remains pytest-based; a
+networked registry requires a new ADR.

@@ -7,7 +7,7 @@ from typing import Any
 from agentcore_cli import ui
 from agentcore_cli.commands.inventory.util import (
     TOP_N,
-    edited_percent_line,
+    format_pending_work_line,
     sort_done,
     sort_remaining,
     top,
@@ -45,16 +45,17 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
         f"Scope: {scope['tenant']}/{scope['workspace']}/{scope['project']}",
         f"Paths: {len(report.get('paths') or [])}",
         (
-            f"Code:  done {code['done_count']}/{code['total']} ({code['percent_done']}%)  "
-            f"edited {code.get('edited_count', 0)}/{code['total']} ({code.get('percent_edited', 0)}%)  "
-            f"remaining {code['remaining_count']}/{code['total']} ({code.get('percent_remaining', 0)}%)"
+            f"Code:  {code['done_count']} of {code['total']} already synced  "
+            f"({code['percent_done']}%)  ·  need sync: {format_pending_work_line(code)}"
         ),
         (
-            f"Docs:  done {docs['done_count']}/{docs['total']} ({docs['percent_done']}%)  "
-            f"edited {docs.get('edited_count', 0)}/{docs['total']} ({docs.get('percent_edited', 0)}%)  "
-            f"remaining {docs['remaining_count']}/{docs['total']} ({docs.get('percent_remaining', 0)}%)"
+            f"Docs:  {docs['done_count']} of {docs['total']} already synced  "
+            f"({docs['percent_done']}%)  ·  need sync: {format_pending_work_line(docs)}"
         ),
-        f"LLM:   {llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
+        (
+            f"LLM:   {llm['done_count']} of {llm['total']} symbols documented  "
+            f"({llm['percent_done']}%)"
+        ),
         f"Docs model: {processing.get('docs_model_label') or '-'}",
         f"Embed model: {processing.get('active_embed_model') or '-'}",
         f"Models used: {', '.join(report.get('models_used') or []) or '-'}",
@@ -72,7 +73,10 @@ def _section_files(
     rows: list[dict[str, Any]] | None,
     mark: str,
 ) -> None:
-    chunks.append(f"{title} ({percent}%) — showing {len(rows or [])}:")
+    if percent is None:
+        chunks.append(f"{title} — showing {len(rows or [])}:")
+    else:
+        chunks.append(f"{title} ({percent}%) — showing {len(rows or [])}:")
     chunks.extend(f"  {mark} {format_file_line(item, detail=True)}" for item in (rows or []))
     if not rows:
         chunks.append("  (none)")
@@ -102,8 +106,8 @@ def format_detail_text(report: dict[str, Any], *, top_only: bool = False) -> str
         )
         _section_files(
             chunks,
-            title="Code edited (needs sync)",
-            percent=code.get("percent_edited"),
+            title="Code edited",
+            percent=None,
             rows=edited_code,
             mark="~",
         )
@@ -123,8 +127,8 @@ def format_detail_text(report: dict[str, Any], *, top_only: bool = False) -> str
         )
         _section_files(
             chunks,
-            title="Docs edited (needs sync)",
-            percent=docs.get("percent_edited"),
+            title="Docs edited",
+            percent=None,
             rows=edited_docs,
             mark="~",
         )
@@ -156,7 +160,7 @@ def print_file_top(
 
 
 # Back-compat alias for tests.
-_edited_percent_line = edited_percent_line
+_edited_percent_line = format_pending_work_line
 
 
 def print_human(report: dict[str, Any], *, detail: bool) -> None:
@@ -173,32 +177,30 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         ui.bullet(str(path))
 
     ui.blank()
-    ui.section("Percent")
+    ui.section("Totals")
     code = summary["code"]
     docs = summary["docs"]
     llm = summary["llm"]
     ui.kv(
-        "Code done",
-        f"{code['done_count']}/{code['total']}  ({code['percent_done']}%)",
-    )
-    ui.kv("Code edited", edited_percent_line(code))
-    ui.kv(
-        "Code remaining",
-        f"{code['remaining_count']}/{code['total']}  ({code.get('percent_remaining', 0)}%)",
+        "Code",
+        f"{code['done_count']} of {code['total']} already synced  ({code['percent_done']}%)",
     )
     ui.kv(
-        "Docs done",
-        f"{docs['done_count']}/{docs['total']}  ({docs['percent_done']}%)",
-    )
-    ui.kv("Docs edited", edited_percent_line(docs))
-    ui.kv(
-        "Docs remaining",
-        f"{docs['remaining_count']}/{docs['total']}  ({docs.get('percent_remaining', 0)}%)",
+        "Docs",
+        f"{docs['done_count']} of {docs['total']} already synced  ({docs['percent_done']}%)",
     )
     ui.kv(
         "LLM",
-        f"{llm['done_count']}/{llm['total']} indexed symbols  ({llm['percent_done']}%)",
+        (
+            f"{llm['done_count']} of {llm['total']} symbols documented  "
+            f"({llm['percent_done']}%)"
+        ),
     )
+
+    ui.blank()
+    ui.section("Need sync")
+    ui.kv("Code", format_pending_work_line(code))
+    ui.kv("Docs", format_pending_work_line(docs))
 
     ui.blank()
     ui.section("Models")
@@ -235,10 +237,10 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         percent=float(code["percent_done"]),
     )
     print_file_top(
-        f"Top {TOP_N} code edited (needs sync)",
+        f"Top {TOP_N} code edited",
         code_edited,
         detail=detail,
-        percent=float(code.get("percent_edited") or 0),
+        percent=None,
     )
     print_file_top(
         f"Top {TOP_N} code remaining",
@@ -253,10 +255,10 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         percent=float(docs["percent_done"]),
     )
     print_file_top(
-        f"Top {TOP_N} docs edited (needs sync)",
+        f"Top {TOP_N} docs edited",
         docs_edited,
         detail=detail,
-        percent=float(docs.get("percent_edited") or 0),
+        percent=None,
     )
     print_file_top(
         f"Top {TOP_N} docs remaining",

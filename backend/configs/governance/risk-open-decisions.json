@@ -32,9 +32,10 @@
       "decision_id": "DEC-001",
       "title": "Default local vs remote model routing profiles",
       "owner": "platform-architecture",
-      "proposed_resolution": "Decision record with task-type routing and risk tiers before production LLM wiring.",
-      "status": "open",
-      "review_date": "2026-08-15"
+      "proposed_resolution": "Published local + cloud ModelRoutingProfile JSON under backend/configs/model-routing; select via AGENTCORE_LITELLM_ROUTING_ENV.",
+      "status": "closed",
+      "review_date": "2026-07-23",
+      "closed_in": "docs/13-technology-stack-and-platform-decisions/10-model-routing-profiles-with-litellm.md"
     },
     {
       "decision_id": "DEC-002",

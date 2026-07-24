@@ -1,4 +1,4 @@
-"""Check helpers for DI composition Phase A+B gate."""
+"""Check helpers for DI composition Phases A–D gate."""
 
 from __future__ import annotations
 
@@ -6,6 +6,10 @@ from pathlib import Path
 
 from .catalog import (
     BANNED_APPLICATION_PATTERNS,
+    BANNED_THIN_APP_PATTERNS,
+    CLI_DOCS_LINK_SYNC,
+    CLI_GRAPH_COMMANDS,
+    CLI_PROCESS_CONTAINERS,
     CODE_GRAPH_API,
     CODE_GRAPH_APPLICATION,
     CODE_GRAPH_BOOTSTRAP,
@@ -15,6 +19,7 @@ from .catalog import (
     ROOT,
     SERVICES,
     THIN_SERVICES,
+    THIN_STORE_ALLOWLIST,
 )
 from .gate import CheckResult
 
@@ -174,6 +179,91 @@ def verify_thin_services() -> list[CheckResult]:
     ]
 
 
+def verify_thin_service_ports_and_store_imports() -> list[CheckResult]:
+    """Phase C: ports.py present; concrete PostgresStore only in allowlisted files."""
+    missing_ports: list[str] = []
+    store_offenders: list[str] = []
+    app_offenders: list[str] = []
+    for service_dir, pkg in THIN_SERVICES:
+        pkg_root = SERVICES / service_dir / "src" / pkg
+        ports = pkg_root / "ports.py"
+        if not ports.is_file() or "from .core import Store" not in _read(ports):
+            missing_ports.append(service_dir)
+        for path in pkg_root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            rel = str(path.relative_to(ROOT))
+            if path.name in ("core.py", "api.py", "ports.py"):
+                for pattern in BANNED_THIN_APP_PATTERNS:
+                    if pattern in text:
+                        app_offenders.append(f"{rel}:{pattern}")
+            if path.name in THIN_STORE_ALLOWLIST:
+                continue
+            if "PostgresStore" in text or "from .postgres_store" in text:
+                store_offenders.append(rel)
+    return [
+        CheckResult(
+            "di-thin-ports-phase-c",
+            "import_boundary",
+            "thin-ports",
+            "passed" if not missing_ports else "failed",
+            "ports.py re-exports Store" if not missing_ports else f"missing={missing_ports[:8]}",
+            missing_ports[:20],
+            "docs/08-software-engineering-architecture/47-backend-di-composition-low-level-design.md",
+        ),
+        CheckResult(
+            "di-thin-store-imports-phase-c",
+            "import_boundary",
+            "thin-store-allowlist",
+            "passed" if not store_offenders else "failed",
+            "PostgresStore allowlisted" if not store_offenders else f"offenders={len(store_offenders)}",
+            store_offenders[:20],
+            "docs/08-software-engineering-architecture/47-backend-di-composition-low-level-design.md",
+        ),
+        CheckResult(
+            "di-thin-app-banned-imports-phase-c",
+            "import_boundary",
+            "thin-core-api",
+            "passed" if not app_offenders else "failed",
+            "clean" if not app_offenders else f"offenders={len(app_offenders)}",
+            app_offenders[:20],
+            "docs/08-software-engineering-architecture/47-backend-di-composition-low-level-design.md",
+        ),
+    ]
+
+
+def verify_cli_process_containers() -> list[CheckResult]:
+    """Phase D: CLI reuses one composition root per process for pooled services."""
+    missing: list[str] = []
+    if not CLI_PROCESS_CONTAINERS.is_file():
+        missing.append("process_containers.py")
+    else:
+        text = _read(CLI_PROCESS_CONTAINERS)
+        for needle in (
+            "def get_graph_service",
+            "def get_docs_sync_service",
+            "def clear_process_containers",
+        ):
+            if needle not in text:
+                missing.append(needle)
+    for path, needle in (
+        (CLI_GRAPH_COMMANDS, "process_containers"),
+        (CLI_DOCS_LINK_SYNC, "process_containers"),
+    ):
+        if not path.is_file() or needle not in _read(path):
+            missing.append(str(path.relative_to(ROOT)))
+    return [
+        CheckResult(
+            "di-cli-process-containers-phase-d",
+            "composition",
+            "agentcore-cli",
+            "passed" if not missing else "failed",
+            "CLI caches composition roots" if not missing else f"missing={missing[:8]}",
+            missing[:20],
+            "docs/08-software-engineering-architecture/47-backend-di-composition-low-level-design.md",
+        )
+    ]
+
+
 def run_all_checks() -> list[CheckResult]:
     results: list[CheckResult] = []
     results.extend(verify_docs_exist())
@@ -182,4 +272,6 @@ def run_all_checks() -> list[CheckResult]:
     results.extend(verify_application_banned_imports())
     results.extend(verify_mcp_composition_root())
     results.extend(verify_thin_services())
+    results.extend(verify_thin_service_ports_and_store_imports())
+    results.extend(verify_cli_process_containers())
     return results

@@ -75,6 +75,46 @@ run_install_all() {
   done
 }
 
+# Backup install-state, re-run stages, stamp product/contract via CLI finalize.
+run_install_upgrade() {
+  local stamp backup_dir cli runtime_arg
+  ensure_state_dir
+  if [[ ! -f "${INSTALL_STATE_FILE}" ]]; then
+    fail "upgrade requires an existing install (missing ${INSTALL_STATE_FILE}); run bash install.sh first"
+  fi
+
+  banner "Upgrade existing AgentCore install"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  backup_dir="${INSTALL_STATE_DIR}/upgrade-backups/install-${stamp}"
+  mkdir -p "${backup_dir}"
+  cp -a "${INSTALL_STATE_FILE}" "${backup_dir}/install-state.env"
+  if [[ -f "${AGENTCORE_ROOT}/agentcore.sync.yaml" ]]; then
+    cp -a "${AGENTCORE_ROOT}/agentcore.sync.yaml" "${backup_dir}/agentcore.sync.yaml"
+  fi
+  ok "backup → ${backup_dir}"
+
+  # Prefer non-interactive during upgrade unless operator already set flags.
+  if [[ -z "${INSTALL_RUNTIME}" ]]; then
+    INSTALL_RUNTIME="$(env_key_value "${INSTALL_STATE_FILE}" "runtime" || true)"
+    INSTALL_RUNTIME="${INSTALL_RUNTIME:-host}"
+    export INSTALL_RUNTIME
+  fi
+  INSTALL_NONINTERACTIVE="${INSTALL_NONINTERACTIVE:-1}"
+  export INSTALL_NONINTERACTIVE
+
+  run_install_all
+
+  cli="${AGENTCORE_ROOT}/.venv/bin/agentcore"
+  runtime_arg="${INSTALL_RUNTIME:-host}"
+  if [[ -x "${cli}" ]]; then
+    info "Stamping upgrade evidence via agentcore upgrade finalize"
+    run "${cli}" upgrade finalize --runtime "${runtime_arg}"
+  else
+    warn "agentcore CLI missing after upgrade; wrote backup only at ${backup_dir}"
+  fi
+  ok "upgrade complete (runtime=${runtime_arg})"
+}
+
 install_main() {
   local mode="${1:-all}"
   local stage_name="${2:-}"
@@ -92,6 +132,9 @@ install_main() {
       INSTALL_SKIP_PREREQS=0
       export INSTALL_SKIP_PREREQS
       run_install_stage "01_prerequisites"
+      ;;
+    upgrade)
+      run_install_upgrade
       ;;
     all|*)
       run_install_all

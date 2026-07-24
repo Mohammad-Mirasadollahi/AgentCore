@@ -1,5 +1,7 @@
 agentcore_cli
+approval_modes
 llm_gateway
 outbox_relay
 port_profile
 usage_profile
+weight_profiles

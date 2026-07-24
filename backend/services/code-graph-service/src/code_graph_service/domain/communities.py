@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 EDGE_WEIGHTS: dict[str, float] = {
     "CALLS": 1.0,
+    "HTTP_CALLS": 0.9,
+    "ASYNC_CALLS": 0.9,
     "INHERITS_FROM": 0.8,
     "IMPLEMENTS": 0.7,
     "ROUTES_TO": 0.7,

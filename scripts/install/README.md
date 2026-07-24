@@ -11,12 +11,15 @@ Entrypoint: repository root [`../../install.sh`](../../install.sh) → [`load.sh
 | [`04_docker_infra.sh`](04_docker_infra.sh) | `docker compose --profile core up` for Postgres + Neo4j, wait healthy |
 | [`05_verify.sh`](05_verify.sh) | `agentcore doctor` + infra re-check; optional ai-toolstack |
 | [`06_runtime_bringup.sh`](06_runtime_bringup.sh) | Prompted/flagged runtime: host MCP or Docker `mcp-gateway`; always re-ensure PATH |
-| [`load.sh`](load.sh) | Source order + stage orchestration |
+| [`load.sh`](load.sh) | Source order + stage orchestration (`all`, `upgrade`, `stage`, …) |
 
 Add new install steps in the smallest matching module. Keep root `install.sh` as flags + exit codes only.
+
+**Upgrade:** `bash install.sh --upgrade` backs up `.agentcore/install-state.env`, re-runs stages, then `agentcore upgrade finalize`. Control-plane / client paths: `agentcore upgrade …` (see docs/08…/51-software-upgrade-server-and-client.md).
 
 | Related | Path |
 |---------|------|
 | Operator guide | [`docs/08-software-engineering-architecture/39-local-install-runbook.md`](../../docs/08-software-engineering-architecture/39-local-install-runbook.md) |
+| Upgrade guide | [`docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md`](../../docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md) |
 | E2E smoke | [`tests/e2e/install/run-install-smoke.sh`](../../tests/e2e/install/run-install-smoke.sh) |
 | Pytest smoke | [`tests/backend/tools/install/test_install_smoke.py`](../../tests/backend/tools/install/test_install_smoke.py) |

@@ -12,6 +12,7 @@ from ..domain.errors import NotFoundError
 from ..domain.external_calls import is_external_call_id
 from ..domain.hashing import digest, now_iso
 from ..domain.models import GraphEdge, GraphSymbol, Scope
+from ..domain.parsing_authority import assert_durable_edge_metadata_allowed
 from ..domain.ports import Store
 from ..domain.rag import SEARCHABLE_SYMBOL_KINDS
 from ..postgres_side import EmbeddingIndex
@@ -124,6 +125,8 @@ class GraphServiceSupport:
         metadata: dict[str, Any] | None = None,
         link_key: str | None = None,
     ) -> int:
+        # ADR 48: durable CODE_REL SoR is AST ingest only — never LSP dual-write.
+        assert_durable_edge_metadata_allowed(metadata)
         self._ensure_placeholder_symbol(scope, source_id)
         self._ensure_placeholder_symbol(scope, target_id)
         meta = {"file_path": file_path}

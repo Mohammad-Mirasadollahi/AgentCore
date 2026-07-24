@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...domain.errors import ValidationError
+from ...domain.freshness import extract_module_contract_docstring
 from ...domain.hashing import digest, normalize_source, now_iso
 from ...domain.languages import assert_language_supported, detect_language_from_path
 from ...domain.models import IngestResult, Scope
@@ -52,6 +53,7 @@ class FileIngestMixin(
         file_hash = digest(normalize_source(source, language))
         file_id = f"file:{scope.project_id}:{file_path}"
         previous_file = self._maybe_get(file_id, scope)
+        module_contract = extract_module_contract_docstring(source, language) or ""
         # Skip only when content is unchanged *and* language already persisted
         # (older graphs may lack language and need one re-ingest to backfill).
         if (
@@ -74,15 +76,18 @@ class FileIngestMixin(
             language=language,
             stamp=stamp,
             previous_file=previous_file,
+            ai_documentation=module_contract,
         )
 
         parsed = parse_source(language, file_path, source)
+        defer_cross_file = bool(payload.get("defer_cross_file_pass"))
         symbol_ids, changed_ids, documented, documented_pairs = self._upsert_parsed_symbols(
             scope,
             parsed=parsed,
             file_path=file_path,
             language=language,
             stamp=stamp,
+            prefer_heuristic_docs=defer_cross_file,
         )
         self._prune_stale_file_embeddings(
             scope,
@@ -102,7 +107,13 @@ class FileIngestMixin(
             documented_pairs=documented_pairs,
         )
 
-        indexes, by_qualified, short_names = self._resolution_indexes(scope)
+        shared = payload.get("shared_resolution")
+        if isinstance(shared, dict) and shared.get("indexes") is not None:
+            indexes = shared["indexes"]
+            by_qualified = shared.get("by_qualified") or {}
+            short_names = shared.get("short_names") or {}
+        else:
+            indexes, by_qualified, short_names = self._resolution_indexes(scope)
         package_aliases = payload.get("package_aliases")
         if not isinstance(package_aliases, dict):
             package_aliases = {}
@@ -127,62 +138,96 @@ class FileIngestMixin(
             short_names=short_names,
         )
 
-        edges_written += self._relink_unresolved_calls(scope, source_language=language)
-        edges_written += self._relink_unresolved_references(
-            scope,
-            source_language=language,
-            package_aliases=package_aliases,
-        )
+        if not defer_cross_file:
+            edges_written += self._relink_unresolved_calls(scope, source_language=language)
+            edges_written += self._relink_unresolved_references(
+                scope,
+                source_language=language,
+                package_aliases=package_aliases,
+            )
         edges_written += self._emit_framework_routes(
-            scope, file_path=file_path, source=source, language=language, stamp=stamp
+            scope,
+            file_path=file_path,
+            source=source,
+            language=language,
+            stamp=stamp,
+            short_names=short_names if defer_cross_file else None,
+        )
+        edges_written += self._emit_http_calls(
+            scope, file_path=file_path, source=source, language=language
         )
         edges_written += self._emit_di_injections(
             scope, file_path=file_path, source=source, language=language
         )
-        edges_written += self._emit_test_links(scope)
+        if not defer_cross_file:
+            edges_written += self._emit_test_links(scope)
         edges_written += self._emit_rationale_nodes(
             scope, file_path=file_path, source=source, stamp=stamp, language=language
         )
-        edges_written += self._emit_dynamic_dispatch(scope)
+        edges_written += self._emit_module_contract_node(
+            scope, file_path=file_path, source=source, stamp=stamp, language=language
+        )
+        if not defer_cross_file:
+            edges_written += self._emit_dynamic_dispatch(scope)
 
         clearer = getattr(self, "clear_pending_sync", None)
         if callable(clearer):
             clearer(file_path)
 
-        polyglot = self.get_polyglot_profile(scope)  # type: ignore[attr-defined]
-        self.store.append_event(
-            self._event(
-                "FileIngested",
-                scope,
-                actor_id,
-                correlation_id,
-                idempotency_key,
-                {
-                    "file_id": file_id,
-                    "file_path": file_path,
-                    "language": language,
-                    "symbols_indexed": len(symbol_ids) + 1,
-                    "symbols_changed": len(changed_ids),
-                    "symbols_documented": documented,
-                    "polyglot": {
-                        "is_polyglot": polyglot.is_polyglot,
-                        "languages": polyglot.languages,
-                        "relatedness": polyglot.relatedness,
-                        "cross_language_edge_count": polyglot.cross_language_edge_count,
-                        "summary": polyglot.summary,
-                    },
-                },
-            )
-        )
-        if polyglot.is_polyglot:
+        if not defer_cross_file:
+            polyglot = self.get_polyglot_profile(scope)  # type: ignore[attr-defined]
             self.store.append_event(
                 self._event(
-                    "ProjectLanguageProfileUpdated",
+                    "FileIngested",
                     scope,
                     actor_id,
                     correlation_id,
                     idempotency_key,
-                    polyglot.to_dict(),
+                    {
+                        "file_id": file_id,
+                        "file_path": file_path,
+                        "language": language,
+                        "symbols_indexed": len(symbol_ids) + 1,
+                        "symbols_changed": len(changed_ids),
+                        "symbols_documented": documented,
+                        "polyglot": {
+                            "is_polyglot": polyglot.is_polyglot,
+                            "languages": polyglot.languages,
+                            "relatedness": polyglot.relatedness,
+                            "cross_language_edge_count": polyglot.cross_language_edge_count,
+                            "summary": polyglot.summary,
+                        },
+                    },
+                )
+            )
+            if polyglot.is_polyglot:
+                self.store.append_event(
+                    self._event(
+                        "ProjectLanguageProfileUpdated",
+                        scope,
+                        actor_id,
+                        correlation_id,
+                        idempotency_key,
+                        polyglot.to_dict(),
+                    )
+                )
+        else:
+            self.store.append_event(
+                self._event(
+                    "FileIngested",
+                    scope,
+                    actor_id,
+                    correlation_id,
+                    idempotency_key,
+                    {
+                        "file_id": file_id,
+                        "file_path": file_path,
+                        "language": language,
+                        "symbols_indexed": len(symbol_ids) + 1,
+                        "symbols_changed": len(changed_ids),
+                        "symbols_documented": documented,
+                        "cross_file_deferred": True,
+                    },
                 )
             )
         if changed_ids:

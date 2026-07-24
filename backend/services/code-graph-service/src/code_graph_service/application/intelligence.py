@@ -23,6 +23,7 @@ from ..domain.flows import FlowNode, detect_entry_points, trace_flow
 from ..domain.freshness import FreshnessState
 from ..domain.hybrid_search import lexical_rank, searchable_text
 from ..domain.models import Scope
+from ..domain.parsing_authority import DURABLE_EDGE_REFERENCE_KIND
 from ..domain.risk import RiskFactors, compute_risk_score, risk_level
 from ..domain.test_links import is_test_path
 from .support import GraphServiceSupport
@@ -50,6 +51,61 @@ class IntelligenceUseCases(GraphServiceSupport):
             raise ValidationError("file_paths is required")
         state.mark_pending_many(cleaned)
         return state.stale_banner(cleaned)
+
+    def reconcile_after_edit(
+        self,
+        file_paths: list[str],
+        *,
+        scope: Scope | None = None,
+        root_path: str | None = None,
+        actor_id: str = "agent",
+        correlation_id: str = "",
+        idempotency_key: str = "",
+        run_sync: bool = False,
+    ) -> dict[str, Any]:
+        """ADR 48 one-way converge: edit session → mark pending → optional AST re-ingest.
+
+        Does not write CODE_REL from LSP. Graph updates happen only when ``run_sync``
+        triggers ``sync_repo`` / pending ingest (structural reference_kind).
+        """
+        banner = self.mark_files_pending(file_paths)
+        payload: dict[str, Any] = {
+            "reference_kind": DURABLE_EDGE_REFERENCE_KIND,
+            "mode": "pending_only",
+            "reconciled": False,
+            "freshness": banner,
+            "note": (
+                "Durable knowledge↔code edges update only via AST re-ingest; "
+                "LSP/IDE session tools must not dual-write CODE_REL (ADR 48)."
+            ),
+        }
+        if not run_sync:
+            return payload
+        if scope is None:
+            raise ValidationError("scope is required when run_sync=true")
+        root = str(root_path or "").strip()
+        if not root:
+            raise ValidationError("root_path is required when run_sync=true")
+        sync_fn = getattr(self, "sync_repo", None)
+        if not callable(sync_fn):
+            raise ValidationError("sync_repo is not available on this service")
+        corr = str(correlation_id or "").strip() or "reconcile-after-edit"
+        idem = str(idempotency_key or "").strip() or f"reconcile:{corr}"
+        sync_result = sync_fn(
+            scope,
+            actor_id,
+            corr,
+            idem,
+            {"root_path": root},
+        )
+        payload["mode"] = getattr(sync_result, "mode", "incremental")
+        payload["reconciled"] = True
+        to_dict = getattr(sync_result, "to_dict", None)
+        payload["sync"] = to_dict() if callable(to_dict) else {"mode": payload["mode"]}
+        payload["freshness"] = (
+            self.freshness_status(scope) if hasattr(self, "freshness_status") else banner
+        )
+        return payload
 
     def clear_pending_sync(self, file_path: str | None = None) -> dict[str, Any]:
         state = self._ensure_freshness()
@@ -121,6 +177,79 @@ class IntelligenceUseCases(GraphServiceSupport):
         communities = detect_communities([s.id for s in symbols], edges, labels_by_id=labels)
         return {mid: c.id for c in communities for mid in c.member_ids}
 
+    def community_of_symbol(
+        self,
+        scope: Scope,
+        symbol_id: str,
+        *,
+        member_limit: int = 30,
+    ) -> dict[str, Any]:
+        """Return Leiden/Louvain community membership for one seed symbol."""
+        from ..domain.impact import escalate_hint
+
+        symbol = self.store.get_symbol(symbol_id, scope)
+        member_limit = max(1, min(int(member_limit), 200))
+        symbols = [
+            s
+            for s in self.store.list_symbols(scope)
+            if s.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS, SymbolKind.ROUTE}
+        ]
+        by_id = {s.id: s for s in symbols}
+        edges = [(e.source_id, e.target_id, e.rel_type) for e in self.store.list_edges(scope)]
+        labels = {s.id: s.name for s in symbols}
+        communities = detect_communities([s.id for s in symbols], edges, labels_by_id=labels)
+        community_map = {mid: c for c in communities for mid in c.member_ids}
+        community = community_map.get(symbol.id)
+        if community is None:
+            # Seed may be file/import — try any symbol id in full map
+            all_ids = [s.id for s in self.store.list_symbols(scope)]
+            all_edges = [(e.source_id, e.target_id, e.rel_type) for e in self.store.list_edges(scope)]
+            all_labels = {s.id: s.name for s in self.store.list_symbols(scope)}
+            communities = detect_communities(all_ids, all_edges, labels_by_id=all_labels)
+            community_map = {mid: c for c in communities for mid in c.member_ids}
+            community = community_map.get(symbol.id)
+            by_id = {s.id: s for s in self.store.list_symbols(scope)}
+        if community is None:
+            payload = {
+                "symbol": self._symbol_view(symbol),
+                "community_id": None,
+                "label": None,
+                "size": 0,
+                "members": [],
+                "algorithm": last_community_algorithm(),
+                "escalate_hint": escalate_hint(sparse=True),
+            }
+        else:
+            members = []
+            for mid in community.member_ids:
+                sym = by_id.get(mid)
+                if sym is None:
+                    continue
+                members.append(
+                    {
+                        "symbol_id": mid,
+                        "qualified_name": sym.qualified_name,
+                        "kind": sym.kind.value,
+                        "file_path": sym.file_path,
+                    }
+                )
+                if len(members) >= member_limit:
+                    break
+            payload = {
+                "symbol": self._symbol_view(symbol),
+                "community_id": community.id,
+                "label": community.label,
+                "size": community.size,
+                "members": members,
+                "returned": len(members),
+                "algorithm": last_community_algorithm(),
+                "escalate_hint": escalate_hint(sparse=False),
+            }
+        freshness_fn = getattr(self, "freshness_status", None)
+        if callable(freshness_fn):
+            payload["freshness"] = freshness_fn(scope)
+        return payload
+
     def explore(
         self,
         scope: Scope,
@@ -162,12 +291,24 @@ class IntelligenceUseCases(GraphServiceSupport):
 
         calls_out: dict[str, list[str]] = defaultdict(list)
         calls_in: dict[str, list[str]] = defaultdict(list)
+        structural_rels = {
+            RelType.CALLS.value,
+            "CALLS",
+            RelType.HTTP_CALLS.value,
+            RelType.ASYNC_CALLS.value,
+            "HTTP_CALLS",
+            "ASYNC_CALLS",
+        }
         for edge in self.store.list_edges(scope):
-            if edge.rel_type in {RelType.CALLS.value, "CALLS"} and is_blast_call_edge(
+            if edge.rel_type not in structural_rels:
+                continue
+            if edge.rel_type in {RelType.CALLS.value, "CALLS"} and not is_blast_call_edge(
                 target_id=edge.target_id, metadata=edge.metadata
             ):
-                calls_out[edge.source_id].append(edge.target_id)
-                calls_in[edge.target_id].append(edge.source_id)
+                continue
+            # HTTP/ASYNC to unresolved targets still expand for agent awareness
+            calls_out[edge.source_id].append(edge.target_id)
+            calls_in[edge.target_id].append(edge.source_id)
 
         call_path: list[str] = []
         for sid in seed_ids:
@@ -260,11 +401,117 @@ class IntelligenceUseCases(GraphServiceSupport):
             ],
             "edge_confidence_policy": (
                 "exact|probable|ambiguous|unresolved|external on CALLS; "
-                "ROUTES_TO/TESTED_BY/dynamic_dispatch are heuristic"
+                "ROUTES_TO/TESTED_BY/HTTP_CALLS/dynamic_dispatch are heuristic"
             ),
             "freshness": self._ensure_freshness().stale_banner(paths),
             "retrieval": hybrid.get("mode"),
+            "escalate_hint": {
+                "next_tools": [
+                    "agentcore_code_graph_callers",
+                    "agentcore_code_graph_impact",
+                    "agentcore_code_graph_call_path",
+                    "agentcore_code_graph_hybrid_search",
+                ],
+                "prefer_before_raw_read": True,
+                "reason": (
+                    "structural_sparse"
+                    if not pack.sections
+                    else "semantic_question"
+                ),
+            },
         }
+
+    def call_path_pack(
+        self,
+        scope: Scope,
+        symbol_id: str,
+        *,
+        max_depth: int = 4,
+        max_nodes: int = 40,
+    ) -> dict[str, Any]:
+        """Compact outbound call-path pack from a seed (Codebase-Memory hybrid)."""
+        from ..domain.impact import escalate_hint
+
+        symbol = self.store.get_symbol(symbol_id, scope)
+        max_depth = max(1, min(int(max_depth), 8))
+        max_nodes = max(2, min(int(max_nodes), 200))
+        symbols = {
+            s.id: s
+            for s in self.store.list_symbols(scope)
+            if s.kind
+            in {SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS, SymbolKind.ROUTE}
+        }
+        calls_out: dict[str, list[str]] = defaultdict(list)
+        structural_rels = {
+            RelType.CALLS.value,
+            RelType.HTTP_CALLS.value,
+            RelType.ASYNC_CALLS.value,
+        }
+        for edge in self.store.list_edges(scope):
+            if edge.rel_type not in structural_rels:
+                continue
+            if edge.rel_type == RelType.CALLS.value and not is_blast_call_edge(
+                target_id=edge.target_id, metadata=edge.metadata
+            ):
+                continue
+            calls_out[edge.source_id].append(edge.target_id)
+        flow_nodes = {
+            i: FlowNode(
+                id=s.id,
+                name=s.name,
+                qualified_name=s.qualified_name,
+                file_path=s.file_path,
+                signature=s.signature,
+                body=s.body,
+            )
+            for i, s in symbols.items()
+        }
+        if symbol.id not in flow_nodes:
+            flow_nodes[symbol.id] = FlowNode(
+                id=symbol.id,
+                name=symbol.name,
+                qualified_name=symbol.qualified_name,
+                file_path=symbol.file_path,
+                signature=symbol.signature,
+                body=symbol.body,
+            )
+        flow = trace_flow(
+            flow_nodes[symbol.id],
+            flow_nodes,
+            dict(calls_out),
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+        )
+        path_rows = []
+        for nid in flow.path_ids:
+            sym = symbols.get(nid) or self._maybe_get(nid, scope)
+            if sym is None:
+                continue
+            path_rows.append(
+                {
+                    "symbol_id": nid,
+                    "qualified_name": sym.qualified_name,
+                    "kind": sym.kind.value,
+                    "file_path": sym.file_path,
+                    "signature": sym.signature,
+                }
+            )
+        sparse = len(path_rows) <= 1
+        payload = {
+            "symbol": self._symbol_view(symbol),
+            "call_path_ids": flow.path_ids,
+            "path": path_rows,
+            "depth": flow.depth,
+            "max_depth": max_depth,
+            "escalate_hint": escalate_hint(
+                reason="ok" if not sparse else "structural_sparse",
+                sparse=sparse,
+            ),
+        }
+        freshness_fn = getattr(self, "freshness_status", None)
+        if callable(freshness_fn):
+            payload["freshness"] = freshness_fn(scope)
+        return payload
 
     def hybrid_search(self, scope: Scope, query: str, *, top_k: int = 10) -> dict[str, Any]:
         if not query.strip():

@@ -38,6 +38,7 @@ This section completes the AgentCore plan from an operational and governance per
 - 03-ci-cd-release-and-environment-strategy.md defines CI gates, release workflow, environment separation, migrations, and rollback strategy.
 - 04-data-retention-backup-and-disaster-recovery.md defines retention, backup, restore, audit evidence preservation, and disaster recovery expectations.
 - 05-api-versioning-and-contract-governance.md defines API contracts, schema versioning, backward compatibility, and deprecation policy.
+- 12-schema-registry-architecture.md decides v1 schema registry shape (repository-directory catalog) and closes GAP-008.
 - 06-runbooks-and-operational-procedures.md defines standard operating procedures for common platform workflows.
 - 07-risk-register-and-open-decisions.md captures platform risks and decisions that must be resolved before implementation.
 - 08-glossary-and-ubiquitous-language.md defines common terminology used across the documentation tree.

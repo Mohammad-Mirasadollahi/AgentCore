@@ -179,7 +179,7 @@ Features are grouped by delivery priority. The catalog remains the full product 
 1. Repository and project connection: register repositories, project isolation, and connector validation.
 2. Code-Knowledge Graph: files, classes, functions, methods, imports, calls, hashes, and relationships.
 3. AST anchoring and change detection: stable symbol hashes for semantic diffs and doc drift.
-4. Living documentation linked to code symbols (symbol-level). **Repository Code Wiki** (`14`–`18`) is **deferred** — not a v1 wedge claim (backlog `34` / Phase F).
+4. Living documentation linked to code symbols (symbol-level). **Repository Code Wiki** (`14`–`18`, `20`) and **composed Wiki + graph retrieval** (`43`) are **deferred** — not a v1 wedge claim (backlog `34` / Phase F).
 5. Dynamic context injection: **explore** packs, **hybrid** BM25+semantic RRF search, generation context.
 6. **Change-risk** (`detect_changes`) and **architecture** overview (communities, hubs, bridges, gaps).
 7. State-over-event context: inject current truth before historical narratives.
@@ -249,5 +249,6 @@ This product scope is satisfied when:
 - `../07-code-knowledge-graph/01-vision-and-scope.md` — code graph as the core wedge mechanism.
 - `../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md` — unused candidates, MCP contract, cleanup loop.
 - `../07-code-knowledge-graph/14-repository-code-wiki-feature-specification.md` — Repository Code Wiki (CodeWiki-inspired).
+- `../07-code-knowledge-graph/43-wiki-and-graph-composed-retrieval.md` — Wiki + graph composed Q&A (future).
 - `../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md` — seed rule/skill for cleanup during coding.
 - `../09-platform-governance-operations/` — benefit measurement and operational controls.

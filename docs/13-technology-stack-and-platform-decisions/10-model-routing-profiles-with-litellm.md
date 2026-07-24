@@ -70,18 +70,31 @@ Defines how AgentCore selects models **after** the LiteLLM gateway decision (`09
 | `json_mode` | Required for judge / structured outputs |
 | `allow_stub` | If true, services may use heuristic / `LocalEmbeddingStub` when no credentials |
 
-## Default Task Mapping (starting point)
+## Default Task Mapping
 
-Operators set aliases via env (see `backend/packages/llm_gateway/README.md`). Built-in resolver: `llm_gateway.resolve_route`.
+Operators may override aliases via env (see `backend/packages/llm_gateway/README.md`).
+Built-in resolver: `llm_gateway.resolve_route`.
+
+**Published defaults (GAP-003 closed):**
+
+| File | Environment | Role |
+| --- | --- | --- |
+| `backend/configs/model-routing/default.json` | `local` | Ollama LiteLLM aliases |
+| `backend/configs/model-routing/cloud.json` | `cloud` | OpenAI / Anthropic aliases |
+| `backend/configs/model-routing/model-routing-profile.schema.json` | — | JSON Schema |
+
+Selection: `AGENTCORE_LITELLM_ROUTING_ENV=local|cloud` (default `local`), or
+`AGENTCORE_LITELLM_ROUTING_PROFILE=/path/to/profile.json`.
 
 | Task class | Env override | Notes |
 | --- | --- | --- |
-| `docs.generate` | `AGENTCORE_LITELLM_MODEL_DOCS` | Falls back to `AGENTCORE_LITELLM_DEFAULT_MODEL`; heuristic if empty / failure |
+| `docs.generate` | `AGENTCORE_LITELLM_MODEL_DOCS` | Falls back to profile primary, then `AGENTCORE_LITELLM_DEFAULT_MODEL`; heuristic if empty / failure |
 | `rules.judge` | `AGENTCORE_LITELLM_MODEL_JUDGE` | `json_mode=true` |
 | `codegen.synthesize` | `AGENTCORE_LITELLM_MODEL_CODEGEN` | Higher max_tokens at medium/high risk |
 | `embed.symbol` | `AGENTCORE_LITELLM_MODEL_EMBED` | Off by default (`AGENTCORE_LITELLM_EMBEDDINGS_ENABLED=false`); stub fallback |
 
-Risk comes from `AGENTCORE_LITELLM_RISK_LEVEL` (`low` / `medium` / `high`). Fallbacks: `AGENTCORE_LITELLM_FALLBACK_MODELS` (comma-separated).
+Risk comes from `AGENTCORE_LITELLM_RISK_LEVEL` (`low` / `medium` / `high`). Fallbacks:
+`AGENTCORE_LITELLM_FALLBACK_MODELS` (comma-separated) override profile fallbacks when set.
 
 ## Resolution Order
 

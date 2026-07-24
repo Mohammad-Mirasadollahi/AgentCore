@@ -19,6 +19,11 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
+related_docs:
+- docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
+- docs/09-platform-governance-operations/09-automated-deployment-and-connectivity-runbooks.md
+- docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
 ---
 
 # 21 - Automation Control Plane And Self-Service Operations
@@ -206,6 +211,9 @@ Repairs that can lose data, change production permissions, or affect external sy
 
 Upgrade should be automated and validated.
 
+**Shipped operator path:** [51 - Software Upgrade Server And Client](./51-software-upgrade-server-and-client.md)
+(`bash install.sh --upgrade`, `agentcore upgrade prepare|run|check|client`, Accept gates for control-plane / high risk, evidence under `.agentcore/upgrade-evidence/`).
+
 Upgrade flow:
 
 1. read current installation state.
@@ -220,6 +228,8 @@ Upgrade flow:
 10. update registry state.
 11. write upgrade evidence report.
 12. provide rollback or forward-fix guidance.
+
+Local-dev control-plane jobs implement steps 1–3 and 6–12 for install-state + `install.sh` deploy; service-owned DB/graph migrations remain on each service migration path when present.
 
 ## Diagnostics Bundle
 
@@ -269,3 +279,10 @@ The automation control plane is acceptable when:
 - drift detection creates visible Issues or alerts.
 - high-risk actions require approval.
 - users rarely need manual installation or configuration steps for normal supported scenarios.
+
+## Related Documents
+
+- [51 - Software Upgrade Server And Client](./51-software-upgrade-server-and-client.md)
+- [09 - Automated Deployment And Connectivity Runbooks](../09-platform-governance-operations/09-automated-deployment-and-connectivity-runbooks.md)
+- [19 - Zero-Touch Installation And Bootstrap Automation](./19-zero-touch-installation-and-bootstrap-automation.md)
+- [39 - Local Install Runbook](./39-local-install-runbook.md)

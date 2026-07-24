@@ -62,6 +62,7 @@ HARD_REQUIREMENTS: list[str] = [
     "Hybrid coverage optional layers prefer human → living → rationale → AST; never invent DOCUMENTED_BY (see docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md).",
     "Use docs catalog (agentcore docs-catalog / agentcore_docs_catalog) for tag/lane narrowing before reading many Markdown files.",
     "When standardizing or remediating: follow docs/00-master-plan/10-documentation-standardization-procedure.md.",
+    "Fix-on-read: after opening a product Markdown file that fails Full-tier law, remediate that file in the same turn before continuing.",
     "Verify with CLI: agentcore docs-standards (zero issues) and agentcore quality-audit for docs.* categories.",
 ]
 
@@ -98,6 +99,8 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
 - Creating or materially editing Markdown under `docs/`, `backend/docs/`, `frontend/docs/`,
   `ai-toolstack/docs/`, or `deploy-toolkit/**/*.md`.
 - Remediating nonconforming docs or bulk-standardizing product documentation.
+- **Fix-on-read:** you Read a product Markdown file and it fails Full-tier law (frontmatter,
+  structure, English, Purpose/H1, design Mermaid+flow, etc.).
 
 ## Mandatory first step (MCP)
 
@@ -127,6 +130,8 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
 9. Hybrid coverage (optional layers): prefer human → living → rationale → AST; never invent edges
    (`docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md`).
 10. Narrow docs with `agentcore_docs_catalog` / `agentcore docs-catalog` (tags + lane enums) before wide Read.
+11. **Fix-on-read:** remediate a nonconforming product doc you already opened in the **same turn**
+    before continuing other work.
 
 ## Body-tier vs Full-tier
 
@@ -137,7 +142,7 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
 
 - Treat docs-sync validate as Full-tier compliance.
 - Invent Persian committed Markdown.
-- Leave a reviewed nonconforming doc unfixed when the task touches it.
+- Leave a reviewed or Read nonconforming doc unfixed in the same turn.
 - Use `linked_symbols` without evidence.
 - Invent `DOCUMENTED_BY` edges outside `agentcore sync` Phase 2 resolve.
 """

@@ -54,6 +54,7 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 18-developer-onboarding-and-delivery-workflow.md defines the practical reading path, repository discovery checklist, and workflows for new features, services, contracts, adapters, rules, documentation updates, and delivery readiness.
 - 19-zero-touch-installation-and-bootstrap-automation.md defines one-command installation goals, preflight checks, dependency provisioning, config generation, automated store and broker bootstrap, service registry creation, first-run readiness, evidence reports, and resumable failure handling.
 - 39-local-install-runbook.md is the operator runbook for the shipped modular root `install.sh` (prerequisites, `.venv`, Compose, verify).
+- 51-software-upgrade-server-and-client.md is the operator runbook for server/client upgrade, contract handshake, and control-plane upgrade jobs.
 - 43-app-docker-and-wheelhouse-runbook.md is the operator runbook for exporting `.venv` wheels to `/opt/agentcore-wheelhouse`, building `mcp-gateway`, and Compose profile `app` (PATH, mounts, CLI parity).
 - 40-remote-dev-client-mcp-wiring.md is the cross-platform Python runbook for wiring a remote dev host to AgentCore MCP over SSH stdio.
 - 41-one-command-cross-platform-agent-onboarding.md specifies the target single-command, API-first, cross-platform onboarding UX (with phased delivery from today's wire-remote).
@@ -82,6 +83,8 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 44-mcp-token-accounting.md is the feature spec for MCP connect-cost estimates, client/scope usage attribution, and `agentcore mcp tokens`.
 - 37-test-authoring-standard.md is the normative test-authoring playbook: concurrent code-and-tests law, family taxonomy (unit, contract, integration, e2e, live, fuzz, security, performance, regression), doubles, placement, markers, CI selection, and Definition of Done for humans and coding agents.
 - 38-fuzzing-and-property-based-testing.md defines property-based and fuzz suites: invariants, bounded generators, schema/API fuzz, corpus, shrinking, and when fuzz is mandatory with implementation.
+- 49-module-contract-docstrings-standard.md defines selective module-level contract docstrings (role, source of truth / invariants, allowed vs forbidden failures) for hard modules so agents do not invent the wrong durability or crash policy.
+- 50-package-folder-readme-standard.md defines selective package/folder `README.md` maps (purpose, boundaries, 2–5 start-here files) and rejects per-file encyclopedias in those READMEs.
 
 ## Implementation Slice
 
@@ -112,9 +115,12 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 11. Read 10-quality-attributes-and-nfrs.md to understand non-functional requirements and tradeoffs.
 12. Read 11-testing-and-verification-engineering.md before implementing tests or CI gates.
 12a. Read 37-test-authoring-standard.md before writing or generating any tests with implementation; read 38-fuzzing-and-property-based-testing.md when changing parsers, schemas, scorers, query builders, or redaction.
+12b. Read 49-module-contract-docstrings-standard.md before adding or changing module-level headers on queues, workers, dual-store durability, state machines, or fail-open/fail-closed seams.
+12c. Read 50-package-folder-readme-standard.md before adding or expanding package/folder `README.md` files near code (maps only; not per-file catalogs).
 13. Read 12-ci-cd-and-release-engineering.md before designing pipelines, releases, migrations, rollbacks, or release notes.
 14. Read 19-zero-touch-installation-and-bootstrap-automation.md before designing installation, deployment bootstrap, dependency provisioning, generated configuration, first-run readiness, or installation evidence reports.
 14a. Read 39-local-install-runbook.md before changing root `install.sh` or `scripts/install/` modules.
+14b. Read 51-software-upgrade-server-and-client.md before changing upgrade CLI, ping version fields, or install `--upgrade`.
 15. Read 20-agent-and-resource-connectivity-automation.md before designing agent onboarding, connector registration, capability discovery, connection profiles, or resource integration.
 16. Read 21-automation-control-plane-and-self-service-operations.md before designing self-service operations, automated repair, drift detection, upgrades, or diagnostics bundles.
 17. Read 22-product-design-and-engineering-specification-discipline.md before writing feature specifications, product experience specifications, operator workflows, or implementation-ready technical designs.
@@ -151,9 +157,12 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | tests and verification | 11-testing-and-verification-engineering.md |
 | test authoring, concurrent code-and-tests, doubles usage | 37-test-authoring-standard.md |
 | fuzzing and property-based tests | 38-fuzzing-and-property-based-testing.md |
+| module contract docstrings (hard modules / SoT / fail policy) | 49-module-contract-docstrings-standard.md |
+| package/folder README maps (not per-file encyclopedias) | 50-package-folder-readme-standard.md |
 | CI, release, rollback | 12-ci-cd-and-release-engineering.md |
 | zero-touch installation and bootstrap | 19-zero-touch-installation-and-bootstrap-automation.md |
 | local modular install (`install.sh`) | 39-local-install-runbook.md |
+| software upgrade (server + client + control plane) | 51-software-upgrade-server-and-client.md |
 | app Docker + `/opt` wheelhouse (`mcp-gateway`) | 43-app-docker-and-wheelhouse-runbook.md |
 | remote dev client MCP (SSH) | 40-remote-dev-client-mcp-wiring.md |
 | one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |

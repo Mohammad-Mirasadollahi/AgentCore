@@ -23,8 +23,12 @@ def _ensure_code_graph_import() -> None:
 
 
 def _graph_service():
-    """In-process code-graph service (auto neo4j when password set; else memory)."""
+    """In-process code-graph service (auto neo4j when password set; else memory).
+
+    Reuses one composition root per process (Phase D DI).
+    """
     from agentcore_cli.cli_defaults import load_dotenv_files
+    from agentcore_cli.process_containers import get_graph_service
 
     load_dotenv_files()
     _ensure_code_graph_import()
@@ -37,20 +41,24 @@ def _graph_service():
             "password",
             "neo4j",
         } else "memory"
-    if backend == "neo4j":
-        try:
-            from agentcore_cli.remote_client import apply_compose_env_to_os
 
-            apply_compose_env_to_os(os.environ, repo_root())
-        except SystemExit:
-            pass
-        from code_graph_service.bootstrap import Settings, build_service
+    def _factory():
+        if backend == "neo4j":
+            try:
+                from agentcore_cli.remote_client import apply_compose_env_to_os
 
-        return build_service(Settings.from_environment())
-    from code_graph_service.core import CodeGraphService
-    from code_graph_service.testing import InMemoryStore
+                apply_compose_env_to_os(os.environ, repo_root())
+            except SystemExit:
+                pass
+            from code_graph_service.bootstrap import Settings, build_container
 
-    return CodeGraphService(InMemoryStore())
+            return build_container(Settings.from_environment())
+        from code_graph_service.core import CodeGraphService
+        from code_graph_service.testing import InMemoryStore
+
+        return CodeGraphService(InMemoryStore())
+
+    return get_graph_service(backend=backend, factory=_factory)
 
 
 def _read_cloud_llm_yes_no(prompt: str) -> str:

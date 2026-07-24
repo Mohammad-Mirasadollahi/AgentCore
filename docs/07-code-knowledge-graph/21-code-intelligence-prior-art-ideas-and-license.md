@@ -36,6 +36,8 @@ external_refs:
 - https://github.com/colbymchenry/codegraph
 - https://github.com/tirth8205/code-review-graph
 - https://github.com/Graphify-Labs/graphify
+- https://arxiv.org/abs/2603.27277
+- https://github.com/DeusData/codebase-memory-mcp
 - https://opensource.org/licenses/MIT
 doc_version: 1.0.0
 audience:
@@ -79,6 +81,7 @@ Sibling specs: feature (`22`), HLD (`23`), LLD (`24`), contracts (`25`), risks (
 | [colbymchenry/codegraph](https://github.com/colbymchenry/codegraph) | Local code KG + MCP explore for agents | **MIT** (`LICENSE` on `main`) | Copyright (c) 2026 Colby Mchenry | Ideas freely. Code copy only under MIT. Prefer clean-room on Neo4j |
 | [tirth8205/code-review-graph](https://github.com/tirth8205/code-review-graph) | Review-oriented graph, blast radius, risk | **MIT** (`LICENSE` on `main`) | Copyright (c) 2026 Tirth Kanani | Ideas freely. Code copy only under MIT. Prefer clean-room |
 | [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) | Multi-source KG skill; confidence-tagged edges | **MIT** (`LICENSE` on `v8`) | Copyright (c) 2026 Safi Shamsi | Ideas freely. Code copy only under MIT. Prefer clean-room |
+| [Codebase-Memory (arXiv:2603.27277)](https://arxiv.org/abs/2603.27277) / [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) | Tree-Sitter KG + MCP; SQLite SoR; token-efficient structural tools | Paper + open MCP (verify LICENSE before any code copy) | See upstream LICENSE | **Ideas only by default.** Do **not** vendor the C binary. Clean-room on Neo4j (`44`–`47`) |
 
 ### MIT notice text (obligations)
 
@@ -151,21 +154,31 @@ Tags: **Adopt** (map into AgentCore), **Adapt** (intent kept, shape changed), **
 | CI-31 | Memory/reflect loop from Q&A outcomes | Adapt | Optional; tie to AgentCore memory BC |
 | CI-32 | Commit `graph.json` as team SoT | Avoid | Server Neo4j is SoT; exports are artifacts |
 
+### D. Codebase-Memory structural MCP (paper + open MCP)
+
+| ID | Idea | Tag | AgentCore mapping |
+| --- | --- | --- | --- |
+| CI-33 | Typed structural MCP tools before file Grep | Adopt | `callers` / directed `impact` / `community` + escalate (`44`–`46`) |
+| CI-34 | Whole graph in one SQLite file, zero Neo4j | Avoid | Neo4j SoR (ADR `19`); ideas only |
+| CI-35 | HTTP client call edges matched to routes | Adapt | `HTTP_CALLS` on `CODE_REL` Wave C |
+| CI-36 | 66-language Tree-Sitter single binary | Adapt | Incremental language matrix (`10`); no DeusData binary |
+| CI-37 | Hybrid: structural then escalate when quality needs it | Adopt | Wave B escalate_hint + guidance |
+
 ## Mapping To Improvement Levers
 
 | Lever | Ideas | Expected improvement |
 | --- | --- | --- |
-| Fewer agent tool calls / tokens | CI-01–CI-04, CI-29 | Surgical context packs |
+| Fewer agent tool calls / tokens | CI-01–CI-04, CI-29, CI-33, CI-37 | Surgical context packs + structural-first |
 | Safer reviews / PRs | CI-13–CI-16, CI-21 | Risk-ranked changed symbols + test gaps |
 | Architecture literacy | CI-11–CI-12, CI-17–CI-19, CI-25–CI-27 | Communities, bridges, questions |
-| Trust in edges | CI-06, CI-24 | Provenance + confidence in every response |
+| Trust in edges | CI-06, CI-24, CI-35 | Provenance + confidence in every response |
 | Platform fit | Avoid list + Adapt tags | Neo4j SoR, LiteLLM, tenant scope |
 
 ## Compliance Checklist (normative)
 
 Before any PR that implements or vendors code-intelligence features:
 
-- [ ] No vendored copy of CodeGraph / code-review-graph / graphify source unless ADR + SBOM + MIT notices approved.
+- [ ] No vendored copy of CodeGraph / code-review-graph / graphify / Codebase-Memory source or binaries unless ADR + SBOM + license notices approved.
 - [ ] If MIT code is copied: retain that project’s copyright + permission notice; update `THIRD_PARTY_NOTICES.md`.
 - [ ] Product copy may say “inspired by” / “prior art”; must not claim affiliation or “powered by” those products.
 - [ ] Benchmarks do not claim circular graph-derived “100% recall” as customer truth.
@@ -176,5 +189,6 @@ Before any PR that implements or vendors code-intelligence features:
 
 - [`19-competitive-code-intelligence-roadmap-adr.md`](19-competitive-code-intelligence-roadmap-adr.md)
 - [`22-code-intelligence-enhancements-feature-specification.md`](22-code-intelligence-enhancements-feature-specification.md)
+- [`44-codebase-memory-neo4j-hybrid-feature-specification.md`](44-codebase-memory-neo4j-hybrid-feature-specification.md)
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - External: [CodeGraph](https://github.com/colbymchenry/codegraph), [code-review-graph](https://github.com/tirth8205/code-review-graph), [graphify](https://github.com/Graphify-Labs/graphify)

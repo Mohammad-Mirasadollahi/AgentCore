@@ -292,6 +292,8 @@ def build_app(
             layout=str(body.get("layout") or "cursor"),
             dry_run=bool(body.get("dry_run", True)),
             user_id=str(body.get("user_id") or x_actor_id or "").strip() or None,
+            target_root=str(body.get("target_root") or "").strip() or None,
+            force=bool(body.get("force", False)),
         )
         return {"export": result}
 

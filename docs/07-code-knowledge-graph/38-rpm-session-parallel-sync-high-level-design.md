@@ -2,11 +2,11 @@
 doc_id: ac.doc.ckg.rpm-session-parallel-sync-hld
 title: 38 - RPM Session Parallel Sync High Level Design
 doc_type: hld
-status: draft
+status: active
 schema_version: '1.0'
 owner: code-graph-lead
 summary: 'Runtime topology for RPM-session-gated parallel sync: file worker pool, LLM work
-  queue, session registry, serialized store writer, CLI/HTTP observe. Designed ahead of implementation.'
+  queue, session registry, LockedStore (Postgres exclusive / Neo4j bounded), CLI/HTTP observe.'
 tags:
 - sync
 - rpm
@@ -27,6 +27,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.rpm-session-parallel-sync-lld
 - ac.doc.ckg.rpm-session-parallel-sync-risks
+- ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 - ac.doc.stack.litellm-llm-gateway
 doc_version: 1.0.0
 audience:
@@ -36,12 +37,14 @@ primary_entities:
 - RpmSessionGate
 - SessionRegistry
 - FileWorkerPool
-- SerializedStoreWriter
+- LockedStore
 relations_declared:
 - type: depends_on
   target: ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - type: complements
   target: ac.doc.stack.litellm-llm-gateway
+- type: complements
+  target: ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 chunk_hints:
   strategy: heading_h2
   max_tokens: 700
@@ -72,7 +75,7 @@ flowchart LR
   parseHash --> llmQueue[LlmWorkQueue]
   llmQueue --> rpmGate[RpmSessionGate]
   rpmGate --> complete[gateway.complete_or_embed]
-  complete --> writeQ[SerializedStoreWriter]
+  complete --> writeQ[LockedStore_bounded]
   writeQ --> graph[(Postgres_or_Neo4j)]
   rpmGate --> registry[SessionRegistry_inMemory]
   registry --> observe[CLI_and_HTTP_status]
@@ -89,7 +92,7 @@ flowchart LR
 | 5 | RpmSessionGate | Wait for RPM window + in-flight slot; start session | Session id |
 | 6 | LiteLlmGateway | `complete` / `embed` | Text / vector or error |
 | 7 | RpmSessionGate | End session in `finally` | Updated registry |
-| 8 | SerializedStoreWriter | Apply symbol/edge upserts in order | Graph SoR update |
+| 8 | LockedStore | Apply symbol/edge upserts (Postgres exclusive; Neo4j bounded) | Graph SoR update |
 | 9 | Progress + observe | Emit progress; expose registry snapshot | CLI/HTTP status |
 
 ## Component ownership
@@ -99,7 +102,7 @@ flowchart LR
 | SessionRegistry + RpmSessionGate | Start/end, window, in-flight, snapshot | `backend/packages/llm_gateway/` (`rate_limit.py` evolution) |
 | LiteLlmGateway | Call gate around every network complete/embed | `backend/packages/llm_gateway/gateway.py` |
 | Parallel ingest scheduler | File workers, LLM queue, fairness | `code_graph_service/application/ingest/` |
-| SerializedStoreWriter | Single-writer store mutations for Postgres safety | Same ingest package (adapter over `Store`) |
+| LockedStore | Postgres exclusive lock; Neo4j bounded Bolt slots | `code_graph_service/locked_store.py` |
 | Progress tracker | Thread-safe progress events | `agentcore_cli/sync_progress/` |
 | HTTP observe | Snapshot endpoint | `code_graph_service/api.py` (`/api/v1/llm/...`) |
 | CLI observe | Status command / sync enrichment | `agentcore_cli` |
@@ -116,7 +119,7 @@ code-graph-service (in-process or HTTP)
     │                                                      │
     │                                                      ├── RpmSessionGate
     │                                                      └── SessionRegistry
-    └── SerializedStoreWriter ──► Neo4jStore | PostgresStore
+    └── LockedStore ──► Neo4jStore | PostgresStore
 ```
 
 - **Domain ports** stay provider-agnostic; only the gateway opens RPM sessions.

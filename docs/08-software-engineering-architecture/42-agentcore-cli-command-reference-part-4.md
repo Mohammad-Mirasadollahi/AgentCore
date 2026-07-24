@@ -93,7 +93,7 @@ Remaining `agentcore` command catalog entries split from `docs/08-software-engin
 | --- | --- |
 | **Why** | One operator command for local Compose infra (postgres + neo4j) **and** the MCP HTTP backend daemon |
 | **Required** | Prior `bash install.sh` (compose `.env.local` + Docker). Repo root or `AGENTCORE_ROOT` |
-| **Optional** | `status --json` · `detail --json` |
+| **Optional** | `start --json` · `stop --json` · `restart --json` · `status --json` · `detail --json` |
 | **Example** | `agentcore service start` · `agentcore service status` · `agentcore service detail` · `agentcore service restart` |
 | **What changes** | Starts/stops Compose profile `core` services; backgrounds MCP HTTP (pid/log under `.agentcore/run/`). If no MCP token env is set, creates `.agentcore/mcp-http.secret` |
 | **Status fields** | `status` / `detail` show **Restarted** (latest start among running postgres/neo4j/MCP HTTP) and **UpTime** since that time |
@@ -347,3 +347,5 @@ Do not put secrets in docs or chat examples. MCP bearer secrets belong in env / 
 ## Related Documents
 
 - Previous chunk: `docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-continued-continued-continued.md`
+- Upgrade CLI catalog (normative): [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md#cli-catalog-agentcore-upgrade)
+- Overview: [36-agentcore-cli.md](./36-agentcore-cli.md)

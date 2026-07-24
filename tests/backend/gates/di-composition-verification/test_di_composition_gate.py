@@ -18,7 +18,7 @@ def test_catalog_includes_migration_docs():
     assert "30-dependency-injection-and-composition-root.md" in names
 
 
-def test_di_composition_gate_passes_phase_a_b():
+def test_di_composition_gate_passes_phase_a_d():
     decision = check_phase_gate()
     assert decision.status == "pass", [
         item.public() for item in decision.checks if item.status == "failed"
@@ -26,7 +26,10 @@ def test_di_composition_gate_passes_phase_a_b():
     report = decision.public()
     assert report["blocked"] is False
     assert report["failed_count"] == 0
-    assert report["passed_count"] >= 10
+    assert report["passed_count"] >= 14
+    ids = {item.check_id for item in decision.checks}
+    assert "di-thin-ports-phase-c" in ids
+    assert "di-cli-process-containers-phase-d" in ids
 
 
 def test_di_composition_checks_cover_composition_and_imports():

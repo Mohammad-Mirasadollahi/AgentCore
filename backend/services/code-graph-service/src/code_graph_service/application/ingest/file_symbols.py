@@ -21,6 +21,7 @@ class FileSymbolsMixin:
         language: str,
         stamp: str,
         previous_file: GraphSymbol | None,
+        ai_documentation: str = "",
     ) -> GraphSymbol:
         file_embed = self.embeddings.embed(file_path)
         file_symbol = GraphSymbol(
@@ -33,7 +34,7 @@ class FileSymbolsMixin:
             signature=file_path,
             body=source,
             hash_value=file_hash,
-            ai_documentation="",
+            ai_documentation=ai_documentation or "",
             doc_status=DocStatus.UNCHANGED,
             embedding=file_embed.vector,
             created_at=stamp,
@@ -55,12 +56,23 @@ class FileSymbolsMixin:
         file_path: str,
         language: str,
         stamp: str,
+        prefer_heuristic_docs: bool = False,
     ) -> tuple[list[str], list[str], int, list[tuple[str, str]]]:
-        """Return ``(symbol_ids, changed_ids, documented_count, documented_pairs)``."""
+        """Return ``(symbol_ids, changed_ids, documented_count, documented_pairs)``.
+
+        Phase 1 builds docs + embeddings (CPU). Phase 2 writes to the store so
+        parallel workers spend wall time on embed rather than waiting on Neo4j.
+        """
+        from ...domain.documentation import HeuristicDocGenerator
+
         changed_ids: list[str] = []
         documented = 0
         symbol_ids: list[str] = []
         documented_pairs: list[tuple[str, str]] = []
+        heuristic = HeuristicDocGenerator() if prefer_heuristic_docs else None
+        # (symbol, kind_for_index, optional_doc_symbol)
+        pending: list[tuple[GraphSymbol, str, GraphSymbol | None]] = []
+        language_fixes: list[GraphSymbol] = []
 
         for item in parsed.symbols:
             symbol_id = f"sym:{scope.project_id}:{item.qualified_name}"
@@ -71,6 +83,7 @@ class FileSymbolsMixin:
             neighbors = item.calls + item.bases + item.imports
             doc = previous.ai_documentation if previous and not changed else ""
             status = DocStatus.UNCHANGED
+            doc_symbol: GraphSymbol | None = None
             if changed:
                 changed_ids.append(symbol_id)
                 draft = GraphSymbol(
@@ -92,36 +105,34 @@ class FileSymbolsMixin:
                     updated_at=stamp,
                     language=language,
                 )
-                doc = self.docs.generate(draft, neighbors)
+                # Parallel bulk ingest: keep workers on CPU (parse/embed), not blocked
+                # on LiteLLM RPM/network. Living LLM docs can be refreshed later.
+                if heuristic is not None:
+                    doc = heuristic.generate(draft, neighbors)
+                else:
+                    doc = self.docs.generate(draft, neighbors)
                 status = DocStatus.GENERATED
                 documented += 1
                 doc_id = f"doc:{scope.project_id}:{item.qualified_name}"
-                self.store.put_symbol(
-                    GraphSymbol(
-                        id=doc_id,
-                        scope=scope,
-                        kind=SymbolKind.DOCUMENTATION,
-                        file_path=file_path,
-                        name=f"{item.name}.md",
-                        qualified_name=f"{item.qualified_name}::__doc__",
-                        signature=item.signature,
-                        body=doc,
-                        hash_value=digest(doc),
-                        ai_documentation=doc,
-                        doc_status=DocStatus.GENERATED,
-                        embedding=self.embeddings.embed(doc).vector,
-                        created_at=stamp,
-                        updated_at=stamp,
-                        language=language,
-                    )
+                doc_embed = self.embeddings.embed(doc).vector
+                doc_symbol = GraphSymbol(
+                    id=doc_id,
+                    scope=scope,
+                    kind=SymbolKind.DOCUMENTATION,
+                    file_path=file_path,
+                    name=f"{item.name}.md",
+                    qualified_name=f"{item.qualified_name}::__doc__",
+                    signature=item.signature,
+                    body=doc,
+                    hash_value=digest(doc),
+                    ai_documentation=doc,
+                    doc_status=DocStatus.GENERATED,
+                    embedding=doc_embed,
+                    created_at=stamp,
+                    updated_at=stamp,
+                    language=language,
                 )
                 documented_pairs.append((symbol_id, doc_id))
-                self._index_embedding(
-                    scope,
-                    doc_id,
-                    self.embeddings.embed(doc).vector,
-                    kind=SymbolKind.DOCUMENTATION.value,
-                )
             elif previous and previous.ai_documentation:
                 doc_id = f"doc:{scope.project_id}:{item.qualified_name}"
                 doc_prev = self._maybe_get(doc_id, scope)
@@ -130,7 +141,7 @@ class FileSymbolsMixin:
                     if not str(doc_prev.language or "").strip():
                         doc_prev.language = language
                         doc_prev.updated_at = stamp
-                        self.store.put_symbol(doc_prev)
+                        language_fixes.append(doc_prev)
             embed = self.embeddings.embed(f"{item.qualified_name}\n{doc}")
             symbol = GraphSymbol(
                 id=symbol_id,
@@ -153,8 +164,21 @@ class FileSymbolsMixin:
                 updated_at=stamp,
                 language=language,
             )
+            pending.append((symbol, item.kind.value, doc_symbol))
+
+        for fix in language_fixes:
+            self.store.put_symbol(fix)
+        for symbol, kind, doc_symbol in pending:
+            if doc_symbol is not None:
+                self.store.put_symbol(doc_symbol)
+                self._index_embedding(
+                    scope,
+                    doc_symbol.id,
+                    doc_symbol.embedding,
+                    kind=SymbolKind.DOCUMENTATION.value,
+                )
             self.store.put_symbol(symbol)
-            self._index_embedding(scope, symbol_id, embed.vector, kind=item.kind.value)
+            self._index_embedding(scope, symbol.id, symbol.embedding, kind=kind)
 
         return symbol_ids, changed_ids, documented, documented_pairs
 
@@ -168,11 +192,18 @@ class FileSymbolsMixin:
         documented_pairs: list[tuple[str, str]],
     ) -> None:
         active_ids = set(symbol_ids) | {doc_id for _, doc_id in documented_pairs} | {file_id}
-        for existing in self.store.list_symbols(scope):
-            if existing.file_path != file_path:
-                continue
+        lister = getattr(self.store, "list_symbols_for_file", None)
+        existing_symbols = (
+            lister(scope, file_path)
+            if callable(lister)
+            else [s for s in self.store.list_symbols(scope) if s.file_path == file_path]
+        )
+        for existing in existing_symbols:
             if existing.id in active_ids:
                 continue
             if existing.kind == SymbolKind.FILE:
                 continue
             self._delete_embedding(scope, existing.id)
+            deleter = getattr(self.store, "delete_symbol", None)
+            if callable(deleter):
+                deleter(existing.id, scope)

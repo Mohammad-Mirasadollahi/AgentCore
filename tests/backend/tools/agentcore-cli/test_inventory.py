@@ -21,12 +21,14 @@ from agentcore_cli.commands.inventory import (
 from agentcore_cli.parser import build_parser
 
 
-def test_edited_percent_line_omits_needs_sync_when_zero():
+def test_pending_work_line_is_count_only():
     from agentcore_cli.commands.inventory.render import _edited_percent_line
 
-    assert _edited_percent_line({"edited_count": 0, "total": 534, "percent_edited": 0.0}) == "0/534  (0.0%)"
-    assert "needs sync" in _edited_percent_line(
-        {"edited_count": 4, "total": 237, "percent_edited": 1.7}
+    assert _edited_percent_line({"edited_count": 0, "remaining_count": 0, "total": 534}) == "none"
+    assert _edited_percent_line({"edited_count": 4, "remaining_count": 0, "total": 237}) == "4 edited"
+    assert (
+        _edited_percent_line({"edited_count": 2, "remaining_count": 5, "total": 100})
+        == "2 edited, 5 not indexed yet"
     )
 
 

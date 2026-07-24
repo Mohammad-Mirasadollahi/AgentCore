@@ -15,7 +15,7 @@ from ..core import (
     Scope,
     SymbolKind,
 )
-from .constants import REL as _REL
+from . import cypher
 
 
 class Neo4jCrudMixin:
@@ -52,13 +52,7 @@ class Neo4jCrudMixin:
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
         with self._driver.session(database=self._database) as session:
             record = session.run(
-                """
-                MATCH (n:CodeSymbol {id: $id})
-                WHERE n.tenant_id = $tenant_id
-                  AND n.workspace_id = $workspace_id
-                  AND n.project_id = $project_id
-                RETURN n
-                """,
+                cypher.GET_SYMBOL,
                 id=symbol_id,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
@@ -72,28 +66,7 @@ class Neo4jCrudMixin:
         scope = symbol.scope
         with self._driver.session(database=self._database) as session:
             session.run(
-                """
-                MERGE (n:CodeSymbol {id: $id})
-                SET n.tenant_id = $tenant_id,
-                    n.workspace_id = $workspace_id,
-                    n.project_id = $project_id,
-                    n.project_group_id = $project_group_id,
-                    n.kind = $kind,
-                    n.file_path = $file_path,
-                    n.name = $name,
-                    n.qualified_name = $qualified_name,
-                    n.signature = $signature,
-                    n.body = $body,
-                    n.hash_value = $hash_value,
-                    n.ai_documentation = $ai_documentation,
-                    n.doc_status = $doc_status,
-                    n.embedding = $embedding,
-                    n.visibility = $visibility,
-                    n.version = $version,
-                    n.created_at = $created_at,
-                    n.updated_at = $updated_at,
-                    n.language = $language
-                """,
+                cypher.PUT_SYMBOL,
                 id=symbol.id,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
@@ -116,18 +89,21 @@ class Neo4jCrudMixin:
                 language=symbol.language or "",
             )
 
+    def delete_symbol(self, symbol_id: str, scope: Scope) -> None:
+        with self._driver.session(database=self._database) as session:
+            session.run(
+                cypher.DELETE_SYMBOL,
+                id=symbol_id,
+                tenant_id=scope.tenant_id,
+                workspace_id=scope.workspace_id,
+                project_id=scope.project_id,
+            )
+
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:
         with self._driver.session(database=self._database) as session:
             rows = list(
                 session.run(
-                    """
-                    MATCH (n:CodeSymbol)
-                    WHERE n.tenant_id = $tenant_id
-                      AND n.workspace_id = $workspace_id
-                      AND n.project_id = $project_id
-                    RETURN n
-                    ORDER BY n.qualified_name, n.id
-                    """,
+                    cypher.LIST_SYMBOLS,
                     tenant_id=scope.tenant_id,
                     workspace_id=scope.workspace_id,
                     project_id=scope.project_id,
@@ -135,18 +111,24 @@ class Neo4jCrudMixin:
             )
         return [self._symbol_from_node(row["n"], scope) for row in rows]
 
+    def list_symbols_for_file(self, scope: Scope, file_path: str) -> list[GraphSymbol]:
+        path = str(file_path or "").replace("\\", "/")
+        with self._driver.session(database=self._database) as session:
+            rows = list(
+                session.run(
+                    cypher.LIST_SYMBOLS_FOR_FILE,
+                    tenant_id=scope.tenant_id,
+                    workspace_id=scope.workspace_id,
+                    project_id=scope.project_id,
+                    file_path=path,
+                )
+            )
+        return [self._symbol_from_node(row["n"], scope) for row in rows]
+
     def get_symbol_by_qualified_name(self, scope: Scope, qualified_name: str) -> GraphSymbol | None:
         with self._driver.session(database=self._database) as session:
             record = session.run(
-                """
-                MATCH (n:CodeSymbol)
-                WHERE n.tenant_id = $tenant_id
-                  AND n.workspace_id = $workspace_id
-                  AND n.project_id = $project_id
-                  AND n.qualified_name = $qualified_name
-                RETURN n
-                LIMIT 1
-                """,
+                cypher.GET_SYMBOL_BY_QUALIFIED_NAME,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
                 project_id=scope.project_id,
@@ -159,14 +141,7 @@ class Neo4jCrudMixin:
     def delete_file_edges(self, scope: Scope, file_path: str) -> None:
         with self._driver.session(database=self._database) as session:
             session.run(
-                f"""
-                MATCH ()-[r:{_REL}]->()
-                WHERE r.tenant_id = $tenant_id
-                  AND r.workspace_id = $workspace_id
-                  AND r.project_id = $project_id
-                  AND r.file_path = $file_path
-                DELETE r
-                """,
+                cypher.DELETE_FILE_EDGES,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
                 project_id=scope.project_id,
@@ -176,13 +151,7 @@ class Neo4jCrudMixin:
     def delete_edge(self, scope: Scope, edge_id: str) -> None:
         with self._driver.session(database=self._database) as session:
             session.run(
-                f"""
-                MATCH ()-[r:{_REL} {{id: $id}}]->()
-                WHERE r.tenant_id = $tenant_id
-                  AND r.workspace_id = $workspace_id
-                  AND r.project_id = $project_id
-                DELETE r
-                """,
+                cypher.DELETE_EDGE,
                 id=edge_id,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
@@ -195,19 +164,7 @@ class Neo4jCrudMixin:
         file_path = str(metadata.get("file_path") or "")
         with self._driver.session(database=self._database) as session:
             session.run(
-                f"""
-                MATCH (source:CodeSymbol {{id: $source_id}})
-                MATCH (target:CodeSymbol {{id: $target_id}})
-                MERGE (source)-[r:{_REL} {{id: $id}}]->(target)
-                SET r.tenant_id = $tenant_id,
-                    r.workspace_id = $workspace_id,
-                    r.project_id = $project_id,
-                    r.project_group_id = $project_group_id,
-                    r.rel_type = $rel_type,
-                    r.confidence = $confidence,
-                    r.file_path = $file_path,
-                    r.metadata_json = $metadata_json
-                """,
+                cypher.PUT_EDGE,
                 id=edge.id,
                 source_id=edge.source_id,
                 target_id=edge.target_id,
@@ -225,19 +182,7 @@ class Neo4jCrudMixin:
         with self._driver.session(database=self._database) as session:
             rows = list(
                 session.run(
-                    f"""
-                    MATCH (source:CodeSymbol)-[r:{_REL}]->(target:CodeSymbol)
-                    WHERE r.tenant_id = $tenant_id
-                      AND r.workspace_id = $workspace_id
-                      AND r.project_id = $project_id
-                    RETURN r.id AS id,
-                           r.rel_type AS rel_type,
-                           r.confidence AS confidence,
-                           r.metadata_json AS metadata_json,
-                           source.id AS source_id,
-                           target.id AS target_id
-                    ORDER BY r.id
-                    """,
+                    cypher.LIST_EDGES,
                     tenant_id=scope.tenant_id,
                     workspace_id=scope.workspace_id,
                     project_id=scope.project_id,
@@ -259,14 +204,7 @@ class Neo4jCrudMixin:
     def begin_idempotency(self, scope: Scope, key: str, resource: str) -> str | None:
         with self._driver.session(database=self._database) as session:
             record = session.run(
-                """
-                MATCH (n:CodeIdempotency {
-                    scope_key: $scope_key,
-                    idempotency_key: $idempotency_key,
-                    resource_type: $resource_type
-                })
-                RETURN n.resource_id AS resource_id
-                """,
+                cypher.BEGIN_IDEMPOTENCY,
                 scope_key=self._scope_key(scope),
                 idempotency_key=key,
                 resource_type=resource,
@@ -276,15 +214,7 @@ class Neo4jCrudMixin:
     def complete_idempotency(self, scope: Scope, key: str, resource: str, resource_id: str) -> None:
         with self._driver.session(database=self._database) as session:
             record = session.run(
-                """
-                MERGE (n:CodeIdempotency {
-                    scope_key: $scope_key,
-                    idempotency_key: $idempotency_key,
-                    resource_type: $resource_type
-                })
-                ON CREATE SET n.resource_id = $resource_id
-                RETURN n.resource_id AS resource_id
-                """,
+                cypher.COMPLETE_IDEMPOTENCY,
                 scope_key=self._scope_key(scope),
                 idempotency_key=key,
                 resource_type=resource,
@@ -296,14 +226,7 @@ class Neo4jCrudMixin:
     def append_event(self, event: dict[str, Any]) -> None:
         with self._driver.session(database=self._database) as session:
             session.run(
-                """
-                CREATE (n:CodeOutboxEvent {
-                    event_id: $event_id,
-                    event_type: $event_type,
-                    payload_json: $payload_json,
-                    created_at: datetime()
-                })
-                """,
+                cypher.APPEND_EVENT,
                 event_id=event["event_id"],
                 event_type=event["event_type"],
                 payload_json=json.dumps(event, sort_keys=True),
@@ -311,54 +234,25 @@ class Neo4jCrudMixin:
 
     def outbox(self) -> list[dict[str, Any]]:
         with self._driver.session(database=self._database) as session:
-            rows = list(
-                session.run(
-                    """
-                    MATCH (n:CodeOutboxEvent)
-                    RETURN n.payload_json AS payload_json
-                    ORDER BY n.created_at, n.event_id
-                    """
-                )
-            )
+            rows = list(session.run(cypher.OUTBOX))
         return [json.loads(row["payload_json"]) for row in rows]
 
     def wipe_scope(self, scope: Scope) -> dict[str, int]:
         with self._driver.session(database=self._database) as session:
             symbols = session.run(
-                """
-                MATCH (n:CodeSymbol)
-                WHERE n.tenant_id = $tenant_id
-                  AND n.workspace_id = $workspace_id
-                  AND n.project_id = $project_id
-                WITH collect(n) AS nodes
-                FOREACH (n IN nodes | DETACH DELETE n)
-                RETURN size(nodes) AS deleted
-                """,
+                cypher.WIPE_SYMBOLS,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
                 project_id=scope.project_id,
             ).single()
             edges = session.run(
-                f"""
-                MATCH ()-[r:{_REL}]->()
-                WHERE r.tenant_id = $tenant_id
-                  AND r.workspace_id = $workspace_id
-                  AND r.project_id = $project_id
-                WITH collect(r) AS rels
-                FOREACH (r IN rels | DELETE r)
-                RETURN size(rels) AS deleted
-                """,
+                cypher.WIPE_EDGES,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
                 project_id=scope.project_id,
             ).single()
             idem = session.run(
-                """
-                MATCH (n:CodeIdempotency {scope_key: $scope_key})
-                WITH collect(n) AS nodes
-                FOREACH (n IN nodes | DELETE n)
-                RETURN size(nodes) AS deleted
-                """,
+                cypher.WIPE_IDEMPOTENCY,
                 scope_key=self._scope_key(scope),
             ).single()
         self._capabilities_cache = None

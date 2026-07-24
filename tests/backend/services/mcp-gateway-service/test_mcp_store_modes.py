@@ -159,12 +159,49 @@ def test_code_graph_tools_neighbors_and_ingest():
     impact = dispatch_capability(
         backends,
         "code_graph.impact",
-        {"symbol_id": symbol["id"], "max_depth": 2},
+        {"symbol_id": symbol["id"], "max_depth": 2, "direction": "both"},
         scope=scope,
         usage_profile="programming-cursor-mcp",
         correlation_id=str(uuid4()),
     )
     assert impact["impact_of"] == symbol["id"]
+    assert "blast" in impact
+    assert impact.get("direction") == "both"
+    assert "escalate_hint" in impact
+
+    callers = dispatch_capability(
+        backends,
+        "code_graph.callers",
+        {"symbol_id": symbol["id"], "top_k": 10},
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert callers.get("callers_of") == symbol["id"]
+    assert "callers" in callers
+    assert "escalate_hint" in callers
+
+    community = dispatch_capability(
+        backends,
+        "code_graph.community",
+        {"symbol_id": symbol["id"], "member_limit": 20},
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert "community_id" in community
+    assert "escalate_hint" in community
+
+    call_path = dispatch_capability(
+        backends,
+        "code_graph.call_path",
+        {"symbol_id": symbol["id"], "max_depth": 3},
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert "call_path_ids" in call_path
+    assert "escalate_hint" in call_path
 
     ctx = dispatch_capability(
         backends,

@@ -292,5 +292,6 @@ Tracked in [`18-repository-code-wiki-risks-challenges-and-acceptance.md`](18-rep
 - [`16-repository-code-wiki-low-level-design.md`](16-repository-code-wiki-low-level-design.md) — decomposition, agent recursion, incremental algorithms.
 - [`17-repository-code-wiki-data-contracts-and-events.md`](17-repository-code-wiki-data-contracts-and-events.md) — DTOs, APIs, events.
 - [`03-ingestion-and-living-documentation-workflow.md`](03-ingestion-and-living-documentation-workflow.md) — symbol-level living docs (complement).
+- [`43-wiki-and-graph-composed-retrieval.md`](43-wiki-and-graph-composed-retrieval.md) — composed Wiki + graph Q&A (future).
 - [`../03-docs-as-code-sync/01-feature-specification.md`](../03-docs-as-code-sync/01-feature-specification.md) — docs knowledge graph and drift.
 - External: [CodeWiki](https://github.com/FSoft-AI4Code/CodeWiki), [codewiki.google](https://codewiki.google/).

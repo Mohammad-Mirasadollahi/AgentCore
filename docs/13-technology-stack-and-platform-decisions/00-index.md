@@ -41,7 +41,7 @@ This section defines the preferred technology stack for AgentCore. The goal is t
 - `07-service-product-standard.md` defines the one-product-per-role standard, approved ports, Docker infrastructure rule, unsupported technology rule, and exception governance.
 - `08-turbovec-ann-acceleration-integration.md` is the ADR for optional in-process [turbovec](https://github.com/RyanCodrai/turbovec) ANN acceleration beside PostgreSQL+pgvector (SoR unchanged).
 - `09-litellm-llm-gateway.md` is the ADR that accepts [LiteLLM](https://docs.litellm.ai/) as the sole LLM gateway for AgentCore model calls.
-- `10-model-routing-profiles-with-litellm.md` specifies `ModelRoutingProfile` → LiteLLM model alias mapping, fallbacks, and stub policy.
+- `10-model-routing-profiles-with-litellm.md` specifies `ModelRoutingProfile` → LiteLLM model alias mapping, published local/cloud defaults under `backend/configs/model-routing/`, fallbacks, and stub policy (closes GAP-003).
 - `11-turbovec-for-rag.md` is the engineer/agent guide for using turbovec in RAG (IdMapIndex lifecycle, hybrid allowlist, bit-width, persistence, fallback).
 - `12-litellm-environment-configuration.md` is the operator reference for every LiteLLM/code-graph env variable (defaults, change impact, examples).
 - `13-storage-ownership-matrix.md` pins authoritative store and owning service per entity/event class (closes GAP-001).
