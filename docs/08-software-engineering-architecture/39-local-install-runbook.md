@@ -40,7 +40,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.2
+doc_version: 1.3.3
 audience:
 - engineer
 - operator
@@ -76,7 +76,7 @@ You will be asked:
    - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
    - **main** — tip of the `main` branch (may include unreleased commits)
 2. **Install root** (default `/opt/AgentCore`)
-3. Then `install.sh` menus (role/runtime). `get-agentcore` always passes `--yes` (no "type yes"). Passing `--role` also enables `--non-interactive`.
+3. Then `install.sh` menus: install/upgrade → **type `yes`** → client/server (and server MCP mode). Unattended: pass `--role` (implies `--non-interactive --yes`) or explicit `--yes --non-interactive`.
 
 Non-interactive fetch + install examples:
 

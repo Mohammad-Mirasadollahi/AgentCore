@@ -188,6 +188,15 @@ def test_install_help_mentions_role_and_venv() -> None:
     assert "yes" in proc.stdout.lower()
 
 
+def test_prompt_menus_go_to_stderr_and_confirm_still_asks_yes() -> None:
+    """Menus must not pollute $(prompt_*) capture; interactive confirm still asks for yes."""
+    text = (LIB / "common.sh").read_text(encoding="utf-8")
+    assert "cat >&2 <<'EOF'" in text
+    assert '$*" >&2; }' in text or '"$*" >&2; }' in text
+    assert "Type yes to continue" in text
+    assert "Confirmation skipped" in text
+
+
 def test_prompt_copy_mentions_client_or_server() -> None:
     text = (LIB / "common.sh").read_text(encoding="utf-8")
     assert "Install client or server" in text

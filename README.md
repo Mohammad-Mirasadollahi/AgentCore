@@ -58,8 +58,8 @@ Requires Python 3.12+ and Docker (Compose). On an empty machine, fetch + install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
-# prompts: release or main → root → then install.sh role/runtime menus
-# get-agentcore always passes --yes (no "type yes"); open a new shell for PATH
+# prompts: release or main → root → install/upgrade → type yes → role/runtime
+# open a new shell for PATH
 agentcore doctor
 ```
 
