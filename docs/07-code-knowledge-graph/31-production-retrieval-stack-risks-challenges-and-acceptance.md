@@ -42,6 +42,7 @@ chunk_hints:
   overlap_tokens: 40
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 31 - Production Retrieval Stack Risks Challenges And Acceptance

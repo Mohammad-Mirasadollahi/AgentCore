@@ -24,6 +24,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 linked_symbols:
 - backend/packages/agentcore_cli/commands/docs_standards/check.py::check_markdown_doc
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
@@ -320,8 +322,9 @@ related_issues: []
 supersedes: null            # prior doc_id
 superseded_by: null
 reviewed_by: null
-reviewed_at: null           # ISO-8601 date
-doc_version: "1.0.0"        # document revision
+reviewed_at: null           # ISO-8601 date (periodic human/agent review)
+doc_version: "1.0.0"        # document revision (semver); bump on material edit
+updated_at: "2026-07-24"    # UTC YYYY-MM-DD of last material edit (required on write/edit)
 audience:
   - engineer
   - architect
@@ -347,6 +350,14 @@ chunk_hints:
   strategy: heading_h2
   max_tokens: 800
   overlap_tokens: 64
+```
+
+**Revision policy (agents):** On material create/edit, keep the body truthful, bump
+`doc_version` (`MAJOR.MINOR.PATCH`), and set `updated_at` to the UTC calendar date.
+Never stamp version/date without content alignment. Prefer docs-sync drift /
+`linked_symbols` / catalog to decide which docs a code change must update — do not
+treat dates alone as the drift signal. Machine gate: missing `doc_version` /
+`updated_at` → `docs-standards` **warnings**; invalid formats → **issues**.
 language: en
 security_classification: internal
 ```

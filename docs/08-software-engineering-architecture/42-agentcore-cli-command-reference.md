@@ -39,6 +39,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
 placeholder: 1
+doc_version: 1.1.0
+updated_at: '2026-07-24'
 ---
 
 # 42 - AgentCore CLI Command Reference
@@ -101,10 +103,10 @@ For `status`, `sync`, `purge` (and other commands that call operator defaults):
 | `paths` | Uses active identity; `add` / `remove` take path arguments |
 | `status` / `sync` / `purge` | Optional scope flags if identity/env/connect already set; `sync` uses pinned software paths |
 | `inventory` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; uses pinned software paths |
-| `docs-standards` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scans repo `docs/**/*.md` against documentation standards |
+| `docs-standards` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scans product Markdown under `docs/`, `backend/docs/`, `frontend/docs/`, and `deploy-toolkit/` (Full-tier gate + revision debt) |
 | `docs-suggest-links` | Evidence-only `linked_symbols` suggestions from path citations. Flags: `--path`, `--docs-root`, `--include-all`, `--apply`, `--json`. Does **not** invent graph edges |
 | `docs-catalog` | Cached frontmatter catalog from **observed** tags/lanes (not a global hardcoded enum). Flags: `--refresh`, `--roots`, `--tag`, `--concern`, … `--json` |
-| `quality-audit` | **No dashed mode flags.** Word modes only (`detail`, `save [<path>]`). Categorized docs+code quality findings; `save` defaults under `.agentcore/quality-audit/` |
+| `quality-audit` | **No dashed mode flags.** Word modes only (`detail`, `save [<path>]`). Categorized docs+code quality findings (incl. revision stamps); `save` defaults under `.agentcore/quality-audit/` |
 | `stats` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; pinned software paths + sync filters |
 | `project register|activate|show|effective` | **Required** (`--tenant` `--workspace` `--project`) |
 | `cursor export`, `mcp serve`, `graph *`, `client wire-remote` | **Required** unless noted |

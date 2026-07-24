@@ -25,6 +25,8 @@ linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
 - backend/services/code-graph-service/src/code_graph_service/domain/symbol_resolve.py::resolve_linked_symbol
 - backend/services/code-graph-service/src/code_graph_service/domain/doc_discovery.py::discover_documentation_files
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Ingestion and Living Documentation Workflow
@@ -41,10 +43,20 @@ Recommended triggers:
 
 - Git commit.
 - Pull request opened or updated.
-- Manual sync button in an IDE.
+- Manual sync button in an IDE / AgentCore Client.
 - Scheduled repository scan.
 - CI indexing job.
 - Explicit agent request after code generation.
+- Optional batched pending-sync watcher (freshness banners; not per-keystroke indexing).
+
+### Standards gate (Skip vs Ingest)
+
+Before Phase 1/2 writes, Full-tier-nonconforming documentation paths may be
+**skipped** for the run or **ingested** anyway. Interactive CLI can ask once;
+scripts use `--skip-nonconforming` / `--sync-nonconforming`. For watcher flush
+and Client-driven sync without a TTY, the durable choice lives in **AgentCore
+Client → Project settings → Sync → Nonconforming paths** and must be changeable
+anytime. Normative contract: [`51-client-standards-gate-and-watcher-policy.md`](51-client-standards-gate-and-watcher-policy.md).
 
 ## Workflow Steps
 

@@ -32,8 +32,11 @@ linked_symbols:
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
 - scripts/remediate_docs_standards.py::main
 - scripts/split_soft_budget_docs.py::main
+- scripts/stamp_docs_revision.py::main
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
 x: 1
+doc_version: 1.1.1
+updated_at: '2026-07-24'
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued) (Continued) (Continued)
@@ -113,14 +116,15 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 
 | | |
 | --- | --- |
-| **Why** | Show which Markdown files under repo `docs/` fail AgentCore documentation standards (frontmatter, lanes, H1/title, Purpose H2, size budgets, design Mermaid) and what **percent of the tree** that is |
+| **Why** | Show which product Markdown files fail AgentCore documentation standards (frontmatter, lanes, H1/title, Purpose H2, size budgets, design Mermaid) and revision debt (`doc_version` / `updated_at`), plus **percent of the scanned tree** |
 | **Required** | None (uses `AGENTCORE_ROOT` / package-derived repo root) |
-| **Modes** | **Normal**: conforming/nonconforming percents + **top 10** nonconforming paths. **Detail**: same top 10 with issue codes. **Save**: write full nonconforming + conforming lists to a path |
+| **Scan roots** | `docs/`, `backend/docs/`, `frontend/docs/`, `deploy-toolkit/` (same set as revision stamp helpers) |
+| **Modes** | **Normal**: conforming/nonconforming + revision-debt percents + **top 10** for each. **Detail**: same with issue/warning codes. **Save**: write full nonconforming + revision debt + conforming lists to a path |
 | **Example** | `agentcore docs-standards` · `agentcore docs-standards detail` · `agentcore docs-standards save /tmp/docs-standards.txt` · `agentcore docs-standards detail save /tmp/docs-standards.txt` |
-| **What you see** | Totals and percents; top nonconforming files; optional per-issue detail; `save` writes the full report |
+| **What you see** | Totals and percents; top nonconforming and revision-debt files; optional per-issue detail; `save` writes the full report |
 | **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
-| **How to fix findings** | Follow normative procedure `docs/00-master-plan/10-documentation-standardization-procedure.md` (issue-code table, remediator, soft-budget split, evidence `linked_symbols`). Helpers: `scripts/remediate_docs_standards.py`, `scripts/split_soft_budget_docs.py`, library `agentcore_cli.commands.docs_standards.remediate` |
-| **Done means** | `nonconforming_count = 0` and soft-budget warnings cleared for the remediation scope; tree lock in `tests/backend/tools/agentcore-cli/test_docs_standards.py` |
+| **How to fix findings** | Follow normative procedure `docs/00-master-plan/10-documentation-standardization-procedure.md` (issue-code table, remediator, soft-budget split, evidence `linked_symbols`). Helpers: `scripts/remediate_docs_standards.py`, `scripts/split_soft_budget_docs.py`, `scripts/stamp_docs_revision.py`, library `agentcore_cli.commands.docs_standards.remediate` |
+| **Done means** | `nonconforming_count = 0`, revision debt cleared for the remediation scope, and soft-budget warnings cleared; tree lock in `tests/backend/tools/agentcore-cli/test_docs_standards.py` |
 | **Normative refs** | `docs/00-master-plan/06-professional-documentation-standard.md`, `08-documentation-structure-and-machine-ingest-standard.md`, `09-documentation-classification-and-lanes.md`, **`10-documentation-standardization-procedure.md`** |
 
 ### `agentcore docs-suggest-links`
@@ -159,11 +163,11 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 
 | | |
 | --- | --- |
-| **Why** | One command that **discovers and categorizes** docs + code quality problems: standards gate failures, soft/hard size budgets, missing `linked_symbols` when code paths are cited, design Mermaid without flow tables, invalid lanes, never-ingested code, stale edited code, low living-doc coverage |
+| **Why** | One command that **discovers and categorizes** docs + code quality problems: standards gate failures, soft/hard size budgets, missing `linked_symbols` when code paths are cited, design Mermaid without flow tables, invalid lanes, missing/invalid revision stamps, never-ingested code, stale edited code, low living-doc coverage |
 | **Required** | None for docs half. Code half needs pinned software paths + sync filters (same as `inventory`); if unavailable, docs findings still print and code section is marked skipped |
 | **Modes** | **Normal**: category counts + top findings. **Detail**: all findings with evidence. **Save**: write full text report (and JSON twin) to a path; bare `save` uses `.agentcore/quality-audit/YYYY-MM-DD_HH-MM-SS.txt` |
 | **Example** | `agentcore quality-audit` · `agentcore quality-audit detail` · `agentcore quality-audit save` · `agentcore quality-audit detail save /tmp/qa.txt` |
-| **Categories** | `docs.standards`, `docs.size_soft`, `docs.size_hard`, `docs.linking_gap`, `docs.flow_table_gap`, `docs.lane_invalid`, `code.never_ingested`, `code.stale_edited`, `code.low_symbol_docs` |
+| **Categories** | `docs.standards`, `docs.size_soft`, `docs.size_hard`, `docs.linking_gap`, `docs.flow_table_gap`, `docs.lane_invalid`, `docs.revision_missing`, `docs.revision_invalid`, `code.never_ingested`, `code.stale_edited`, `code.low_symbol_docs` |
 | **Exit code** | `0` when zero findings; `1` when any finding exists (CI-friendly) |
 | **What changes** | Nothing on the graph. `save` only writes report files under the path you named (or `.agentcore/quality-audit/`) |
 | **Normative refs** | `docs/00-master-plan/10-documentation-standardization-procedure.md` |
@@ -200,15 +204,16 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | --- | --- |
 | **Why** | Load or refresh the code graph for a repo root (auto chooses full vs incremental vs noop) |
 | **Required** | Sync filter file at each sync root (see [Sync filters](#sync-filters)). At least one software path from `init` / `paths` (or override with `--path`). Scope defaults if identity/env already set |
-| **Optional** | `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
+| **Optional** | `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--skip-nonconforming`, `--sync-nonconforming`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
 | **Example** | `agentcore sync` or `agentcore sync --path /opt/MyApp` |
 | **What changes** | Phase 1: upserts code symbols/edges/embeddings. Phase 2 (when `docs.match` is non-empty): indexes human Markdown in docs-sync and projects `DOCUMENTED_BY` for resolved `linked_symbols` |
 | **If you change `--path` or scope** | You sync a different tree or different isolation bucket; previous scope data remains |
 | **Software preflight** | If Compose/MCP are not fully running, an interactive TTY asks `Start software now? [y/N]`. `y`/`yes` runs `agentcore service start` first, then sync. Decline or non-TTY → exit with a hint to start services manually. After start, prints each component’s **start time to the second** (`postgres`, `neo4j`, `MCP HTTP`) |
 | **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |
-| **Before sync** | Prints the same **Totals / Processing / By language** snapshot as `agentcore stats` (code+docs counts, done/edited/remaining, LLM symbols) so you see the work before consent and ingest |
+| **Standards gate** | Before Phase 1/2 ingest, scans Phase-2-discovered Markdown with Full-tier `docs-standards`. Precedence: CLI `--skip-nonconforming` / `--sync-nonconforming` → (planned) AgentCore Client project preference Skip/Ingest → interactive TTY ask (default **Y** = skip) → non-TTY include (CI-safe). Report field `standards_gate` records counts. Skill `agentcore-standards-on-edit` remediates on edit so skipped paths can sync later. Normative Client + watcher policy: [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
+| **Before sync** | Prints the same **Totals / Need sync / By language** snapshot as `agentcore stats` (file totals with already-synced counts; pending edited / not-indexed counts; LLM symbols) so you see the work before consent and ingest |
 | **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
-| **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. **done/total** counts **new + changed** only (excludes already-indexed `unchanged_recheck`); full inventory totals stay in the Before sync stats. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior** counts and **queue** (`new` / `changed` / `unchanged_recheck`). **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
+| **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. Both phases use ``sync_max_file_workers`` (see ``AGENTCORE_SYNC_MAX_FILE_WORKERS`` / CPU percent); Phase 2 keeps docs-sync store writes single-flight. **done/total** counts **every file considered this run** (new + changed + already-indexed `unchanged_recheck`); the queue line still breaks out `new` / `changed` / `unchanged_recheck`. Unchanged docs with no `linked_symbols` (and no new evidence tokens) are skipped without re-embed; unchanged linked docs still refresh edges/anchors but skip re-embed when the body hash matches. Full inventory totals stay in the Before sync stats. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior** counts. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
 | **Usage log** | Each sync writes one JSON file named by **execution time** (`YYYY-MM-DD_HH-MM-SS.json`) under `AGENTCORE_SYNC_USAGE_LOG_DIR` (default `.agentcore/sync-usage`). Record field `execution_at` is date+time to the second. Folder cap: `AGENTCORE_SYNC_USAGE_LOG_DIR_MAX_BYTES` (default **5 GiB**, FIFO deletes oldest files). Gitignored |
 | **Filters** | Mandatory YAML + wildcards + built-in language excludes — [Sync filters](#sync-filters) |
 

@@ -23,6 +23,8 @@ authority: normative
 visibility: internal
 linked_symbols: []
 placeholder: 1
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 23 - Project Isolation And Composition Architecture

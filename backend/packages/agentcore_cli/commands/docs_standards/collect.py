@@ -9,7 +9,12 @@ from agentcore_cli.commands.docs_standards.check import check_file
 from agentcore_cli.commands.inventory.util import TOP_N, pct, top
 from agentcore_cli.util import repo_root
 
-DEFAULT_DOC_ROOTS = ("docs",)
+DEFAULT_DOC_ROOTS = (
+    "docs",
+    "backend/docs",
+    "frontend/docs",
+    "deploy-toolkit",
+)
 
 
 def _iter_markdown(root: Path) -> list[Path]:
@@ -44,9 +49,32 @@ def build_docs_standards_report(
         key=lambda r: (-int(r.get("issue_count") or 0), str(r.get("file") or "")),
     )
     conforming_sorted = sorted(conforming, key=lambda r: str(r.get("file") or ""))
+
+    revision_debt: list[dict[str, Any]] = []
+    for row in findings:
+        warns = [str(w) for w in (row.get("warnings") or [])]
+        issues = [str(i) for i in (row.get("issues") or [])]
+        rev_warns = [w for w in warns if w.startswith("missing_recommended:doc_version") or w.startswith("missing_recommended:updated_at")]
+        rev_issues = [i for i in issues if i in {"invalid_doc_version", "invalid_updated_at"}]
+        if not rev_warns and not rev_issues:
+            continue
+        revision_debt.append(
+            {
+                "file": row.get("file"),
+                "doc_id": row.get("doc_id"),
+                "doc_version": row.get("doc_version"),
+                "updated_at": row.get("updated_at"),
+                "warnings": rev_warns,
+                "issues": rev_issues,
+                "ok": bool(row.get("ok")),
+            }
+        )
+    revision_debt.sort(key=lambda r: str(r.get("file") or ""))
+
     total = len(findings)
     non_count = len(nonconforming)
     ok_count = len(conforming)
+    rev_count = len(revision_debt)
     return {
         "repo": str(base),
         "roots": [str(p.resolve()) for p in scan_roots],
@@ -56,9 +84,13 @@ def build_docs_standards_report(
             "nonconforming_count": non_count,
             "percent_conforming": pct(ok_count, total),
             "percent_nonconforming": pct(non_count, total),
+            "revision_debt_count": rev_count,
+            "percent_revision_debt": pct(rev_count, total),
         },
         "nonconforming": nonconforming_sorted,
         "conforming": conforming_sorted,
+        "revision_debt": revision_debt,
+        "top_revision_debt": top(revision_debt, n=TOP_N),
         "top_nonconforming": top(nonconforming_sorted, n=TOP_N),
         "top_n": TOP_N,
     }

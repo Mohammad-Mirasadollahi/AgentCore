@@ -35,7 +35,7 @@ related_docs:
 - ac.doc.ckg.prod-retrieval-live-test-gates
 - docs/07-code-knowledge-graph/18-repository-code-wiki-risks-challenges-and-acceptance.md
 - docs/10-gap-analysis/01-gap-register.md
-doc_version: 1.2.0
+doc_version: 1.0.0
 audience:
 - product
 - engineer
@@ -64,6 +64,7 @@ retirement:
     permanent docs (26, 31, 33, product scope, gap register).
   action: Set status archived OR delete this file; remove index bullet from 00-index.md; never
     reuse doc_id.
+updated_at: '2026-07-24'
 ---
 
 # 34 - Core Product Readiness Phased Backlog

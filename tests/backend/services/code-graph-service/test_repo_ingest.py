@@ -231,8 +231,8 @@ def test_ingest_repo_progress_reports_prior_vs_queue(tmp_path: Path):
     assert started["total"] == 2
 
 
-def test_ingest_repo_progress_total_excludes_unchanged_recheck(tmp_path: Path):
-    """Progress done/total is new+changed only; inventory totals stay in preflight stats."""
+def test_ingest_repo_progress_total_includes_unchanged_recheck(tmp_path: Path):
+    """Progress done/total counts every selected file; queue line keeps new/changed/recheck."""
     _write_tree(tmp_path)
     service = CodeGraphService(InMemoryStore())
     scope = Scope("t", "w", "progress-need")
@@ -265,6 +265,6 @@ def test_ingest_repo_progress_total_excludes_unchanged_recheck(tmp_path: Path):
     assert started["queue_new"] == 1
     assert started["queue_changed"] == 1
     assert started["queue_unchanged"] == 1
-    assert started["total"] == 2  # not 3 (unchanged recheck excluded)
+    assert started["total"] == 3  # includes unchanged recheck
     finished = next(e for e in events if e.get("status") == "finished")
-    assert finished["done"] == finished["total"] == 2
+    assert finished["done"] == finished["total"] == 3

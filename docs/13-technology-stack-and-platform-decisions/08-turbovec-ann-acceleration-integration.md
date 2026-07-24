@@ -63,6 +63,7 @@ security_classification: internal
 external_refs:
 - https://github.com/RyanCodrai/turbovec
 - https://arxiv.org/abs/2504.19874
+updated_at: '2026-07-24'
 ---
 
 # 08 - TurboVec ANN Acceleration Integration

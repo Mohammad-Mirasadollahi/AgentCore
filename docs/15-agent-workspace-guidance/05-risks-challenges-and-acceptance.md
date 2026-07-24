@@ -46,6 +46,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 05 - Agent Workspace Guidance Risks Challenges And Acceptance

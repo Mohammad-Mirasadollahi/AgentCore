@@ -5,10 +5,9 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: >-
-  Defines three user-selectable approval modes for Accept gates — always ask the user,
-  auto-approve everything eligible, or let the system route each item to auto-approve
-  versus human Accept — with hard policy overrides and audit requirements.
+summary: Defines three user-selectable approval modes for Accept gates — always ask the user,
+  auto-approve everything eligible, or let the system route each item to auto-approve versus
+  human Accept — with hard policy overrides and audit requirements.
 tags:
 - approval
 - auto-approve
@@ -40,6 +39,7 @@ audience:
 - product
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 09 - Approval Modes And Auto-Approve

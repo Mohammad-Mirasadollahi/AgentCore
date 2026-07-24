@@ -31,6 +31,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/identity.py::identity_path
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
 placeholder: 1
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued)

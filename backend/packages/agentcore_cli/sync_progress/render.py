@@ -57,8 +57,8 @@ def print_progress_line(snap: dict[str, Any]) -> None:
         )
         if int(snap["done"]) == 0 and int(snap.get("files_in_flight") or 0) > 0:
             print(
-                f"   {ui.dim('note')} 0 of {snap['total']} need-work files finished yet "
-                f"(denominator excludes unchanged rechecks; in-flight not counted)"
+                f"   {ui.dim('note')} 0 of {snap['total']} files finished yet "
+                f"(in-flight not counted until each file completes)"
             )
     if phase == "docs":
         detail = (

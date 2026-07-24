@@ -21,6 +21,8 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 05 - Interoperability and Enterprise Ecosystem Index

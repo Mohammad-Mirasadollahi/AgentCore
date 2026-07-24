@@ -45,6 +45,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 25 - Code Intelligence Enhancements Data Contracts And Events

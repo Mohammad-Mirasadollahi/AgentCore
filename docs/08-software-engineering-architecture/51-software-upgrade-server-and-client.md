@@ -39,12 +39,13 @@ related_docs:
 - docs/08-software-engineering-architecture/21-automation-control-plane-and-self-service-operations.md
 - docs/09-platform-governance-operations/09-automated-deployment-and-connectivity-runbooks.md
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
-doc_version: 1.1.0
+doc_version: 1.0.0
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 51 - Software Upgrade Server And Client

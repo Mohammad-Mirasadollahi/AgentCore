@@ -74,6 +74,54 @@ def test_resolve_qualified_name_and_path_form():
     assert resolve_linked_symbol(store, SCOPE, "src/auth.py::nope") is None
 
 
+def test_upsert_human_documentation_skips_reembed_when_body_unchanged():
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+
+    first = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        title="Login",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    assert first["content_unchanged"] is False
+    human = store.get_symbol(first["doc_symbol_id"], SCOPE)
+    version_after_first = human.version
+    embed_calls = {"n": 0}
+    real_embed = svc.embeddings.embed
+
+    def _counting_embed(text: str):
+        embed_calls["n"] += 1
+        return real_embed(text)
+
+    svc.embeddings.embed = _counting_embed  # type: ignore[method-assign]
+    second = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        title="Login",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    assert second["content_unchanged"] is True
+    assert embed_calls["n"] == 0
+    assert store.get_symbol(first["doc_symbol_id"], SCOPE).version == version_after_first
+
+    third = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules changed.",
+        title="Login",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    assert third["content_unchanged"] is False
+    assert embed_calls["n"] == 1
+
+
 def test_upsert_human_documentation_links_and_skips_unresolved():
     store = InMemoryStore()
     svc = CodeGraphService(store)

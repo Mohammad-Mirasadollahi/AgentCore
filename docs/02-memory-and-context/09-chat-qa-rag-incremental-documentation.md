@@ -61,6 +61,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 09 - Chat Q&A RAG Incremental Documentation

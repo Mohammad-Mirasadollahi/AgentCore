@@ -22,6 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/services/code-graph-service/test_code_graph_service.py::check_password
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -84,9 +86,11 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `48-ast-and-lsp-hybrid-parsing-adr.md` accepts AST / tree-sitter as the durable knowledge↔code SoR and reserves LSP for optional edit-session enrichment (not a second graph SoR).
 - `49-lsp-edit-session-feature-specification.md` ships IDE-semantic find-refs / definition / rename via local LSP + reconcile.
 - `50-sync-cpu-budget-and-store-concurrency-lld.md` CPU percent → workers/embeds/Torch pins; Neo4j bounded store slots; list_symbols without embeddings.
+- `51-client-standards-gate-and-watcher-policy.md` AgentCore Client mutable Skip vs Ingest preference for nonconforming docs/code; watcher/flush precedence (`lifecycle_lane: future` until Client UI ships).
 
 ## History
 
+- 2026-07-24: Added `51-client-standards-gate-and-watcher-policy.md` (Client standards-gate preference + watcher policy).
 - 2026-07-24: Added `50-sync-cpu-budget-and-store-concurrency-lld.md`; corrected Neo4j store concurrency vs exclusive write lock in `03`/`38`/`39` and LiteLLM env knobs.
 - 2026-07-23: Added `49-lsp-edit-session-feature-specification.md` and shipped edit-session tools (ADR 48 ID5).
 - 2026-07-23: Added `48-ast-and-lsp-hybrid-parsing-adr.md` (AST durable SoR + optional LSP edit layer).
@@ -153,6 +157,7 @@ Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session t
 - Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
 - AST vs LSP hybrid (`48`–`49`) keeps durable knowledge↔code edges on AST ingest; LSP edit-session tools are IDE-semantic and reconcile via re-ingest.
 - RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
+- Client standards gate + watcher policy (`51`) defines mutable Skip vs Ingest for nonconforming docs when Client/watcher flush cannot ask a TTY prompt.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
 - `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.
 - `../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md` defines dead-code cleanup KPIs.

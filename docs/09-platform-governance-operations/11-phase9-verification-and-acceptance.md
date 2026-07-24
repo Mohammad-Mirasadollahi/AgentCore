@@ -22,6 +22,8 @@ authority: normative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/governance-catalog-verification/run_gate.py::main
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Phase 9 - Verification and Acceptance

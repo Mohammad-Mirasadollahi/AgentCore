@@ -5,8 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Risks, challenges, and acceptance gates for Codebase-Memory hybrid structural
-  tools on Neo4j — including honesty vs paper metrics and deferred watcher policy.
+summary: Risks, challenges, and acceptance gates for Codebase-Memory hybrid structural tools
+  on Neo4j — including honesty vs paper metrics and deferred watcher policy.
 tags:
 - code-intelligence
 - codebase-memory
@@ -50,6 +50,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 47 - Codebase-Memory Neo4j Hybrid Risks And Acceptance

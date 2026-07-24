@@ -34,6 +34,7 @@ def test_tools_list_is_lazy_facade():
     assert "agentcore_create_task" in catalog
     assert "agentcore_docs_authoring_standards" in catalog
     assert "agentcore_docs_catalog" in catalog
+    assert "agentcore_quality_audit" in catalog
 
 
 def test_initialize_and_tools_list_rpc():
@@ -169,6 +170,7 @@ def test_tools_call_wired_backends():
     assert "doc_id" in standards["required_frontmatter_keys"]
     assert "agentcore-documentation-authoring" == standards["skill_name"]
     assert "agentcore_docs_catalog" in standards["related_mcp_tools"]
+    assert "agentcore_quality_audit" in standards["related_mcp_tools"]
 
     catalog = gw.call_tool(
         "agentcore_docs_catalog",
@@ -180,6 +182,16 @@ def test_tools_call_wired_backends():
     assert cat.get("vocabulary_source") == "observed_frontmatter"
     assert "vocabularies" in cat
     assert "documents" in cat
+
+    qa = gw.call_tool(
+        "agentcore_quality_audit",
+        {"top_n": 5, "severities": ["high", "medium"]},
+    )
+    qa_body = qa["structuredContent"]
+    assert qa_body["maps_to"] == "quality.audit"
+    assert "must_remediate" in qa_body
+    assert "findings" in qa_body
+    assert "agent_instruction" in qa_body
 
     guidance = gw.call_tool(
         "agentcore_guidance_resolve",

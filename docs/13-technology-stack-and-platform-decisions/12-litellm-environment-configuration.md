@@ -28,6 +28,8 @@ related_docs:
 - ac.doc.stack.litellm-llm-gateway
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 12 - LiteLLM Environment Configuration

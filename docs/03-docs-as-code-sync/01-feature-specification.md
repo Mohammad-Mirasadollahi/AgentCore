@@ -22,6 +22,8 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/services/code-graph-service/src/code_graph_service/domain/doc_discovery.py::discover_documentation_files
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Docs-as-Code and Synchronization - Feature Specification

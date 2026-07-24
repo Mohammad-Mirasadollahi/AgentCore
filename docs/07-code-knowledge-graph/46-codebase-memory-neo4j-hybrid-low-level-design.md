@@ -5,8 +5,8 @@ doc_type: lld
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Algorithms, Cypher sketches, MCP contracts, and implementation progress for
-  Codebase-Memory hybrid structural tools on Neo4j.
+summary: Algorithms, Cypher sketches, MCP contracts, and implementation progress for Codebase-Memory
+  hybrid structural tools on Neo4j.
 tags:
 - code-intelligence
 - codebase-memory
@@ -50,6 +50,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 46 - Codebase-Memory Neo4j Hybrid Low-Level Design

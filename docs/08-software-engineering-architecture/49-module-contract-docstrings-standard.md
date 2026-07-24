@@ -39,6 +39,7 @@ audience:
 - engineer
 - architect
 - agent
+updated_at: '2026-07-24'
 ---
 
 # 49 - Module Contract Docstrings Standard

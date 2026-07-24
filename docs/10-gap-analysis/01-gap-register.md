@@ -21,6 +21,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/configs/test_domain_customization_schemas.py::test_first_party_configs_match_schemas
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Master Gap Register

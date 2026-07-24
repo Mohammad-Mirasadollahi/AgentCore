@@ -5,8 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Closes GAP-004 by selecting the AgentCore CLI as the first human Accept
-  surface and wiring ApprovalModeProfile config plus local Accept queue commands.
+summary: Closes GAP-004 by selecting the AgentCore CLI as the first human Accept surface and
+  wiring ApprovalModeProfile config plus local Accept queue commands.
 tags:
 - approval
 - cli
@@ -37,6 +37,7 @@ audience:
 - product
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 10 - Approval CLI First Surface

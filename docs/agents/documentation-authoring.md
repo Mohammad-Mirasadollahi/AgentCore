@@ -20,6 +20,8 @@ audience_lane:
 - platform-engineering
 authority: normative
 visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 linked_symbols:
 - backend/packages/agentcore_cli/commands/docs_standards/check.py::check_markdown_doc
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
@@ -79,6 +81,7 @@ Whenever you **read or review** a documentation file on disk as part of the task
 7. Link from folder `README.md` / index. No secrets or customer data in examples.
 8. Search for existing canonical doc first — extend or split; do not duplicate.
 9. **Standardization method:** when fixing nonconformance or bulk-remediating `docs/`, follow `docs/00-master-plan/10-documentation-standardization-procedure.md` (machine gate issue codes, remediator, size splits, evidence-only `linked_symbols`). Verify with `agentcore docs-standards` until zero issues. **Team brief / reading list:** `docs/agents/team-documentation-playbook-for-agentcore.md`.
+10. **Revision stamp on material create/edit:** bump `doc_version` (semver `MAJOR.MINOR.PATCH`) and set `updated_at` (UTC `YYYY-MM-DD`) **with** truthful body changes — never stamp-only. Prefer docs-sync drift / `linked_symbols` / catalog to choose which docs a code change must update.
 
 ## Edit / review obligation (structure wrong → fix whole doc)
 

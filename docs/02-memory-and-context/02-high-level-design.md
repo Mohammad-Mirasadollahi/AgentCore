@@ -22,6 +22,8 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Memory And Context - High-Level Design

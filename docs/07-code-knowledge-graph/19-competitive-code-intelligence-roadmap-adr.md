@@ -60,6 +60,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 19 - Competitive Code Intelligence Roadmap ADR

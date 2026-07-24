@@ -19,6 +19,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 19 - Zero Touch Installation And Bootstrap Automation

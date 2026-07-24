@@ -7,6 +7,7 @@ from pathlib import Path
 from agentcore_cli.docs_link_sync import sync_human_docs
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter, provisional_frontmatter
 from code_graph_service.core import CodeGraphService, Scope
+from code_graph_service.locked_store import LockedStore
 from code_graph_service.testing import InMemoryStore
 
 
@@ -154,8 +155,9 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     assert stale == []
 
 
-def test_sync_human_docs_emits_progress_excluding_unchanged(tmp_path: Path, monkeypatch):
+def test_sync_human_docs_emits_progress_including_unchanged_recheck(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
     (tmp_path / "src").mkdir()
     (tmp_path / "docs").mkdir()
     (tmp_path / "src" / "auth.py").write_text(AUTH_SOURCE, encoding="utf-8")
@@ -189,7 +191,7 @@ def test_sync_human_docs_emits_progress_excluding_unchanged(tmp_path: Path, monk
     )
     (tmp_path / "docs" / "new.md").write_text(UNLINKED_DOC.replace("doc-overview", "doc-new"), encoding="utf-8")
     events: list[dict] = []
-    sync_human_docs(
+    result = sync_human_docs(
         graph_service=graph,
         graph_scope=SCOPE,
         root_path=tmp_path,
@@ -210,9 +212,99 @@ def test_sync_human_docs_emits_progress_excluding_unchanged(tmp_path: Path, monk
     assert started["phase"] == "docs"
     assert started["queue_new"] == 1
     assert started["queue_unchanged"] == 2
-    assert started["total"] == 1  # excludes already-indexed unchanged docs
+    # done/total counts every file considered this run (1 new + 2 recheck/skip).
+    assert started["total"] == 3
     finished = next(e for e in events if e.get("status") == "finished")
-    assert finished["done"] == finished["total"] == 1
+    assert finished["done"] == finished["total"] == 3
+    # Unlinked unchanged overview skipped; linked login rechecks; new indexes.
+    assert result.docs_indexed == 2
+    assert any(e.get("status") == "unchanged" for e in events)
+
+
+def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    monkeypatch.setenv("AGENTCORE_SYNC_MAX_FILE_WORKERS", "4")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "src" / "auth.py").write_text(AUTH_SOURCE, encoding="utf-8")
+    for i in range(8):
+        body = UNLINKED_DOC.replace("doc-overview", f"doc-{i}").replace("Overview", f"Doc {i}")
+        (tmp_path / "docs" / f"d{i}.md").write_text(body, encoding="utf-8")
+    (tmp_path / "docs" / "login.md").write_text(LINKED_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(LockedStore(store, lock_reads=True))
+    graph.ingest_file(
+        SCOPE,
+        "test",
+        "c1",
+        "k1",
+        {"file_path": "src/auth.py", "source": AUTH_SOURCE, "language": "python"},
+    )
+    events: list[dict] = []
+    result = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-parallel",
+        repo_name="fixture",
+        on_progress=events.append,
+    )
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["file_workers"] == 4
+    assert result.docs_indexed == 9
+    assert result.anchors_registered >= 1
+    # At least one progress snap should report concurrent in-flight under workers>1.
+    assert any(int(e.get("files_in_flight") or 0) >= 1 for e in events if e.get("status") == "active")
+
+
+def test_sync_human_docs_skips_unchanged_unlinked(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "overview.md").write_text(UNLINKED_DOC, encoding="utf-8")
+
+    store = InMemoryStore()
+    graph = CodeGraphService(store)
+    filters = {
+        "docs_enabled": True,
+        "doc_match_globs": ["**/*.md"],
+        "doc_exclude_dirs": [],
+        "doc_exclude_globs": [],
+        "doc_paths": [],
+        "max_files": 50,
+    }
+    first = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-a",
+        repo_name="fixture",
+    )
+    assert first.docs_indexed == 1
+    second = sync_human_docs(
+        graph_service=graph,
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters=filters,
+        actor="test",
+        correlation_id="corr-b",
+        repo_name="fixture",
+    )
+    assert second.docs_discovered == 1
+    assert second.docs_indexed == 0
 
 
 def test_resolve_sync_filters_docs_vs_code(tmp_path: Path, monkeypatch):

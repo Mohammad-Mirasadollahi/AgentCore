@@ -45,6 +45,8 @@ related_docs:
 - ac.doc.agents.team-handout-agentcore-documentation-complete
 language: en
 security_classification: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Documentation Catalog and Lane Cache

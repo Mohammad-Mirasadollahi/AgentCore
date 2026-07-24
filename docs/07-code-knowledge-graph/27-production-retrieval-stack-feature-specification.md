@@ -52,6 +52,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 27 - Production Retrieval Stack Feature Specification

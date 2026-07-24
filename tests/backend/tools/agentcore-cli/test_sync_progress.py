@@ -81,8 +81,9 @@ def test_progress_explains_this_run_vs_prior(tmp_path: Path, monkeypatch, capsys
     assert "prior file symbols 40" in out
     assert "new=200" in out
     assert "changed=37" in out
-    assert "need-work files finished yet" in out
-    assert "excludes unchanged rechecks" in out
+    assert "need-work files finished yet" not in out
+    assert "0 of 237 files finished yet" in out
+    assert "in-flight not counted" in out
     tracker.finish()
 
 

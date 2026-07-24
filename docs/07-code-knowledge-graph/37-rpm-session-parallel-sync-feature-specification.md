@@ -56,6 +56,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 37 - RPM Session Parallel Sync Feature Specification
@@ -111,7 +112,6 @@ flowchart TD
 - Cluster-wide / multi-process shared rate limiter (Redis or similar).
 - Unbounded file parallelism.
 - Changing provider-side quotas or LiteLLM proxy internals.
-- Parallel human-docs Phase 2 (`docs_link_sync`) redesign (may stay serial in v1).
 
 ## Operator story
 

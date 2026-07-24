@@ -37,6 +37,7 @@ audience:
 - engineer
 - architect
 - agent
+updated_at: '2026-07-24'
 ---
 
 # 50 - Package Folder README Standard

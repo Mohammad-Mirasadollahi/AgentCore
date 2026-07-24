@@ -36,6 +36,8 @@ audience_lane:
   - platform-engineering
 authority: normative
 visibility: internal
+doc_version: "1.0.0"
+updated_at: "2026-07-24"
 ---
 
 # 01 - Good Doc
@@ -84,10 +86,34 @@ def test_check_markdown_doc_ok_and_fail():
     )
     assert ok["ok"] is True
     assert ok["issue_count"] == 0
+    assert ok["warning_count"] == 0
 
     bad = check_markdown_doc(relative_path="docs/x.md", text="# Only H1\n\nNo frontmatter.\n")
     assert bad["ok"] is False
     assert "missing_or_invalid_frontmatter" in bad["issues"]
+
+
+def test_check_revision_fields_warn_and_reject_invalid():
+    # Missing revision → warnings only (soft migration; does not fail ok).
+    missing = check_markdown_doc(
+        relative_path="docs/00-master-plan/01-good-doc.md",
+        text=GOOD_DOC.replace("doc_version: \"1.0.0\"\n", "").replace(
+            "updated_at: \"2026-07-24\"\n", ""
+        ),
+    )
+    assert missing["ok"] is True
+    assert "missing_recommended:doc_version" in missing["warnings"]
+    assert "missing_recommended:updated_at" in missing["warnings"]
+
+    invalid = check_markdown_doc(
+        relative_path="docs/00-master-plan/01-good-doc.md",
+        text=GOOD_DOC.replace("doc_version: \"1.0.0\"", 'doc_version: "v1"').replace(
+            "updated_at: \"2026-07-24\"", 'updated_at: "yesterday"'
+        ),
+    )
+    assert invalid["ok"] is False
+    assert "invalid_doc_version" in invalid["issues"]
+    assert "invalid_updated_at" in invalid["issues"]
 
 
 def test_remediate_markdown_doc_makes_body_tier_conforming():
@@ -98,6 +124,8 @@ def test_remediate_markdown_doc_makes_body_tier_conforming():
     assert row["ok"] is True, row["issues"]
     assert "doc_id: ac.doc.master.sample-topic" in fixed
     assert "## Purpose" in fixed
+    assert "doc_version:" in fixed
+    assert "updated_at:" in fixed
 
 
 def test_remediate_markdown_doc_adds_mermaid_for_design_types():
@@ -191,7 +219,27 @@ def test_build_report_percent(tmp_path: Path):
     assert report["summary"]["conforming_count"] == 1
     assert report["summary"]["nonconforming_count"] == 1
     assert report["summary"]["percent_nonconforming"] == 50.0
+    assert report["summary"]["revision_debt_count"] == 0
     assert report["nonconforming"][0]["file"] == "docs/00-master-plan/02-bad.md"
+
+
+def test_build_report_revision_debt(tmp_path: Path):
+    docs = tmp_path / "docs" / "00-master-plan"
+    docs.mkdir(parents=True)
+    missing = GOOD_DOC.replace("doc_version: \"1.0.0\"\n", "").replace(
+        "updated_at: \"2026-07-24\"\n", ""
+    )
+    invalid = GOOD_DOC.replace('doc_version: "1.0.0"', 'doc_version: "not-a-semver"')
+    (docs / "01-missing-rev.md").write_text(missing, encoding="utf-8")
+    (docs / "02-bad-rev.md").write_text(invalid, encoding="utf-8")
+    report = build_docs_standards_report(roots=[tmp_path / "docs"], repo=tmp_path)
+    assert report["summary"]["revision_debt_count"] == 2
+    files = {r["file"] for r in report["revision_debt"]}
+    assert "docs/00-master-plan/01-missing-rev.md" in files
+    assert "docs/00-master-plan/02-bad-rev.md" in files
+    text = format_detail_text(report)
+    assert "Revision debt" in text
+    assert "missing_recommended:doc_version" in text or "invalid_doc_version" in text
 
 
 def test_format_detail_text_and_save(tmp_path: Path, monkeypatch, capsys):
@@ -204,6 +252,8 @@ def test_format_detail_text_and_save(tmp_path: Path, monkeypatch, capsys):
             "nonconforming_count": 1,
             "percent_conforming": 50.0,
             "percent_nonconforming": 50.0,
+            "revision_debt_count": 1,
+            "percent_revision_debt": 50.0,
         },
         "nonconforming": [
             {
@@ -217,6 +267,26 @@ def test_format_detail_text_and_save(tmp_path: Path, monkeypatch, capsys):
             }
         ],
         "conforming": [{"file": "docs/b.md", "ok": True, "issue_count": 0, "issues": []}],
+        "revision_debt": [
+            {
+                "file": "docs/b.md",
+                "ok": True,
+                "warnings": ["missing_recommended:doc_version"],
+                "issues": [],
+                "doc_version": None,
+                "updated_at": None,
+            }
+        ],
+        "top_revision_debt": [
+            {
+                "file": "docs/b.md",
+                "ok": True,
+                "warnings": ["missing_recommended:doc_version"],
+                "issues": [],
+                "doc_version": None,
+                "updated_at": None,
+            }
+        ],
         "top_nonconforming": [
             {
                 "file": "docs/a.md",
@@ -234,6 +304,8 @@ def test_format_detail_text_and_save(tmp_path: Path, monkeypatch, capsys):
     assert "50.0%" in text
     assert "docs/a.md" in text
     assert "missing_or_invalid_frontmatter" in text
+    assert "Revision debt" in text
+    assert "docs/b.md" in text
 
     monkeypatch.setattr(
         "agentcore_cli.commands.docs_standards.cmd.build_docs_standards_report",

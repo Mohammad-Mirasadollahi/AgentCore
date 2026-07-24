@@ -5,8 +5,8 @@ doc_type: lld
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: 'Phased file-level migration for AgentCore DI composition roots, ServiceContainer
-  shapes, FastAPI wiring, and import-gate rules (Phases A–D shipped).'
+summary: Phased file-level migration for AgentCore DI composition roots, ServiceContainer
+  shapes, FastAPI wiring, and import-gate rules (Phases A–D shipped).
 tags:
 - dependency-injection
 - composition-root
@@ -35,6 +35,7 @@ audience:
 - agent
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 47 - Backend DI Composition Low Level Design

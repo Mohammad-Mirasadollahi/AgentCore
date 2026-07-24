@@ -5,10 +5,10 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Single complete handout for teams—full reading lists (docs/ authoring, code
-  linking, in-source WHY/NOTE/HACK comments, and hybrid coverage layers), hard rules,
-  why AgentCore needs this method, and teammate brief. Normative sources remain in
-  place; this file aggregates the list for delivery.
+summary: Single complete handout for teams—full reading lists (docs/ authoring, code linking,
+  in-source WHY/NOTE/HACK comments, and hybrid coverage layers), hard rules, why AgentCore
+  needs this method, and teammate brief. Normative sources remain in place; this file aggregates
+  the list for delivery.
 tags:
 - documentation
 - teams
@@ -39,6 +39,8 @@ related_docs:
 - ac.doc.ckg.hybrid-documentation-coverage
 language: en
 security_classification: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # TEAM HANDOUT - Complete AgentCore Documentation List

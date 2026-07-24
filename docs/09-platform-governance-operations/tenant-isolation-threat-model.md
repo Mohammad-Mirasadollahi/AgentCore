@@ -25,6 +25,8 @@ linked_symbols:
 - tests/backend/services/mcp-gateway-service/test_mcp_tenant_isolation.py::test_mcp_code_graph_search_isolated_by_tenant_and_project
 - tests/backend/services/code-graph-service/test_tenant_isolation_neo4j_live.py::test_neo4j_symbols_isolated_across_tenants
 language: en
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Tenant Isolation Threat Model (Wedge Scope)

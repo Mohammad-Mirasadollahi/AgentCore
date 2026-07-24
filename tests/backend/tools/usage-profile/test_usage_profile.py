@@ -28,6 +28,7 @@ def test_programming_profile_validates_and_lists_mcp_tools():
     assert "agentcore_code_graph_impact" in names
     assert "agentcore_code_graph_generation_context" in names
     assert "agentcore_docs_catalog" in names
+    assert "agentcore_quality_audit" in names
     assert "agentcore_docs_authoring_standards" in names
     assert "agentcore_code_graph_ingest_file" in names
     assert "agentcore_code_graph_ingest_repo" in names
