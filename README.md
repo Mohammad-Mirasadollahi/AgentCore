@@ -63,6 +63,8 @@ curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/re
 agentcore doctor
 ```
 
+Use `…/refs/heads/main/scripts/get-agentcore.sh` (not bare `/main/…`). GitHub’s raw CDN often serves a stale tip for `/main/`.
+
 Already cloned:
 
 ```bash
@@ -87,7 +89,7 @@ Install the CLI only (no Docker required on the client):
 ```bash
 # empty machine (choose role client in install menus), or:
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
-  | bash -s -- --channel release --yes --non-interactive --role client
+  | bash -s -- --channel main --yes --non-interactive --role client
 # or from an existing clone:
 bash install.sh --skip-infra
 agentcore path install   # if needed; open a new shell
