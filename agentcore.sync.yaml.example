@@ -178,6 +178,10 @@ code:
 
 # -----------------------------------------------------------------------------
 # Phase 2 — human docs (match by wildcard; docs-only exclude)
+# Discovery = docs.match − docs.exclude (what sync indexes).
+# Full-tier / quality-audit = discovery − docs.audit.exclude (− built-in
+# README/AGENTS/skill/tests defaults). Package README maps still sync via
+# Phase 1 package-readme ingest; they are not audited as Full-tier product docs.
 # -----------------------------------------------------------------------------
 docs:
   match:
@@ -212,3 +216,9 @@ docs:
     - "**/CONTRIBUTING.md"
     - "**/package-lock.json"
     - "**/.DS_Store"
+  audit:
+    # Extra Full-tier / quality-audit skips (merged with built-in README/AGENTS/…).
+    # These paths may still Phase-2 sync; they just skip docs-standards scoring.
+    exclude:
+      - "samples/**"
+      - "**/fixtures/**"

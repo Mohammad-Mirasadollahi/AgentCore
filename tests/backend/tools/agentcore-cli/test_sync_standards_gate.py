@@ -94,17 +94,67 @@ def test_list_nonconforming_docs(tmp_path: Path):
     docs.mkdir()
     (docs / "good.md").write_text(GOOD_DOC, encoding="utf-8")
     (docs / "bad.md").write_text(BAD_DOC, encoding="utf-8")
+    # Package README is Phase-2-discoverable but never Full-tier-audited.
+    pkg = tmp_path / "backend" / "apps" / "api-gateway"
+    pkg.mkdir(parents=True)
+    (pkg / "README.md").write_text(BAD_DOC, encoding="utf-8")
+    skill = tmp_path / "skills"
+    skill.mkdir()
+    (skill / "demo.md").write_text(
+        "---\nname: demo\ndescription: skill frontmatter\n---\n\n# Demo\n",
+        encoding="utf-8",
+    )
     filters = {
         "docs_enabled": True,
         "doc_match_globs": ["**/*.md"],
         "doc_exclude_dirs": [],
         "doc_exclude_globs": [],
+        "doc_audit_exclude_globs": [],
         "doc_paths": [],
         "max_files": 100,
     }
     bad = list_nonconforming_docs(root_path=tmp_path, filters=filters)
     assert "docs/bad.md" in bad
     assert "docs/good.md" not in bad
+    assert "backend/apps/api-gateway/README.md" not in bad
+    # Non-README Markdown under sync match is audited unless audit.exclude says so.
+    assert "skills/demo.md" in bad
+    filters["doc_audit_exclude_globs"] = ["skills/**"]
+    bad2 = list_nonconforming_docs(root_path=tmp_path, filters=filters)
+    assert "skills/demo.md" not in bad2
+    assert "docs/bad.md" in bad2
+
+
+def test_is_docs_audit_path_skips_readme_and_custom_globs():
+    from agentcore_cli.commands.docs_standards.scope import (
+        is_docs_audit_basename_skipped,
+        is_docs_audit_path,
+    )
+
+    assert is_docs_audit_basename_skipped("backend/x/README.md") is True
+    assert is_docs_audit_path("docs/a.md") is True
+    assert is_docs_audit_path("backend/apps/api-gateway/README.md") is False
+    assert is_docs_audit_path("AGENTS.md") is False
+    assert is_docs_audit_path(
+        "vendor/notes.md",
+        audit_exclude_globs=["vendor/**"],
+    ) is False
+    assert is_docs_audit_path("backend/services/memory-service/docs/api.md") is True
+
+
+def test_resolve_sync_filters_merges_docs_audit_exclude(tmp_path: Path):
+    from agentcore_cli.sync_config import resolve_sync_filters
+
+    (tmp_path / "agentcore.sync.yaml").write_text(
+        "code:\n  exclude: []\n"
+        "docs:\n  match: ['**/*.md']\n  exclude: []\n"
+        "  audit:\n    exclude:\n      - 'vendor/**'\n",
+        encoding="utf-8",
+    )
+    filters = resolve_sync_filters(root=tmp_path)
+    assert "**/README.md" in filters["doc_audit_exclude_globs"]
+    assert "vendor/**" in filters["doc_audit_exclude_globs"]
+
 
 
 def test_resolve_skip_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

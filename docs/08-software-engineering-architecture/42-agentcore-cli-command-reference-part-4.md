@@ -34,8 +34,9 @@ linked_symbols:
 - backend/packages/agentcore_cli/cli_defaults.py::load_dotenv_files
 - backend/packages/agentcore_cli/identity.py::identity_path
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
-- tests/backend/tools/agentcore-cli/test_mcp_tokens.py::test_estimate_connect_lazy_cheaper_than_full
-doc_version: 1.0.0
+- backend/packages/agentcore_cli/docs_audit_scope.py::is_docs_audit_path
+- backend/packages/agentcore_cli/sync_config.py::resolve_sync_filters
+doc_version: 1.1.0
 updated_at: '2026-07-24'
 ---
 
@@ -253,7 +254,8 @@ agentcore sync --path .
 | `code.exclude` | Skip noise from **code** discovery (dirs + globs) |
 | `code.include_extensions` | Which language suffixes count as source (not a path allow-list) |
 | `docs.match` | Wildcard set of human docs (default idea: `**/*.md`, `**/*.mdx`) |
-| `docs.exclude` | Docs-only skips (independent from `code.exclude`) |
+| `docs.exclude` | Docs-only skips for **Phase 2 discovery** (independent from `code.exclude`) |
+| `docs.audit.exclude` | Extra skips for **Full-tier / quality-audit / sync standards gate** only (still may sync). Always merged with built-in README/AGENTS/skill/tests defaults |
 
 Do **not** list `docs` under `code.exclude` just to “enable” documentation — Markdown is not a code extension. Use `docs.match: []` or `docs.enabled: false` to disable Phase 2.
 
@@ -263,7 +265,7 @@ Path allow-lists (`include_paths`) are **legacy**; prefer exclude-only. Top-leve
 
 1. Repo `agentcore.sync.yaml` (or `.yml`) — **source of truth for excludes**
 2. Local `.agentcore/sync.yaml` (if present; last key wins for overlapping top-level keys)
-3. Env: `AGENTCORE_SYNC_EXCLUDE_DIRS`, `AGENTCORE_SYNC_DOC_MATCH`, `AGENTCORE_SYNC_DOC_EXCLUDE`, `AGENTCORE_SYNC_INCLUDE_EXTENSIONS`
+3. Env: `AGENTCORE_SYNC_EXCLUDE_DIRS`, `AGENTCORE_SYNC_DOC_MATCH`, `AGENTCORE_SYNC_DOC_EXCLUDE`, `AGENTCORE_SYNC_DOC_AUDIT_EXCLUDE`, `AGENTCORE_SYNC_INCLUDE_EXTENSIONS`
 4. CLI: `--exclude-dir`, `--include-ext` (and legacy `--include-path`)
 
 There is **no hardcoded product exclude list in Python**. Operators edit `code.exclude` / `docs.exclude` in the YAML. Hidden directories whose names start with `.` are still skipped during tree walks as a filesystem safety (e.g. `.git`).

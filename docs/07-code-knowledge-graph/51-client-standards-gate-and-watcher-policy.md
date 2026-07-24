@@ -29,6 +29,10 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/sync_standards_gate.py::resolve_standards_gate
 - backend/packages/agentcore_cli/sync_standards_gate.py::StandardsGateResult
+- backend/packages/agentcore_cli/sync_standards_gate.py::list_nonconforming_docs
+- backend/packages/agentcore_cli/docs_audit_scope.py::is_docs_audit_path
+- backend/packages/agentcore_cli/docs_audit_scope.py::merge_docs_audit_exclude_globs
+- backend/packages/agentcore_cli/sync_config.py::resolve_sync_filters
 - backend/packages/agentcore_cli/commands/sync.py::cmd_sync
 - backend/services/code-graph-service/scripts/watch_pending_sync.py::ChangeBatcher
 related_docs:
@@ -37,7 +41,7 @@ related_docs:
 - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-continued-continued-continued.md
 - docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md
 - docs/00-master-plan/10-documentation-standardization-procedure.md
-doc_version: 1.1.0
+doc_version: 1.3.0
 updated_at: '2026-07-24'
 audience:
 - engineer
@@ -61,7 +65,6 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
 ---
 
 # 51 - Client Standards Gate And Watcher Policy
@@ -127,7 +130,7 @@ rules.
 
 | Term | Meaning |
 | --- | --- |
-| **Nonconforming docs** | Paths Phase 2 would discover that fail `agentcore docs-standards` / Full-tier check |
+| **Nonconforming docs** | Phase-2-discovered Markdown that is audit-eligible (`is_docs_audit_path`: not README/AGENTS basename; not matching built-in or `docs.audit.exclude` globs) **and** fails `agentcore docs-standards`. Discovery itself still follows `docs.match` / `docs.exclude` in `agentcore.sync.yaml`. |
 | **Nonconforming code** | Reserved: machine code-standards failures when a gate exists; today CLI only accepts an explicit list |
 | **Skip** | Exclude those paths from **this** ingest (temporary excludes for the run); graph stays free of bad docs |
 | **Ingest** | Include them anyway (`include` mode); corpus gains coverage; remediation still expected later |
@@ -139,8 +142,9 @@ rules.
 | Concern | Source of truth |
 | --- | --- |
 | Which trees are in scope for discovery | `agentcore.sync.yaml` / `.agentcore/sync.yaml` (+ env/CLI merge) |
+| Which discovered paths are Full-tier-gated / audited | Discovery minus README/AGENTS hard-skips and `docs.audit.exclude` (plus built-in defaults) — SSOT `is_docs_audit_path` |
 | Whether nonconforming paths enter this ingest | **AgentCore Client preference** for interactive / watcher / Client-triggered sync; else CLI flags; else TTY ask; else non-TTY include (CI-safe) |
-| What “nonconforming” means for docs | Full-tier `docs-standards` machine check |
+| What “nonconforming” means for docs | Full-tier `docs-standards` machine check on audit-eligible paths |
 | Remediation | Human/agent edit + skill `agentcore-standards-on-edit` / procedure 10 — **not** the watcher |
 
 ### Preference record (contract)
@@ -233,7 +237,7 @@ flowchart TD
 
 | Step | Actor | Action | Outcome |
 | --- | --- | --- | --- |
-| 1 | Sync / flush | Discover Phase-2 docs; run Full-tier check | Nonconforming path list (may be empty) |
+| 1 | Sync / flush | Discover Phase-2 docs; Full-tier-check audit-eligible paths only | Nonconforming path list (may be empty; README/AGENTS never appear here) |
 | 2 | Gate | If empty → no mode change | Full filter set unchanged |
 | 3 | Gate | If `--skip-nonconforming` / `--sync-nonconforming` | Forced skip or ingest for this run |
 | 4 | Gate | Else if Client `standards_gate.docs` set | Apply skip or ingest; no prompt |

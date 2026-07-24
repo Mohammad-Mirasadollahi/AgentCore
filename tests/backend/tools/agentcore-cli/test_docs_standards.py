@@ -191,9 +191,17 @@ See `backend/packages/demo/mod.py` during ingest.
 
 
 def test_repo_docs_tree_meets_docs_standards():
-    report = build_docs_standards_report(repo=repo_root())
+    # Canonical product trees stay clean; sync-mode may include extra service docs.
+    from agentcore_cli.commands.docs_standards.scope import DEFAULT_DOC_ROOTS
+
+    root = repo_root()
+    report = build_docs_standards_report(
+        roots=[root / name for name in DEFAULT_DOC_ROOTS],
+        repo=root,
+    )
     assert report["summary"]["total"] > 0
     assert report["summary"]["nonconforming_count"] == 0, report["top_nonconforming"][:20]
+    assert report.get("scan_mode") == "roots"
 
 
 def test_check_ignores_h1_inside_fences():

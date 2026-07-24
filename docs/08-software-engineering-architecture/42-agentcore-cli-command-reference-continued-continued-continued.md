@@ -24,6 +24,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/sync_config.py::SyncConfigError
 - backend/packages/agentcore_cli/software_paths.py::format_paths_env
 - backend/packages/agentcore_cli/docs_link_sync.py::DocsLinkSyncResult
+- backend/packages/agentcore_cli/commands/docs_standards/scope.py::is_docs_audit_path
+- backend/packages/agentcore_cli/sync_standards_gate.py::list_nonconforming_docs
 - backend/services/code-graph-service/src/code_graph_service/domain/repo_discovery.py::DiscoveredFile
 - backend/services/code-graph-service/src/code_graph_service/domain/doc_discovery.py::DiscoveredDocFile
 - backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::human_doc_symbol_id
@@ -34,8 +36,7 @@ linked_symbols:
 - scripts/split_soft_budget_docs.py::main
 - scripts/stamp_docs_revision.py::main
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
-x: 1
-doc_version: 1.1.7
+doc_version: 1.1.9
 updated_at: '2026-07-24'
 ---
 
@@ -118,7 +119,7 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | --- | --- |
 | **Why** | Show which product Markdown files fail AgentCore documentation standards (frontmatter, lanes, H1/title, Purpose H2, size budgets, design Mermaid) and revision debt (`doc_version` / `updated_at`), plus **percent of the scanned tree** |
 | **Required** | None (uses `AGENTCORE_ROOT` / package-derived repo root) |
-| **Scan roots** | `docs/`, `backend/docs/`, `frontend/docs/`, `deploy-toolkit/` (same set as revision stamp helpers) |
+| **Scan roots** | Prefer `agentcore.sync.yaml` discovery (`docs.match` − `docs.exclude` − `docs.audit.exclude`); fallback without sync config: `docs/`, `backend/docs/`, `frontend/docs/`, `deploy-toolkit/` |
 | **Modes** | **Normal**: conforming/nonconforming + revision-debt percents + **top 10** for each. **Detail**: same with issue/warning codes. **Save**: write full nonconforming + revision debt + conforming lists to a path |
 | **Example** | `agentcore docs-standards` · `agentcore docs-standards detail` · `agentcore docs-standards save /tmp/docs-standards.txt` · `agentcore docs-standards detail save /tmp/docs-standards.txt` |
 | **What you see** | Totals and percents; top nonconforming and revision-debt files; optional per-issue detail; `save` writes the full report |
@@ -211,7 +212,7 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **If you change `--path` or scope** | You sync a different tree or different isolation bucket; previous scope data remains |
 | **Software preflight** | If Compose/MCP are not fully running, an interactive TTY asks `Start software now? [y/N]`. `y`/`yes` runs `agentcore service start` first, then sync. Decline or non-TTY → exit with a hint to start services manually. After start, prints each component’s **start time to the second** (`postgres`, `neo4j`, `MCP HTTP`) |
 | **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |
-| **Standards gate** | Before Phase 1/2 ingest, scans Phase-2-discovered Markdown with Full-tier `docs-standards`. Precedence: CLI `--skip-nonconforming` / `--sync-nonconforming` → (planned) AgentCore Client project preference Skip/Ingest → interactive TTY ask (default **N** = include / do not skip) → non-TTY include (CI-safe). Report field `standards_gate` records counts. Skill `agentcore-standards-on-edit` remediates on edit so skipped paths can sync later. Normative Client + watcher policy: [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
+| **Standards gate** | Before Phase 1/2 ingest, runs Full-tier `docs-standards` on Phase-2-discovered Markdown that is audit-eligible: not README/AGENTS basename; not matching built-in or `docs.audit.exclude` globs from `agentcore.sync.yaml`. Package README maps still sync (Phase 1 package-readme / Phase 2 discovery) but are not `docs_bad`. Precedence: CLI `--skip-nonconforming` / `--sync-nonconforming` → (planned) AgentCore Client project preference Skip/Ingest → interactive TTY ask (default **N** = include / do not skip) → non-TTY include (CI-safe). Report field `standards_gate` records counts. Skill `agentcore-standards-on-edit` remediates on edit so skipped paths can sync later. Normative Client + watcher policy: [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
 | **Before sync** | Prints a **work-only** preview: scope/paths, **Need sync** (code/docs pending), and remaining undocumented LLM symbols when any — not already-synced totals or language inventory (use `agentcore stats` for full snapshot) |
 | **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
 | **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. Both phases use ``sync_max_file_workers`` (see ``AGENTCORE_SYNC_MAX_FILE_WORKERS`` / CPU percent); Phase 2 docs-sync writes run concurrently (Postgres per-thread connections; in-memory store ``RLock``). **done/total** and the queue line show **only work this run processes** (`new` / `changed` / code `lang_backfill` / docs `link_refresh`). Already-synced hash-stable paths are omitted from the queue and progress denominator. Docs body-stable without `linked_symbols` are not enqueued; body-stable linked docs may still refresh edges/anchors (`link_refresh`) but skip re-embed when the body hash matches. Full inventory stays on `agentcore stats`. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |

@@ -15,6 +15,8 @@ ensure_service_import_paths()
 from code_graph_service.domain.doc_discovery import DEFAULT_DOC_MATCH_GLOBS
 from code_graph_service.domain.repo_discovery import _looks_like_glob
 
+from agentcore_cli.docs_audit_scope import merge_docs_audit_exclude_globs
+
 DEFAULT_INCLUDE_EXTENSIONS = (".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs")
 
 REPO_CONFIG_NAMES = ("agentcore.sync.yaml", "agentcore.sync.yml")
@@ -202,11 +204,15 @@ def resolve_sync_filters(
       include_extensions: [.py, ...]
     docs:
       match: ['**/*.md', '**/*.mdx']
-      exclude: [...]
+      exclude: [...]          # Phase 2 discovery skip
+      audit:
+        exclude: [...]         # Full-tier / quality-audit skip (still may sync)
     ```
 
-    There is no hardcoded product exclude list in Python; operators own the YAML.
-    Legacy top-level ``exclude`` / ``doc_paths`` / ``include_paths`` still work.
+    Code/path discovery excludes are operator-owned YAML (no hardcoded product
+    tree list). Docs audit always merges built-in README/AGENTS defaults with
+    ``docs.audit.exclude``. Legacy top-level ``exclude`` / ``doc_paths`` /
+    ``include_paths`` still work.
     """
     root = root.expanduser().resolve()
     sources = [str(p) for p in (require_sync_config(root) if require_config else find_sync_config_paths(root))]
@@ -313,6 +319,15 @@ def resolve_sync_filters(
         cli_patterns=[],
     )
 
+    audit_sec = docs_sec.get("audit")
+    audit_sec = audit_sec if isinstance(audit_sec, dict) else {}
+    audit_patterns = (
+        _as_str_list(audit_sec.get("exclude"))
+        + _as_str_list(audit_sec.get("exclude_globs"))
+        + _as_str_list(os.environ.get("AGENTCORE_SYNC_DOC_AUDIT_EXCLUDE", ""))
+    )
+    doc_audit_exclude_globs = merge_docs_audit_exclude_globs(audit_patterns)
+
     return {
         "exclude_dirs": exclude_dirs,
         "exclude_globs": exclude_globs,
@@ -321,6 +336,7 @@ def resolve_sync_filters(
         "doc_match_globs": match_globs if docs_enabled else [],
         "doc_exclude_dirs": doc_exclude_dirs,
         "doc_exclude_globs": doc_exclude_globs,
+        "doc_audit_exclude_globs": doc_audit_exclude_globs,
         "docs_enabled": docs_enabled,
         # Legacy alias: non-empty only when old doc_paths style was used as prefixes.
         "doc_paths": legacy_paths if legacy_paths and docs_enabled else [],

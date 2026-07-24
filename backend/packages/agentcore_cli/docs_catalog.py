@@ -20,7 +20,7 @@ from typing import Any
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
 
 SCHEMA_VERSION = "1.1"
-# Default scan roots for this repo; override per product via env / CLI / MCP.
+# Catalog may index tooling docs; Full-tier sync gate uses FULL_TIER_DOC_ROOTS.
 DEFAULT_ROOTS: tuple[str, ...] = (
     "docs",
     "backend/docs",

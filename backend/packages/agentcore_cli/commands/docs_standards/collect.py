@@ -6,15 +6,15 @@ from pathlib import Path
 from typing import Any
 
 from agentcore_cli.commands.docs_standards.check import check_file
+from agentcore_cli.docs_audit_scope import (
+    DEFAULT_DOC_ROOTS,
+    is_docs_audit_path,
+    normalize_repo_rel,
+)
 from agentcore_cli.commands.inventory.util import TOP_N, pct, top
 from agentcore_cli.util import repo_root
 
-DEFAULT_DOC_ROOTS = (
-    "docs",
-    "backend/docs",
-    "frontend/docs",
-    "deploy-toolkit",
-)
+__all__ = ["DEFAULT_DOC_ROOTS", "build_docs_standards_report"]
 
 
 def _iter_markdown(root: Path) -> list[Path]:
@@ -23,24 +23,82 @@ def _iter_markdown(root: Path) -> list[Path]:
     return sorted(p for p in root.rglob("*.md") if p.is_file())
 
 
-def build_docs_standards_report(
+def _resolve_audit_paths(
+    base: Path,
     *,
-    roots: list[Path] | None = None,
-    repo: Path | None = None,
-) -> dict[str, Any]:
-    base = (repo or repo_root()).resolve()
+    roots: list[Path] | None,
+    filters: dict[str, Any] | None,
+) -> tuple[list[Path], list[str], str]:
+    """Return (abs paths, display roots, mode) for Full-tier scanning."""
+    audit_globs: list[str] = []
+    sync_filters = filters
+    if sync_filters is None and roots is None:
+        try:
+            from agentcore_cli.sync_config import find_sync_config_paths, resolve_sync_filters
+
+            if find_sync_config_paths(base):
+                sync_filters = resolve_sync_filters(root=base, require_config=False)
+        except Exception:  # noqa: BLE001 — fall back to DEFAULT_DOC_ROOTS
+            sync_filters = None
+
+    if sync_filters and sync_filters.get("docs_enabled") and sync_filters.get("doc_match_globs"):
+        audit_globs = list(sync_filters.get("doc_audit_exclude_globs") or [])
+        try:
+            from code_graph_service.domain.doc_discovery import discover_documentation_files
+
+            discovered = discover_documentation_files(
+                base,
+                match_globs=sync_filters.get("doc_match_globs"),
+                exclude_dirs=sync_filters.get("doc_exclude_dirs"),
+                exclude_globs=sync_filters.get("doc_exclude_globs"),
+                doc_paths=sync_filters.get("doc_paths") or None,
+                max_files=int(sync_filters.get("max_files") or 20_000),
+            )
+        except Exception:  # noqa: BLE001
+            discovered = []
+        paths: list[Path] = []
+        for item in discovered:
+            rel = normalize_repo_rel(getattr(item, "relative_path", "") or "")
+            abs_path = Path(getattr(item, "absolute_path", "") or "")
+            if not rel or not abs_path.is_file():
+                continue
+            if not is_docs_audit_path(rel, audit_exclude_globs=audit_globs):
+                continue
+            paths.append(abs_path)
+        display = list(sync_filters.get("sources") or []) or ["sync:docs.match"]
+        return sorted(paths), display, "sync"
+
     scan_roots = roots or [base / name for name in DEFAULT_DOC_ROOTS]
-    findings: list[dict[str, Any]] = []
+    paths = []
     for root in scan_roots:
         root = root.resolve()
         if not root.is_dir():
             continue
         for path in _iter_markdown(root):
-            # Report paths relative to repo root when under it; else under scan root.
             try:
-                findings.append(check_file(path, root=base))
+                rel = str(path.resolve().relative_to(base)).replace("\\", "/")
             except ValueError:
-                findings.append(check_file(path, root=root))
+                rel = path.name
+            if not is_docs_audit_path(rel, audit_exclude_globs=audit_globs):
+                continue
+            paths.append(path)
+    return sorted(paths), [str(p.resolve()) for p in scan_roots], "roots"
+
+
+def build_docs_standards_report(
+    *,
+    roots: list[Path] | None = None,
+    repo: Path | None = None,
+    filters: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    base = (repo or repo_root()).resolve()
+    paths, display_roots, mode = _resolve_audit_paths(base, roots=roots, filters=filters)
+    findings: list[dict[str, Any]] = []
+    for path in paths:
+        try:
+            findings.append(check_file(path, root=base))
+        except ValueError:
+            findings.append(check_file(path, root=path.parent))
 
     conforming = [row for row in findings if row.get("ok")]
     nonconforming = [row for row in findings if not row.get("ok")]
@@ -54,7 +112,12 @@ def build_docs_standards_report(
     for row in findings:
         warns = [str(w) for w in (row.get("warnings") or [])]
         issues = [str(i) for i in (row.get("issues") or [])]
-        rev_warns = [w for w in warns if w.startswith("missing_recommended:doc_version") or w.startswith("missing_recommended:updated_at")]
+        rev_warns = [
+            w
+            for w in warns
+            if w.startswith("missing_recommended:doc_version")
+            or w.startswith("missing_recommended:updated_at")
+        ]
         rev_issues = [i for i in issues if i in {"invalid_doc_version", "invalid_updated_at"}]
         if not rev_warns and not rev_issues:
             continue
@@ -77,7 +140,8 @@ def build_docs_standards_report(
     rev_count = len(revision_debt)
     return {
         "repo": str(base),
-        "roots": [str(p.resolve()) for p in scan_roots],
+        "roots": display_roots,
+        "scan_mode": mode,
         "summary": {
             "total": total,
             "conforming_count": ok_count,
