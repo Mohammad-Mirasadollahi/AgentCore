@@ -40,7 +40,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.0
+doc_version: 1.3.1
 audience:
 - engineer
 - operator
@@ -65,8 +65,10 @@ Implementation status: **shipped** for local-dev bootstrap (OS deps on Debian/Ub
 One line downloads AgentCore from GitHub, then runs the installer menus:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
 ```
+
+Use `refs/heads/main` in the raw URL (not bare `/main/`). GitHub’s raw CDN often serves a stale tip for `/main/` for several minutes after push.
 
 You will be asked:
 
@@ -79,7 +81,7 @@ You will be asked:
 Non-interactive fetch + install example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh \
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh \
   | bash -s -- --channel release --root /opt/AgentCore --yes --non-interactive --role server --runtime venv
 ```
 
