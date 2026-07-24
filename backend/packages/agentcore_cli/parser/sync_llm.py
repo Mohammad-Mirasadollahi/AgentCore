@@ -17,8 +17,12 @@ def register(sub: argparse._SubParsersAction) -> None:
         "connect_mode",
         nargs="?",
         default="",
-        metavar="edit|init",
-        help="Optional word: edit (re-auth SSH / replace pubkey) or init (write connect.yaml template)",
+        metavar="edit|init|PATH[,PATH…]",
+        help=(
+            "Optional: edit (re-auth SSH), init (connect.yaml template), "
+            "or one/more project dirs comma-separated (default: cwd). "
+            "Each dir is wired for MCP and pinned for sync."
+        ),
     )
     connect.add_argument("--config", default="", help="Path to connect.yaml / connect.json")
     connect.add_argument("--project", default="", help="Override project id (default: cwd directory name)")
@@ -38,6 +42,11 @@ def register(sub: argparse._SubParsersAction) -> None:
     )
     connect.add_argument("--tenant", default="", help="Override scope.tenant (local mode)")
     connect.add_argument("--workspace", default="", help="Override scope.workspace (local mode)")
+    connect.add_argument(
+        "--usage-profile",
+        default="",
+        help="Usage Profile id (chosen at connect; required if not in connect.yaml / non-interactive)",
+    )
     connect.add_argument(
         "--remote-root",
         default="",

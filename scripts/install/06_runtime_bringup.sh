@@ -9,6 +9,45 @@ _venv_cli() {
   printf '%s/%s/bin/agentcore\n' "${AGENTCORE_ROOT}" "${AGENTCORE_VENV_DIR:-.venv}"
 }
 
+_print_client_usage_profile_next_steps() {
+  local py="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/python"
+  if [[ -x "${py}" ]]; then
+    AGENTCORE_ROOT="${AGENTCORE_ROOT}" "${py}" -c \
+      'from agentcore_cli.client_next_steps import print_client_connect_next_steps; print_client_connect_next_steps()' \
+      >&2
+    return 0
+  fi
+  cat >&2 <<'EOF'
+
+Usage Profile id (set at connect — not during client install/upgrade):
+
+  List ids:
+    agentcore profile list
+
+  Interactive (from your app repo):
+    cd /path/to/YourApp
+    agentcore connect
+    # Wizard asks for Usage Profile: enter an id or list number
+
+  Non-interactive — remote AgentCore server (SSH):
+    agentcore connect --usage-profile programming-cursor-mcp \
+      --tenant TENANT --workspace WORKSPACE \
+      --ssh user@agentcore-host
+
+  Non-interactive — same-host dogfood (local stdio):
+    agentcore connect --local --usage-profile programming-cursor-mcp \
+      --tenant TENANT --workspace WORKSPACE
+
+  Non-interactive — connect.yaml already has usage_profile: <id>:
+    agentcore connect --config .agentcore/connect.yaml
+
+  Multi-app:
+    agentcore connect /opt/App1,/opt/App2 --usage-profile programming-cursor-mcp \
+      --tenant TENANT --workspace WORKSPACE --ssh user@agentcore-host
+
+EOF
+}
+
 stage_06_runtime_bringup_check() {
   local errors=0
   local runtime="${INSTALL_RUNTIME:-venv}"
@@ -127,12 +166,18 @@ stage_06_runtime_bringup_run() {
     info "Skipping application bring-up (client / --skip-infra); PATH still installed"
     mark_stage "06_runtime_bringup" "skipped"
     echo >&2
-    banner "Client install finished"
+    if [[ "${INSTALL_ACTION:-install}" == "upgrade" ]]; then
+      banner "Client upgrade finished"
+    else
+      banner "Client install finished"
+    fi
     cat >&2 <<EOF
 Next steps:
   1. Open a new shell if needed so agentcore is on PATH (~/.local/bin)
-  2. From your app repo:  agentcore connect
-     (interactive SSH wizard, or agentcore connect edit to re-auth)
+  2. cd into your app repo (Usage Profile id is set at connect — not during install/upgrade)
+EOF
+    _print_client_usage_profile_next_steps || true
+    cat >&2 <<EOF
   3. Docs: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 EOF
     return 0
@@ -156,7 +201,8 @@ EOF
 Next steps:
   1. agentcore is on PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
   2. Local stack + MCP mode: ${runtime} — run: agentcore sync
-  3. Same-host IDE connect: agentcore connect   (local-stdio; no remote server required)
+  3. Same-host IDE connect: agentcore connect
+     (Usage Profile id is chosen at connect — see agentcore profile list)
   4. Run:  agentcore --help && agentcore doctor
   5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
   6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
@@ -164,13 +210,17 @@ Next steps:
 Compose env (secrets): ${COMPOSE_ENV_FILE}
 Re-check anytime:       bash install.sh --check --non-interactive --role both --runtime ${runtime}
 EOF
+    _print_client_usage_profile_next_steps || true
   else
     banner "AgentCore SERVER install finished"
     cat >&2 <<EOF
 Next steps:
   1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
   2. Server MCP mode: ${runtime}
-  3. On coding-agent machines: bash install.sh --role client   then   agentcore connect
+  3. On coding-agent machines: bash install.sh --role client   then from each app repo:
+       agentcore connect
+     (Usage Profile id is chosen at connect on the client — not during client install)
+     Or multi-app: agentcore connect /opt/App1,/opt/App2
      Same-host dogfood instead: bash install.sh --role both
   4. Run:  agentcore --help && agentcore doctor
   5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health

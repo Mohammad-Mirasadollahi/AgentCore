@@ -18,6 +18,67 @@ def test_connect_parser_word_modes():
     assert parser.parse_args(["connect"]).connect_mode == ""
     assert parser.parse_args(["connect", "edit"]).connect_mode == "edit"
     assert parser.parse_args(["connect", "init"]).connect_mode == "init"
+    assert parser.parse_args(["connect", "/a,/b"]).connect_mode == "/a,/b"
+
+
+def test_parse_connect_project_dirs(tmp_path: Path):
+    from agentcore_cli.commands.connect import parse_connect_project_dirs
+
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    assert parse_connect_project_dirs("", cwd=tmp_path) == [tmp_path.resolve()]
+    assert parse_connect_project_dirs(f"{a},{b}", cwd=tmp_path) == [a.resolve(), b.resolve()]
+    with pytest.raises(SystemExit, match="not a directory"):
+        parse_connect_project_dirs(str(tmp_path / "missing"), cwd=tmp_path)
+
+
+def test_cmd_connect_multi_path_reuses_shared_settings(tmp_path: Path, monkeypatch):
+    from argparse import Namespace
+    from dataclasses import replace
+
+    from agentcore_cli.commands.connect import cmd_connect
+    from agentcore_cli.connect_config import ConnectSettings
+
+    a = tmp_path / "AppA"
+    b = tmp_path / "AppB"
+    a.mkdir()
+    b.mkdir()
+    saw_shared: list[bool] = []
+
+    def fake_one(args, *, work, shared, force_edit):
+        saw_shared.append(shared is not None)
+        settings = shared or ConnectSettings(
+            ssh="ops@h",
+            tenant="t",
+            workspace="w",
+            project=work.name,
+            source_server_path=str(work),
+            prefer_http=False,
+            local=False,
+        )
+        return 0, replace(settings, project=work.name, source_server_path=str(work))
+
+    monkeypatch.setattr("agentcore_cli.commands.connect._connect_one", fake_one)
+    monkeypatch.setattr("agentcore_cli.commands.connect._pin_software_paths", lambda *a, **k: None)
+    monkeypatch.chdir(tmp_path)
+    args = Namespace(
+        connect_mode=f"{a},{b}",
+        config="",
+        local=False,
+        dry_run=True,
+        project="",
+        ssh="",
+        server="",
+        clients="all",
+        include_user_clients=False,
+        tenant="",
+        workspace="",
+        remote_root="",
+    )
+    assert cmd_connect(args) == 0
+    assert saw_shared == [False, True]
 
 
 def test_parse_ssh_target():
@@ -85,7 +146,7 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
         "ssh-ed25519 AAAA agentcore-connect\n", encoding="utf-8"
     )
 
-    answers = iter(["agentcore.example", "ops", "acme", "eng"])
+    answers = iter(["agentcore.example", "ops", "acme", "eng", "programming-cursor-mcp"])
 
     def fake_input(prompt: str) -> str:
         return next(answers)
@@ -122,6 +183,7 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
     )
     assert settings.ssh == "ops@agentcore.example"
     assert settings.remote_root == "/opt/AgentCore"
+    assert settings.usage_profile == "programming-cursor-mcp"
     assert settings.prefer_http is False
     cfg = (home / ".agentcore" / "connect.yaml").read_text(encoding="utf-8")
     assert "ops@agentcore.example" in cfg
@@ -129,7 +191,7 @@ def test_run_ssh_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
     assert "password" not in cfg
 
 
-def test_run_ssh_connect_wizard_prompts_path_when_discover_fails(tmp_path: Path, monkeypatch):
+def test_run_ssh_connect_wizard_fails_when_discover_misses(tmp_path: Path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()
     identity = home / ".ssh" / "id_ed25519_agentcore"
@@ -138,7 +200,7 @@ def test_run_ssh_connect_wizard_prompts_path_when_discover_fails(tmp_path: Path,
     (home / ".ssh" / "id_ed25519_agentcore.pub").write_text(
         "ssh-ed25519 AAAA agentcore-connect\n", encoding="utf-8"
     )
-    answers = iter(["h.example", "ops", "t", "w", "/srv/AgentCore"])
+    answers = iter(["h.example", "ops", "t", "w", "default"])
 
     def fake_input(prompt: str) -> str:
         return next(answers)
@@ -154,15 +216,18 @@ def test_run_ssh_connect_wizard_prompts_path_when_discover_fails(tmp_path: Path,
     )
     app = tmp_path / "App"
     app.mkdir()
-    settings = run_ssh_connect_wizard(
-        existing=ConnectSettings(project="App"),
-        rotate=False,
-        config_path=home / "connect.yaml",
-        project_dir=app,
-        input_fn=fake_input,
-        password_fn=lambda _p: "pw",
-    )
-    assert settings.remote_root == "/srv/AgentCore"
+    with pytest.raises(SystemExit, match="install-root marker"):
+        run_ssh_connect_wizard(
+            existing=ConnectSettings(project="App"),
+            rotate=False,
+            config_path=home / "connect.yaml",
+            project_dir=app,
+            input_fn=fake_input,
+            password_fn=lambda _p: "pw",
+        )
+
+
+def test_ensure_ssh_ready_batch_fail_starts_wizard(tmp_path: Path, monkeypatch):
     monkeypatch.setattr("agentcore_cli.connect_wizard.probe_batch_mode", lambda *a, **k: False)
     monkeypatch.setattr("agentcore_cli.connect_wizard.sys.stdin.isatty", lambda: True)
 
@@ -176,6 +241,21 @@ def test_run_ssh_connect_wizard_prompts_path_when_discover_fails(tmp_path: Path,
         allow_wizard=True,
     )
     assert out.ssh_identity == "/tmp/k"
+
+
+def test_prompt_usage_profile_accepts_number(monkeypatch):
+    from agentcore_cli.connect_wizard import prompt_usage_profile
+
+    monkeypatch.setattr(
+        "usage_profile.list_profile_ids",
+        lambda: ["default", "programming-cursor-mcp"],
+    )
+    monkeypatch.setattr(
+        "usage_profile.load_usage_profile",
+        lambda pid: {"title": pid},
+    )
+    assert prompt_usage_profile(input_fn=lambda _p: "2") == "programming-cursor-mcp"
+    assert prompt_usage_profile(default="default", input_fn=lambda _p: "") == "default"
 
 
 def test_ensure_ssh_ready_edit_rotates(tmp_path: Path, monkeypatch):

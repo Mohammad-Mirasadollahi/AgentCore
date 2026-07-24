@@ -24,8 +24,11 @@ Add new install steps in the smallest matching module. Keep root `install.sh` as
 **Install-root marker:** after verify/runtime stages, install writes a readable
 `install-root` file under `<AGENTCORE_ROOT>/.agentcore/` and `$HOME/.agentcore/`
 (and `SUDO_USER` home when installing via sudo). Client `agentcore connect`
-discovers that path over SSH after password/key setup so operators are not asked
-for the remote AgentCore root.
+discovers that path over SSH after password/key setup — operators are never
+prompted for the remote AgentCore root (missing marker → clear error; optional
+`server.remote_root` in connect.yaml as override). Local checkout path for
+`get-agentcore.sh` defaults to `/opt/AgentCore` (override with `--root` /
+`AGENTCORE_ROOT`; no interactive prompt).
 
 | Related | Path |
 |---------|------|

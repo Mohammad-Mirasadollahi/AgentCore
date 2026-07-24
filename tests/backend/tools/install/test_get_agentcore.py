@@ -54,6 +54,17 @@ def test_normalize_channel() -> None:
     assert "bad" in lines
 
 
+def test_prompt_root_uses_default_without_tty_prompt() -> None:
+    proc = _source_helpers(
+        "prompt_root; echo; "
+        "AGENTCORE_ROOT=/custom/ac prompt_root"
+    )
+    assert proc.returncode == 0, proc.stderr
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[0] == "/opt/AgentCore"
+    assert lines[1] == "/custom/ac"
+
+
 def test_preserve_paths_list() -> None:
     proc = _source_helpers("preserve_paths")
     assert proc.returncode == 0, proc.stderr

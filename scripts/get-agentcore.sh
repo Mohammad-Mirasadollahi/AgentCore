@@ -185,20 +185,10 @@ prompt_channel() {
 }
 
 prompt_root() {
+  # Local CLI checkout only. Never ask interactively — operators override with
+  # --root or AGENTCORE_ROOT. The AgentCore path *on the server* is discovered
+  # later by `agentcore connect` (install-root markers), not here.
   local root="${AGENTCORE_ROOT:-${AGENTCORE_DEFAULT_ROOT}}"
-  if [[ -n "${AGENTCORE_ROOT:-}" ]]; then
-    printf '%s\n' "${root}"
-    return 0
-  fi
-  if ! can_prompt; then
-    printf '%s\n' "${root}"
-    return 0
-  fi
-  local ans=""
-  ans="$(read_prompt "Install root [${root}]: ")"
-  if [[ -n "${ans}" ]]; then
-    root="${ans}"
-  fi
   printf '%s\n' "${root}"
 }
 
@@ -401,14 +391,15 @@ Usage:
 
 Get options:
   --channel release|main   Fetch channel (prompted on TTY if omitted)
-  --root PATH              Install directory (default ${AGENTCORE_DEFAULT_ROOT})
+  --root PATH              Local install directory (default ${AGENTCORE_DEFAULT_ROOT}; no prompt)
   --yes, -y                Skip install.sh "type yes" (also implied by --non-interactive / --role)
   --skip-install           Fetch only (do not run install.sh)
   -h, --help               Show this help
 
 Any other flags are passed through to install.sh (--role, --runtime, --upgrade, …).
 Passing --role enables --non-interactive and --yes (unattended). Interactive runs still ask
-install/upgrade, type yes, then client/server (and server MCP mode).
+install/upgrade, type yes, then client/server/both (and server MCP mode).
+Remote AgentCore root on the server is not asked here — `agentcore connect` discovers it.
 
 Channels:
   release  Latest GitHub Release tag (immutable); recommended for servers

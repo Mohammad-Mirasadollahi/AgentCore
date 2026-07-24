@@ -51,7 +51,7 @@ def test_settings_for_local_uses_identity_scope(tmp_path: Path, monkeypatch):
         clients="all",
         include_user_clients=False,
     )
-    settings = _settings_for_local(args)
+    settings = _settings_for_local(args, work=tmp_path)
     assert settings.tenant == "acme"
     assert settings.workspace == "eng"
     assert settings.project == "payments"
