@@ -333,22 +333,26 @@ run_install() {
     return 0
   fi
 
-  # Bootstrap already chose channel/root (or flags). Never ask install.sh to type "yes".
-  local args=(--yes)
+  local args=()
+  local has_yes=0
   local has_noninteractive=0
   local has_role=0
   local a
   for a in "$@"; do
     case "${a}" in
-      --yes | -y) continue ;;
+      --yes | -y) has_yes=1 ;;
       --non-interactive) has_noninteractive=1 ;;
       --role) has_role=1 ;;
     esac
     args+=("${a}")
   done
-  # CLI --role means an agent/CI client: no install/upgrade/role menus.
+  # CLI --role means agent/CI: no menus. Also skip "type yes" (unattended).
   if [[ "${has_role}" == "1" && "${has_noninteractive}" != "1" ]]; then
     args=(--non-interactive "${args[@]}")
+    has_noninteractive=1
+  fi
+  if [[ "${has_noninteractive}" == "1" && "${has_yes}" != "1" ]]; then
+    args=(--yes "${args[@]}")
   fi
 
   info "Running: bash install.sh ${args[*]}"
@@ -366,12 +370,13 @@ Usage:
 Get options:
   --channel release|main   Fetch channel (prompted on TTY if omitted)
   --root PATH              Install directory (default ${AGENTCORE_DEFAULT_ROOT})
-  --yes, -y                (default) Always passed to install.sh; optional to pass explicitly
+  --yes, -y                Skip install.sh "type yes" (also implied by --non-interactive / --role)
   --skip-install           Fetch only (do not run install.sh)
   -h, --help               Show this help
 
 Any other flags are passed through to install.sh (--role, --runtime, --upgrade, …).
-Passing --role also enables --non-interactive (no install menus; agent/CI friendly).
+Passing --role enables --non-interactive and --yes (unattended). Interactive runs still ask
+install/upgrade, type yes, then client/server (and server MCP mode).
 
 Channels:
   release  Latest GitHub Release tag (immutable); recommended for servers

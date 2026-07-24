@@ -37,7 +37,7 @@ INSTALL_ACTION="${INSTALL_ACTION:-}"
 INSTALL_ASSUME_YES="${INSTALL_ASSUME_YES:-0}"
 AGENTCORE_WHEELHOUSE="${AGENTCORE_WHEELHOUSE:-/opt/agentcore-wheelhouse}"
 
-log() { printf '%s %s\n' "${INSTALL_LOG_PREFIX}" "$*"; }
+log() { printf '%s %s\n' "${INSTALL_LOG_PREFIX}" "$*" >&2; }
 info() { log "INFO  $*"; }
 ok() { log "OK    $*"; }
 warn() { log "WARN  $*" >&2; }
@@ -257,7 +257,7 @@ normalize_install_action() {
 prompt_install_action() {
   local choice=""
   banner "Install new or upgrade existing?"
-  cat <<'EOF'
+  cat >&2 <<'EOF'
   1) install — Fresh / full bootstrap (client or server prompts follow)
   2) upgrade — Re-run stages on an existing install (needs prior install-state)
 
@@ -318,6 +318,9 @@ resolve_install_action() {
 
   INSTALL_ACTION="${resolved}"
   export INSTALL_ACTION
+  # Strip accidental whitespace/newlines if a prompt ever leaked UI to stdout.
+  INSTALL_ACTION="$(printf '%s' "${INSTALL_ACTION}" | tr -d '\r' | awk 'NF{line=$0} END{print line}')"
+  export INSTALL_ACTION
   confirm_install_action "${INSTALL_ACTION}"
   ok "Install action: ${INSTALL_ACTION}"
 }
@@ -335,7 +338,7 @@ normalize_install_runtime() {
 prompt_install_role() {
   local choice=""
   banner "Install client or server?"
-  cat <<'EOF'
+  cat >&2 <<'EOF'
   1) client — Coding-agent machine: CLI + venv only (no Postgres/Neo4j Compose).
               Next step after install: agentcore connect
   2) server — AgentCore platform host: Compose stores + MCP gateway
@@ -357,7 +360,7 @@ EOF
 prompt_install_runtime() {
   local choice=""
   banner "Choose how the SERVER runs MCP"
-  cat <<'EOF'
+  cat >&2 <<'EOF'
   Infra (Postgres + Neo4j) always uses Compose on the server. Pick where MCP runs:
 
   1) venv   — MCP HTTP from this machine's Python .venv (recommended default)

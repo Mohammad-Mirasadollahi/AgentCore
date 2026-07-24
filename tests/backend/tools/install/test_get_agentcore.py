@@ -239,11 +239,12 @@ parse_and_run --channel release --root {root.as_posix()!r} --yes --role server -
         env={**os.environ, "AGENTCORE_SKIP_INSTALL": "0"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    # --role implies --non-interactive; --yes is always injected (once).
+    # --role implies --non-interactive; --yes kept (explicit) or added for unattended.
     assert "INSTALL_ARGS:--non-interactive --yes --role server --runtime venv" in proc.stdout
 
 
-def test_run_install_auto_yes_without_explicit_flag(tmp_path: Path) -> None:
+def test_run_install_interactive_does_not_force_yes(tmp_path: Path) -> None:
+    """TTY bootstrap must still show install.sh 'type yes' confirmation."""
     root = tmp_path / "AgentCore"
     root.mkdir()
     (root / "install.sh").write_text(
@@ -256,7 +257,10 @@ def test_run_install_auto_yes_without_explicit_flag(tmp_path: Path) -> None:
         env={"AGENTCORE_SKIP_INSTALL": "0"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    assert "INSTALL_ARGS:--yes" in proc.stdout
+    assert "INSTALL_ARGS:" in proc.stdout
+    assert "INSTALL_ARGS:--yes" not in proc.stdout
+    # Empty argv after INSTALL_ARGS:
+    assert proc.stdout.strip().endswith("INSTALL_ARGS:") or "INSTALL_ARGS:\n" in proc.stdout
 
 
 def test_run_install_role_implies_noninteractive(tmp_path: Path) -> None:
@@ -272,7 +276,7 @@ def test_run_install_role_implies_noninteractive(tmp_path: Path) -> None:
         env={"AGENTCORE_SKIP_INSTALL": "0"},
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    assert "INSTALL_ARGS:--non-interactive --yes --role client" in proc.stdout
+    assert "INSTALL_ARGS:--yes --non-interactive --role client" in proc.stdout
 
 
 def test_noninteractive_requires_channel() -> None:
