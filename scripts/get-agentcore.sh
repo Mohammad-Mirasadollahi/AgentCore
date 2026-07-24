@@ -165,14 +165,23 @@ prompt_channel() {
   echo "  1) release  — latest GitHub Release (or newest tag if none)" >&2
   echo "  2) main     — latest commits on ${AGENTCORE_DEFAULT_BRANCH} (may be unreleased)" >&2
   local ans=""
-  ans="$(read_prompt "Choose [1/2] (default 1): ")"
-  case "${ans}" in
-    "" | 1 | release | r | R) printf '%s\n' release ;;
-    2 | main | m | M) printf '%s\n' main ;;
-    *)
-      normalize_channel "${ans}" || fail "invalid channel choice: ${ans}"
-      ;;
-  esac
+  while true; do
+    ans="$(read_prompt "Choose [1/2]: ")"
+    case "${ans}" in
+      1 | release | r | R) printf '%s\n' release; return 0 ;;
+      2 | main | m | M) printf '%s\n' main; return 0 ;;
+      "")
+        echo "Choose 1 or 2 (no default)" >&2
+        ;;
+      *)
+        if normalize_channel "${ans}" >/dev/null 2>&1; then
+          normalize_channel "${ans}"
+          return 0
+        fi
+        echo "Enter 1/release or 2/main" >&2
+        ;;
+    esac
+  done
 }
 
 prompt_root() {

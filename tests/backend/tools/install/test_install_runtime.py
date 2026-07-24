@@ -149,6 +149,19 @@ def test_normalize_install_action() -> None:
     assert "bad" in lines
 
 
+def test_normalize_yes_no_accepts_y_n() -> None:
+    proc = _bash_snippet(
+        "normalize_yes_no y; echo; normalize_yes_no YES; echo; "
+        "normalize_yes_no n; echo; normalize_yes_no No; echo; "
+        "normalize_yes_no maybe || echo bad; echo; "
+        "normalize_yes_no '' || echo empty"
+    )
+    assert proc.returncode == 0, proc.stderr
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[:4] == ["yes", "yes", "no", "no"]
+    assert "bad" in lines and "empty" in lines
+
+
 def test_confirm_install_action_requires_exact_yes() -> None:
     proc = _bash_snippet(
         "confirm_install_action install <<'EOF'\nno\nEOF",
@@ -219,8 +232,13 @@ def test_prompt_menus_go_to_stderr_and_confirm_still_asks_yes() -> None:
     text = (LIB / "common.sh").read_text(encoding="utf-8")
     assert "cat >&2 <<'EOF'" in text
     assert '$*" >&2; }' in text or '"$*" >&2; }' in text
-    assert "Type yes to continue" in text
+    assert "Continue with ${action}? [y/n]" in text or "[y/n]" in text
+    assert "normalize_yes_no" in text
+    assert "Choose 1 or 2 (no default)" in text
     assert "Confirmation skipped" in text
+    # Interactive choice prompts must not offer Enter-as-default.
+    assert "default: 1" not in text
+    assert "default: 2" not in text
 
 
 def test_prompt_copy_mentions_client_or_server() -> None:

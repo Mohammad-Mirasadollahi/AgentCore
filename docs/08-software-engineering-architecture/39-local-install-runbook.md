@@ -40,7 +40,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.3
+doc_version: 1.3.4
 audience:
 - engineer
 - operator
@@ -76,7 +76,7 @@ You will be asked:
    - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
    - **main** — tip of the `main` branch (may include unreleased commits)
 2. **Install root** (default `/opt/AgentCore`)
-3. Then `install.sh` menus: install/upgrade → **type `yes`** → client/server (and server MCP mode). Unattended: pass `--role` (implies `--non-interactive --yes`) or explicit `--yes --non-interactive`.
+3. Then `install.sh` menus: install/upgrade (no default) → **y/n confirm** (no default; `y`/`yes` or `n`/`no`) → client/server (no default; and server MCP mode). Unattended: pass `--role` (implies `--non-interactive --yes`) or explicit `--yes --non-interactive`.
 
 Non-interactive fetch + install examples:
 
@@ -102,10 +102,10 @@ bash install.sh
 
 On a TTY the installer **asks in order**:
 
-1. **install or upgrade?**
-2. Type **`yes`** to confirm (anything else aborts)
-3. If **install**: **client or server?**
-4. If **server**: **venv or docker** for MCP?
+1. **install or upgrade?** (must choose `1` or `2` — no Enter default)
+2. Confirm with **`y`/`yes`** or **`n`/`no`** (no default; empty re-prompts)
+3. If **install**: **client or server?** (no default)
+4. If **server**: **venv or docker** for MCP? (no default)
    - **venv** — MCP HTTP from this machine’s Python `.venv` (recommended; formerly labeled `host`)
    - **docker** — MCP HTTP in the `mcp-gateway` Compose container
 
