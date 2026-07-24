@@ -100,25 +100,15 @@ def ssh_argv(
     *,
     batch_mode: bool = True,
     connect_timeout: int = 15,
-    identity_file: str | None = None,
 ) -> list[str]:
-    """Full local argv to run *remote_command* on *ssh_target*.
-
-    OpenSSH joins remote argv with spaces when building the remote command string.
-    Passing ``bash -lc 'set -euo …'`` or ``python -c 'import x; …'`` as separate
-    list elements therefore loses quoting. Always send one shell-quoted remote string.
-    """
+    """Full local argv to run *remote_command* on *ssh_target*."""
     cmd: list[str] = ["ssh"]
     if batch_mode:
         cmd.extend(["-o", "BatchMode=yes"])
     if connect_timeout > 0:
         cmd.extend(["-o", f"ConnectTimeout={connect_timeout}"])
-    if identity_file and str(identity_file).strip():
-        path = str(Path(identity_file).expanduser())
-        cmd.extend(["-i", path, "-o", "IdentitiesOnly=yes"])
     cmd.append(ssh_target)
-    if remote_command:
-        cmd.append(shlex.join(list(remote_command)))
+    cmd.extend(remote_command)
     return cmd
 
 
@@ -134,7 +124,6 @@ def materialize_ssh_mcp_fragment(
     remote_os: str = "unix",
     ssh_batch_mode: bool = True,
     ssh_connect_timeout: int = 15,
-    identity_file: str | None = None,
 ) -> dict[str, Any]:
     """Build an ``mcpServers`` fragment that runs MCP gateway on the AgentCore host via SSH."""
     remote_cmd = remote_mcp_serve_command(
@@ -150,12 +139,8 @@ def materialize_ssh_mcp_fragment(
         args.extend(["-o", "BatchMode=yes"])
     if ssh_connect_timeout > 0:
         args.extend(["-o", f"ConnectTimeout={ssh_connect_timeout}"])
-    if identity_file and str(identity_file).strip():
-        path = str(Path(identity_file).expanduser())
-        args.extend(["-i", path, "-o", "IdentitiesOnly=yes"])
     args.append(ssh_target)
-    # One remote string so IDE-spawned SSH keeps quoting (same rule as ssh_argv).
-    args.append(shlex.join(remote_cmd))
+    args.extend(remote_cmd)
     return {
         "mcpServers": {
             server_name: {
@@ -166,21 +151,8 @@ def materialize_ssh_mcp_fragment(
     }
 
 
-def run_ssh(
-    ssh_target: str,
-    remote_command: Sequence[str],
-    *,
-    connect_timeout: int = 15,
-    identity_file: str | None = None,
-) -> int:
-    return subprocess.run(
-        ssh_argv(
-            ssh_target,
-            remote_command,
-            connect_timeout=connect_timeout,
-            identity_file=identity_file,
-        )
-    ).returncode
+def run_ssh(ssh_target: str, remote_command: Sequence[str], *, connect_timeout: int = 15) -> int:
+    return subprocess.run(ssh_argv(ssh_target, remote_command, connect_timeout=connect_timeout)).returncode
 
 
 def doctor_remote(
@@ -190,7 +162,6 @@ def doctor_remote(
     remote_python: str | None = None,
     remote_os: str = "unix",
     connect_timeout: int = 15,
-    identity_file: str | None = None,
 ) -> int:
     """Verify SSH and remote AgentCore MCP prerequisites."""
     root = remote_root.rstrip("/\\")
@@ -206,12 +177,7 @@ def doctor_remote(
     ]
     ok = True
     for label, remote_cmd in checks:
-        code = run_ssh(
-            ssh_target,
-            remote_cmd,
-            connect_timeout=connect_timeout,
-            identity_file=identity_file,
-        )
+        code = run_ssh(ssh_target, remote_cmd, connect_timeout=connect_timeout)
         if code != 0:
             ok = False
             print(f"FAIL {label}: ssh {ssh_target} {' '.join(shlex.quote(c) for c in remote_cmd)}", file=sys.stderr)
@@ -230,7 +196,6 @@ def remote_register_project(
     project_name: str,
     usage_profile: str,
     remote_os: str = "unix",
-    identity_file: str | None = None,
 ) -> None:
     root = remote_root.rstrip("/\\")
     if remote_os == "windows":
@@ -259,7 +224,7 @@ def remote_register_project(
             f"--usage-profile {shlex.quote(usage_profile)}"
         )
         remote_cmd = ["bash", "-lc", shell]
-    code = run_ssh(ssh_target, remote_cmd, identity_file=identity_file)
+    code = run_ssh(ssh_target, remote_cmd)
     if code != 0:
         raise SystemExit(f"error: remote project register/activate failed (exit {code})")
 
@@ -283,11 +248,10 @@ def wire_remote_dev_host(
     skip_doctor: bool = False,
     clients: str = "all",
     include_user_clients: bool = False,
-    identity_file: str | None = None,
 ) -> int:
     if not skip_doctor:
         py = remote_python or remote_venv_python(remote_root, remote_os=remote_os)
-        if run_ssh(ssh_target, ["test", "-f", py], identity_file=identity_file) != 0:
+        if run_ssh(ssh_target, ["test", "-f", py]) != 0:
             raise SystemExit(f"error: remote python missing at {py} (run install.sh on AgentCore host)")
 
     if register:
@@ -300,7 +264,6 @@ def wire_remote_dev_host(
             project_name=project_name or project_id,
             usage_profile=usage_profile,
             remote_os=remote_os,
-            identity_file=identity_file,
         )
 
     fragment = materialize_ssh_mcp_fragment(
@@ -312,7 +275,6 @@ def wire_remote_dev_host(
         server_name=server_name,
         remote_python=remote_python,
         remote_os=remote_os,
-        identity_file=identity_file,
     )
 
     if dry_run:

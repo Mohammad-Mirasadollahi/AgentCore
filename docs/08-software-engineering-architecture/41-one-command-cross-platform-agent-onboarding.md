@@ -6,8 +6,8 @@ status: active
 schema_version: '1.0'
 owner: platform-product
 summary: Operator guide and specification for connecting any MCP-capable coding agent to a
-  remote AgentCore server with one command. Covers SSH stdio and Streamable HTTP transports,
-  shared config, authentication, concurrency, and security.
+  remote AgentCore server with one command. Covers interactive SSH key bootstrap, SSH stdio
+  and Streamable HTTP transports, shared config, authentication, concurrency, and security.
 tags:
 - mcp
 - onboarding
@@ -16,6 +16,7 @@ tags:
 - coding-agent
 - specification
 - runbook
+- ssh
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 lifecycle_lane: current
@@ -25,15 +26,17 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
-placeholder: 1
-doc_version: 1.0.0
+linked_symbols:
+- backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
+- backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
+- backend/packages/agentcore_cli/connect_flow.py::run_connect
+- backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
+doc_version: 1.1.0
 updated_at: '2026-07-24'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding
 
-## 41 - One-Command Cross-Platform Agent Onboarding
 ## Purpose
 
 Connect any **MCP-capable coding agent** (Cursor, Windsurf, VS Code, Claude Code, Continue, Claude Desktop, …) to **AgentCore on a remote server** with one command:
@@ -110,8 +113,8 @@ Shared for both modes:
 Selection rule inside `agentcore connect`:
 
 1. If `prefer_http: true` (default) **and** HTTP URL + auth headers/token are available → write **HTTP** MCP configs.
-2. Else if `server.ssh` is set → write **SSH** MCP configs.
-3. Else fail with a clear error.
+2. Else if SSH BatchMode works (or the interactive wizard just installed a key) → write **SSH** MCP configs.
+3. Else fail closed with a message to run `agentcore connect --edit` (or fix `connect.yaml`).
 
 ## One-time setup checklist
 
@@ -131,15 +134,13 @@ Open a new shell so `agentcore` is on `PATH` ([36](./36-agentcore-cli.md)).
 ## Install CLI only (no need for Docker infra on the laptop)
 bash install.sh --skip-infra
 agentcore path install   # if needed
-agentcore connect --init
-```
-
-Edit `~/.agentcore/connect.yaml` (Unix mode `600`). Then daily work is:
-
-```bash
 cd /opt/MyApp
 agentcore connect
 ```
+
+On a TTY with no `~/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root, tenant/workspace. It generates `~/.ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored.
+
+Advanced template only: `agentcore connect --init` then hand-edit YAML.
 
 Reload MCP / the IDE window after connect succeeds.
 
@@ -147,7 +148,7 @@ Reload MCP / the IDE window after connect succeeds.
 
 ## Example 1 — SSH mode (recommended for private LAN)
 
-Use this when the coding agent runs on a machine that can SSH to the AgentCore host with a **key**.
+Use this when the coding agent runs on a machine that can reach the AgentCore host over SSH.
 
 ### Server: nothing extra for MCP HTTP
 
@@ -159,17 +160,29 @@ SSH mode only needs a completed `install.sh` and a login that can run:
 
 (that is what `agentcore connect` puts into MCP `ssh` args).
 
-### Dev host: create SSH key (no password prompts)
+### Dev host: interactive key bootstrap (default)
 
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519_agentcore
-ssh-copy-id -i ~/.ssh/id_ed25519_agentcore.pub ops@agentcore.example.internal
-ssh -o BatchMode=yes -i ~/.ssh/id_ed25519_agentcore ops@agentcore.example.internal true
+cd /opt/MyApp
+agentcore connect
+# prompts: host, username, password, remote_root, tenant, workspace
 ```
 
-Prefer a dedicated OS user (for example `ops`), not interactive root passwords. **Passwords do not work** for IDE MCP spawn.
+Prefer a dedicated OS user (for example `ops`). The password is used **once** to install the AgentCore pubkey. After that, IDE MCP spawn uses **BatchMode + key only** — passwords do not work for IDE MCP spawn.
+
+Re-enter host/user (and replace the pubkey):
+
+```bash
+agentcore connect --edit
+```
+
+`--edit` always rotates `~/.ssh/id_ed25519_agentcore`, installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
+
+Manual key install remains possible (`ssh-keygen` + `ssh-copy-id`) but is not required.
 
 ### Dev host: `~/.agentcore/connect.yaml`
+
+The wizard writes this file. Hand-edit **scope / clients / remote_root / ingest** freely; re-run `agentcore connect` to apply. If you change `server.ssh` or `auth.ssh_key` and BatchMode breaks, run `agentcore connect --edit` — do not put OS passwords in YAML.
 
 ```yaml
 server:
@@ -406,7 +419,7 @@ User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-
 ## Security (operator rules)
 
 1. **Never** put OS passwords or database passwords in `connect.yaml` or `mcp.json`.
-2. SSH: **keys only**; BatchMode must succeed without a prompt.
+2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect --edit` (replaces pubkey).
 3. HTTP without TLS: private network + firewall on the MCP port; prefer reverse-proxy TLS for anything beyond a closed lab.
 4. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
 5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.

@@ -9,8 +9,16 @@ from agentcore_cli.util import add_scope_args
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    connect = sub.add_parser("connect", help="One-command coding-agent onboarding (see connect.yaml)")
+    connect = sub.add_parser(
+        "connect",
+        help="One-command coding-agent onboarding (interactive SSH wizard or connect.yaml)",
+    )
     connect.add_argument("--init", action="store_true", help="Write ~/.agentcore/connect.yaml template")
+    connect.add_argument(
+        "--edit",
+        action="store_true",
+        help="Re-run interactive SSH setup and replace the AgentCore pubkey",
+    )
     connect.add_argument("--config", default="", help="Path to connect.yaml / connect.json")
     connect.add_argument("--project", default="", help="Override project id (default: cwd directory name)")
     connect.add_argument("--ssh", default="", help="Override server.ssh")

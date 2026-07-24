@@ -43,12 +43,11 @@ def _materialize_mcp_first_guidance(work: Path) -> dict[str, Any]:
 def _ssh_command(settings: ConnectSettings, remote_command: list[str], *, connect_timeout: int = 15) -> list[str]:
     from agentcore_cli.remote_client import ssh_argv
 
-    return ssh_argv(
-        settings.ssh,
-        remote_command,
-        connect_timeout=connect_timeout,
-        identity_file=settings.ssh_identity or None,
-    )
+    extra: list[str] = []
+    if settings.ssh_identity.strip():
+        extra.extend(["-i", str(Path(settings.ssh_identity).expanduser())])
+    base = ssh_argv(settings.ssh, remote_command, connect_timeout=connect_timeout)
+    return ["ssh", *extra, *base[1:]]
 
 
 def _run_ssh(settings: ConnectSettings, remote_command: list[str], *, connect_timeout: int = 15) -> int:
@@ -133,14 +132,8 @@ def reachability_check(settings: ConnectSettings) -> None:
         return
     if settings.api_url and not api_health(settings):
         raise SystemExit(f"error: API health check failed for {settings.api_url}/health")
-    # Prefer HTTP when URL + token can wire MCP; do not require SSH BatchMode in that case.
-    http_ready = bool(settings.prefer_http and settings.mcp_http_url and settings.api_token)
-    if settings.ssh and not http_ready and _run_ssh(settings, ["true"]) != 0:
-        raise SystemExit(
-            f"error: SSH reachability failed for {settings.ssh} (BatchMode / key auth). "
-            "Run `agentcore connect --edit` to re-auth and replace the AgentCore pubkey, "
-            "or fix auth.ssh_key in ~/.agentcore/connect.yaml."
-        )
+    if settings.ssh and _run_ssh(settings, ["true"]) != 0:
+        raise SystemExit(f"error: SSH reachability failed for {settings.ssh} (use key-based auth)")
 
 
 def _local_register(settings: ConnectSettings) -> Path:
@@ -283,18 +276,13 @@ def _print_connect_summary(
         ui.section("MCP configs written")
         for rel in ui.summarize_paths(written, relative_to=str(work)):
             ui.bullet(rel)
-    steps = [
-        "Reload MCP / the IDE window",
-        "Check health: agentcore status",
-        "Fill the graph: agentcore sync",
-    ]
-    if transport.startswith("ssh") or transport == "ssh-stdio":
-        steps.append(
-            "Hand-edit ~/.agentcore/connect.yaml for scope/clients; "
-            "run agentcore connect --edit to change SSH host/user (replaces pubkey)"
-        )
-    ui.next_steps(steps)
-
+    ui.next_steps(
+        [
+            "Reload MCP / the IDE window",
+            "Check health: agentcore status",
+            "Fill the graph: agentcore sync",
+        ]
+    )
     ui.blank()
 
 
@@ -327,15 +315,6 @@ def run_connect(
     if http_url and not http_url.endswith("/mcp"):
         http_url = http_url.rstrip("/") + "/mcp"
     http_headers = dict(mcp_info.get("headers") or {})
-    # Shared AGENTCORE_MCP_HTTP_TOKEN / minted ac1.* without project-profile bootstrap.
-    if not http_headers and settings.prefer_http and http_url and settings.api_token:
-        http_headers = {
-            "Authorization": f"Bearer {settings.api_token}",
-            "X-Tenant-Id": settings.tenant,
-            "X-Workspace-Id": settings.workspace,
-            "X-Project-Id": settings.project,
-            "X-Usage-Profile": settings.usage_profile,
-        }
 
     # --- Local stdio (dogfood same checkout) ---
     if settings.local and not (settings.prefer_http and http_url and http_headers):
@@ -419,19 +398,10 @@ def run_connect(
             project_name=settings.project_name,
             usage_profile=settings.usage_profile,
             remote_os=settings.remote_os,
-            identity_file=settings.ssh_identity or None,
         )
 
     if settings.smoke_test and not dry_run:
-        if (
-            doctor_remote(
-                settings.ssh,
-                settings.remote_root,
-                remote_os=settings.remote_os,
-                identity_file=settings.ssh_identity or None,
-            )
-            != 0
-        ):
+        if doctor_remote(settings.ssh, settings.remote_root, remote_os=settings.remote_os) != 0:
             raise SystemExit("error: remote doctor failed")
 
     fragment = materialize_ssh_mcp_fragment(
@@ -441,7 +411,6 @@ def run_connect(
         workspace=settings.workspace,
         project_id=settings.project,
         remote_os=settings.remote_os,
-        identity_file=settings.ssh_identity or None,
     )
     if dry_run:
         print(json.dumps(fragment, indent=2, sort_keys=True))

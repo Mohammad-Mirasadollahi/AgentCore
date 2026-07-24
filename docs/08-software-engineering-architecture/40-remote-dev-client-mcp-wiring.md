@@ -25,6 +25,8 @@ authority: normative
 visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/mcp_client_targets.py::McpClientTarget
+- backend/packages/agentcore_cli/remote_client.py::wire_remote_dev_host
+- backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
 - scripts/client/wire-remote-mcp.py::main
 related_docs:
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
@@ -32,7 +34,7 @@ related_docs:
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/44-mcp-token-accounting.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
@@ -93,8 +95,10 @@ Products that use a different schema (some JetBrains or Zed layouts) can copy fr
 | Location | Requirement |
 | --- | --- |
 | AgentCore server | Completed [39-local-install-runbook.md](./39-local-install-runbook.md); `agentcore doctor` OK |
-| Dev host | SSH key login to server (`BatchMode=yes`); OpenSSH available (built in on Windows 10+, macOS, Linux) |
+| Dev host | OpenSSH client; first-time `agentcore connect` wizard installs BatchMode key login (or use an existing key) |
 | Dev host Python | 3.12+; install CLI via `pip install -e .` from an AgentCore checkout **or** use `scripts/client/wire-remote-mcp.py` from a copied repo tree |
+
+Preferred onboarding UX: [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) (`agentcore connect` / `--edit`). This runbook remains the low-level SSH wiring detail.
 
 ## Server-side (once)
 
