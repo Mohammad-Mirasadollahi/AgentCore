@@ -170,8 +170,8 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 | --- | --- |
 | `--role ROLE` | `client` or `server` (skips first prompt) |
 | `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
-| `--yes` / `-y` | Skip the interactive `yes` confirmation |
-| `--upgrade` | Upgrade path (interactive still requires `yes` unless `--yes` / `--non-interactive`) |
+| `--yes` / `-y` | Skip the interactive y/n confirmation |
+| `--upgrade` | Upgrade path (interactive still requires y/n unless `--yes` / `--non-interactive`) |
 | `--non-interactive` | No prompts; default `action=install`, `role=server`, `runtime=venv` |
 | `--check` | Verify only; do not install packages or change Compose |
 | `--prerequisites-only` | Stop after OS deps (always installs/checks prerequisites) |
