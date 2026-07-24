@@ -63,6 +63,11 @@ def register(sub: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Only create the symlink; do not modify shell rc files",
     )
+    install.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress human status lines and JSON summary (errors still print)",
+    )
 
     ports = sub.add_parser("ports", help="Port profile preflight")
     ports_sub = ports.add_subparsers(dest="ports_command", required=True)

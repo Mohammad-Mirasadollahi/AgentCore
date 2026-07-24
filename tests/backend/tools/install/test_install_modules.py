@@ -191,6 +191,27 @@ def test_role_client_sets_skip_infra_in_entrypoint() -> None:
     assert "client | CLIENT" in text
 
 
+def test_stage_banners_use_six_total() -> None:
+    for name in (
+        "01_prerequisites.sh",
+        "02_venv.sh",
+        "03_compose_env.sh",
+        "04_docker_infra.sh",
+        "05_verify.sh",
+        "06_runtime_bringup.sh",
+    ):
+        text = (INSTALL_LIB / name).read_text(encoding="utf-8")
+        assert "Stage " in text
+        assert "/06" in text
+        assert "/05 —" not in text and "/05 -" not in text
+
+
+def test_install_cli_uses_path_quiet() -> None:
+    text = (INSTALL_LIB / "common.sh").read_text(encoding="utf-8")
+    assert "path install --quiet" in text
+    assert "path_shim_matches_venv" in text
+
+
 def test_unknown_flag_exits_nonzero() -> None:
     proc = subprocess.run(
         ["bash", str(INSTALL_SH), "--not-a-real-flag"],

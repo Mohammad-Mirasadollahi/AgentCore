@@ -126,9 +126,9 @@ stage_06_runtime_bringup_run() {
   if [[ "${INSTALL_SKIP_INFRA}" == "1" || "${role}" == "client" ]]; then
     info "Skipping application bring-up (client / --skip-infra); PATH still installed"
     mark_stage "06_runtime_bringup" "skipped"
-    echo
+    echo >&2
     banner "Client install finished"
-    cat <<EOF
+    cat >&2 <<EOF
 Next steps:
   1. Open a new shell if needed so agentcore is on PATH (~/.local/bin)
   2. From your app repo:  agentcore connect
@@ -148,9 +148,9 @@ EOF
   mark_stage "06_runtime_bringup" "ok"
   ok "Stage 06 complete (runtime=${runtime})"
 
-  echo
+  echo >&2
   banner "AgentCore SERVER install finished"
-  cat <<EOF
+  cat >&2 <<EOF
 Next steps:
   1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
   2. Server MCP mode: ${runtime}

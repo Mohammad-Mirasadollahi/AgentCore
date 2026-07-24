@@ -61,7 +61,7 @@ stage_02_venv_run() {
   local venv_dir venv_path
   venv_dir="$(_venv_dir)"
   venv_path="$(_venv_path)"
-  banner "Stage 02/05 — Python virtualenv (${venv_dir})"
+  banner "Stage 02/06 — Python virtualenv (${venv_dir})"
 
   if [[ "${INSTALL_CHECK_ONLY}" == "1" ]]; then
     stage_02_venv_check || fail "venv check failed — run: bash install.sh (or bash scripts/ensure-venv.sh)"

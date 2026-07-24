@@ -41,7 +41,7 @@ stage_05_verify_check() {
 }
 
 stage_05_verify_run() {
-  banner "Stage 05/05 — Verify installation"
+  banner "Stage 05/06 — Verify installation"
 
   if [[ "${INSTALL_CHECK_ONLY}" == "1" ]]; then
     stage_01_prerequisites_check || fail "prerequisites failed"

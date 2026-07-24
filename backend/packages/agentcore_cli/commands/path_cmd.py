@@ -94,6 +94,7 @@ def _resolve_shell_rcs(args: argparse.Namespace) -> list[Path]:
 
 def cmd_path_install(args: argparse.Namespace) -> int:
     """Ensure agentcore is on PATH: symlink + durable shell rc PATH export (default)."""
+    quiet = bool(getattr(args, "quiet", False))
     root = repo_root()
     venv_dir = os.environ.get("AGENTCORE_VENV_DIR", ".venv")
     source = root / venv_dir / "bin" / "agentcore"
@@ -119,7 +120,8 @@ def cmd_path_install(args: argparse.Namespace) -> int:
             try:
                 status = _ensure_path_export(rc_path, local_bin)
                 rc_results.append({"path": str(rc_path), "status": status})
-                print(f"PATH export {status} in {rc_path}")
+                if not quiet:
+                    print(f"PATH export {status} in {rc_path}")
             except OSError as exc:
                 rc_results.append({"path": str(rc_path), "status": f"error:{exc}"})
                 print(f"warning: could not update shell rc {rc_path}: {exc}")
@@ -130,7 +132,8 @@ def cmd_path_install(args: argparse.Namespace) -> int:
                     profile_row = _ensure_bash_profile_sources_bashrc(Path(os.path.expanduser("~")))
                     if profile_row:
                         rc_results.append(profile_row)
-                        print(f"login profile {profile_row['status']} in {profile_row['path']}")
+                        if not quiet:
+                            print(f"login profile {profile_row['status']} in {profile_row['path']}")
                 except OSError as exc:
                     print(f"warning: could not update .profile: {exc}")
 
@@ -151,6 +154,9 @@ def cmd_path_install(args: argparse.Namespace) -> int:
     }
     if symlink_error is not None:
         payload["symlink_error"] = symlink_error
-    print_json(payload)
+    if not quiet:
+        print_json(payload)
+    elif hint:
+        print(hint)
     # Symlink is required for default install UX (client + server).
     return 0 if symlink_error is None else 1
