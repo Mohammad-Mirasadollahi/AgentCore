@@ -35,7 +35,7 @@ linked_symbols:
 - scripts/stamp_docs_revision.py::main
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
 x: 1
-doc_version: 1.1.2
+doc_version: 1.1.4
 updated_at: '2026-07-24'
 ---
 
@@ -190,9 +190,9 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | | |
 | --- | --- |
 | **Why** | Materialize coding-agent MCP configs from `~/.agentcore/connect.yaml` (SSH, HTTP, or same-host local) |
-| **Required** | For normal connect: a connect config (create with `--init`). For `--local`: AgentCore checkout available |
-| **Optional** | `--init`, `--local`, `--config`, `--project`, `--ssh`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
-| **Example (template)** | `agentcore connect --init` then edit `~/.agentcore/connect.yaml` |
+| **Required** | For normal connect: a connect config (create with `init`). For `--local`: AgentCore checkout available |
+| **Optional** | word `edit` or `init`, `--local`, `--config`, `--project`, `--ssh`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
+| **Example (template)** | `agentcore connect init` then edit `~/.agentcore/connect.yaml` |
 | **Example (dogfood)** | `agentcore connect --local` (scope from `init` / identity / env — not hardcoded) |
 | **Example (remote)** | `agentcore connect` from the app repo after editing connect.yaml |
 | **What changes** | Writes/merges MCP JSON under project `.cursor/` / `.vscode/` (and optional user-global clients); may register project on server; may ingest/sync depending on connect options |
@@ -213,7 +213,7 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **Standards gate** | Before Phase 1/2 ingest, scans Phase-2-discovered Markdown with Full-tier `docs-standards`. Precedence: CLI `--skip-nonconforming` / `--sync-nonconforming` → (planned) AgentCore Client project preference Skip/Ingest → interactive TTY ask (default **N** = include / do not skip) → non-TTY include (CI-safe). Report field `standards_gate` records counts. Skill `agentcore-standards-on-edit` remediates on edit so skipped paths can sync later. Normative Client + watcher policy: [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
 | **Before sync** | Prints the same **Totals / Need sync / By language** snapshot as `agentcore stats` (file totals with already-synced counts; pending edited / not-indexed counts; LLM symbols) so you see the work before consent and ingest |
 | **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
-| **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. Both phases use ``sync_max_file_workers`` (see ``AGENTCORE_SYNC_MAX_FILE_WORKERS`` / CPU percent); Phase 2 keeps docs-sync store writes single-flight. **done/total** counts **every file considered this run** (new + changed + already-indexed `unchanged_recheck`); the queue line still breaks out `new` / `changed` / `unchanged_recheck`. Unchanged docs with no `linked_symbols` (and no new evidence tokens) are skipped without re-embed; unchanged linked docs still refresh edges/anchors but skip re-embed when the body hash matches. Full inventory totals stay in the Before sync stats. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior** counts. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
+| **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. Both phases use ``sync_max_file_workers`` (see ``AGENTCORE_SYNC_MAX_FILE_WORKERS`` / CPU percent); Phase 2 docs-sync writes run concurrently (Postgres per-thread connections; in-memory store ``RLock``). **done/total** counts **every file considered this run** (new + changed + already-indexed `unchanged_recheck`); the queue line still breaks out `new` / `changed` / `unchanged_recheck`. Unchanged docs with no `linked_symbols` (and no new evidence tokens) are skipped without re-embed; unchanged linked docs still refresh edges/anchors but skip re-embed when the body hash matches. Full inventory totals stay in the Before sync stats. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. Also shows **graph prior** counts. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
 | **Usage log** | Each sync writes one JSON file named by **execution time** (`YYYY-MM-DD_HH-MM-SS.json`) under `AGENTCORE_SYNC_USAGE_LOG_DIR` (default `.agentcore/sync-usage`). Record field `execution_at` is date+time to the second. Folder cap: `AGENTCORE_SYNC_USAGE_LOG_DIR_MAX_BYTES` (default **5 GiB**, FIFO deletes oldest files). Gitignored |
 | **Filters** | Mandatory YAML + wildcards + built-in language excludes — [Sync filters](#sync-filters) |
 

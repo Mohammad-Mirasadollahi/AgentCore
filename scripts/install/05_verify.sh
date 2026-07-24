@@ -68,4 +68,5 @@ stage_05_verify_run() {
   fi
 
   ok "Stage 05 complete (runtime bring-up follows in stage 06)"
+  stamp_agentcore_install_root_markers || warn "install-root marker stamp failed (non-fatal)"
 }

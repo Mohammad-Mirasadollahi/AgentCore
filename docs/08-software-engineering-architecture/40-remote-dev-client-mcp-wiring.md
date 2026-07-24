@@ -34,7 +34,7 @@ related_docs:
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/44-mcp-token-accounting.md
-doc_version: 1.1.0
+doc_version: 1.1.1
 audience:
 - engineer
 - operator
@@ -98,7 +98,7 @@ Products that use a different schema (some JetBrains or Zed layouts) can copy fr
 | Dev host | OpenSSH client; first-time `agentcore connect` wizard installs BatchMode key login (or use an existing key) |
 | Dev host Python | 3.12+; install CLI via `pip install -e .` from an AgentCore checkout **or** use `scripts/client/wire-remote-mcp.py` from a copied repo tree |
 
-Preferred onboarding UX: [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) (`agentcore connect` / `--edit`). This runbook remains the low-level SSH wiring detail.
+Preferred onboarding UX: [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) (`agentcore connect` / `edit`). This runbook remains the low-level SSH wiring detail.
 
 ## Server-side (once)
 

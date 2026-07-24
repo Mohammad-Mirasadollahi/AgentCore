@@ -7,7 +7,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from .bootstrap import ServiceContainer, build_container
-from .core import DocsSyncError, DocsSyncService, Scope, ValidationError
+from .errors import DocsSyncError, ValidationError
+from .models import Scope
+from .service import DocsSyncService
 
 
 class SymbolRequest(BaseModel):

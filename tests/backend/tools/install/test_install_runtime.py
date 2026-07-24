@@ -47,12 +47,28 @@ def test_normalize_install_runtime_accepts_venv_host_docker() -> None:
 def test_normalize_install_role() -> None:
     proc = _bash_snippet(
         "normalize_install_role client; echo; normalize_install_role server; echo; "
+        "normalize_install_role both; echo; normalize_install_role dogfood; echo; "
         "normalize_install_role weird || echo bad"
     )
     assert proc.returncode == 0, proc.stderr
     lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
-    assert lines[:2] == ["client", "server"]
+    assert lines[:4] == ["client", "server", "both", "both"]
     assert "bad" in lines
+
+
+def test_resolve_role_both_keeps_infra(tmp_path: Path) -> None:
+    state = tmp_path / "install-state.env"
+    proc = _bash_snippet(
+        f'INSTALL_STATE_DIR={tmp_path.as_posix()!r}; '
+        f'INSTALL_STATE_FILE={state.as_posix()!r}; '
+        "INSTALL_ROLE=both; resolve_install_role; "
+        'printf "%s\\n" "${INSTALL_ROLE}" "${INSTALL_SKIP_INFRA}"',
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "1", "INSTALL_SKIP_INFRA": "0"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    assert lines[-2:] == ["both", "0"]
+    assert "role=both" in state.read_text(encoding="utf-8")
 
 
 def test_resolve_runtime_honors_flag_noninteractive() -> None:

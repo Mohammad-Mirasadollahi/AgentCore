@@ -142,19 +142,17 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
     maybe_preload_embeddings(embeddings)
     emb_index = build_embedding_index(resolved)
     store = build_store(resolved)
-    # Neo4j: concurrent sessions are safe for reads — only serialize mutations,
-    # and cap total in-flight store ops so a small Neo4j heap is not flooded.
-    # Postgres: one psycopg connection — serialize all store traffic.
-    lock_reads = isinstance(store, PostgresStore)
-    store_conc = None if lock_reads else int(cpu_plan.store_concurrency)
+    # Neo4j and Postgres (per-thread connections) both use bounded concurrent
+    # store slots — not an exclusive process-wide lock.
+    store_conc = int(cpu_plan.store_concurrency)
     if emb_index is not None:
         emb_index = LockedStore(
             emb_index,
-            lock_reads=lock_reads,
+            lock_reads=False,
             max_concurrent=store_conc,
         )
     graph = CodeGraphService(
-        LockedStore(store, lock_reads=lock_reads, max_concurrent=store_conc),
+        LockedStore(store, lock_reads=False, max_concurrent=store_conc),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=embeddings,
         embedding_index=emb_index,

@@ -5,9 +5,9 @@ doc_type: lld
 status: active
 schema_version: '1.0'
 owner: code-graph-lead
-summary: Operator CPU percent derives sync workers, embed slots, Torch/OMP pins, and Neo4j
-  store concurrency; LockedStore no longer single-flights Neo4j mutations; list_symbols omits
-  embeddings on Bolt.
+summary: Operator CPU percent derives sync workers, embed slots, Torch/OMP pins, and
+  store concurrency; LockedStore uses the same slot budget for Neo4j and per-thread
+  Postgres; list_symbols omits embeddings on Bolt.
 tags:
 - sync
 - cpu
@@ -29,8 +29,10 @@ linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/locked_store.py::LockedStore
 - backend/services/code-graph-service/src/code_graph_service/locked_store.py::resolve_sync_cpu_plan
 - backend/services/code-graph-service/src/code_graph_service/locked_store.py::apply_sync_compute_limits
+- backend/services/code-graph-service/src/code_graph_service/pg_thread_local.py::ThreadLocalPsycopg
 - backend/services/code-graph-service/src/code_graph_service/neo4j/cypher.py::LIST_SYMBOLS
 - tests/backend/services/code-graph-service/test_locked_store.py::test_sync_max_file_workers_auto_from_cpu_and_rpm
+- tests/backend/services/code-graph-service/test_pg_thread_local.py::test_thread_local_psycopg_one_connection_per_thread
 related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.rpm-session-parallel-sync-hld
@@ -38,7 +40,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-risks
 - ac.doc.ckg.ingestion-and-living-documentation-workflow
 - docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
@@ -103,8 +105,8 @@ flowchart TD
 | 1 | CLI / bootstrap | Resolve `AGENTCORE_SYNC_CPU_PERCENT` or workers override | `SyncCpuPlan` |
 | 2 | `apply_sync_compute_limits` | Pin OMP/MKL/Torch=1; set embed semaphore | No thread-stack explosion |
 | 3 | File pool | Parallel parse / heuristic docs / embed | CPU work without LiteLLM RPM wait |
-| 4 | `LockedStore` | Up to `store_concurrency` concurrent Neo4j ops | Writes not single-flight |
-| 5 | Postgres path | `lock_reads=True` exclusive RLock | One connection stays safe |
+| 4 | `LockedStore` | Up to `store_concurrency` concurrent store ops | Writes not single-flight |
+| 5 | Postgres path | Per-thread ``psycopg`` + same slot budget | No exclusive ``lock_reads`` in production |
 | 6 | Finalize | One `list_symbols` without embeddings + relink | Indexes without multi-MB vectors |
 
 ## CPU plan resolution
@@ -130,16 +132,17 @@ Example: 48 CPUs at 60% → `workers=29`, `store_concurrency=8`.
 
 | Backend | Reads | Mutations |
 | --- | --- | --- |
-| Postgres (`lock_reads=True`) | Exclusive RLock | Exclusive RLock |
-| Neo4j (`max_concurrent=N`) | Re-entrant semaphore depth `N` | Same semaphore (not a process-wide write RLock) |
-| Neo4j without `max_concurrent` | Unlocked | Exclusive RLock fallback |
+| Postgres / Neo4j (`max_concurrent=N`) | Re-entrant semaphore depth `N` | Same semaphore (not a process-wide write RLock) |
+| Unsafe adapter (`lock_reads=True`) | Exclusive RLock | Exclusive RLock |
+| Without `max_concurrent` | Unlocked reads | Exclusive RLock fallback for mutations |
 
-**Why not a global Neo4j write lock:** with dozens of file workers, every
+**Why not a global write lock:** with dozens of file workers, every
 `put_symbol` / `put_edge` queued behind one RLock left threads on futex while
 progress showed `parallel N active`, so host CPU stayed near one core.
 
-**Why still cap at 8:** Neo4j Community on a small heap cannot absorb 29 concurrent
-Bolt sessions; the slot budget protects overload without serializing all workers.
+**Why still cap at 8:** Neo4j Community on a small heap (and Postgres connection
+count) cannot absorb 29 concurrent sessions; the slot budget protects overload
+without serializing all workers.
 
 Nested store calls on the same thread re-enter the semaphore via thread-local
 depth (avoids BoundedSemaphore deadlock).
@@ -188,7 +191,7 @@ Env field reference:
 | Invalid percent | Fall back to auto plan |
 | Neo4j overload / network aborts | Reduce effective concurrency via smaller percent or heap ops; do not remove the slot cap |
 | Finalize exception | Logged/swallowed at ingest boundary so the walk still finishes; edges may be incomplete until next sync |
-| Postgres | Never use Neo4j slot mode; keep exclusive lock |
+| Postgres | Use per-thread connections + slot budget (same as Neo4j); keep ``lock_reads`` only for non-thread-safe fakes |
 
 ## Verification
 

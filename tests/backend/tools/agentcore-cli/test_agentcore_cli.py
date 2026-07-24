@@ -9,6 +9,9 @@ def test_profile_list_and_show(capsys):
     assert main(["profile", "list"]) == 0
     out = capsys.readouterr().out
     assert "programming-cursor-mcp" in out
+    assert main(["profile"]) == 0
+    bare = capsys.readouterr().out
+    assert "programming-cursor-mcp" in bare
     assert main(["profile", "show", "programming-cursor-mcp"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["profile_id"] == "programming-cursor-mcp"

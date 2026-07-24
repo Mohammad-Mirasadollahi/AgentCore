@@ -1,10 +1,10 @@
 """Serialize store mutations / cap Neo4j concurrency; resolve sync CPU budget.
 
-Role: for Postgres, serialize all store traffic on one connection; for Neo4j,
-cap concurrent Bolt ops (reads *and* mutations) with a re-entrant semaphore —
+Role: cap concurrent store ops (reads and mutations) with a re-entrant semaphore —
 never a process-wide exclusive write lock (that left parallel workers on futex).
-Resolve operator CPU budget into file workers, local-embed slots, and Torch/OMP
-thread caps.
+Postgres adapters use per-thread connections so they share the same slot budget
+as Neo4j. Resolve operator CPU budget into file workers, local-embed slots, and
+Torch/OMP thread caps.
 Source of truth: AGENTCORE_SYNC_CPU_PERCENT / AGENTCORE_SYNC_MAX_FILE_WORKERS /
 AGENTCORE_LITELLM_RPM at plan resolve; apply_sync_compute_limits mutates process
 env before model load.
@@ -23,8 +23,8 @@ from typing import Any
 
 _DEFAULT_AUTO_EMBED_CAP = 4
 
-# Mutations must stay single-flight on Postgres. Neo4j uses bounded slots for
-# both reads and mutations (see LockedStore). Postgres uses lock_reads=True.
+# Names treated as mutations when ``lock_reads`` is False (slot-budgeted, not
+# exclusive). Postgres and Neo4j both use slots under production bootstrap.
 _STORE_MUTATIONS = frozenset(
     {
         "put_symbol",
@@ -200,10 +200,11 @@ def apply_sync_compute_limits(plan: SyncCpuPlan | None = None) -> SyncCpuPlan:
 
 
 class LockedStore:
-    """Cap concurrent Neo4j Bolt ops; serialize all Postgres store traffic.
+    """Cap concurrent store ops (Neo4j Bolt or per-thread Postgres).
 
     The concurrency semaphore is re-entrant per thread so nested store calls
     (put → helper → get) cannot deadlock on the same BoundedSemaphore.
+    ``lock_reads=True`` remains available for non-thread-safe adapters (tests).
     """
 
     def __init__(
@@ -248,11 +249,9 @@ class LockedStore:
         exclusive = self._lock_reads or name in _STORE_MUTATIONS
 
         def locked(*args: Any, **kwargs: Any) -> Any:
-            # Postgres (lock_reads): exclusive RLock for all traffic.
-            # Neo4j mutations: bounded re-entrant slots (not single-flight RLock) —
-            # a global write lock made N workers wait on futex while one Bolt write
-            # ran, so CPU stayed low despite "parallel active".
-            # Neo4j reads: same slot budget.
+            # lock_reads: exclusive RLock for all traffic (legacy / unsafe adapters).
+            # Otherwise: bounded re-entrant slots for reads and mutations so N
+            # workers are not parked on one futex while one write runs.
             if self._lock_reads:
                 with self._lock:
                     return attr(*args, **kwargs)

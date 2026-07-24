@@ -132,7 +132,7 @@ stage_06_runtime_bringup_run() {
 Next steps:
   1. Open a new shell if needed so agentcore is on PATH (~/.local/bin)
   2. From your app repo:  agentcore connect
-     (interactive SSH wizard, or agentcore connect --edit to re-auth)
+     (interactive SSH wizard, or agentcore connect edit to re-auth)
   3. Docs: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 EOF
     return 0
@@ -147,14 +147,31 @@ EOF
   stage_06_runtime_bringup_check || fail "runtime bring-up verification failed"
   mark_stage "06_runtime_bringup" "ok"
   ok "Stage 06 complete (runtime=${runtime})"
+  stamp_agentcore_install_root_markers || warn "install-root marker stamp failed (non-fatal)"
 
   echo >&2
-  banner "AgentCore SERVER install finished"
-  cat >&2 <<EOF
+  if [[ "${role}" == "both" ]]; then
+    banner "AgentCore BOTH (dogfood) install finished"
+    cat >&2 <<EOF
+Next steps:
+  1. agentcore is on PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
+  2. Local stack + MCP mode: ${runtime} — run: agentcore sync
+  3. Same-host IDE connect: agentcore connect   (local-stdio; no remote server required)
+  4. Run:  agentcore --help && agentcore doctor
+  5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
+  6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
+
+Compose env (secrets): ${COMPOSE_ENV_FILE}
+Re-check anytime:       bash install.sh --check --non-interactive --role both --runtime ${runtime}
+EOF
+  else
+    banner "AgentCore SERVER install finished"
+    cat >&2 <<EOF
 Next steps:
   1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
   2. Server MCP mode: ${runtime}
   3. On coding-agent machines: bash install.sh --role client   then   agentcore connect
+     Same-host dogfood instead: bash install.sh --role both
   4. Run:  agentcore --help && agentcore doctor
   5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
   6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
@@ -163,4 +180,5 @@ Next steps:
 Compose env (secrets): ${COMPOSE_ENV_FILE}
 Re-check anytime:       bash install.sh --check --non-interactive --role server --runtime ${runtime}
 EOF
+  fi
 }

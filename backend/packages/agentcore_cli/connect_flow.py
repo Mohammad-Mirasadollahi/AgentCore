@@ -138,7 +138,7 @@ def reachability_check(settings: ConnectSettings) -> None:
     if settings.ssh and not http_ready and _run_ssh(settings, ["true"]) != 0:
         raise SystemExit(
             f"error: SSH reachability failed for {settings.ssh} (BatchMode / key auth). "
-            "Run `agentcore connect --edit` to re-auth and replace the AgentCore pubkey, "
+            "Run `agentcore connect edit` to re-auth and replace the AgentCore pubkey, "
             "or fix auth.ssh_key in .agentcore/connect.yaml."
         )
 
@@ -331,7 +331,7 @@ def _print_connect_summary(
     if transport.startswith("ssh") or transport == "ssh-stdio":
         steps.append(
             "Hand-edit .agentcore/connect.yaml for scope/clients; "
-            "run agentcore connect --edit to change SSH host/user (replaces pubkey)"
+            "run agentcore connect edit to change SSH host/user (replaces pubkey)"
         )
     ui.next_steps(steps)
 

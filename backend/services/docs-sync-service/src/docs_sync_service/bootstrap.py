@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 
-from .core import DocsSyncService
+from .service import DocsSyncService
 from .postgres_store import PostgresStore
 
 

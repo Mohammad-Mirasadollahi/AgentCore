@@ -1,4 +1,4 @@
-"""Interactive first-time / --edit SSH onboarding for `agentcore connect`."""
+"""Interactive first-time / edit SSH onboarding for `agentcore connect`."""
 
 from __future__ import annotations
 
@@ -47,8 +47,8 @@ def _require_tty() -> None:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise SystemExit(
             "error: interactive SSH setup needs a TTY; "
-            "create .agentcore/connect.yaml (agentcore connect --init) "
-            "or run from a terminal: agentcore connect / agentcore connect --edit"
+            "create .agentcore/connect.yaml (agentcore connect init) "
+            "or run from a terminal: agentcore connect / agentcore connect edit"
         )
 
 
@@ -77,7 +77,8 @@ def run_ssh_connect_wizard(
     ui.heading("SSH connect setup" if not rotate else "SSH connect edit (replace pubkey)")
     ui.blank()
     ui.bullet("Password is used once to install an AgentCore SSH key; it is never saved.")
-    ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use --edit to change SSH identity.")
+    ui.bullet("Remote AgentCore root is auto-discovered from install-root markers after SSH.")
+    ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use connect edit to change SSH identity.")
     ui.blank()
 
     override_user, override_host = parse_ssh_target(ssh_override)
@@ -89,11 +90,6 @@ def run_ssh_connect_wizard(
     user = _prompt_line("SSH username", default=user_default, input_fn=input_fn)
     ssh_target = format_ssh_target(user, host)
 
-    remote_root = _prompt_line(
-        "AgentCore remote root",
-        default=base.remote_root or "/opt/AgentCore",
-        input_fn=input_fn,
-    )
     tenant = _prompt_line("Tenant", default=base.tenant or "default", input_fn=input_fn)
     workspace = _prompt_line("Workspace", default=base.workspace or "default", input_fn=input_fn)
     project = base.project or work.name or "project"
@@ -112,6 +108,28 @@ def run_ssh_connect_wizard(
     )
     # Drop password from locals as soon as possible (best-effort).
     password = ""
+
+    print(f"   {ui.warn('…')} discovering AgentCore remote root (install-root marker)")
+    from agentcore_cli.install_root_marker import discover_remote_install_root
+
+    discovered = discover_remote_install_root(
+        ssh_target,
+        identity_file=result.private_path,
+    )
+    if discovered is not None:
+        remote_root = str(discovered)
+        print(f"   {ui.ok('✔')} remote root {remote_root}")
+    else:
+        hint = (base.remote_root or "").strip() or "/opt/AgentCore"
+        print(
+            f"   {ui.warn('!')} no install-root marker found; "
+            "ask once (server should run install / stamp markers)"
+        )
+        remote_root = _prompt_line(
+            "AgentCore remote root",
+            default=hint,
+            input_fn=input_fn,
+        )
 
     settings = replace(
         base,
@@ -150,7 +168,7 @@ def ensure_ssh_ready(
     http_ready = bool(settings.prefer_http and settings.mcp_http_url and settings.api_token)
     if force_edit:
         if not allow_wizard:
-            raise SystemExit("error: --edit requires an interactive TTY")
+            raise SystemExit("error: connect edit requires an interactive TTY")
         return run_ssh_connect_wizard(
             existing=settings,
             rotate=True,
@@ -190,7 +208,7 @@ def ensure_ssh_ready(
         raise SystemExit(
             f"error: SSH key login failed for {settings.ssh} (BatchMode). "
             "Hand-editing server.ssh / auth.ssh_key requires a working key. "
-            "Run `agentcore connect --edit` to re-auth and replace the AgentCore pubkey."
+            "Run `agentcore connect edit` to re-auth and replace the AgentCore pubkey."
         )
 
     print(

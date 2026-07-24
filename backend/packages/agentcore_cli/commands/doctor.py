@@ -56,5 +56,13 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         except Exception as exc:  # noqa: BLE001
             checks[f"import_{name}"] = f"FAIL: {exc}"
             ok = False
+    try:
+        from agentcore_cli.install_root_marker import looks_like_agentcore_root, stamp_install_root_from_env
+
+        if looks_like_agentcore_root(root):
+            stamped = stamp_install_root_from_env(root)
+            checks["install_root_markers"] = [str(p) for p in stamped]
+    except Exception as exc:  # noqa: BLE001 — doctor must not fail on marker I/O
+        checks["install_root_markers"] = f"skip: {exc}"
     print_json(checks)
     return 0 if ok and checks["venv_python"] else 1

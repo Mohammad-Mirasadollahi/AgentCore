@@ -21,6 +21,12 @@ Add new install steps in the smallest matching module. Keep root `install.sh` as
 
 **Upgrade:** `bash install.sh --upgrade` backs up `.agentcore/install-state.env`, re-runs stages, then `agentcore upgrade finalize`. Control-plane / client paths: `agentcore upgrade …` (see docs/08…/51-software-upgrade-server-and-client.md). To refresh code from GitHub first, re-run `get-agentcore.sh` with the same channel.
 
+**Install-root marker:** after verify/runtime stages, install writes a readable
+`install-root` file under `<AGENTCORE_ROOT>/.agentcore/` and `$HOME/.agentcore/`
+(and `SUDO_USER` home when installing via sudo). Client `agentcore connect`
+discovers that path over SSH after password/key setup so operators are not asked
+for the remote AgentCore root.
+
 | Related | Path |
 |---------|------|
 | Operator guide | [`docs/08-software-engineering-architecture/39-local-install-runbook.md`](../../docs/08-software-engineering-architecture/39-local-install-runbook.md) |

@@ -27,7 +27,7 @@ related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.rpm-session-parallel-sync-lld
 - ac.doc.stack.litellm-llm-gateway
-doc_version: 1.0.0
+doc_version: 1.0.2
 audience:
 - engineer
 - architect
@@ -65,7 +65,7 @@ Last verified: 2026-07-22
 
 | ID | Challenge | Why it bites | Design response |
 | --- | --- | --- | --- |
-| C-01 | Postgres single connection | `PostgresStore` holds one `psycopg` connection; concurrent cursors corrupt / error | v1 **SerializedStoreWriter** (single writer / lock) |
+| C-01 | Postgres connection sharing | Sharing one ``psycopg`` connection across threads corrupts cursors | Code-graph and docs-sync Postgres adapters use **per-thread** connections; ``LockedStore`` applies the same slot budget as Neo4j |
 | C-02 | RPM starts ≠ in-flight | Long completions keep provider busy after “start” counted | Dual gate: sliding starts **and** in-flight cap |
 | C-03 | Session leaks | Exception / timeout without `finally` leaves ghost in-flight | Mandatory `release` in `finally`; unit leak tests |
 | C-04 | Idempotency races | Parallel `ingest_file` sharing keys or overlapping completes | Unique per-file keys; begin/complete under writer lock |
@@ -98,7 +98,9 @@ Last verified: 2026-07-22
 - Session registry and RPM truth are **per process**.
 - History is **short** (100) and **volatile** (lost on exit).
 - Human-docs Phase 2 uses the same `sync_max_file_workers` pool as code ingest;
-  docs-sync store writes stay single-flight (one Postgres connection).
+  docs-sync and code-graph Postgres adapters use **per-thread** connections so
+  Phase-1/2 writers share the ``LockedStore`` slot budget (not exclusive
+  ``lock_reads`` serialization).
 - No distributed limiter across hosts.
 
 ## Acceptance gates
@@ -115,8 +117,9 @@ Uncheck → check only when proven in code + tests.
 ### Parallel sync gate
 
 - [x] File parse/hash runs with bounded workers (`AGENTCORE_SYNC_MAX_FILE_WORKERS`).
-- [x] Store mutations serialized; Neo4j and single-connection Postgres paths pass
-  `test_rpm_session_parallel_sync_live.py` with concurrent local HTTP LLM calls.
+- [x] Store ops use bounded slots for Neo4j **and** Postgres (per-thread
+  connections); paths pass `test_rpm_session_parallel_sync_live.py` with
+  concurrent local HTTP LLM calls.
 - [x] Production composition with real cached BGE, real Neo4j, five changed files,
   and local HTTP reaches `http_peak=5` and `rpm_peak=5`
   (`test_production_build_sends_five_files_concurrently`).
@@ -151,7 +154,7 @@ Uncheck → check only when proven in code + tests.
   is explicitly `0600` (`test_llm_sessions_route_is_loopback_only`,
   `test_tracker_snapshot_is_private_before_json_is_written`).
 - [x] Human-docs Phase 2 (`docs_link_sync`) uses ``sync_max_file_workers`` with
-  single-flight docs-sync writes (`test_sync_human_docs_runs_with_parallel_workers`).
+  concurrent docs-sync writes (`test_sync_human_docs_runs_with_parallel_workers`).
 - [x] Unchanged session polls do not rewrite/fsync transient progress
   (`test_tracker_skips_unchanged_session_snapshot`).
 
@@ -166,7 +169,7 @@ Uncheck → check only when proven in code + tests.
 
 | Gap | Notes |
 | --- | --- |
-| Postgres connection pool | Enables safer parallel writers; separate design |
+| Shared ``psycopg_pool`` | Optional; per-thread connections already allow parallel Phase-2 writers |
 | Shared limiter across processes | Redis/file lock — only if multi-sync becomes common |
 | Attempt-level session nesting | If ops need per-retry visibility |
 

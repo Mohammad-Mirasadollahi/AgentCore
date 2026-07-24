@@ -5,7 +5,7 @@ doc_type: runbook
 status: active
 schema_version: '1.0'
 owner: platform-engineering
-summary: 'Beginner-safe modular install for AgentCore local-dev: interactive client/server
+summary: 'Beginner-safe modular install for AgentCore local-dev: interactive client/server/both
   role, venv or docker MCP mode, system prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j,
   and verification.'
 tags:
@@ -17,6 +17,8 @@ tags:
 - local-dev
 - client
 - server
+- both
+- dogfood
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/39-local-install-runbook.md
 lifecycle_lane: current
@@ -40,7 +42,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.4
+doc_version: 1.3.5
 audience:
 - engineer
 - operator
@@ -148,9 +150,9 @@ flowchart TD
 
 | Step | Actor / Action | Outcome |
 | --- | --- | --- |
-| 1 | Operator chooses role | `role=client` or `role=server` in install-state |
-| 2 | If server: choose MCP mode | `runtime=venv` or `runtime=docker` |
-| 3 | Stages 01–06 (client skips infra) | CLI on PATH; server also brings up stores + MCP |
+| 1 | Operator chooses role | `role=client`, `role=server`, or `role=both` in install-state |
+| 2 | If server or both: choose MCP mode | `runtime=venv` or `runtime=docker` |
+| 3 | Stages 01–06 (client skips infra) | CLI on PATH; server/both also bring up stores + MCP |
 
 | Step | Stage | What it checks | What it does if missing |
 | --- | --- | --- | --- |
@@ -168,7 +170,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
 | Flag | Meaning |
 | --- | --- |
-| `--role ROLE` | `client` or `server` (skips first prompt) |
+| `--role ROLE` | `client`, `server`, or `both` (skips first prompt). `both` = same-host dogfood: Compose + local sync + IDE connect |
 | `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
 | `--yes` / `-y` | Skip the interactive y/n confirmation |
 | `--upgrade` | Upgrade path (interactive still requires y/n unless `--yes` / `--non-interactive`) |
@@ -188,6 +190,7 @@ Examples:
 ```bash
 bash install.sh
 bash install.sh --role server --runtime docker
+bash install.sh --role both --runtime venv
 bash install.sh --non-interactive --role server --runtime venv
 bash install.sh --non-interactive --role client
 bash install.sh --upgrade --runtime venv

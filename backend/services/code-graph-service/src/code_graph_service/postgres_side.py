@@ -1,4 +1,11 @@
-"""PostgreSQL pgvector index for code-graph semantic retrieval (Stage-1 hybrid RAG)."""
+"""PostgreSQL pgvector index + outbox mirror (per-thread connections).
+
+Role: ANN embeddings and Neo4j→Postgres outbox mirror for hybrid retrieval.
+Source of truth: ``code_graph.symbol_embeddings`` / ``code_graph.outbox``; SQL text
+lives in ``postgres.sql``; each worker thread owns one ``psycopg`` connection.
+Allowed: concurrent upsert/search under ``LockedStore`` slot budget.
+Forbidden: sharing one connection across threads; inlining large SQL here.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +14,8 @@ from typing import Any, Protocol, Sequence
 
 from .domain.models import Scope
 from .domain.rag import SEARCHABLE_SYMBOL_KINDS
+from .pg_thread_local import ThreadLocalPsycopg
+from .postgres import sql as pg_sql
 
 
 class EmbeddingIndex(Protocol):
@@ -33,11 +42,14 @@ class EmbeddingIndex(Protocol):
 
 
 class InMemoryEmbeddingIndex:
-    """Test double for EmbeddingIndex."""
+    """Test double for EmbeddingIndex (thread-safe)."""
 
     def __init__(self) -> None:
+        import threading
+
         # key → (vector, model, kind)
         self._rows: dict[tuple[str, str, str, str], tuple[list[float], str, str]] = {}
+        self._lock = threading.RLock()
 
     def upsert(
         self,
@@ -49,30 +61,34 @@ class InMemoryEmbeddingIndex:
         kind: str = "unknown",
     ) -> None:
         key = (scope.tenant_id, scope.workspace_id, scope.project_id, symbol_id)
-        self._rows[key] = (list(vector), model, str(kind or "unknown"))
+        with self._lock:
+            self._rows[key] = (list(vector), model, str(kind or "unknown"))
 
     def delete(self, scope: Scope, symbol_id: str) -> None:
         key = (scope.tenant_id, scope.workspace_id, scope.project_id, symbol_id)
-        self._rows.pop(key, None)
+        with self._lock:
+            self._rows.pop(key, None)
 
     def wipe_scope(self, scope: Scope) -> int:
-        drop = [
-            key
-            for key in self._rows
-            if key[:3] == (scope.tenant_id, scope.workspace_id, scope.project_id)
-        ]
-        for key in drop:
-            del self._rows[key]
-        return len(drop)
+        with self._lock:
+            drop = [
+                key
+                for key in self._rows
+                if key[:3] == (scope.tenant_id, scope.workspace_id, scope.project_id)
+            ]
+            for key in drop:
+                del self._rows[key]
+            return len(drop)
 
     def list_symbol_models(self, scope: Scope) -> dict[str, str]:
         """Return symbol_id → embedding model for one scope."""
         out: dict[str, str] = {}
-        for (tenant, workspace, project, symbol_id), (_vec, model, _kind) in self._rows.items():
-            if (tenant, workspace, project) != (scope.tenant_id, scope.workspace_id, scope.project_id):
-                continue
-            if model:
-                out[symbol_id] = str(model)
+        with self._lock:
+            for (tenant, workspace, project, symbol_id), (_vec, model, _kind) in self._rows.items():
+                if (tenant, workspace, project) != (scope.tenant_id, scope.workspace_id, scope.project_id):
+                    continue
+                if model:
+                    out[symbol_id] = model
         return out
 
     def search(
@@ -87,7 +103,9 @@ class InMemoryEmbeddingIndex:
 
         allowed = {str(k) for k in (kinds if kinds is not None else SEARCHABLE_SYMBOL_KINDS)}
         scored: list[tuple[str, float]] = []
-        for (tenant, workspace, project, symbol_id), (stored, _model, kind) in self._rows.items():
+        with self._lock:
+            items = list(self._rows.items())
+        for (tenant, workspace, project, symbol_id), (stored, _model, kind) in items:
             if (tenant, workspace, project) != (scope.tenant_id, scope.workspace_id, scope.project_id):
                 continue
             if allowed and kind not in allowed:
@@ -110,76 +128,36 @@ class PostgresEmbeddingIndex:
             raise RuntimeError("psycopg is required for PostgresEmbeddingIndex") from exc
         normalized = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
         self._dims = dims
-        self._connection = psycopg.connect(normalized, autocommit=True, row_factory=dict_row)
+        self._pool = ThreadLocalPsycopg(
+            lambda: psycopg.connect(normalized, autocommit=True, row_factory=dict_row)
+        )
         if ensure_schema:
             self.ensure_schema()
 
+    @property
+    def _connection(self) -> Any:
+        return self._pool.get()
+
     def close(self) -> None:
-        self._connection.close()
+        self._pool.close_all()
 
     def ensure_schema(self) -> None:
         migrations_dir = Path(__file__).resolve().parents[2] / "migrations"
         with self._connection.cursor() as cur:
-            for name in (
-                "0003_symbol_embeddings.sql",
-                "0004_symbol_embeddings_kind.sql",
-                "0005_symbol_embeddings_dims_1024.sql",
-            ):
+            for name in pg_sql.EMBEDDING_MIGRATION_FILES:
                 path = migrations_dir / name
                 if path.is_file():
                     cur.execute(path.read_text(encoding="utf-8"))
             # If an older vector(16) table still exists, rebuild to match configured dims.
-            cur.execute(
-                """
-                SELECT format_type(a.atttypid, a.atttypmod) AS typ
-                FROM pg_attribute a
-                JOIN pg_class c ON c.oid = a.attrelid
-                JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = 'code_graph'
-                  AND c.relname = 'symbol_embeddings'
-                  AND a.attname = 'embedding'
-                  AND a.attnum > 0
-                  AND NOT a.attisdropped
-                """
-            )
+            cur.execute(pg_sql.SELECT_EMBEDDING_COLUMN_TYPE)
             row = cur.fetchone()
-            expected = f"vector({self._dims})"
+            expected = pg_sql.expected_vector_type(self._dims)
             if row and str(row.get("typ") or "") != expected:
-                cur.execute("DROP TABLE IF EXISTS code_graph.symbol_embeddings CASCADE")
-                cur.execute(
-                    f"""
-                    CREATE TABLE code_graph.symbol_embeddings (
-                        symbol_id text PRIMARY KEY,
-                        tenant_id text NOT NULL,
-                        workspace_id text NOT NULL,
-                        project_id text NOT NULL,
-                        model text NOT NULL,
-                        dims integer NOT NULL CHECK (dims > 0),
-                        kind text NOT NULL DEFAULT 'unknown',
-                        embedding vector({self._dims}) NOT NULL,
-                        updated_at timestamptz NOT NULL DEFAULT now()
-                    )
-                    """
-                )
-                cur.execute(
-                    """
-                    CREATE INDEX code_graph_symbol_embeddings_scope_idx
-                        ON code_graph.symbol_embeddings (tenant_id, workspace_id, project_id)
-                    """
-                )
-                cur.execute(
-                    """
-                    CREATE INDEX code_graph_symbol_embeddings_scope_kind_idx
-                        ON code_graph.symbol_embeddings (tenant_id, workspace_id, project_id, kind)
-                    """
-                )
-                cur.execute(
-                    f"""
-                    CREATE INDEX code_graph_symbol_embeddings_hnsw_idx
-                        ON code_graph.symbol_embeddings
-                        USING hnsw (embedding vector_cosine_ops)
-                    """
-                )
+                cur.execute(pg_sql.DROP_SYMBOL_EMBEDDINGS)
+                cur.execute(pg_sql.create_symbol_embeddings_table(self._dims))
+                cur.execute(pg_sql.CREATE_SCOPE_IDX)
+                cur.execute(pg_sql.CREATE_SCOPE_KIND_IDX)
+                cur.execute(pg_sql.CREATE_HNSW_IDX)
 
     @staticmethod
     def _vector_literal(vector: list[float]) -> str:
@@ -200,22 +178,7 @@ class PostgresEmbeddingIndex:
         kind_value = str(kind or "unknown").strip() or "unknown"
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                INSERT INTO code_graph.symbol_embeddings (
-                    symbol_id, tenant_id, workspace_id, project_id, model, dims, kind, embedding, updated_at
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s::vector, now()
-                )
-                ON CONFLICT (symbol_id) DO UPDATE SET
-                    tenant_id = EXCLUDED.tenant_id,
-                    workspace_id = EXCLUDED.workspace_id,
-                    project_id = EXCLUDED.project_id,
-                    model = EXCLUDED.model,
-                    dims = EXCLUDED.dims,
-                    kind = EXCLUDED.kind,
-                    embedding = EXCLUDED.embedding,
-                    updated_at = now()
-                """,
+                pg_sql.UPSERT_EMBEDDING,
                 (
                     symbol_id,
                     scope.tenant_id,
@@ -231,23 +194,14 @@ class PostgresEmbeddingIndex:
     def delete(self, scope: Scope, symbol_id: str) -> None:
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                DELETE FROM code_graph.symbol_embeddings
-                WHERE symbol_id = %s
-                  AND tenant_id = %s
-                  AND workspace_id = %s
-                  AND project_id = %s
-                """,
+                pg_sql.DELETE_EMBEDDING,
                 (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
             )
 
     def wipe_scope(self, scope: Scope) -> int:
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                DELETE FROM code_graph.symbol_embeddings
-                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
-                """,
+                pg_sql.WIPE_EMBEDDINGS_SCOPE,
                 (scope.tenant_id, scope.workspace_id, scope.project_id),
             )
             return int(cur.rowcount or 0)
@@ -256,11 +210,7 @@ class PostgresEmbeddingIndex:
         """Return symbol_id → embedding model for one scope."""
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                SELECT symbol_id, model
-                FROM code_graph.symbol_embeddings
-                WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
-                """,
+                pg_sql.LIST_EMBEDDING_MODELS,
                 (scope.tenant_id, scope.workspace_id, scope.project_id),
             )
             rows = cur.fetchall() or []
@@ -286,17 +236,7 @@ class PostgresEmbeddingIndex:
         allowed = [str(k) for k in (kinds if kinds is not None else SEARCHABLE_SYMBOL_KINDS)]
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                SELECT symbol_id,
-                       1 - (embedding <=> %s::vector) AS score
-                FROM code_graph.symbol_embeddings
-                WHERE tenant_id = %s
-                  AND workspace_id = %s
-                  AND project_id = %s
-                  AND kind = ANY(%s)
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
-                """,
+                pg_sql.SEARCH_EMBEDDINGS,
                 (
                     literal,
                     scope.tenant_id,
@@ -324,19 +264,21 @@ class PostgresOutboxMirror:
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("psycopg is required for PostgresOutboxMirror") from exc
         normalized = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-        self._connection = psycopg.connect(normalized, autocommit=True, row_factory=dict_row)
         self._json = Jsonb
+        self._pool = ThreadLocalPsycopg(
+            lambda: psycopg.connect(normalized, autocommit=True, row_factory=dict_row)
+        )
+
+    @property
+    def _connection(self) -> Any:
+        return self._pool.get()
 
     def close(self) -> None:
-        self._connection.close()
+        self._pool.close_all()
 
     def append_event(self, event: dict[str, Any]) -> None:
         with self._connection.cursor() as cur:
             cur.execute(
-                """
-                INSERT INTO code_graph.outbox (event_id, event_type, payload)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (event_id) DO NOTHING
-                """,
+                pg_sql.APPEND_OUTBOX_EVENT,
                 (event["event_id"], event["event_type"], self._json(event)),
             )

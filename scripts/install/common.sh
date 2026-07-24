@@ -144,6 +144,47 @@ mark_stage() {
   fi
 }
 
+# Well-known install-root markers for client SSH discovery (no root required to read).
+# Writes: <AGENTCORE_ROOT>/.agentcore/install-root, $HOME/.agentcore/install-root,
+# and SUDO_USER home when install ran via sudo.
+stamp_agentcore_install_root_markers() {
+  local root="${AGENTCORE_ROOT}"
+  local marker_dir marker payload sudo_home=""
+  [[ -n "${root}" ]] || return 1
+  root="$(cd "${root}" 2>/dev/null && pwd)" || return 1
+  payload="${root}"
+  marker_dir="${root}/.agentcore"
+  mkdir -p "${marker_dir}" || return 1
+  marker="${marker_dir}/install-root"
+  printf '%s\n' "${payload}" >"${marker}" || return 1
+  chmod 644 "${marker}" 2>/dev/null || true
+  chmod 755 "${marker_dir}" 2>/dev/null || true
+
+  mkdir -p "${HOME}/.agentcore" 2>/dev/null || true
+  if [[ -d "${HOME}/.agentcore" ]]; then
+    printf '%s\n' "${payload}" >"${HOME}/.agentcore/install-root" || true
+    chmod 644 "${HOME}/.agentcore/install-root" 2>/dev/null || true
+  fi
+
+  if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    if command -v getent >/dev/null 2>&1; then
+      sudo_home="$(getent passwd "${SUDO_USER}" | cut -d: -f6 || true)"
+    fi
+    if [[ -z "${sudo_home}" && -d "/home/${SUDO_USER}" ]]; then
+      sudo_home="/home/${SUDO_USER}"
+    fi
+    if [[ -n "${sudo_home}" ]]; then
+      mkdir -p "${sudo_home}/.agentcore" 2>/dev/null || true
+      if printf '%s\n' "${payload}" >"${sudo_home}/.agentcore/install-root" 2>/dev/null; then
+        chown "${SUDO_USER}:" "${sudo_home}/.agentcore/install-root" 2>/dev/null || true
+        chmod 644 "${sudo_home}/.agentcore/install-root" 2>/dev/null || true
+      fi
+    fi
+  fi
+  ok "install-root marker → ${marker}"
+  return 0
+}
+
 stage_status() {
   local stage="$1"
   [[ -f "${INSTALL_STATE_FILE}" ]] || return 1
@@ -267,12 +308,13 @@ ensure_agentcore_on_path() {
   ok "PATH ready: ${HOME}/.local/bin/agentcore"
 }
 
-# Normalize INSTALL_ROLE → client|server.
+# Normalize INSTALL_ROLE → client|server|both.
 normalize_install_role() {
   local raw="${1:-}"
   case "${raw}" in
     client|CLIENT) printf '%s\n' "client" ;;
     server|SERVER) printf '%s\n' "server" ;;
+    both|BOTH|hybrid|HYBRID|all|ALL|dogfood|DOGFOOD) printf '%s\n' "both" ;;
     *) return 1 ;;
   esac
 }
@@ -390,25 +432,27 @@ normalize_install_runtime() {
 
 prompt_install_role() {
   local choice=""
-  banner "Install client or server?"
+  banner "Install client, server, or both?"
   cat >&2 <<'EOF'
   1) client — Coding-agent machine: CLI + venv only (no Postgres/Neo4j Compose).
               Next step after install: agentcore connect
   2) server — AgentCore platform host: Compose stores + MCP gateway
+  3) both   — Same-host dogfood: server stack + local sync AND IDE connect (client tooling)
 
-  Tip: non-interactive flags — --role client | --role server
+  Tip: non-interactive flags — --role client | --role server | --role both
        client shortcut: --skip-infra
 EOF
   while true; do
-    choice="$(install_read_line 'Select install target [1=client / 2=server]: ')"
+    choice="$(install_read_line 'Select install target [1=client / 2=server / 3=both]: ')"
     choice="$(install_stdout_token "${choice}")"
     case "${choice}" in
       1|client|CLIENT) printf '%s\n' "client"; return 0 ;;
       2|server|SERVER) printf '%s\n' "server"; return 0 ;;
+      3|both|BOTH|hybrid|HYBRID|all|ALL|dogfood|DOGFOOD) printf '%s\n' "both"; return 0 ;;
       "")
-        warn "Choose 1 or 2 (no default)"
+        warn "Choose 1, 2, or 3 (no default)"
         ;;
-      *) warn "Enter 1/client or 2/server" ;;
+      *) warn "Enter 1/client, 2/server, or 3/both" ;;
     esac
   done
 }
@@ -438,8 +482,9 @@ EOF
   done
 }
 
-# Resolve INSTALL_ROLE (client|server). Client forces --skip-infra.
-# Persists role=<value> in install-state.env.
+# Resolve INSTALL_ROLE (client|server|both). Client forces --skip-infra.
+# Persists role=<value> in install-state.env. ``both`` installs like server
+# (Compose + MCP) and keeps IDE connect / client tooling on the same host.
 resolve_install_role() {
   local resolved=""
   local persisted=""
@@ -451,7 +496,7 @@ resolve_install_role() {
     if resolved="$(normalize_install_role "${raw}" 2>/dev/null)"; then
       :
     else
-      warn "Ignoring invalid INSTALL_ROLE='${raw}' (want: client|server)"
+      warn "Ignoring invalid INSTALL_ROLE='${raw}' (want: client|server|both)"
       INSTALL_ROLE=""
       export INSTALL_ROLE
       resolved=""
@@ -464,13 +509,22 @@ resolve_install_role() {
     resolved="client"
     info "Install role=client (from --skip-infra)"
   elif [[ -n "${INSTALL_RUNTIME}" ]]; then
-    # Explicit server MCP mode implies server install.
-    resolved="server"
-    info "Install role=server (from --runtime)"
+    # Explicit MCP mode implies a host with local stack (server or both).
+    # Keep persisted both; otherwise default to server.
+    if [[ -f "${INSTALL_STATE_FILE}" ]]; then
+      persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)")"
+    fi
+    if [[ "${persisted}" == "both" ]]; then
+      resolved="both"
+      info "Install role=both (from --runtime + persisted both)"
+    else
+      resolved="server"
+      info "Install role=server (from --runtime)"
+    fi
   elif install_can_prompt; then
     resolved="$(install_stdout_token "$(prompt_install_role)")"
     resolved="$(normalize_install_role "${resolved}" || true)"
-    [[ -n "${resolved}" ]] || fail "invalid role choice (want: client|server)"
+    [[ -n "${resolved}" ]] || fail "invalid role choice (want: client|server|both)"
   else
     if [[ -f "${INSTALL_STATE_FILE}" ]]; then
       persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "role" || true)")"
@@ -482,7 +536,7 @@ resolve_install_role() {
         warn "Ignoring invalid persisted role='${persisted}'"
       fi
       resolved="server"
-      info "Non-interactive install: default role=server (pass --role client for CLI-only)"
+      info "Non-interactive install: default role=server (pass --role client for CLI-only, --role both for dogfood)"
     fi
   fi
 

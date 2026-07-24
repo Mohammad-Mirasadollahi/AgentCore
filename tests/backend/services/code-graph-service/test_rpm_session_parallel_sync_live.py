@@ -158,7 +158,7 @@ def neo4j_service(monkeypatch, tmp_path: Path, local_litellm):
     settings = LlmGatewaySettings(**{**settings.__dict__, "api_base": local_litellm.base_url})
     gateway = LiteLlmGateway(settings=settings)
     service = CodeGraphService(
-        LockedStore(store),
+        LockedStore(store, lock_reads=False, max_concurrent=4),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=LocalEmbeddingStub(dims=16),
         llm=gateway,
@@ -195,7 +195,7 @@ def postgres_service(monkeypatch, tmp_path: Path, local_litellm):
     settings = LlmGatewaySettings(**{**settings.__dict__, "api_base": local_litellm.base_url})
     gateway = LiteLlmGateway(settings=settings)
     service = CodeGraphService(
-        LockedStore(store),
+        LockedStore(store, lock_reads=False, max_concurrent=4),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=LocalEmbeddingStub(dims=16),
         llm=gateway,
