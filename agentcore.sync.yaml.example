@@ -132,6 +132,8 @@ code:
     - "**/*.AssemblyInfo.cs"
     - "**/*.generated.*"
     - "**/generated/**"
+    - "_cpu_bench"
+    - "**/_cpu_bench/**"
 
     # --- Lockfiles / packages (not source) ---
     - "**/package-lock.json"
