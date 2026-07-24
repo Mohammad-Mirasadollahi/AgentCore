@@ -61,6 +61,55 @@ curl_github() {
   "${CURL_BIN}" "${args[@]}" "$@" "${url}"
 }
 
+# Like curl_github but does not fail on HTTP errors (caller checks body / exit).
+curl_github_soft() {
+  local url="$1"
+  shift
+  local args=(-sSL)
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    args+=(-H "Authorization: Bearer ${GITHUB_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28")
+  fi
+  args+=(-H "Accept: application/vnd.github+json")
+  "${CURL_BIN}" "${args[@]}" "$@" "${url}" || true
+}
+
+parse_json_field() {
+  local json="$1"
+  local field="$2"
+  if have_cmd python3; then
+    printf '%s' "${json}" | python3 -c "import json,sys
+raw=sys.stdin.read().strip()
+if not raw:
+  raise SystemExit(0)
+data=json.loads(raw)
+if isinstance(data, dict):
+  print(data.get('${field}') or '')
+elif isinstance(data, list) and data and isinstance(data[0], dict):
+  print(data[0].get('${field}') or '')
+"
+  else
+    printf '%s' "${json}" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" | head -n1
+  fi
+}
+
+latest_release_tag() {
+  local json tag
+  json="$(curl_github_soft "${AGENTCORE_GITHUB_API}/releases/latest")"
+  tag="$(parse_json_field "${json}" tag_name)"
+  if [[ -n "${tag}" ]]; then
+    printf '%s\n' "${tag}"
+    return 0
+  fi
+  warn "No GitHub Release found; falling back to newest git tag"
+  json="$(curl_github_soft "${AGENTCORE_GITHUB_API}/tags?per_page=1")"
+  tag="$(parse_json_field "${json}" name)"
+  if [[ -n "${tag}" ]]; then
+    printf '%s\n' "${tag}"
+    return 0
+  fi
+  return 1
+}
+
 normalize_channel() {
   local raw="${1:-}"
   case "${raw}" in
@@ -78,7 +127,8 @@ can_prompt() {
   if [[ -t 0 ]]; then
     return 0
   fi
-  if [[ -r /dev/tty && -w /dev/tty ]]; then
+  # Path may exist while open fails (non-interactive CI / no controlling terminal).
+  if { true <>/dev/tty; } 2>/dev/null; then
     return 0
   fi
   return 1
@@ -90,11 +140,13 @@ read_prompt() {
   local ans=""
   if [[ -t 0 ]]; then
     read -r -p "${prompt}" ans || true
-  else
+  elif { true <>/dev/tty; } 2>/dev/null; then
     # Prompt on the real terminal; do not consume the curl|bash script pipe.
-    printf '%s' "${prompt}" >/dev/tty
-    read -r ans </dev/tty || true
-    printf '\n' >/dev/tty || true
+    printf '%s' "${prompt}" >/dev/tty 2>/dev/null || true
+    read -r ans </dev/tty 2>/dev/null || true
+    printf '\n' >/dev/tty 2>/dev/null || true
+  else
+    fail "cannot prompt (no TTY); pass --channel release|main and optional --root"
   fi
   printf '%s\n' "${ans}"
 }
@@ -109,7 +161,7 @@ prompt_channel() {
   fi
   echo >&2
   echo "Fetch channel:" >&2
-  echo "  1) release  — latest GitHub Release (recommended)" >&2
+  echo "  1) release  — latest GitHub Release (or newest tag if none)" >&2
   echo "  2) main     — latest commits on ${AGENTCORE_DEFAULT_BRANCH} (may be unreleased)" >&2
   local ans=""
   ans="$(read_prompt "Choose [1/2] (default 1): ")"
@@ -138,20 +190,6 @@ prompt_root() {
     root="${ans}"
   fi
   printf '%s\n' "${root}"
-}
-
-latest_release_tag() {
-  local json tag
-  json="$(curl_github "${AGENTCORE_GITHUB_API}/releases/latest")"
-  if have_cmd python3; then
-    tag="$(
-      printf '%s' "${json}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name") or "")'
-    )"
-  else
-    tag="$(printf '%s' "${json}" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-  fi
-  [[ -n "${tag}" ]] || fail "could not parse tag_name from GitHub releases/latest"
-  printf '%s\n' "${tag}"
 }
 
 is_agentcore_git_checkout() {
@@ -226,7 +264,11 @@ fetch_release_into() {
   local root="$1"
   local tag tarball staging
   require_cmds "${CURL_BIN}" tar mktemp
-  tag="$(latest_release_tag)"
+  if ! tag="$(latest_release_tag)"; then
+    warn "No GitHub Release/tag on ${AGENTCORE_REPO_SLUG}; using channel main instead"
+    fetch_main_into "${root}"
+    return 0
+  fi
   info "Latest release tag: ${tag}"
   tarball="$(mktemp /tmp/agentcore-release.XXXXXX)"
   staging="$(mktemp -d /tmp/agentcore-stage.XXXXXX)"

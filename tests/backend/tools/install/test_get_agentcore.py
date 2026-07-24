@@ -90,6 +90,41 @@ def test_sync_tree_preserving(tmp_path: Path) -> None:
     assert not (root / "old.txt").exists()
 
 
+def test_latest_release_tag_falls_back_to_git_tag(tmp_path: Path) -> None:
+    fake_curl = tmp_path / "fake-curl"
+    fake_curl.write_text(
+        textwrap.dedent(
+            """\
+            #!/usr/bin/env bash
+            set -euo pipefail
+            url=""
+            for a in "$@"; do
+              case "$a" in
+                http*) url="$a" ;;
+              esac
+            done
+            if [[ "$url" == *"/releases/latest"* ]]; then
+              echo '{"message":"Not Found"}'
+              exit 0
+            fi
+            if [[ "$url" == *"/tags"* ]]; then
+              echo '[{"name":"v0.9.0"}]'
+              exit 0
+            fi
+            echo '{}'
+            """
+        ),
+        encoding="utf-8",
+    )
+    fake_curl.chmod(0o755)
+    proc = _source_helpers(
+        "latest_release_tag",
+        env={"AGENTCORE_CURL": str(fake_curl)},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "v0.9.0"
+
+
 def test_latest_release_tag_parses_json(tmp_path: Path) -> None:
     fake_curl = tmp_path / "fake-curl"
     fake_curl.write_text(
