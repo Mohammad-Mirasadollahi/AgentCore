@@ -37,7 +37,8 @@ related_docs:
 - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-continued-continued-continued.md
 - docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md
 - docs/00-master-plan/10-documentation-standardization-procedure.md
-doc_version: 1.0.0
+doc_version: 1.1.0
+updated_at: '2026-07-24'
 audience:
 - engineer
 - operator
@@ -91,7 +92,7 @@ rules.
 1. Full-tier docs law says nonconforming Markdown should not quietly enter the
    graph corpus; skill `agentcore-standards-on-edit` remediates on edit so the
    tree converges.
-2. Interactive sync can ask once per run (`Skip … this run? [Y/n]`). A
+2. Interactive sync can ask once per run (`Skip … this run? [y/N]`). A
    **watcher** has **no TTY** and must not spam prompts on every debounce flush.
 3. Hard-coding “always skip” or “always ingest” in the watcher is wrong: some
    teams want a clean graph first; others want maximum coverage while they
@@ -220,7 +221,7 @@ flowchart TD
   pref -->|docs_skip| doSkip
   pref -->|docs_ingest| doIngest
   pref -->|unset| tty{Interactive_TTY?}
-  tty -->|yes| ask[Ask_Skip_default_Y]
+  tty -->|yes| ask[Ask_Skip_default_N]
   ask -->|yes| doSkip
   ask -->|no| doIngest
   tty -->|no| ciSafe[Include_CI_safe_default]
@@ -236,7 +237,7 @@ flowchart TD
 | 2 | Gate | If empty → no mode change | Full filter set unchanged |
 | 3 | Gate | If `--skip-nonconforming` / `--sync-nonconforming` | Forced skip or ingest for this run |
 | 4 | Gate | Else if Client `standards_gate.docs` set | Apply skip or ingest; no prompt |
-| 5 | Gate | Else if TTY | Ask (default Skip / Yes) | Operator choice this run only |
+| 5 | Gate | Else if TTY | Ask (default Ingest / No) | Operator choice this run only |
 | 6 | Gate | Else non-TTY | Include (CI-safe; unchanged from shipped CLI) |
 | 7 | Sync | Write `standards_gate` block on sync report | Auditable counts + mode |
 
@@ -244,7 +245,7 @@ flowchart TD
 
 1. Mutually exclusive CLI flags for **this** process invocation  
 2. AgentCore Client preference (`standards_gate.docs` / `.code`)  
-3. Interactive TTY ask (default Skip)  
+3. Interactive TTY ask (default Ingest / No — Enter does not skip)  
 4. Non-TTY / CI: **include** (do not change sync set unless flagged)
 
 Watcher / Client auto-flush **must not** use step 3. If preference unset, they
@@ -266,7 +267,7 @@ continuous indexing (ADR `19`, backlog Phase B).
 
 | Axis | Recommended first-run default | Why |
 | --- | --- | --- |
-| Docs | **Skip** | Matches interactive CLI default (Y); keeps graph cleaner while agents remediate |
+| Docs | **Ingest** | Matches interactive CLI default (N); operators opt into Skip with `y` or `--skip-nonconforming` |
 | Code | **Skip** | Fail-closed until a real code gate exists |
 
 Operators who want maximum coverage switch to **Ingest** in Client settings;
