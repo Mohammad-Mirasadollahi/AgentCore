@@ -30,7 +30,11 @@ def register_init(sub: argparse._SubParsersAction) -> None:
         default="programming-cursor-mcp",
         help="Usage profile for the first project",
     )
-    init.add_argument("--force", action="store_true", help="Replace existing ~/.agentcore/identity.yaml")
+    init.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace existing .agentcore/identity.yaml",
+    )
 
 
 def register_paths(sub: argparse._SubParsersAction) -> None:

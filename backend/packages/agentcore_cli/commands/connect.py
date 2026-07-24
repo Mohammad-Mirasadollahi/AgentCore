@@ -7,6 +7,7 @@ from pathlib import Path
 
 from agentcore_cli.connect_config import (
     ConnectSettings,
+    default_connect_yaml_path,
     load_connect_settings,
     try_resolve_config_path,
     write_connect_template,
@@ -67,7 +68,7 @@ def cmd_connect(args: argparse.Namespace) -> int:
 
     cfg = _config_path_from_args(args)
     if cfg is None and not args.local:
-        # Zero-config: interactive SSH wizard writes ~/.agentcore/connect.yaml.
+        # Zero-config: interactive SSH wizard writes <checkout>/.agentcore/connect.yaml.
         settings = run_ssh_connect_wizard(
             existing=ConnectSettings(
                 project=str(args.project or "") or work.name,
@@ -79,7 +80,7 @@ def cmd_connect(args: argparse.Namespace) -> int:
                 prefer_http=False,
             ),
             rotate=force_edit,
-            config_path=Path.home() / ".agentcore" / "connect.yaml",
+            config_path=default_connect_yaml_path(),
             project_dir=work,
             ssh_override=str(args.ssh or ""),
         )

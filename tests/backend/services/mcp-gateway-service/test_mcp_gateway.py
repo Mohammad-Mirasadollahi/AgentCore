@@ -221,7 +221,9 @@ def test_tools_call_wired_backends():
     assert "Full-tier" in authoring_skill["structuredContent"]["skill"]["body"]
 
 
-def test_unknown_tool_fails_closed():
+def test_unknown_tool_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_MCP_USAGE_LOG_DIR", str(tmp_path / "mcp-usage"))
+    monkeypatch.setenv("AGENTCORE_MCP_CLIENT_ID", "cursor-test")
     gw = gateway()
     bad = handle_message(
         gw,
@@ -233,6 +235,44 @@ def test_unknown_tool_fails_closed():
         },
     )
     assert bad["error"]["code"] == -32601
+    events_path = tmp_path / "mcp-usage" / "events.jsonl"
+    assert events_path.is_file()
+    rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line]
+    assert rows[-1]["ok"] is False
+    assert rows[-1]["tool"] == "not_allowed_tool"
+    assert rows[-1]["error_code"] == -32601
+    assert rows[-1]["client_id"] == "cursor-test"
+
+
+def test_unexpected_tool_exception_returns_jsonrpc_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_MCP_USAGE_LOG_DIR", str(tmp_path / "mcp-usage"))
+    gw = gateway()
+
+    def boom(_name, _arguments=None):
+        raise RuntimeError("simulated gateway crash")
+
+    monkeypatch.setattr(gw, "call_tool", boom)
+    bad = handle_message(
+        gw,
+        {
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "tools/call",
+            "params": {"name": "agentcore_ping", "arguments": {}},
+        },
+    )
+    assert bad["error"]["code"] == -32000
+    assert "simulated gateway crash" in bad["error"]["message"]
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "mcp-usage" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+    err = [r for r in rows if r.get("ok") is False]
+    assert err
+    assert err[-1]["error_code"] == -32000
+    assert "simulated gateway crash" in err[-1]["error_message"]
+    assert "RuntimeError" in (err[-1].get("error_detail") or "")
 
 
 def test_write_requires_resource_fields():

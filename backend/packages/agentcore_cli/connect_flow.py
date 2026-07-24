@@ -139,7 +139,7 @@ def reachability_check(settings: ConnectSettings) -> None:
         raise SystemExit(
             f"error: SSH reachability failed for {settings.ssh} (BatchMode / key auth). "
             "Run `agentcore connect --edit` to re-auth and replace the AgentCore pubkey, "
-            "or fix auth.ssh_key in ~/.agentcore/connect.yaml."
+            "or fix auth.ssh_key in .agentcore/connect.yaml."
         )
 
 
@@ -185,6 +185,46 @@ def remote_ingest(settings: ConnectSettings) -> int:
         settings.source_server_path,
     ]
     print(f"   {ui.warn('…')} syncing {settings.source_server_path} on server")
+    return _run_ssh(settings, remote_cmd)
+
+
+def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
+    """Run `agentcore sync` on the connected server (client checkout path)."""
+    if not settings.ssh:
+        raise SystemExit("error: connect.yaml has no server.ssh for remote sync")
+    root = settings.remote_root.rstrip("/\\")
+    agentcore = f"{root}/.venv/bin/agentcore"
+    tenant = str(getattr(args, "tenant", None) or settings.tenant or "default")
+    workspace = str(getattr(args, "workspace", None) or settings.workspace or "default")
+    project = str(getattr(args, "project", None) or settings.project or "project")
+    remote_cmd = [
+        agentcore,
+        "sync",
+        "--tenant",
+        tenant,
+        "--workspace",
+        workspace,
+        "--project",
+        project,
+    ]
+    paths = list(getattr(args, "path", None) or [])
+    if paths:
+        for path in paths:
+            remote_cmd.extend(["--path", str(path)])
+        target = ", ".join(str(p) for p in paths)
+    elif settings.source_server_path:
+        remote_cmd.extend(["--path", settings.source_server_path])
+        target = settings.source_server_path
+    else:
+        target = "server pinned software paths"
+    max_files = getattr(args, "max_files", None)
+    if max_files is not None:
+        remote_cmd.extend(["--max-files", str(max_files)])
+    if getattr(args, "force", False):
+        remote_cmd.append("--force")
+    if getattr(args, "allow_cloud_llm", False):
+        remote_cmd.append("--allow-cloud-llm")
+    print(f"   {ui.warn('…')} remote sync on server ({target})")
     return _run_ssh(settings, remote_cmd)
 
 
@@ -290,7 +330,7 @@ def _print_connect_summary(
     ]
     if transport.startswith("ssh") or transport == "ssh-stdio":
         steps.append(
-            "Hand-edit ~/.agentcore/connect.yaml for scope/clients; "
+            "Hand-edit .agentcore/connect.yaml for scope/clients; "
             "run agentcore connect --edit to change SSH host/user (replaces pubkey)"
         )
     ui.next_steps(steps)

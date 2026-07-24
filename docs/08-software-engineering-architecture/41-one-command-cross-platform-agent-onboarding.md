@@ -31,7 +31,7 @@ linked_symbols:
 - backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
 - backend/packages/agentcore_cli/connect_flow.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
-doc_version: 1.1.0
+doc_version: 1.2.0
 updated_at: '2026-07-24'
 ---
 
@@ -59,7 +59,7 @@ Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).
 │ - Application repository     │                           │ - bash install.sh            │
 │ - Coding agent / IDE         │                           │ - Postgres + Neo4j (Compose) │
 │ - agentcore on PATH          │                           │ - MCP stdio and/or HTTP      │
-│ - ~/.agentcore/connect.yaml  │                           │ - optional profile API       │
+│ - .agentcore/connect.yaml    │                           │ - optional profile API       │
 └──────────────────────────────┘                           └──────────────────────────────┘
 ```
 
@@ -87,7 +87,7 @@ This registers a local project, writes workspace MCP configs (stdio gateway on t
 
 Command details (required flags, sync filters, what each run changes) → [42 - AgentCore CLI Command Reference](./42-agentcore-cli-command-reference.md) ([§ Sync filters](./42-agentcore-cli-command-reference.md#sync-filters)).
 
-Equivalent YAML: `server.local: true` and `connect.prefer_http: false` in `~/.agentcore/connect.yaml`.
+Equivalent YAML: `server.local: true` and `connect.prefer_http: false` in `<checkout>/.agentcore/connect.yaml`.
 
 ## Two transports (both shipped)
 
@@ -138,7 +138,7 @@ cd /opt/MyApp
 agentcore connect
 ```
 
-On a TTY with no `~/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root, tenant/workspace. It generates `~/.ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored.
+On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root, tenant/workspace. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
 
 Advanced template only: `agentcore connect --init` then hand-edit YAML.
 
@@ -176,11 +176,11 @@ Re-enter host/user (and replace the pubkey):
 agentcore connect --edit
 ```
 
-`--edit` always rotates `~/.ssh/id_ed25519_agentcore`, installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
+`--edit` always rotates `<checkout>/.agentcore/ssh/id_ed25519_agentcore` (or the configured `auth.ssh_key`), installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
 
 Manual key install remains possible (`ssh-keygen` + `ssh-copy-id`) but is not required.
 
-### Dev host: `~/.agentcore/connect.yaml`
+### Dev host: `<checkout>/.agentcore/connect.yaml`
 
 The wizard writes this file. Hand-edit **scope / clients / remote_root / ingest** freely; re-run `agentcore connect` to apply. If you change `server.ssh` or `auth.ssh_key` and BatchMode breaks, run `agentcore connect --edit` — do not put OS passwords in YAML.
 
@@ -190,7 +190,7 @@ server:
   remote_root: /opt/AgentCore
 
 auth:
-  ssh_key: ~/.ssh/id_ed25519_agentcore
+  ssh_key: .agentcore/ssh/id_ed25519_agentcore
 
 scope:
   tenant: acme
@@ -264,7 +264,7 @@ Keep this process running (systemd/supervisor in real deployments).
 
 Optional: run project-profile HTTP API for bootstrap (`server.url` in connect.yaml). Port profile default for project-profile is `AGENTCORE_PROJECT_PROFILE_PORT` (`32194`).
 
-### Dev host: `~/.agentcore/connect.yaml`
+### Dev host: `<checkout>/.agentcore/connect.yaml`
 
 ```yaml
 server:
@@ -343,7 +343,7 @@ server:
 
 auth:
   token_env: AGENTCORE_TOKEN
-  ssh_key: ~/.ssh/id_ed25519_agentcore
+  ssh_key: .agentcore/ssh/id_ed25519_agentcore
 
 scope:
   tenant: acme
@@ -359,7 +359,7 @@ connect:
 
 ---
 
-## Shared config reference (`~/.agentcore/connect.yaml`)
+## Shared config reference (`<checkout>/.agentcore/connect.yaml`)
 
 | Key | Required | Meaning |
 | --- | --- | --- |

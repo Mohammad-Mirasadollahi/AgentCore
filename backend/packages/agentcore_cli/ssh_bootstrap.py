@@ -1,7 +1,8 @@
 """SSH identity bootstrap for AgentCore connect (password once → pubkey forever).
 
 Role: own dedicated AgentCore SSH key material and one-shot password pubkey install.
-SoT: local identity file under ~/.ssh; remote authorized_keys after successful install.
+SoT: local identity under ``<repo>/.agentcore/ssh/`` (legacy ``~/.ssh/id_ed25519_agentcore``);
+remote authorized_keys after successful install.
 Fail closed on empty password, non-OpenSSH install failure, or BatchMode probe failure;
 never log or persist OS passwords; wipe askpass temps in finally.
 """
@@ -30,7 +31,16 @@ class IdentityResult:
 
 
 def default_identity_path() -> Path:
-    return Path.home() / ".ssh" / DEFAULT_IDENTITY_NAME
+    """Checkout-local key; fall back to legacy ``~/.ssh`` if that file already exists."""
+    from agentcore_cli.util import repo_root
+
+    preferred = repo_root() / ".agentcore" / "ssh" / DEFAULT_IDENTITY_NAME
+    if preferred.is_file():
+        return preferred
+    legacy = Path.home() / ".ssh" / DEFAULT_IDENTITY_NAME
+    if legacy.is_file():
+        return legacy
+    return preferred
 
 
 def public_key_path(identity: Path) -> Path:
@@ -88,6 +98,11 @@ def ensure_identity(*, rotate: bool = False, identity: Path | None = None) -> Id
             return IdentityResult(private_path=path, public_path=pub, old_public_line=old_line)
 
     path.parent.mkdir(parents=True, exist_ok=True)
+    if sys.platform != "win32":
+        try:
+            os.chmod(path.parent, stat.S_IRWXU)
+        except OSError:
+            pass
     if rotate and path.is_file():
         path.unlink(missing_ok=True)
         pub.unlink(missing_ok=True)

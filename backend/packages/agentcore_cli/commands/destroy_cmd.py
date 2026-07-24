@@ -34,9 +34,9 @@ def _print_warning(*, tenant: str, workspace: str, project: str) -> None:
     for line in (
         "code-graph symbols, edges, embeddings for this scope",
         "local Usage Profile project state under .agentcore/projects/",
-        "~/.agentcore/identity.yaml if it pins this scope",
+        ".agentcore/identity.yaml if it pins this scope",
         "matching AGENTCORE_* scope keys in repo .env",
-        "matching scope in ~/.agentcore/connect.yaml",
+        "matching scope in .agentcore/connect.yaml",
         "AgentCore MCP server entries in this repo's IDE mcp.json files",
     ):
         ui.bullet(line)

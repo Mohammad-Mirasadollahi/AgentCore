@@ -138,8 +138,17 @@ def ensure_running_or_offer_start(
     """If local software is down, ask to start it (TTY) or exit with a hint.
 
     Returns the ``start_all`` report when start ran; ``None`` when already up.
+    Client / CLI-only checkouts (no Compose env) exit with a clear message —
+    they cannot start a local stack.
     """
     from agentcore_cli import service_runtime as runtime
+    from agentcore_cli.service_runtime.paths import (
+        local_compose_stack_present,
+        missing_local_stack_message,
+    )
+
+    if not local_compose_stack_present(root):
+        raise SystemExit(missing_local_stack_message(root))
 
     report = runtime.status_all(root)
     if report.get("status") == "all running":

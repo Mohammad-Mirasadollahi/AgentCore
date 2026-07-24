@@ -54,7 +54,16 @@ Full examples (SSH vs HTTP, security, troubleshooting) → [One-command connect 
 
 ### 1) AgentCore server
 
-Requires Python 3.12+, Docker (Compose), and a clone of this repo.
+Requires Python 3.12+ and Docker (Compose). On an empty machine, fetch + install in one line:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+# prompts: release (recommended) or main → then install.sh menus (default root /opt/AgentCore)
+# new shell so agentcore is on PATH
+agentcore doctor
+```
+
+Already cloned:
 
 ```bash
 cd /opt/AgentCore
@@ -76,13 +85,16 @@ agentcore mcp serve-http --host 0.0.0.0 --port 32500
 Install the CLI only (no Docker required on the client):
 
 ```bash
-# clone AgentCore somewhere, then:
+# empty machine (choose role client in install menus), or:
+curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh \
+  | bash -s -- --channel release --yes --non-interactive --role client
+# or from an existing clone:
 bash install.sh --skip-infra
 agentcore path install   # if needed; open a new shell
-agentcore connect --init
+agentcore connect
 ```
 
-Edit `~/.agentcore/connect.yaml`.
+Edit `.agentcore/connect.yaml` under the checkout (or run the connect wizard).
 
 **SSH mode** (recommended on a private LAN; use an SSH **key**, not a password):
 

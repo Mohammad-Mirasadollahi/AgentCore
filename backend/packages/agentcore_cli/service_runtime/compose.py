@@ -15,12 +15,14 @@ COMPOSE_STOP_WAIT_SEC = 45
 
 
 def compose_base_cmd(root: Path) -> list[str]:
+    from agentcore_cli.service_runtime.paths import missing_local_stack_message
+
     env_file = compose_env_file(root)
     file = compose_file(root)
     if not file.is_file():
         raise SystemExit(f"error: missing compose file {file}")
     if not env_file.is_file():
-        raise SystemExit(f"error: missing compose env {env_file} (run bash install.sh)")
+        raise SystemExit(missing_local_stack_message(root))
     return [
         "docker",
         "compose",
@@ -204,7 +206,15 @@ def stop_compose(root: Path) -> dict[str, Any]:
 
 
 def compose_status(root: Path) -> dict[str, Any]:
+    """Report Compose health. Missing client stack → all missing (no SystemExit)."""
     out: dict[str, Any] = {"services": {}}
+    if not compose_file(root).is_file() or not compose_env_file(root).is_file():
+        for service in COMPOSE_SERVICES:
+            out["services"][service] = {"running": False, "health": "missing"}
+        out["ok"] = False
+        out["stack_present"] = False
+        return out
+    out["stack_present"] = True
     for service in COMPOSE_SERVICES:
         cid_proc = run_cmd(compose_base_cmd(root) + ["ps", "-q", service], cwd=root, check=False)
         cid = (cid_proc.stdout or "").strip().splitlines()

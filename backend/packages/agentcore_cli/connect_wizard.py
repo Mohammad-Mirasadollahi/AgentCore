@@ -11,6 +11,7 @@ from typing import Callable
 from agentcore_cli import ui
 from agentcore_cli.connect_config import (
     ConnectSettings,
+    default_connect_yaml_path,
     try_resolve_config_path,
     write_or_merge_connect_yaml,
 )
@@ -46,7 +47,7 @@ def _require_tty() -> None:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise SystemExit(
             "error: interactive SSH setup needs a TTY; "
-            "create ~/.agentcore/connect.yaml (agentcore connect --init) "
+            "create .agentcore/connect.yaml (agentcore connect --init) "
             "or run from a terminal: agentcore connect / agentcore connect --edit"
         )
 
@@ -76,7 +77,7 @@ def run_ssh_connect_wizard(
     ui.heading("SSH connect setup" if not rotate else "SSH connect edit (replace pubkey)")
     ui.blank()
     ui.bullet("Password is used once to install an AgentCore SSH key; it is never saved.")
-    ui.bullet("Hand-edit ~/.agentcore/connect.yaml for scope/clients; use --edit to change SSH identity.")
+    ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use --edit to change SSH identity.")
     ui.blank()
 
     override_user, override_host = parse_ssh_target(ssh_override)
@@ -126,7 +127,7 @@ def run_ssh_connect_wizard(
         register=bool(base.register),
     )
 
-    target = config_path or try_resolve_config_path() or (Path.home() / ".agentcore" / "connect.yaml")
+    target = config_path or try_resolve_config_path() or default_connect_yaml_path()
     written = write_or_merge_connect_yaml(settings, path=target, prefer_http=False)
     print(f"   {ui.ok('✔')} wrote {written}")
     print(f"   {ui.ok('✔')} SSH key {result.private_path} (BatchMode ready)")
@@ -166,7 +167,7 @@ def ensure_ssh_ready(
         if not allow_wizard:
             raise SystemExit(
                 "error: no server.ssh in connect config; run `agentcore connect` in a TTY "
-                "or set server.ssh / auth.ssh_key in ~/.agentcore/connect.yaml"
+                "or set server.ssh / auth.ssh_key in .agentcore/connect.yaml"
             )
         return run_ssh_connect_wizard(
             existing=settings,

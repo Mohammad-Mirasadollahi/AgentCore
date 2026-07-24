@@ -2,6 +2,8 @@
 # AgentCore one-command modular installer (beginner-safe, resumable, checkable).
 #
 # Usage:
+#   # Empty machine (recommended one-liner):
+#   curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
 #   bash install.sh
 #   bash install.sh --role server --runtime venv
 #   bash install.sh --role server --runtime docker
@@ -20,6 +22,7 @@
 #   docs/08-software-engineering-architecture/39-local-install-runbook.md
 #   docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 #   docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
+# Fetch helper: scripts/get-agentcore.sh (release vs main from GitHub)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,7 +44,11 @@ usage() {
   cat <<'EOF'
 AgentCore installer — modular local-dev bootstrap
 
-Usage:
+Empty machine (fetch from GitHub, then this installer):
+  curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/main/scripts/get-agentcore.sh | bash
+  # prompts: release (latest GitHub Release) or main (tip of main), then install.sh menus
+
+Already cloned — from the repository root:
   bash install.sh [options]
 
 Options:

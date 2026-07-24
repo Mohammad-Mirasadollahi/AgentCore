@@ -15,7 +15,7 @@ cd /opt/MyApp && agentcore connect
 # Re-auth / replace AgentCore pubkey
 agentcore connect --edit
 
-# Advanced: template + hand-edit ~/.agentcore/connect.yaml
+# Advanced: template + hand-edit <checkout>/.agentcore/connect.yaml
 agentcore connect --init
 ```
 

@@ -40,13 +40,15 @@ linked_symbols:
 - tests/backend/tools/agentcore-cli/test_mcp_tokens.py::test_estimate_connect_lazy_cheaper_than_full
 - tests/backend/tools/agentcore-cli/test_mcp_tokens.py::test_parse_time_range_relative
 - tests/backend/services/mcp-gateway-service/test_mcp_gateway.py::gateway
+- tests/backend/services/mcp-gateway-service/test_mcp_gateway.py::test_unknown_tool_fails_closed
+- tests/backend/services/mcp-gateway-service/test_mcp_gateway.py::test_unexpected_tool_exception_returns_jsonrpc_error
 related_docs:
 - ac.doc.sea.usage-profile-and-cursor-mcp-onboarding
 - ac.doc.sea.agentcore-cli
 - ac.doc.sea.agentcore-cli-command-reference
 - ac.doc.sea.remote-dev-client-mcp-wiring
 - ac.doc.sea.one-command-cross-platform-agent-onboarding
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
@@ -170,21 +172,34 @@ Each line is one JSON object. Gateway always overwrites `ts` with server UTC tim
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `ts` | string | yes | ISO-8601 UTC with `Z` |
-| `event` | string | yes | `initialize` \| `tools/list` \| `tools/call` |
+| `event` | string | yes | `initialize` \| `tools/list` \| `tools/call` (or method name on failure) |
 | `tool` | string | yes | Method or tool name |
+| `ok` | bool | yes | `true` on success; `false` on JSON-RPC / backend failure |
 | `tokens_in` | int | yes | Approx request size |
-| `tokens_out` | int | yes | Approx response size |
+| `tokens_out` | int | yes | Approx response size (`0` on failure) |
 | `client_id` | string | yes | `AGENTCORE_MCP_CLIENT_ID` or `unknown` |
 | `scope` | string | yes | `tenant/workspace/project` or `unknown` |
 | `usage_profile` | string | yes | Active profile id |
+| `error_code` | int | on failure | JSON-RPC error code (e.g. `-32601`, `-32000`) |
+| `error_message` | string | on failure | Client-visible error message (truncated) |
+| `error_detail` | string | optional | Traceback for unexpected exceptions (truncated) |
 
 Logging **must** be best-effort: `append_mcp_usage_event` catches all exceptions and
 returns `None` on failure so MCP JSON-RPC is never broken by I/O.
 
+On failure the gateway also prints one line to **stderr**
+(`error: mcp <event> tool=… code=… message=…`) so Cursor MCP logs and
+`.agentcore/run/mcp-http.log` show the cause when the IDE UI only says
+“Tool execution error”.
+
 ### Who writes
 
-`mcp_gateway_service.server.handle_message` logs after successful handling of
-`initialize`, `tools/list`, and `tools/call` (stdio and HTTP both use this path).
+`mcp_gateway_service.server.handle_message` logs:
+
+- **Success:** after `initialize`, `tools/list`, and `tools/call` (`ok: true`).
+- **Failure:** on `McpGatewayError` or unexpected exception (`ok: false`), then returns a
+  typed JSON-RPC error (stdio and HTTP both use this path). Unexpected exceptions must not
+  kill the MCP process mid-request.
 
 ## Client and scope filtering
 

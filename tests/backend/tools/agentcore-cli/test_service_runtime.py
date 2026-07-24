@@ -11,6 +11,13 @@ from agentcore_cli.parser import build_parser
 from agentcore_cli import service_runtime as runtime
 
 
+def _stub_compose_stack(root: Path) -> None:
+    compose = root / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True, exist_ok=True)
+    (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
+    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+
+
 def test_parser_service_and_boot():
     parser = build_parser()
     start = parser.parse_args(["service", "start"])
@@ -80,15 +87,36 @@ def test_compose_base_cmd_requires_files(tmp_path: Path):
     assert raised
 
 
-def test_compose_base_cmd_ok(tmp_path: Path):
+def test_compose_base_cmd_missing_env_mentions_client(tmp_path: Path):
     compose = tmp_path / "backend" / "deployments" / "compose"
     compose.mkdir(parents=True)
     (compose / "compose.yaml").write_text("name: x\n", encoding="utf-8")
-    (compose / ".env.local").write_text("A=1\n", encoding="utf-8")
+    try:
+        runtime.compose_base_cmd(tmp_path)
+        raised = False
+    except SystemExit as exc:
+        raised = True
+        msg = str(exc)
+        assert ".env.local" in msg
+        assert "Client installs" in msg
+        assert "run bash install.sh)" not in msg
+    assert raised
+
+
+def test_compose_status_without_stack_is_soft(tmp_path: Path):
+    report = runtime.compose_status(tmp_path)
+    assert report["ok"] is False
+    assert report["stack_present"] is False
+    assert report["services"]["postgres"]["health"] == "missing"
+    assert report["services"]["neo4j"]["health"] == "missing"
+
+
+def test_compose_base_cmd_ok(tmp_path: Path):
+    _stub_compose_stack(tmp_path)
     cmd = runtime.compose_base_cmd(tmp_path)
     assert cmd[:2] == ["docker", "compose"]
-    assert str(compose / ".env.local") in cmd
-    assert str(compose / "compose.yaml") in cmd
+    assert str(tmp_path / "backend" / "deployments" / "compose" / ".env.local") in cmd
+    assert str(tmp_path / "backend" / "deployments" / "compose" / "compose.yaml") in cmd
 
 
 def test_read_mcp_pid_clears_stale(tmp_path: Path, monkeypatch):
@@ -417,6 +445,7 @@ def test_status_all_includes_restarted_and_uptime(tmp_path: Path, monkeypatch):
 
 
 def test_ensure_running_skips_when_already_up(tmp_path: Path, monkeypatch):
+    _stub_compose_stack(tmp_path)
     monkeypatch.setattr(
         runtime,
         "status_all",
@@ -434,7 +463,19 @@ def test_ensure_running_skips_when_already_up(tmp_path: Path, monkeypatch):
     assert started is False
 
 
+def test_ensure_running_client_stack_exits(tmp_path: Path):
+    try:
+        runtime.ensure_running_or_offer_start(tmp_path, stdin_isatty=False)
+        raised = False
+    except SystemExit as exc:
+        raised = True
+        assert "Client installs" in str(exc)
+        assert ".env.local" in str(exc)
+    assert raised
+
+
 def test_ensure_running_non_tty_exits(tmp_path: Path, monkeypatch):
+    _stub_compose_stack(tmp_path)
     monkeypatch.setattr(
         runtime,
         "status_all",
@@ -451,6 +492,7 @@ def test_ensure_running_non_tty_exits(tmp_path: Path, monkeypatch):
 
 
 def test_ensure_running_decline_cancels(tmp_path: Path, monkeypatch):
+    _stub_compose_stack(tmp_path)
     monkeypatch.setattr(
         runtime,
         "status_all",
@@ -471,6 +513,7 @@ def test_ensure_running_decline_cancels(tmp_path: Path, monkeypatch):
 
 
 def test_ensure_running_yes_starts_then_ok(tmp_path: Path, monkeypatch):
+    _stub_compose_stack(tmp_path)
     calls = {"status": 0, "start": 0}
 
     def fake_status(_r):
@@ -515,6 +558,7 @@ def test_ensure_running_yes_starts_then_ok(tmp_path: Path, monkeypatch):
 
 
 def test_ensure_running_yes_but_still_down(tmp_path: Path, monkeypatch):
+    _stub_compose_stack(tmp_path)
     monkeypatch.setattr(
         runtime,
         "status_all",
