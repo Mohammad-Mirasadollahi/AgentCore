@@ -9,10 +9,14 @@ SSH-only detail:
 ## Quick start
 
 ```bash
-# Dev host
-agentcore connect --init
-# Edit ~/.agentcore/connect.yaml (use example hostnames from doc 41; replace with yours)
+# Dev host — interactive SSH wizard (no connect.yaml required)
 cd /opt/MyApp && agentcore connect
+
+# Re-auth / replace AgentCore pubkey
+agentcore connect --edit
+
+# Advanced: template + hand-edit ~/.agentcore/connect.yaml
+agentcore connect --init
 ```
 
 ```bash

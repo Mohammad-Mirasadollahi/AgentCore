@@ -88,6 +88,7 @@ def load_connect_settings(
     api_url_override: str = "",
     clients_override: str = "",
     cwd: Path | None = None,
+    allow_incomplete: bool = False,
 ) -> ConnectSettings:
     path = resolve_config_path(config_path)
     doc = _read_config_file(path)
@@ -160,20 +161,25 @@ def load_connect_settings(
         settings.project_name = settings.project
 
     if (
-        not settings.local
+        not allow_incomplete
+        and not settings.local
         and not settings.ssh
         and not settings.api_url
         and not settings.mcp_http_url
     ):
         raise SystemExit(
-            "error: set server.local: true, and/or server.ssh, and/or server.url / mcp_http_url"
+            "error: set server.local: true, and/or server.ssh, and/or server.url / mcp_http_url "
+            "(or run `agentcore connect` / `agentcore connect --edit` in a TTY)"
         )
     return settings
 
 
 CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 #
-# Replace example hostnames/paths with yours. Do not store OS or DB passwords here.
+# Preferred first-time path: run `agentcore connect` in a TTY (interactive SSH wizard).
+# Re-auth / replace pubkey: `agentcore connect --edit`
+# Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
+# breaks BatchMode login, run --edit (do not store OS passwords here).
 #
 # --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
 # server:
@@ -230,3 +236,85 @@ def write_connect_template(path: Path | None = None) -> Path:
     target.write_text(CONNECT_TEMPLATE, encoding="utf-8")
     harden_connect_config_permissions(target)
     return target
+
+
+def _ensure_mapping(doc: dict[str, Any], key: str) -> dict[str, Any]:
+    raw = doc.get(key)
+    if isinstance(raw, dict):
+        return raw
+    nested: dict[str, Any] = {}
+    doc[key] = nested
+    return nested
+
+
+def write_or_merge_connect_yaml(
+    settings: ConnectSettings,
+    *,
+    path: Path | None = None,
+    prefer_http: bool | None = None,
+) -> Path:
+    """Create or merge SSH/wizard fields into connect.yaml without wiping hand-tuned keys."""
+    target = path or (Path.home() / ".agentcore" / "connect.yaml")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    doc: dict[str, Any] = {}
+    if target.is_file():
+        doc = _read_config_file(target)
+        reject_secrets_in_connect_doc(doc, target)
+
+    server = _ensure_mapping(doc, "server")
+    auth = _ensure_mapping(doc, "auth")
+    scope = _ensure_mapping(doc, "scope")
+    connect = _ensure_mapping(doc, "connect")
+
+    if settings.ssh:
+        server["ssh"] = settings.ssh
+    if settings.remote_root:
+        server["remote_root"] = settings.remote_root
+    if settings.local:
+        server["local"] = True
+    elif "local" in server and not settings.local:
+        server.pop("local", None)
+
+    if settings.ssh_identity:
+        auth["ssh_key"] = settings.ssh_identity
+    # Never persist password; strip if a previous bad edit left one.
+    for forbidden in ("password", "postgres_password", "neo4j_password", "secret"):
+        auth.pop(forbidden, None)
+
+    if settings.tenant:
+        scope["tenant"] = settings.tenant
+    if settings.workspace:
+        scope["workspace"] = settings.workspace
+    if settings.project:
+        scope["project"] = settings.project
+    if settings.project_name and settings.project_name != settings.project:
+        scope["name"] = settings.project_name
+
+    doc["usage_profile"] = settings.usage_profile or doc.get("usage_profile") or "programming-cursor-mcp"
+    if settings.clients:
+        doc["clients"] = settings.clients
+
+    connect["register"] = settings.register
+    connect["smoke_test"] = settings.smoke_test
+    http_pref = settings.prefer_http if prefer_http is None else prefer_http
+    connect["prefer_http"] = bool(http_pref)
+    if settings.ingest_mode:
+        connect["ingest"] = settings.ingest_mode
+
+    from agentcore_cli.connect_security import atomic_write_text
+
+    body = yaml.safe_dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    atomic_write_text(target, body if body.endswith("\n") else body + "\n", mode=0o600)
+    harden_connect_config_permissions(target)
+    return target
+
+
+def try_resolve_config_path(explicit: str = "") -> Path | None:
+    """Like resolve_config_path but returns None when missing (for wizard entry)."""
+    if explicit.strip():
+        path = Path(explicit).expanduser()
+        return path if path.is_file() else None
+    for candidate in default_config_paths():
+        if candidate.is_file():
+            return candidate
+    return None
