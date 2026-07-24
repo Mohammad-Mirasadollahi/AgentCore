@@ -1,4 +1,38 @@
+---
+doc_id: ac.doc.core-data.phase-1-api-contract
+title: Phase 1 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: core-data-service
+summary: 'All commands require `X-Tenant-Id`, `X-Workspace-Id`, `X-Actor-Id`, and `Idempotency-Key`.
+  Version: 1.0.0 All commands require `X-Tenant-Id`, `X-Workspace-Id`, `X-Actor-Id`, and `Idempotency-Key`.
+  Requests and responses use snake_case and project scope is enforced before reads...'
+tags:
+- api
+- contract
+- core-data
+- phase-1
+phase: phase-1
+canonical_path: backend/services/core-data-service/docs/phase-1-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Phase 1 API Contract
+
+
+## Purpose
+
+All commands require `X-Tenant-Id`, `X-Workspace-Id`, `X-Actor-Id`, and `Idempotency-Key`.
 
 Version: 1.0.0
 
@@ -32,3 +66,8 @@ List calls require bounded `page_size` where exposed and return items, page meta
 Critical Issues must include `task_specs` for decomposition or `escalation_reason` for documented human escalation. Decision supersession keeps the old Decision record and moves it to `superseded` rather than deleting it.
 
 PostgreSQL is the only runtime and integration persistence backend and is configured through `AGENTCORE_CORE_DATA_DATABASE_URL`. Deterministic unit tests use the Store port's in-memory fake.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

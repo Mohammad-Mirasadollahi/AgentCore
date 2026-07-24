@@ -1,3 +1,33 @@
+---
+doc_id: ac.doc.code-graph.phase-7-api-contract
+title: Code Graph Service Phase 7 API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: code-graph-service
+summary: This contract documents the Phase 7 vertical slice for the Code-Knowledge Graph.
+  The service owns scoped graph symbol projections, relationship edges (CONTAINS, CALLS, IMPORTS,
+  INHERITS_FROM, DOCUMENTED_BY, ROUTES_TO, TESTED_BY, HTTP_CALLS, ASYNC_CALLS), hash-based
+  change dete...
+tags:
+- api
+- code-graph
+- contract
+- phase-7
+phase: phase-7
+canonical_path: backend/services/code-graph-service/docs/phase-7-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Code Graph Service Phase 7 API Contract
 
 Path: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
@@ -76,3 +106,8 @@ Each event contains `event_id`, `event_type`, `event_version`, `occurred_at`, `p
 ## Compatibility
 
 This is an active Phase 7 contract. Breaking changes require a new contract note, matching tests, and a migration or compatibility statement before promotion to shared contracts.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

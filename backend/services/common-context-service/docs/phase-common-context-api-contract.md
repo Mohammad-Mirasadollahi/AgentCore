@@ -1,4 +1,38 @@
+---
+doc_id: ac.doc.common-context.phase-common-context-api-contract
+title: AgentCore Common Context API Contract
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: common-context-service
+summary: 'Vertical slice for `common-context-service`. Vertical slice for `common-context-service`.
+  - Scope headers: `X-Tenant-Id`, `X-Workspace-Id`, `X-Actor-Id` - Idempotency: `Idempotency-Key`
+  on mutating propose routes - Persistence target env: `AGENTCORE_COMMON_CONTEXT_DATABASE_URL...'
+tags:
+- api
+- common-context
+- contract
+- phase-common-context
+phase: phase-common-context
+canonical_path: backend/services/common-context-service/docs/phase-common-context-api-contract.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # AgentCore Common Context API Contract
+
+
+## Purpose
+
+Vertical slice for `common-context-service`.
 
 Vertical slice for `common-context-service`.
 
@@ -41,3 +75,8 @@ Resolve / list / get-skill merge **org + project + user** (when actor/`user_id` 
 | `POST` | `/api/v1/projects/{project_id}/guidance/export` | Dry-run layout plan (`cursor` / `claude_compatible` / `generic_agents_md`) |
 
 Design: `docs/15-agent-workspace-guidance/`.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice

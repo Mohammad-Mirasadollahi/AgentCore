@@ -204,6 +204,22 @@ def test_repo_docs_tree_meets_docs_standards():
     assert report.get("scan_mode") == "roots"
 
 
+def test_service_api_contract_docs_pass_full_tier():
+    """Service-local API contracts are official product docs and must pass Full-tier."""
+    root = repo_root()
+    paths = sorted((root / "backend" / "services").glob("*/docs/*api*.md"))
+    assert paths, "expected service API contract Markdown"
+    from agentcore_cli.commands.docs_standards.check import check_file
+
+    failures = []
+    for path in paths:
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        row = check_file(path, root=root)
+        if not row.get("ok"):
+            failures.append((rel, row.get("issues")))
+    assert not failures, failures[:5]
+
+
 def test_check_ignores_h1_inside_fences():
     text = GOOD_DOC.replace(
         "## Related Documents\n\n- none\n",

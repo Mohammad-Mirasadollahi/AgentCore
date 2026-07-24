@@ -12,6 +12,7 @@ from agentcore_cli.remote_client import (
     materialize_ssh_mcp_fragment,
     parse_env_file,
     remote_mcp_serve_command,
+    remote_register_project,
     ssh_argv,
 )
 
@@ -117,3 +118,33 @@ def test_client_wire_remote_dry_run(capsys):
     )
     payload = json.loads(capsys.readouterr().out)
     assert "AgentCore-Programming" in payload["mcpServers"]
+
+
+def test_remote_register_project_single_quiet_register(monkeypatch, capsys):
+    """Connect must not run activate (duplicate JSON) or leak register JSON over SSH."""
+    seen: list[list[str]] = []
+
+    def fake_run_ssh(ssh_target, remote_command, *, identity_file=None, **_kwargs):
+        assert ssh_target == "ops@host"
+        seen.append(list(remote_command))
+        return 0
+
+    monkeypatch.setattr("agentcore_cli.remote_client.run_ssh", fake_run_ssh)
+    remote_register_project(
+        "ops@host",
+        "/opt/AgentCore",
+        "mir",
+        "dev",
+        "ThinkingSOC",
+        project_name="ThinkingSOC",
+        usage_profile="programming-cursor-mcp",
+    )
+    assert len(seen) == 1
+    shell = seen[0][-1]
+    assert "project register" in shell
+    assert "project activate" not in shell
+    assert ">/dev/null" in shell
+    out = capsys.readouterr().out
+    assert "registered" in out
+    assert "ThinkingSOC" in out
+    assert '"saved"' not in out

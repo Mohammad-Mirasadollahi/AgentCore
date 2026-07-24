@@ -1,4 +1,39 @@
+---
+doc_id: ac.doc.project-profile.usage-profile-api
+title: Usage Profile API (project-profile-service)
+doc_type: contract
+status: active
+schema_version: '1.0'
+owner: project-profile-service
+summary: '| Method | Path | Purpose | |--------|------|---------| | GET | `/health` | Service
+  health (used by `agentcore connect`) | | GET | `/api/v1/usage-profiles` | List catalog profile
+  ids | | POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register +
+  activate...'
+tags:
+- api
+- contract
+- project-profile
+- usage-profile
+phase: usage-profile
+canonical_path: backend/services/project-profile-service/docs/usage-profile-api.md
+lifecycle_lane: current
+concern_lane: contract
+audience_lane:
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
+linked_symbols: []
+---
+
 # Usage Profile API (project-profile-service)
+
+
+## Purpose
+
+| Method | Path | Purpose | |--------|------|---------| | GET | `/health` | Service health (used by `agentcore connect`) | | GET | `/api/v1/usage-profiles` | List catalog profile ids | | POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register + activate + MCP fragment (HTTP or stdio) | | POST | `/api/v1/projects/{project_id}/connect/sources` | Register server path or git.
 
 ## Endpoints
 
@@ -49,3 +84,8 @@ When `apply_catalog_defaults` is true (default), domain pack and feature profile
 5. Reload Cursor.
 
 See `docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md`.
+
+## Related Documents
+
+- `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Sibling service design docs under `docs/` for the owning phase vertical slice
