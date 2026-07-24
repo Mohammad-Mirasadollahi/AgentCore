@@ -31,13 +31,14 @@ related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.1.0
+doc_version: 1.0.0
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 39 - Local Install Runbook

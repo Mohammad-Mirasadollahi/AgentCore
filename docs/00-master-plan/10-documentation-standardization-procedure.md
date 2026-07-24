@@ -44,6 +44,7 @@ related_docs:
 - ac.doc.agents.team-documentation-playbook-for-agentcore
 - ac.doc.sea.agentcore-cli-command-reference
 doc_version: 1.0.0
+updated_at: '2026-07-24'
 language: en
 security_classification: internal
 ---
@@ -185,7 +186,8 @@ Lane fields (required):
 | `authority` | `09-…` §5 |
 | `visibility` | `09-…` §6 |
 
-Recommended: `linked_symbols`, `related_docs`, `doc_version`, `chunk_hints`, `language: en`, `security_classification`.
+Recommended: `linked_symbols`, `related_docs`, `doc_version`, `updated_at`, `chunk_hints`, `language: en`, `security_classification`.
+On material create/edit: bump `doc_version` (semver) and set `updated_at` (UTC `YYYY-MM-DD`) with truthful body changes; prefer drift/`linked_symbols` over dates alone.
 
 ---
 

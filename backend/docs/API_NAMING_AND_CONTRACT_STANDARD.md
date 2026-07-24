@@ -22,6 +22,8 @@ visibility: internal
 linked_symbols: []
 language: en
 security_classification: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # API Naming And Contract Standard

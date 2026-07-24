@@ -27,6 +27,11 @@ LANE_FIELDS = (
     "authority",
     "visibility",
 )
+# Soft-required on write/edit (warnings when missing; hard issues when invalid).
+REVISION_FIELDS = (
+    "doc_version",
+    "updated_at",
+)
 STATUS_OK = frozenset({"draft", "active", "deprecated", "archived"})
 DOC_TYPES = frozenset(
     {
@@ -47,6 +52,9 @@ DOC_TYPES = frozenset(
 )
 DESIGN_TYPES = frozenset({"hld", "lld", "feature_spec", "service_design"})
 DOC_ID_RE = re.compile(r"^ac\.doc\.[a-z0-9][a-z0-9_.-]*$")
+DOC_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+# ISO-8601 calendar date, optional time suffix.
+UPDATED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}(?:[T ].+)?$")
 PURPOSE_H2_RE = re.compile(
     r"(?im)^##\s+(purpose|overview of|what this (document|doc)\b)",
 )
@@ -75,8 +83,17 @@ def _body_without_fences(body: str) -> str:
     return FENCE_RE.sub("", body or "")
 
 
-def check_markdown_doc(*, relative_path: str, text: str) -> dict[str, Any]:
-    """Return a finding row for one Markdown file."""
+def check_markdown_doc(
+    *,
+    relative_path: str,
+    text: str,
+    repo: Path | None = None,
+) -> dict[str, Any]:
+    """Return a finding row for one Markdown file.
+
+    When ``repo`` is set, evidence linking gaps become hard issues (sync-blocking).
+    Soft body budget remains a warning — fix-on-write / quality-audit must still remediate.
+    """
     issues: list[str] = []
     warnings: list[str] = []
     frontmatter, body = parse_markdown_frontmatter(text)
@@ -108,6 +125,18 @@ def check_markdown_doc(*, relative_path: str, text: str) -> dict[str, Any]:
         if canonical and canonical != rel:
             issues.append("canonical_path_mismatch")
 
+        doc_version = str(frontmatter.get("doc_version") or "").strip()
+        if not doc_version:
+            warnings.append("missing_recommended:doc_version")
+        elif not DOC_VERSION_RE.match(doc_version):
+            issues.append("invalid_doc_version")
+
+        updated_at = str(frontmatter.get("updated_at") or "").strip()
+        if not updated_at:
+            warnings.append("missing_recommended:updated_at")
+        elif not UPDATED_AT_RE.match(updated_at):
+            issues.append("invalid_updated_at")
+
         h1s = H1_RE.findall(prose)
         if len(h1s) == 0:
             issues.append("missing_h1")
@@ -130,6 +159,27 @@ def check_markdown_doc(*, relative_path: str, text: str) -> dict[str, Any]:
         if doc_type in DESIGN_TYPES and "```mermaid" not in body.lower():
             issues.append("design_missing_mermaid")
 
+        # Evidence linking: cited on-disk code paths must appear in linked_symbols (hard).
+        if repo is not None:
+            try:
+                from agentcore_cli.docs_link_suggest import extract_evidence_link_tokens
+
+                existing = {
+                    str(x).strip()
+                    for x in (frontmatter.get("linked_symbols") or [])
+                    if isinstance(frontmatter.get("linked_symbols"), list) and str(x).strip()
+                }
+                cited = extract_evidence_link_tokens(body, repo=repo, max_tokens=64)
+                missing = [t for t in cited if t not in existing]
+                if cited and (not existing or missing):
+                    issues.append(
+                        "missing_linked_symbols"
+                        if not existing
+                        else f"missing_linked_symbols:{len(missing)}"
+                    )
+            except Exception:  # noqa: BLE001 — check must stay resilient
+                pass
+
     ok = len(issues) == 0
     return {
         "file": rel,
@@ -141,10 +191,12 @@ def check_markdown_doc(*, relative_path: str, text: str) -> dict[str, Any]:
         "doc_id": str((frontmatter or {}).get("doc_id") or "") or None,
         "doc_type": str((frontmatter or {}).get("doc_type") or "") or None,
         "status": str((frontmatter or {}).get("status") or "") or None,
+        "doc_version": str((frontmatter or {}).get("doc_version") or "") or None,
+        "updated_at": str((frontmatter or {}).get("updated_at") or "") or None,
     }
 
 
 def check_file(path: Path, *, root: Path) -> dict[str, Any]:
     rel = str(path.resolve().relative_to(root.resolve())).replace("\\", "/")
     text = path.read_text(encoding="utf-8")
-    return check_markdown_doc(relative_path=rel, text=text)
+    return check_markdown_doc(relative_path=rel, text=text, repo=root)

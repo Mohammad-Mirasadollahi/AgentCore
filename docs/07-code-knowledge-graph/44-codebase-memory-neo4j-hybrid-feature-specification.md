@@ -5,9 +5,8 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: platform-product
-summary: Product requirements for token-efficient structural MCP tools inspired by
-  Codebase-Memory, implemented on AgentCore Neo4j CKG with hybrid escalate to explore/RAG
-  for best answer quality.
+summary: Product requirements for token-efficient structural MCP tools inspired by Codebase-Memory,
+  implemented on AgentCore Neo4j CKG with hybrid escalate to explore/RAG for best answer quality.
 tags:
 - code-intelligence
 - codebase-memory
@@ -38,6 +37,7 @@ external_refs:
 - https://arxiv.org/abs/2603.27277
 - https://github.com/DeusData/codebase-memory-mcp
 doc_version: 1.0.0
+updated_at: '2026-07-24'
 audience:
 - engineer
 - architect
@@ -106,6 +106,23 @@ Ideas only; clean-room on Neo4j — see [`21`](21-code-intelligence-prior-art-id
 
 Target: **better than structural-only or file-only alone** on AgentCore workloads,
 not paper parity marketing.
+
+## Structural-first hybrid flow
+
+```mermaid
+flowchart TD
+  ask[Agent question] --> structural[Structural MCP tools]
+  structural --> enough{Enough context?}
+  enough -->|yes| answer[Answer]
+  enough -->|no| escalate[Explore / hybrid / budgeted source]
+  escalate --> answer
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Agent | Prefer callers / impact / community / call_path | Low-token structural pack |
+| 2 | Agent | Check sparse/empty/escalate_hint | Decide whether to escalate |
+| 3 | Agent | Run explore / hybrid / budgeted source when needed | Best-quality answer without wide crawl first |
 
 ## Tool Matrix vs Codebase-Memory
 

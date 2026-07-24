@@ -13,6 +13,8 @@ from agentcore_cli.docs_link_sync import sync_human_docs
 from agentcore_cli.software_paths import require_software_paths
 from agentcore_cli.sync_config import resolve_sync_filters
 from agentcore_cli.sync_progress import SyncProgressTracker
+from agentcore_cli.sync_standards_gate import resolve_standards_gate
+from agentcore_cli.sync_followup_tasks import create_sync_followup_tasks
 from agentcore_cli.sync_usage_log import (
     TimedPhase,
     append_sync_usage_record,
@@ -38,11 +40,28 @@ def _sync_one_root(
         cli_include_paths=list(args.include_path or []),
         cli_include_extensions=list(args.include_ext or []) or None,
     )
+    filters = {**filters, "max_files": int(args.max_files)}
+    filters, standards_gate = resolve_standards_gate(
+        root_path=root_path,
+        filters=filters,
+        skip_nonconforming=bool(getattr(args, "skip_nonconforming", False)),
+        sync_nonconforming=bool(getattr(args, "sync_nonconforming", False)),
+    )
     scope_txt = f"{scope.tenant_id}/{scope.workspace_id}/{scope.project_id}"
     ui.blank()
     print(f"{ui.accent('→')}  Syncing {ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id)}")
     ui.kv("Path", str(root_path))
     ui.kv("Progress", f"updates about every {int(args.progress_interval)}s (adapts ETA from observed rate)")
+    if standards_gate.docs_nonconforming or standards_gate.code_nonconforming:
+        ui.kv(
+            "Standards gate",
+            (
+                f"skipped={standards_gate.skipped}  "
+                f"docs_bad={len(standards_gate.docs_nonconforming)}  "
+                f"docs_excluded={len(standards_gate.skipped_docs)}  "
+                f"code_excluded={len(standards_gate.skipped_code)}"
+            ),
+        )
     rpm_snap: dict[str, Any] = {}
     try:
         if hasattr(svc, "llm_sessions_snapshot"):
@@ -274,6 +293,27 @@ def _sync_one_root(
         ui.blank()
         ui.section("Hint")
         ui.bullet(str(payload["hint"]))
+
+    followup: dict[str, Any] = {"ok": True, "specs_count": 0, "tasks_created_count": 0}
+    try:
+        followup = create_sync_followup_tasks(
+            scope=scope,
+            standards_gate=standards_gate,
+            include_code_audit=True,
+        )
+        if int(followup.get("specs_count") or 0) > 0:
+            ui.blank()
+            ui.kv(
+                "Follow-up tasks",
+                (
+                    f"specs={followup.get('specs_count')}  "
+                    f"created={followup.get('tasks_created_count')}  "
+                    f"mirror={followup.get('mirror_path')}"
+                ),
+            )
+    except Exception as exc:  # noqa: BLE001 — never fail sync on follow-up
+        followup = {"ok": False, "error": str(exc)}
+
     return {
         "path": str(root_path),
         "filters": {
@@ -285,6 +325,8 @@ def _sync_one_root(
             "doc_match_globs": filters.get("doc_match_globs") or [],
             "docs_enabled": bool(filters.get("docs_enabled")),
         },
+        "standards_gate": standards_gate.to_dict(),
+        "followup_tasks": followup,
         "sync": payload,
         "docs_link": docs_payload,
         "_usage": {

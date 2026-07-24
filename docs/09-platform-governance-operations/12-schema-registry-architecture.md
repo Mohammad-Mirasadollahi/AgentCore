@@ -5,9 +5,9 @@ doc_type: adr
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Decides AgentCore v1 schema registry shape — repository-directory catalog under
-  backend/configs with discovery index in backend/tools/schema-registry (not a runtime
-  microservice or database-backed registry).
+summary: Decides AgentCore v1 schema registry shape — repository-directory catalog under backend/configs
+  with discovery index in backend/tools/schema-registry (not a runtime microservice or database-backed
+  registry).
 tags:
 - schema-registry
 - contracts
@@ -36,6 +36,7 @@ audience:
 - architect
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 12 - Schema Registry Architecture

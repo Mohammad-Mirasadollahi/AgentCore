@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
-from . import code_graph, docs, guidance, writes
+from . import code_graph, docs, guidance, quality, writes
 from core_data_service.core import Kind
 
 from .platform import PlatformBackends
@@ -121,6 +121,15 @@ def dispatch_capability(
         return docs.docs_authoring_standards(base=base)
     if maps_to == "docs_sync.catalog":
         return docs.docs_catalog(arguments, base=base)
+
+    if maps_to == "quality.audit":
+        return quality.quality_audit(
+            backends,
+            arguments,
+            scope=scope,
+            correlation_id=correlation_id,
+            base=base,
+        )
 
     if maps_to == "guidance.resolve":
         return guidance.guidance_resolve(

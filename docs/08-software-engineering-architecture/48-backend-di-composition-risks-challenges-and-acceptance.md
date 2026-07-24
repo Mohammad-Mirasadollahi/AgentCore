@@ -5,8 +5,8 @@ doc_type: standard
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: 'Risks, challenges, and acceptance gates for AgentCore composition-root DI
-  (Phases A–D acceptance checked).'
+summary: Risks, challenges, and acceptance gates for AgentCore composition-root DI (Phases
+  A–D acceptance checked).
 tags:
 - dependency-injection
 - composition-root
@@ -33,6 +33,7 @@ audience:
 - architect
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 48 - Backend DI Composition Risks Challenges And Acceptance

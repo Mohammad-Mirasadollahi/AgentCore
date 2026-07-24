@@ -5,10 +5,9 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: >-
-  Shipped design for estimating AgentCore MCP connect cost (lazy tools/list vs full
-  catalog), attributing IDE client and scope ids, and reporting logged MCP usage over
-  time via `agentcore mcp tokens`.
+summary: Shipped design for estimating AgentCore MCP connect cost (lazy tools/list vs full
+  catalog), attributing IDE client and scope ids, and reporting logged MCP usage over time
+  via `agentcore mcp tokens`.
 tags:
 - mcp
 - tokens
@@ -54,6 +53,7 @@ audience:
 - agent
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 44 - MCP Token Accounting

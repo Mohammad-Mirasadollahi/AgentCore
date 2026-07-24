@@ -35,6 +35,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/identity.py::identity_path
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
 - tests/backend/tools/agentcore-cli/test_mcp_tokens.py::test_estimate_connect_lazy_cheaper_than_full
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued) (Continued) (Continued) (Part 4)
@@ -218,7 +220,7 @@ Remaining `agentcore` command catalog entries split from `docs/08-software-engin
 | **Required** | Scope flags, `--path` |
 | **Optional** | `--interval`, `--debounce`, `--max-wait`, `--once` |
 | **Example** | `agentcore graph watch --tenant acme --workspace eng --project payments --path . --once` |
-| **What changes** | May flush pending sync batches into the graph while running |
+| **What changes** | May flush pending sync **banners** into freshness state while running; does not replace explicit ingest. Any future flush-to-ingest path must honor Client Skip/Ingest preference — see [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
 
 Default graph CLI backend is in-memory (`AGENTCORE_GRAPH_CLI_BACKEND=memory`). Set `AGENTCORE_GRAPH_CLI_BACKEND=neo4j` (plus Neo4j env) for durable Compose labs. See [wedge connect runbook](../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md).
 

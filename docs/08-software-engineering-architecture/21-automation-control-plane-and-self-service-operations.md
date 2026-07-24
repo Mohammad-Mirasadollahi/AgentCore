@@ -24,6 +24,8 @@ related_docs:
 - docs/09-platform-governance-operations/09-automated-deployment-and-connectivity-runbooks.md
 - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 21 - Automation Control Plane And Self-Service Operations

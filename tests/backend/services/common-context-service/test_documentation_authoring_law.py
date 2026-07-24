@@ -29,6 +29,7 @@ def test_seed_includes_documentation_authoring_skill():
     assert "agentcore-docs-sync" in names
     assert "agentcore-remove-dead-code" in names
     assert "agentcore-source-contracts" in names
+    assert "agentcore-standards-on-edit" in names
     authoring = next(p for p in skills if p["name"] == "agentcore-documentation-authoring")
     assert authoring["body"] == SKILL_MARKDOWN
     assert "agentcore_docs_authoring_standards" in authoring["body"]
@@ -39,9 +40,15 @@ def test_seed_includes_documentation_authoring_skill():
     contracts = next(p for p in skills if p["name"] == "agentcore-source-contracts")
     assert "49-module-contract" in contracts["body"]
     assert "50-package-folder" in contracts["body"]
+    on_edit = next(p for p in skills if p["name"] == "agentcore-standards-on-edit")
+    assert "fix-on-write" in on_edit["body"]
+    assert "doc_version" in on_edit["body"]
+    assert "updated_at" in on_edit["body"]
+    assert "agentcore-documentation-authoring" in on_edit["body"]
     entry = next(p for p in mcp_first_seed_payloads() if p.get("item_type") == "agents_entry")
     assert "agentcore-remove-dead-code" in entry["body"]
     assert "agentcore-source-contracts" in entry["body"]
+    assert "agentcore-standards-on-edit" in entry["body"]
 
 
 def test_mcp_first_rule_requires_source_contracts():
@@ -51,8 +58,10 @@ def test_mcp_first_rule_requires_source_contracts():
     assert "49-module-contract-docstrings-standard" in rule["body"]
     assert "50-package-folder-readme-standard" in rule["body"]
     assert "agentcore-source-contracts" in rule["body"]
+    assert "agentcore-standards-on-edit" in rule["body"]
     assert "Fix-on-read (docs)" in rule["body"]
     assert "Fix-on-read (module contracts)" in rule["body"]
+    assert "Fix-on-write (standards)" in rule["body"]
     assert "same turn" in rule["body"]
     contracts = next(
         p for p in mcp_first_seed_payloads() if p.get("item_type") == "skill" and p["name"] == "agentcore-source-contracts"

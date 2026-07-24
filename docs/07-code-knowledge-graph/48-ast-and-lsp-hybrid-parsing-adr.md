@@ -5,9 +5,9 @@ doc_type: adr
 status: active
 schema_version: '1.0'
 owner: code-graph-lead
-summary: 'Accepts durable Code-Knowledge Graph ingest via AST (stdlib ast / tree-sitter) as
+summary: Accepts durable Code-Knowledge Graph ingest via AST (stdlib ast / tree-sitter) as
   the single source of truth for knowledge↔code edges, and reserves Language Server Protocol
-  (LSP) as an optional edit-session enrichment layer — not as a second durable graph SoR.'
+  (LSP) as an optional edit-session enrichment layer — not as a second durable graph SoR.
 tags:
 - code-graph
 - adr
@@ -41,7 +41,7 @@ external_refs:
 - https://github.com/oraios/serena
 - https://github.com/Graphify-Labs/graphify
 - https://github.com/tirth8205/code-review-graph
-doc_version: 1.1.0
+doc_version: 1.0.0
 audience:
 - engineer
 - architect
@@ -61,6 +61,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 48 - AST and LSP Hybrid Parsing ADR

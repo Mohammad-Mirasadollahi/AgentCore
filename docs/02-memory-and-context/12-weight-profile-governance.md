@@ -5,8 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Closes GAP-006 with ownership, approval, activation, and rollback rules for
-  versioned WeightProfiles, plus AgentCore CLI governance commands.
+summary: Closes GAP-006 with ownership, approval, activation, and rollback rules for versioned
+  WeightProfiles, plus AgentCore CLI governance commands.
 tags:
 - memory
 - weight-profile
@@ -35,6 +35,7 @@ audience:
 - architect
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 12 - Weight Profile Governance

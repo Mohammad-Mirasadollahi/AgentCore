@@ -74,6 +74,24 @@ def register(sub: argparse._SubParsersAction) -> None:
         ),
     )
     sync.add_argument(
+        "--skip-nonconforming",
+        action="store_true",
+        help=(
+            "Skip syncing paths that fail Full-tier docs-standards "
+            "(no interactive prompt; for scripts). "
+            "Conflicts with --sync-nonconforming"
+        ),
+    )
+    sync.add_argument(
+        "--sync-nonconforming",
+        action="store_true",
+        help=(
+            "Sync nonconforming docs/code anyway "
+            "(skip the interactive standards gate). "
+            "Conflicts with --skip-nonconforming"
+        ),
+    )
+    sync.add_argument(
         "--exclude-dir",
         action="append",
         default=[],

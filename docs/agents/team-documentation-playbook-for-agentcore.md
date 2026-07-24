@@ -6,8 +6,8 @@ status: active
 schema_version: '1.0'
 owner: platform-docs
 summary: Team-facing playbook—which normative docs to follow when writing product Markdown
-  and code-linked docs so AgentCore sync, DOCUMENTED_BY edges, and coding agents produce
-  the best results.
+  and code-linked docs so AgentCore sync, DOCUMENTED_BY edges, and coding agents produce the
+  best results.
 tags:
 - documentation
 - agents
@@ -35,6 +35,8 @@ related_docs:
 - ac.doc.master.professional-documentation
 language: en
 security_classification: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Team Documentation Playbook for AgentCore

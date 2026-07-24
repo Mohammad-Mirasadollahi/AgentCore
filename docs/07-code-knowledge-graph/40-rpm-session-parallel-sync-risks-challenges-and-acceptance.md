@@ -44,6 +44,7 @@ chunk_hints:
   overlap_tokens: 40
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 40 - RPM Session Parallel Sync Risks Challenges And Acceptance
@@ -96,7 +97,8 @@ Last verified: 2026-07-22
 
 - Session registry and RPM truth are **per process**.
 - History is **short** (100) and **volatile** (lost on exit).
-- Human-docs Phase 2 may remain serial.
+- Human-docs Phase 2 uses the same `sync_max_file_workers` pool as code ingest;
+  docs-sync store writes stay single-flight (one Postgres connection).
 - No distributed limiter across hosts.
 
 ## Acceptance gates
@@ -148,7 +150,8 @@ Uncheck → check only when proven in code + tests.
 - [x] Detailed HTTP sessions are loopback-only, and the transient CLI snapshot
   is explicitly `0600` (`test_llm_sessions_route_is_loopback_only`,
   `test_tracker_snapshot_is_private_before_json_is_written`).
-- [x] Sync progress remains coherent under parallel workers.
+- [x] Human-docs Phase 2 (`docs_link_sync`) uses ``sync_max_file_workers`` with
+  single-flight docs-sync writes (`test_sync_human_docs_runs_with_parallel_workers`).
 - [x] Unchanged session polls do not rewrite/fsync transient progress
   (`test_tracker_skips_unchanged_session_snapshot`).
 
@@ -166,7 +169,6 @@ Uncheck → check only when proven in code + tests.
 | Postgres connection pool | Enables safer parallel writers; separate design |
 | Shared limiter across processes | Redis/file lock — only if multi-sync becomes common |
 | Attempt-level session nesting | If ops need per-retry visibility |
-| Parallel human-docs Phase 2 | After code ingest path is proven |
 
 ## Related Documents
 

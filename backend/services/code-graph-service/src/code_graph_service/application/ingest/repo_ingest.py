@@ -102,12 +102,6 @@ class RepoIngestMixin:
         }
         truncated = not pending_paths.issubset(selected_paths)
         discovered = selected
-        need_paths = {
-            item.relative_path.replace("\\", "/")
-            for item in selected
-            if item.relative_path.replace("\\", "/") not in indexed_paths
-            or item.relative_path.replace("\\", "/") in changed_known_paths
-        }
         queue_new = sum(
             1
             for item in selected
@@ -142,10 +136,9 @@ class RepoIngestMixin:
         }
         on_progress = payload.get("on_progress")
         total_files = len(discovered)
-        # Progress bar: new+changed only. Unchanged rechecks still run but are
-        # excluded from done/total so "0/N" is not confused with a cold start.
-        # Recheck-only runs (no new/changed) fall back to all selected files.
-        progress_total = len(need_paths) if need_paths else total_files
+        # done/total = every selected file this run processes (incl. unchanged recheck).
+        # Queue line still shows new/changed/unchanged_recheck separately.
+        progress_total = total_files
         state_lock = threading.Lock()
         progress_done = 0
         active_files: set[str] = set()
@@ -181,15 +174,9 @@ class RepoIngestMixin:
                 "rpm_starts_in_window": int(snap.get("starts_in_window") or 0),
             }
 
-        def _counts_for_progress(rel: str) -> bool:
-            if not need_paths:
-                return True
-            return rel.replace("\\", "/") in need_paths
-
-        def _bump_progress(rel: str) -> int:
+        def _bump_progress(_rel: str) -> int:
             nonlocal progress_done
-            if _counts_for_progress(rel):
-                progress_done += 1
+            progress_done += 1
             return progress_done
 
         def _emit(done: int, *, file: str = "", status: str = "") -> None:
@@ -205,7 +192,7 @@ class RepoIngestMixin:
                     "total": progress_total,
                     "file": file,
                     "status": status,
-                    # done/total = new+changed this run (excludes unchanged rechecks).
+                    # done/total = all selected files this run (incl. unchanged rechecks).
                     "prior_indexed": int(queue_meta["prior_indexed"]),
                     "queue_new": int(queue_meta["queue_new"]),
                     "queue_changed": int(queue_meta["queue_changed"]),

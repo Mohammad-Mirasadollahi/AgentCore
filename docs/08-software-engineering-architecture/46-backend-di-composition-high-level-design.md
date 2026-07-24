@@ -5,7 +5,8 @@ doc_type: hld
 status: draft
 schema_version: '1.0'
 owner: platform-architecture
-summary: 'Phases A–D shipped: process composition roots, ServiceContainer, FastAPI/MCP adapters, ports.'
+summary: 'Phases A–D shipped: process composition roots, ServiceContainer, FastAPI/MCP adapters,
+  ports.'
 tags:
 - dependency-injection
 - composition-root
@@ -32,6 +33,7 @@ audience:
 - architect
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 46 - Backend DI Composition High Level Design

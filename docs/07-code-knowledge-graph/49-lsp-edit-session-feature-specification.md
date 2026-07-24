@@ -5,9 +5,9 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: code-graph-lead
-summary: 'Session-scoped LSP find-references, go-to-definition, and rename for coding agents;
+summary: Session-scoped LSP find-references, go-to-definition, and rename for coding agents;
   local language-server processes only; never dual-writes durable CODE_REL; converges via
-  ADR 48 reconcile_after_edit / AST re-ingest.'
+  ADR 48 reconcile_after_edit / AST re-ingest.
 tags:
 - code-graph
 - lsp
@@ -50,6 +50,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 49 - LSP Edit-Session Feature Specification

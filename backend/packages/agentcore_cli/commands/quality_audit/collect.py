@@ -12,7 +12,10 @@ from agentcore_cli.commands.docs_standards.check import (
     SOFT_BODY_LINES,
     check_markdown_doc,
 )
-from agentcore_cli.commands.docs_standards.collect import build_docs_standards_report
+from agentcore_cli.commands.docs_standards.collect import (
+    DEFAULT_DOC_ROOTS,
+    build_docs_standards_report,
+)
 from agentcore_cli.commands.quality_audit.categories import (
     CATEGORY_CODE_LOW_SYMBOL_DOCS,
     CATEGORY_CODE_NEVER_INGESTED,
@@ -20,11 +23,19 @@ from agentcore_cli.commands.quality_audit.categories import (
     CATEGORY_DOCS_FLOW_TABLE,
     CATEGORY_DOCS_LANE_INVALID,
     CATEGORY_DOCS_LINKING_GAP,
+    CATEGORY_DOCS_REVISION_INVALID,
+    CATEGORY_DOCS_REVISION_MISSING,
     CATEGORY_DOCS_SIZE_HARD,
     CATEGORY_DOCS_SIZE_SOFT,
     CATEGORY_DOCS_STANDARDS,
     CATEGORY_META,
     VALID_CONCERNS,
+)
+
+_REVISION_ISSUES = frozenset({"invalid_doc_version", "invalid_updated_at"})
+_REVISION_WARN_PREFIXES = (
+    "missing_recommended:doc_version",
+    "missing_recommended:updated_at",
 )
 from agentcore_cli.docs_link_suggest import extract_evidence_link_tokens
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
@@ -56,14 +67,31 @@ def _cited_path_tokens(body: str, *, root: Path) -> list[str]:
     return extract_evidence_link_tokens(body, repo=root, max_tokens=64)
 
 
+def _iter_product_docs(root: Path):
+    for name in DEFAULT_DOC_ROOTS:
+        base = root / name
+        if not base.is_dir():
+            continue
+        yield from sorted(p for p in base.rglob("*.md") if p.is_file())
+
+
 def _audit_docs(root: Path) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     standards = build_docs_standards_report(repo=root)
-    for row in standards.get("nonconforming") or []:
-        issues = list(row.get("issues") or [])
-        hard = [i for i in issues if str(i).startswith("body_over_hard_budget")]
-        other = [i for i in issues if not str(i).startswith("body_over_hard_budget")]
+    for row in (standards.get("nonconforming") or []) + (standards.get("conforming") or []):
         path = str(row.get("file") or "")
+        issues = [str(i) for i in (row.get("issues") or [])]
+        warnings = [str(w) for w in (row.get("warnings") or [])]
+        if not path:
+            continue
+
+        rev_issues = [i for i in issues if i in _REVISION_ISSUES]
+        hard = [i for i in issues if i.startswith("body_over_hard_budget")]
+        other = [
+            i
+            for i in issues
+            if i not in _REVISION_ISSUES and not i.startswith("body_over_hard_budget")
+        ]
         if hard:
             findings.append(
                 _finding(
@@ -71,6 +99,15 @@ def _audit_docs(root: Path) -> list[dict[str, Any]]:
                     path=path,
                     detail="; ".join(hard),
                     evidence=hard,
+                )
+            )
+        if rev_issues:
+            findings.append(
+                _finding(
+                    category=CATEGORY_DOCS_REVISION_INVALID,
+                    path=path,
+                    detail="; ".join(rev_issues),
+                    evidence=rev_issues,
                 )
             )
         if other:
@@ -82,10 +119,22 @@ def _audit_docs(root: Path) -> list[dict[str, Any]]:
                     evidence=other,
                 )
             )
+        rev_warns = [
+            w
+            for w in warnings
+            if any(w.startswith(p) for p in _REVISION_WARN_PREFIXES)
+        ]
+        if rev_warns:
+            findings.append(
+                _finding(
+                    category=CATEGORY_DOCS_REVISION_MISSING,
+                    path=path,
+                    detail="; ".join(rev_warns),
+                    evidence=rev_warns,
+                )
+            )
 
-    for path in sorted((root / "docs").rglob("*.md")):
-        if not path.is_file():
-            continue
+    for path in _iter_product_docs(root):
         rel = str(path.relative_to(root)).replace("\\", "/")
         text = path.read_text(encoding="utf-8", errors="replace")
         row = check_markdown_doc(relative_path=rel, text=text)

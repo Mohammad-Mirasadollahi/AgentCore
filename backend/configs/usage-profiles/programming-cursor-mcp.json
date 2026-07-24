@@ -700,6 +700,37 @@
         }
       },
       {
+        "name": "agentcore_quality_audit",
+        "description": "Categorized docs+code quality findings (standards, size, linking, revision, never-ingested/stale code). Call at session start and after material edits. Returns summary, top findings with fix_hint, and must_remediate. Optional create_tasks writes durable CoreData tasks for high/medium findings.",
+        "maps_to": "quality.audit",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "top_n": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25,
+              "description": "Max findings to return"
+            },
+            "severities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["high", "medium", "low"]
+              },
+              "description": "Optional severity filter"
+            },
+            "create_tasks": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, create durable tasks for high/medium findings"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
         "name": "agentcore_write",
         "description": "Write durable AgentCore records from Cursor: memory notes, tasks, activity, or decisions for the scoped project.",
         "maps_to": "platform.write",

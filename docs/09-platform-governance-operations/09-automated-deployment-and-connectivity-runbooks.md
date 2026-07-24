@@ -23,6 +23,8 @@ linked_symbols: []
 related_docs:
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 09 - Automated Deployment And Connectivity Runbooks

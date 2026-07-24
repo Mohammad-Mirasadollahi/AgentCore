@@ -42,6 +42,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 30 - Production Retrieval Stack Data Contracts And Events

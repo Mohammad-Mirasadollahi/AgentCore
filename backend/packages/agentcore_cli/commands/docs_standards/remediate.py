@@ -12,12 +12,14 @@ from agentcore_cli.commands.docs_standards.check import (
     DESIGN_TYPES,
     DOC_ID_RE,
     DOC_TYPES,
+    DOC_VERSION_RE,
     H1_RE,
     PURPOSE_H2_RE,
     STATUS_OK,
     check_markdown_doc,
 )
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
+from agentcore_cli.util import now_iso
 
 _STATUS_MAP = {
     "proposed": "draft",
@@ -174,6 +176,25 @@ _FLOW_TABLE_ONLY = """
 | 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
 | 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
 """
+
+
+def _utc_date() -> str:
+    """Calendar date (UTC) for ``updated_at``."""
+    return now_iso()[:10]
+
+
+def _normalize_doc_version(raw: str | None) -> str:
+    text = str(raw or "").strip()
+    if text and DOC_VERSION_RE.match(text):
+        return text
+    return "1.0.0"
+
+
+def _bump_patch_version(raw: str) -> str:
+    parts = str(raw or "").strip().split(".")
+    if len(parts) == 3 and all(p.isdigit() for p in parts):
+        return f"{int(parts[0])}.{int(parts[1])}.{int(parts[2]) + 1}"
+    return "1.0.0"
 
 
 def _slugify(text: str) -> str:
@@ -481,6 +502,8 @@ def _dump_frontmatter(data: dict[str, Any]) -> str:
         "audience_lane",
         "authority",
         "visibility",
+        "doc_version",
+        "updated_at",
         "linked_symbols",
     ]
     ordered: dict[str, Any] = {}
@@ -540,6 +563,13 @@ def remediate_markdown_doc(
     existing_links = fm.get("linked_symbols") if isinstance(fm.get("linked_symbols"), list) else []
     linked_symbols = _links_for_doc(rel, body, repo=root, existing=existing_links)
 
+    prior_version = str(fm.get("doc_version") or "").strip()
+    had_valid_version = bool(prior_version and DOC_VERSION_RE.match(prior_version))
+    # Remediator always touches structure/metadata → refresh revision stamp.
+    doc_version = (
+        _bump_patch_version(prior_version) if had_valid_version else _normalize_doc_version(prior_version)
+    )
+
     new_fm: dict[str, Any] = {
         **fm,
         "doc_id": _make_doc_id(rel, stem, str(fm.get("doc_id") or "") or None),
@@ -554,6 +584,8 @@ def remediate_markdown_doc(
         "canonical_path": rel,
         **{k: fm.get(k) or v for k, v in lanes.items()},
         "concern_lane": concern,
+        "doc_version": doc_version,
+        "updated_at": _utc_date(),
         "linked_symbols": linked_symbols,
     }
     # Force lane defaults when missing/empty.

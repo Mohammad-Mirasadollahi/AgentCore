@@ -60,6 +60,7 @@ security_classification: internal
 external_refs:
 - https://docs.litellm.ai/
 - https://github.com/BerriAI/litellm
+updated_at: '2026-07-24'
 ---
 
 # 09 - LiteLLM LLM Gateway

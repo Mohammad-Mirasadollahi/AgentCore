@@ -25,35 +25,9 @@ audience_lane:
 - product
 authority: normative
 visibility: internal
+doc_version: 1.1.0
+updated_at: '2026-07-24'
 linked_symbols: []
-related_docs:
-- ac.doc.awg.index
-- ac.doc.awg.feature-specification
-- ac.doc.awg.data-contracts
-- ac.doc.sea.usage-profile-cursor-mcp
-- ac.doc.ckg.dead-code-cleanup-loop
-doc_version: 1.0.0
-audience:
-- engineer
-- architect
-- product
-- agent
-primary_entities:
-- AlwaysRule
-- Skill
-- AgentWorkspaceGuidanceBundle
-- UsageProfile
-relations_declared:
-- type: complements
-  target: ac.doc.awg.feature-specification
-- type: depends_on
-  target: ac.doc.awg.data-contracts
-chunk_hints:
-  strategy: heading_h2
-  max_tokens: 800
-  overlap_tokens: 64
-language: en
-security_classification: internal
 ---
 
 # 06 - MCP-First Agent Skills And Rules
@@ -130,6 +104,7 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 11. When working at a **package/folder seam** agents confuse: ensure a short **README map** (purpose + boundaries + 2–5 start-here files) per `docs/08-software-engineering-architecture/50-package-folder-readme-standard.md` — never a per-file encyclopedia. Follow skill `agentcore-source-contracts`.
 12. **Fix-on-read (docs):** After you Read product Markdown under `docs/` / `backend/docs/` / `frontend/docs/` / `ai-toolstack/docs/` / `deploy-toolkit` and it fails Full-tier authoring law: load `agentcore-documentation-authoring` + `agentcore_docs_authoring_standards`, then remediate **that file in the same turn** before continuing. Do not leave a known nonconforming doc you already opened.
 13. **Fix-on-read (module contracts):** After you Read a **hard module** (standard 49) that lacks an accurate file-top module contract docstring: load `agentcore-source-contracts` and add/fix the header **in the same turn**. Skip trivial helpers per 49.
+14. **Fix-on-write (standards):** When you create or materially edit product docs or hard-module / package-seam code, load skill `agentcore-standards-on-edit` and remediate to project standards **in the same turn**. Sync may skip nonconforming docs; remediation on edit is how the corpus converges.
 ```
 ## Agents Entry Pointers
 
@@ -147,17 +122,16 @@ The project `agents_entry` body **must** list high-signal MCP skills (at minimum
 
 ## High-signal skills
 
-| Skill | Use when |
-| --- | --- |
-| `agentcore-session-bootstrap` | Starting a coding session on an AgentCore-connected project |
-| `agentcore-memory` | Need prior decisions, facts, or task context from AgentCore |
-| `agentcore-code-graph` | Finding symbols, call paths, or ownership via the code graph |
-| `agentcore-remove-dead-code` | After replace/retire: prove and delete orphaned symbols, imports, tests |
-| `agentcore-durable-write` | Persisting memory, task, activity, or decision records |
-| `agentcore-documentation-authoring` | Full-tier Markdown law; required on write **and** fix-on-read of nonconforming product docs |
-| `agentcore-docs-sync` | Docs drift, coverage, Body-tier validate, note, draft, or index |
-| `agentcore-source-contracts` | Hard-module contracts (49) + package README maps (50); fix-on-read when header missing |
-| `agentcore-create-task` | Creating a durable follow-up Task in AgentCore |
+- `agentcore-session-bootstrap` — Starting a coding session on an AgentCore-connected project
+- `agentcore-memory` — Need prior decisions, facts, or task context from AgentCore
+- `agentcore-code-graph` — Finding symbols, call paths, or ownership via the code graph
+- `agentcore-remove-dead-code` — After replace/retire: prove and delete orphaned symbols, imports, tests
+- `agentcore-durable-write` — Persisting memory, task, activity, or decision records
+- `agentcore-documentation-authoring` — Full-tier Markdown law; required on write and fix-on-read of nonconforming product docs
+- `agentcore-standards-on-edit` — Fix-on-write: remediate docs/hard-module code to standards in the same edit turn
+- `agentcore-docs-sync` — Docs drift, coverage, Body-tier validate, note, draft, or index
+- `agentcore-source-contracts` — Hard-module contracts (49) + package README maps (50); fix-on-read when header missing
+- `agentcore-create-task` — Creating a durable follow-up Task in AgentCore
 ```
 ## Skill Catalog
 
@@ -173,6 +147,7 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | `agentcore-remove-dead-code` | Unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (when listed); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
 | `agentcore-documentation-authoring` | Full-tier Markdown authoring law | `agentcore_docs_authoring_standards`; optional Read of `docs/agents/documentation-authoring.md` | How documentation works; before writing/remediating product docs; **fix-on-read** of nonconforming product Markdown |
+| `agentcore-standards-on-edit` | Fix-on-write convergence | Load `agentcore-documentation-authoring` / `agentcore-source-contracts`; optional `agentcore_docs_authoring_standards` | Create/edit product docs or hard modules; after sync skipped nonconforming paths |
 | `agentcore-docs-sync` | Docs-as-code sync (Body-tier) | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, Body-tier validate, note, draft, index |
 | `agentcore-source-contracts` | In-source contracts (49/50) | Prefer graph sync after edits; local Read of standards 49/50 | Hard modules / package seams; **fix-on-read** when hard-module header missing |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
@@ -363,6 +338,36 @@ description: Run AgentCore docs-sync drift, status, Body-tier validate, note, dr
 - Skip `agentcore_docs_authoring_standards` when the user asks how documentation writing works.
 ```
 
+### Skill body: `agentcore-standards-on-edit`
+
+```markdown
+---
+name: agentcore-standards-on-edit
+description: Fix-on-write for product docs and hard-module code.
+---
+
+## AgentCore standards on edit (fix-on-write)
+## When
+
+- Creating or materially editing product Markdown or hard-module / package-seam code.
+- After `agentcore sync` skipped nonconforming paths.
+
+## Law
+
+Same turn as the edit: do not leave known nonconforming work you just wrote.
+
+## How
+
+1. Docs → skill `agentcore-documentation-authoring` + `agentcore_docs_authoring_standards`.
+2. Hard modules / package seams → skill `agentcore-source-contracts` (49/50).
+3. Prefer remediating skipped paths when next touched so a later sync can ingest them.
+
+## Do not
+
+- Ship new/edited product docs that still fail Full-tier checks.
+- Leave a hard module without an accurate module contract header after editing it.
+```
+
 ### Skill body: `agentcore-create-task`
 
 ```markdown
@@ -398,40 +403,6 @@ description: Create a durable AgentCore Task for follow-up engineering work.
 
 Suggested seed pack id: `awg-seed-mcp-first-programming`.
 
-## Product Workflow For Coding Agents
+## Related Documents
 
-```text
-MCP connect
-  → agentcore-session-bootstrap skill (ping, profile, guidance_resolve)
-  → apply always_rule mcp-first-agentcore
-  → pick capability skill (memory | code-graph | remove-dead-code | documentation-authoring | docs-sync | durable-write | create-task)
-  → for documentation questions / product Markdown: agentcore_docs_authoring_standards first
-  → call matching MCP tool(s)
-  → then local code edits as needed (including proven dead-code deletes)
-```
-
-## Interaction With Usage Profiles
-
-- `programming-cursor-mcp` (and successors) **should** advertise the tools referenced above as they are implemented.
-- When guidance MCP tools are not yet implemented, seed skills still document the intended names; session bootstrap degrades to ping + effective profile until guidance tools ship.
-- Adding a new AgentCore MCP capability requires: tool catalog entry, skill (or always-on update), agents_entry row, and contract tests.
-- `agentcore_code_graph_unused_candidates` is normative in [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md) and is advertised on `programming-cursor-mcp` when implemented (task-scoped; requires anchors).
-
-## Acceptance Criteria
-
-- Seed pack defines `mcp-first-agentcore` (including same-change dead-code cleanup, module-contract/README map clauses, and **fix-on-read** for nonconforming product docs + hard-module headers) plus the nine skills in the matrix.
-- Exported Cursor layout yields always-apply rule + skill folders an agent can load.
-- Feature/product docs state that coding agents must route in-scope work through MCP per this document.
-- New MCP tools cannot ship in a programming profile without an owning skill or an explicit always-on clause update.
-- Dead-code cleanup skill instructs agents to prove before delete and never asks AgentCore to mutate the repository.
-- Connect / client wire materializes the MCP-first seed into the project workspace (conflict-safe) so always-apply rules exist before the first `guidance_resolve`.
-- Store upgrade (`ensure_mcp_first_seed`) is not add-only: it refreshes outdated pack bodies, stamps `seed_pack_version`, and suppresses pack skills retired from the catalog so MCP resolve does not serve obsolete text.
-- Disk rematerialize on connect refreshes managed pack files when content advances and deletes retired managed `agentcore-*` skill paths (conflict-safe; unmanaged locals stay).
-
-## Open Gaps
-
-| Gap | Notes |
-| --- | --- |
-| Hard block of writes before resolve | Soft only: always-on rule + `guidance_hint` on durable writes when resolve not yet called in-process |
-| Non-Cursor agents | Same skill/rule bodies; layout profile maps paths (`claude_compatible`, `generic_agents_md`) |
-| Unused-candidate Neo4j-native query | v1 uses store `list_symbols`/`list_edges`; optional Cypher optimization later |
+- Continued in `docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules-continued.md`

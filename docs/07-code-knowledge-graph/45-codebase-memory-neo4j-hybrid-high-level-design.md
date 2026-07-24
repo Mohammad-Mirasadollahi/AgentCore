@@ -5,8 +5,8 @@ doc_type: hld
 status: active
 schema_version: '1.0'
 owner: platform-architecture
-summary: Runtime topology for Codebase-Memory-style structural MCP tools on Neo4j with
-  hybrid escalate into explore and production retrieval inside code-graph-service.
+summary: Runtime topology for Codebase-Memory-style structural MCP tools on Neo4j with hybrid
+  escalate into explore and production retrieval inside code-graph-service.
 tags:
 - code-intelligence
 - codebase-memory
@@ -52,6 +52,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 45 - Codebase-Memory Neo4j Hybrid High-Level Design

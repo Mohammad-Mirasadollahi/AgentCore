@@ -48,6 +48,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 39 - RPM Session Parallel Sync Low Level Design

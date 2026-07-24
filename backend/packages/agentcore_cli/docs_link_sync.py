@@ -1,15 +1,19 @@
-"""Phase-2 human documentation sync: docs-sync SoT + code-graph DOCUMENTED_BY projection.
+"""Phase-2 human documentation sync: docs-sync SoT + code-graph DOCUMENTED_BY.
 
-Catalog (when available) orders the Phase 2 queue. Evidence path citations in Markdown
-bodies are merged into ``linked_symbols`` (same extractor as ``docs-suggest-links``).
-``DOCUMENTED_BY`` is created only for tokens that resolve after Phase 1 — never from
-tags or catalog metadata alone.
+Role: discover Markdown, index into docs-sync, project ``DOCUMENTED_BY`` for
+resolved ``linked_symbols`` (catalog orders the queue; evidence may merge tokens).
+Source of truth: docs-sync Document/DocAnchor; Neo4j human ``doc:human:…`` nodes.
+Parallelism: same ``sync_max_file_workers`` pool as code ingest; docs-sync store
+calls are single-flight (one Postgres connection / unsafe in-memory dicts).
+Allowed: soft-fail per doc; skip unchanged unlinked bodies. Forbidden: invent
+edges for unresolved tokens; bypass the docs-sync write lock under workers.
 """
 
 from __future__ import annotations
 
 import os
 import sys
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -92,8 +96,8 @@ def _docs_sync_service():
 
 
 def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
-    """Map relative doc path → body hash for existing DOCUMENTATION symbols."""
-    from code_graph_service.domain.enums import SymbolKind
+    """Map relative doc path → body hash for existing *human* DOCUMENTATION symbols."""
+    from code_graph_service.domain.enums import DocStatus, SymbolKind
 
     out: dict[str, str] = {}
     try:
@@ -103,6 +107,9 @@ def _indexed_doc_hashes(graph_service: Any, graph_scope: Any) -> dict[str, str]:
     for sym in symbols:
         kind = sym.kind.value if hasattr(sym.kind, "value") else str(sym.kind)
         if kind != SymbolKind.DOCUMENTATION.value:
+            continue
+        status = sym.doc_status.value if hasattr(sym.doc_status, "value") else str(sym.doc_status)
+        if status != DocStatus.HUMAN.value:
             continue
         rel = str(sym.file_path or "").replace("\\", "/").strip()
         if not rel:
@@ -177,8 +184,12 @@ def _merge_evidence_tokens(
     root_path: Path,
     apply_frontmatter: bool,
     result: DocsLinkSyncResult,
-) -> tuple[str, dict[str, Any], list[str]]:
-    """Merge evidence tokens into linked_symbols; optionally persist frontmatter."""
+    result_lock: threading.Lock | None = None,
+) -> tuple[str, dict[str, Any], list[str], int]:
+    """Merge evidence tokens into linked_symbols; optionally persist frontmatter.
+
+    Returns ``(body, frontmatter, linked_tokens, new_token_count)``.
+    """
     from agentcore_cli.docs_link_suggest import (
         apply_suggested_links,
         extract_evidence_link_tokens,
@@ -188,20 +199,34 @@ def _merge_evidence_tokens(
     existing = set(linked_tokens)
     new_tokens = [t for t in evidence if t not in existing]
     if not new_tokens:
-        return body, frontmatter, linked_tokens
+        return body, frontmatter, linked_tokens, 0
 
-    result.evidence_tokens_new += len(new_tokens)
+    def _record(*, fm_applied: bool = False, error: str = "") -> None:
+        if result_lock is None:
+            result.evidence_tokens_new += len(new_tokens)
+            if fm_applied:
+                result.evidence_frontmatter_applied += 1
+            if error:
+                result.errors.append(error)
+            return
+        with result_lock:
+            result.evidence_tokens_new += len(new_tokens)
+            if fm_applied:
+                result.evidence_frontmatter_applied += 1
+            if error:
+                result.errors.append(error)
+
     if apply_frontmatter:
         applied = apply_suggested_links(abs_path, new_tokens)
         if applied.get("status") == "applied":
-            result.evidence_frontmatter_applied += 1
             try:
                 text = abs_path.read_text(encoding="utf-8")
             except OSError as exc:
-                result.errors.append(f"{rel}: evidence apply re-read failed: {exc}")
+                _record(error=f"{rel}: evidence apply re-read failed: {exc}")
                 merged = list(linked_tokens) + new_tokens
                 frontmatter = {**frontmatter, "linked_symbols": merged}
-                return body, frontmatter, merged
+                return body, frontmatter, merged, len(new_tokens)
+            _record(fm_applied=True)
             partial, body = parse_markdown_frontmatter(text)
             frontmatter = provisional_frontmatter(rel, body, partial)
             linked_tokens = [
@@ -209,11 +234,12 @@ def _merge_evidence_tokens(
                 for t in (frontmatter.get("linked_symbols") or [])
                 if str(t).strip()
             ]
-            return body, frontmatter, linked_tokens
+            return body, frontmatter, linked_tokens, len(new_tokens)
 
+    _record()
     merged = list(linked_tokens) + new_tokens
     frontmatter = {**frontmatter, "linked_symbols": merged}
-    return body, frontmatter, merged
+    return body, frontmatter, merged, len(new_tokens)
 
 
 def sync_human_docs(
@@ -263,10 +289,9 @@ def sync_human_docs(
     catalog_index = _catalog_by_path(root_path)
     result.catalog_ordered = bool(catalog_index)
     # Classify against body hash (same digest upsert_human_documentation stores).
-    need_paths: set[str] = set()
     queue_new = 0
     queue_changed = 0
-    prepared: list[tuple[Any, str, str, dict[str, Any], str]] = []
+    prepared: list[tuple[Any, str, str, dict[str, Any], str, bool]] = []
     for item in discovered:
         abs_path = Path(item.absolute_path)
         rel = item.relative_path.replace("\\", "/")
@@ -280,13 +305,14 @@ def sync_human_docs(
         frontmatter = provisional_frontmatter(rel, body, partial)
         body_hash = digest(body)
         previous = prior_hashes.get(rel)
+        body_unchanged = False
         if previous is None:
             queue_new += 1
-            need_paths.add(rel)
         elif previous != body_hash:
             queue_changed += 1
-            need_paths.add(rel)
-        prepared.append((item, rel, body, frontmatter, body_hash))
+        else:
+            body_unchanged = True
+        prepared.append((item, rel, body, frontmatter, body_hash, body_unchanged))
 
     prepared.sort(
         key=lambda row: _phase2_priority(
@@ -300,15 +326,25 @@ def sync_human_docs(
     )
 
     queue_unchanged = max(0, len(prepared) - queue_new - queue_changed)
-    progress_total = len(need_paths) if need_paths else len(prepared)
+    # done/total = every file this loop considers (including fast unchanged skips).
+    progress_total = len(prepared)
     progress_done = 0
+    state_lock = threading.Lock()
+    docs_lock = threading.Lock()  # docs-sync store is single-connection / not thread-safe
+    active_files: set[str] = set()
+
+    from code_graph_service.application.ingest.parallel_files import run_parallel_file_jobs
+    from code_graph_service.locked_store import sync_max_file_workers
+
+    workers = min(sync_max_file_workers(), max(1, progress_total or 1))
 
     def _emit(done: int, *, file: str = "", status: str = "") -> None:
         if not callable(on_progress):
             return
         try:
-            on_progress(
-                {
+            with state_lock:
+                in_flight_paths = sorted(active_files)
+                snap = {
                     "phase": "docs",
                     "done": done,
                     "total": progress_total,
@@ -322,13 +358,19 @@ def sync_human_docs(
                     "links_created": result.links_created,
                     "anchors_registered": result.anchors_registered,
                     "evidence_tokens_new": result.evidence_tokens_new,
-                    "files_in_flight": 1 if status == "active" else 0,
-                    "files_in_flight_paths": [file] if file and status == "active" else [],
-                    "file_workers": 1,
+                    "files_in_flight": len(in_flight_paths),
+                    "files_in_flight_paths": in_flight_paths[:8],
+                    "file_workers": workers,
                 }
-            )
+            on_progress(snap)
         except Exception:  # noqa: BLE001 — progress must never break docs sync
             return
+
+    def _bump() -> int:
+        nonlocal progress_done
+        with state_lock:
+            progress_done += 1
+            return progress_done
 
     docs_svc = _docs_sync_service()
     docs_scope = DocsScope(
@@ -338,17 +380,20 @@ def sync_human_docs(
     )
     corr = correlation_id or f"docs-link-{graph_scope.project_id}"
 
-    _emit(0, status="started")
-    for item, rel, body, frontmatter, _body_hash in prepared:
-        counts = rel in need_paths if need_paths else True
-        _emit(progress_done, file=rel, status="active")
+    def _process_one(_index: int, row: tuple[Any, str, str, dict[str, Any], str, bool]) -> None:
+        item, rel, body, frontmatter, _body_hash, body_unchanged = row
+        with state_lock:
+            active_files.add(rel)
+            done_now = progress_done
+        _emit(done_now, file=rel, status="active")
         abs_path = Path(item.absolute_path)
         doc_id = str(frontmatter["doc_id"]).strip()
         linked_tokens = [
             str(t).strip() for t in (frontmatter.get("linked_symbols") or []) if str(t).strip()
         ]
+        evidence_added = 0
         if evidence_enabled:
-            body, frontmatter, linked_tokens = _merge_evidence_tokens(
+            body, frontmatter, linked_tokens, evidence_added = _merge_evidence_tokens(
                 abs_path=abs_path,
                 rel=rel,
                 body=body,
@@ -357,28 +402,43 @@ def sync_human_docs(
                 root_path=root_path,
                 apply_frontmatter=apply_evidence_fm,
                 result=result,
+                result_lock=state_lock,
             )
             doc_id = str(frontmatter["doc_id"]).strip()
+
+        # Body hash match + no link work: skip heavy index/embed/anchor path.
+        # Linked tokens still recheck so newly ingested symbols can resolve.
+        if body_unchanged and not linked_tokens and not evidence_added:
+            with state_lock:
+                active_files.discard(rel)
+            done = _bump()
+            _emit(done, file=rel, status="unchanged")
+            return
+
         # Include content fingerprint so edits get a new key (same key + new body = ConflictError).
         doc_fp = digest(f"{rel}\n{doc_id}\n{linked_tokens}\n{body}")[:16]
 
         try:
-            document = docs_svc.index_document(
-                docs_scope,
-                actor,
-                corr,
-                f"docs-index:{rel}:{doc_id}:{doc_fp}",
-                {"path": rel, "frontmatter": frontmatter, "body": body},
-            )
-            result.docs_indexed += 1
+            with docs_lock:
+                document = docs_svc.index_document(
+                    docs_scope,
+                    actor,
+                    corr,
+                    f"docs-index:{rel}:{doc_id}:{doc_fp}",
+                    {"path": rel, "frontmatter": frontmatter, "body": body},
+                )
+            with state_lock:
+                result.docs_indexed += 1
         except Exception as exc:
-            result.skipped += 1
-            result.errors.append(f"{rel}: docs-sync index failed: {exc}")
-            if counts:
-                progress_done += 1
-            _emit(progress_done, file=rel, status="failed")
-            continue
+            with state_lock:
+                result.skipped += 1
+                result.errors.append(f"{rel}: docs-sync index failed: {exc}")
+                active_files.discard(rel)
+            done = _bump()
+            _emit(done, file=rel, status="failed")
+            return
 
+        # Graph upsert: embed may run concurrent; store mutations via LockedStore.
         projection = graph_service.upsert_human_documentation(
             graph_scope,
             doc_id=doc_id,
@@ -387,10 +447,11 @@ def sync_human_docs(
             title=str(frontmatter.get("title") or doc_id),
             linked_symbol_tokens=linked_tokens,
         )
-        result.links_created += int(projection.get("edges_written") or 0)
-        for token in projection.get("unresolved_tokens") or []:
-            if token not in result.unresolved_tokens:
-                result.unresolved_tokens.append(token)
+        with state_lock:
+            result.links_created += int(projection.get("edges_written") or 0)
+            for token in projection.get("unresolved_tokens") or []:
+                if token not in result.unresolved_tokens:
+                    result.unresolved_tokens.append(token)
 
         for symbol_graph_id in projection.get("linked_symbol_ids") or []:
             try:
@@ -401,40 +462,52 @@ def sync_human_docs(
                 sym_fp = digest(
                     f"{graph_sym.qualified_name}\n{graph_sym.hash_value}\n{graph_sym.body or ''}"
                 )[:16]
-                ds_symbol = docs_svc.index_symbol(
-                    docs_scope,
-                    actor,
-                    corr,
-                    f"docs-sym:{symbol_graph_id}:{sym_fp}",
-                    {
-                        "repo": repo_name,
-                        "file_path": graph_sym.file_path,
-                        "symbol_path": graph_sym.qualified_name,
-                        "kind": graph_sym.kind.value if hasattr(graph_sym.kind, "value") else str(graph_sym.kind),
-                        "body": graph_sym.body or graph_sym.signature or graph_sym.qualified_name,
-                        "signature": graph_sym.signature or graph_sym.qualified_name,
-                        "doc_required": True,
-                        "tags": [],
-                    },
-                )
-                docs_svc.register_anchor(
-                    docs_scope,
-                    actor,
-                    corr,
-                    f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
-                    {
-                        "doc_id": document.id,
-                        "symbol_id": ds_symbol.id,
-                        "recorded_hash": graph_sym.hash_value,
-                    },
-                )
-                result.anchors_registered += 1
+                with docs_lock:
+                    ds_symbol = docs_svc.index_symbol(
+                        docs_scope,
+                        actor,
+                        corr,
+                        f"docs-sym:{symbol_graph_id}:{sym_fp}",
+                        {
+                            "repo": repo_name,
+                            "file_path": graph_sym.file_path,
+                            "symbol_path": graph_sym.qualified_name,
+                            "kind": (
+                                graph_sym.kind.value
+                                if hasattr(graph_sym.kind, "value")
+                                else str(graph_sym.kind)
+                            ),
+                            "body": graph_sym.body or graph_sym.signature or graph_sym.qualified_name,
+                            "signature": graph_sym.signature or graph_sym.qualified_name,
+                            "doc_required": True,
+                            "tags": [],
+                        },
+                    )
+                    docs_svc.register_anchor(
+                        docs_scope,
+                        actor,
+                        corr,
+                        f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
+                        {
+                            "doc_id": document.id,
+                            "symbol_id": ds_symbol.id,
+                            "recorded_hash": graph_sym.hash_value,
+                        },
+                    )
+                with state_lock:
+                    result.anchors_registered += 1
             except Exception as exc:
-                result.errors.append(f"{rel}: anchor failed for {symbol_graph_id}: {exc}")
+                with state_lock:
+                    result.errors.append(f"{rel}: anchor failed for {symbol_graph_id}: {exc}")
 
-        if counts:
-            progress_done += 1
-        _emit(progress_done, file=rel, status="ok")
+        with state_lock:
+            active_files.discard(rel)
+        done = _bump()
+        status = "unchanged" if body_unchanged and not evidence_added else "ok"
+        _emit(done, file=rel, status=status)
 
+    _emit(0, status="started")
+    if prepared:
+        run_parallel_file_jobs(workers=workers, items=prepared, fn=_process_one)
     _emit(progress_total, status="finished")
     return result

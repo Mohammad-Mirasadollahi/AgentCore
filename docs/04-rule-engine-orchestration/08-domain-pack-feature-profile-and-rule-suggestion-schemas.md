@@ -38,6 +38,7 @@ audience:
 - product
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 08 - Domain Pack, Feature Profile, And Rule Suggestion Schemas

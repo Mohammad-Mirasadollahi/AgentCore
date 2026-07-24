@@ -23,6 +23,8 @@ authority: normative
 visibility: internal
 linked_symbols: []
 language: en
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 35 - Wedge Operator Connect and Ingest Runbook

@@ -9,6 +9,8 @@ CATEGORY_DOCS_SIZE_HARD = "docs.size_hard"
 CATEGORY_DOCS_LINKING_GAP = "docs.linking_gap"
 CATEGORY_DOCS_FLOW_TABLE = "docs.flow_table_gap"
 CATEGORY_DOCS_LANE_INVALID = "docs.lane_invalid"
+CATEGORY_DOCS_REVISION_MISSING = "docs.revision_missing"
+CATEGORY_DOCS_REVISION_INVALID = "docs.revision_invalid"
 CATEGORY_CODE_NEVER_INGESTED = "code.never_ingested"
 CATEGORY_CODE_STALE_EDITED = "code.stale_edited"
 CATEGORY_CODE_LOW_SYMBOL_DOCS = "code.low_symbol_docs"
@@ -52,6 +54,21 @@ CATEGORY_META: dict[str, dict[str, str]] = {
         "severity": "medium",
         "meaning": "concern_lane (or related) uses a forbidden alias / closed-set violation.",
         "fix_hint": "Normalize per standardization procedure §4; remediator maps aliases.",
+    },
+    CATEGORY_DOCS_REVISION_MISSING: {
+        "title": "Documentation revision stamp missing",
+        "severity": "medium",
+        "meaning": "Missing recommended doc_version and/or updated_at (soft migration).",
+        "fix_hint": (
+            "On material edit: bump doc_version (semver) and set updated_at (UTC YYYY-MM-DD). "
+            "Baseline: python scripts/stamp_docs_revision.py --date YYYY-MM-DD."
+        ),
+    },
+    CATEGORY_DOCS_REVISION_INVALID: {
+        "title": "Documentation revision stamp invalid",
+        "severity": "high",
+        "meaning": "doc_version or updated_at present but not valid (semver / ISO date).",
+        "fix_hint": "Fix to doc_version MAJOR.MINOR.PATCH and updated_at YYYY-MM-DD (UTC).",
     },
     CATEGORY_CODE_NEVER_INGESTED: {
         "title": "Code never ingested",

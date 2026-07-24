@@ -43,6 +43,7 @@ primary_entities:
 - Skill
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 15 - Agent Workspace Guidance Index

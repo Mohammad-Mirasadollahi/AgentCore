@@ -62,8 +62,10 @@ HARD_REQUIREMENTS: list[str] = [
     "Hybrid coverage optional layers prefer human → living → rationale → AST; never invent DOCUMENTED_BY (see docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md).",
     "Use docs catalog (agentcore docs-catalog / agentcore_docs_catalog) for tag/lane narrowing before reading many Markdown files.",
     "When standardizing or remediating: follow docs/00-master-plan/10-documentation-standardization-procedure.md.",
+    "On material create/edit: keep body truthful, bump doc_version (semver MAJOR.MINOR.PATCH), set updated_at to UTC YYYY-MM-DD — never stamp-only.",
+    "Prefer docs-sync drift / linked_symbols / catalog to decide which docs a code change must update — dates alone are not the signal.",
     "Fix-on-read: after opening a product Markdown file that fails Full-tier law, remediate that file in the same turn before continuing.",
-    "Verify with CLI: agentcore docs-standards (zero issues) and agentcore quality-audit for docs.* categories.",
+    "Verify with CLI: agentcore docs-standards (zero issues; heed missing_recommended:doc_version/updated_at warnings) and agentcore quality-audit for docs.* categories.",
 ]
 
 TIER_BOUNDARY: dict[str, str] = {
@@ -84,6 +86,7 @@ CLI_GATES: list[str] = [
     "agentcore docs-suggest-links (hybrid evidence linked_symbols suggestions)",
     "agentcore docs-catalog (tags/lanes cache for retrieval; --refresh after bulk doc edits)",
     "agentcore quality-audit (docs.* categories must be clean)",
+    "agentcore_quality_audit MCP (session start + after material edits)",
 ]
 
 SKILL_MARKDOWN = """---
@@ -95,43 +98,39 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
 
 ## When
 
-- User asks how documentation works, how to write docs, or what standards apply.
-- Creating or materially editing Markdown under `docs/`, `backend/docs/`, `frontend/docs/`,
+- How documentation works / what standards apply.
+- Create or materially edit Markdown under `docs/`, `backend/docs/`, `frontend/docs/`,
   `ai-toolstack/docs/`, or `deploy-toolkit/**/*.md`.
-- Remediating nonconforming docs or bulk-standardizing product documentation.
-- **Fix-on-read:** you Read a product Markdown file and it fails Full-tier law (frontmatter,
-  structure, English, Purpose/H1, design Mermaid+flow, etc.).
+- Remediate nonconforming product docs.
+- **Fix-on-read:** Read a product Markdown file that fails Full-tier law.
 
 ## Mandatory first step (MCP)
 
-1. Call `agentcore_docs_authoring_standards` and follow the returned checklist.
-2. If repo files are available, also Read:
-   - `docs/agents/team-documentation-playbook-for-agentcore.md` (team reading list)
-   - `docs/agents/documentation-authoring.md`
+1. Call `agentcore_docs_authoring_standards` and follow that checklist (SSOT for Full-tier).
+2. When writing/remediating on disk, also use as needed:
+   - `docs/agents/team-documentation-playbook-for-agentcore.md`
    - `docs/00-master-plan/10-documentation-standardization-procedure.md`
-   - `docs/00-master-plan/06-professional-documentation-standard.md`
-   - `docs/00-master-plan/08-documentation-structure-and-machine-ingest-standard.md`
-   - `docs/00-master-plan/09-documentation-classification-and-lanes.md`
-   - `docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md` (hybrid layers)
+   - `docs/agents/documentation-authoring.md`
+   - Packs under `backend/docs/standards/documentation/` and hybrid coverage doc 41
 
-## Hard requirements (summary)
+## Hard requirements
 
 1. English only in committed docs.
 2. Full frontmatter: `doc_id`, `title`, `doc_type`, `status`, `schema_version`, `owner`,
    `summary`, `tags`, `phase`, `canonical_path`, plus lanes
    (`lifecycle_lane`, `concern_lane`, `audience_lane`, `authority`, `visibility`).
-3. `doc_id` = `ac.doc.<domain>.<slug>` under AgentCore `docs/`.
+3. AgentCore `docs/`: `doc_id` = `ac.doc.<domain>.<slug>`.
 4. One H1 = title; Purpose H2; modular H2s; Related Documents for normative types.
 5. Soft ≤ ~400 body lines; hard ≤ ~800 or split.
 6. Design docs: Mermaid + matching flow table in the same H2 (not Mermaid-only).
-7. `linked_symbols` only with on-disk evidence (optional helper: `agentcore docs-suggest-links`).
-8. Standardize via procedure 10; gate with `agentcore docs-standards` and
-   `agentcore quality-audit`.
-9. Hybrid coverage (optional layers): prefer human → living → rationale → AST; never invent edges
-   (`docs/07-code-knowledge-graph/41-hybrid-documentation-coverage.md`).
-10. Narrow docs with `agentcore_docs_catalog` / `agentcore docs-catalog` (tags + lane enums) before wide Read.
-11. **Fix-on-read:** remediate a nonconforming product doc you already opened in the **same turn**
-    before continuing other work.
+7. `linked_symbols` only with on-disk evidence (`agentcore docs-suggest-links` optional).
+8. Standardize via procedure 10; gate with `agentcore docs-standards` and `agentcore quality-audit`.
+9. Hybrid layers (optional): human → living → rationale → AST; never invent edges.
+10. Narrow with `agentcore_docs_catalog` / `agentcore docs-catalog` before wide Read.
+11. **Revision on material create/edit:** bump `doc_version` (semver) and set `updated_at`
+    (`YYYY-MM-DD` UTC) **with** truthful body changes — never stamp-only. Prefer drift /
+    `linked_symbols` / catalog to choose which docs a code change must update.
+12. **Fix-on-read:** remediate a nonconforming product doc you opened **in the same turn**.
 
 ## Body-tier vs Full-tier
 
@@ -140,11 +139,12 @@ description: Full-tier ThinkingSOC/AgentCore Markdown authoring law for MCP codi
 
 ## Do not
 
-- Treat docs-sync validate as Full-tier compliance.
+- Treat docs-sync validate as Full-tier.
 - Invent Persian committed Markdown.
-- Leave a reviewed or Read nonconforming doc unfixed in the same turn.
+- Leave a Read/reviewed nonconforming doc unfixed in the same turn.
 - Use `linked_symbols` without evidence.
-- Invent `DOCUMENTED_BY` edges outside `agentcore sync` Phase 2 resolve.
+- Invent `DOCUMENTED_BY` outside `agentcore sync` Phase 2 resolve.
+- Bump `doc_version` / `updated_at` without aligning the document body.
 """
 
 
@@ -160,6 +160,7 @@ def authoring_law_payload() -> dict[str, Any]:
         "tier_boundary": TIER_BOUNDARY,
         "canonical_paths": CANONICAL_PATHS,
         "required_frontmatter_keys": REQUIRED_FRONTMATTER_KEYS,
+        "revision_frontmatter_keys": ["doc_version", "updated_at"],
         "hard_requirements": HARD_REQUIREMENTS,
         "cli_gates": CLI_GATES,
         "skill_name": "agentcore-documentation-authoring",
@@ -169,6 +170,7 @@ def authoring_law_payload() -> dict[str, Any]:
             "agentcore_docs_status",
             "agentcore_docs_drift_check",
             "agentcore_docs_write",
+            "agentcore_quality_audit",
             "agentcore_code_graph_generation_context",
             "agentcore_guidance_get_skill",
         ],

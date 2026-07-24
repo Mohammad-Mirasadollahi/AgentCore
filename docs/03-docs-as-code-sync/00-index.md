@@ -22,6 +22,8 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 03 - Docs-as-Code and Synchronization Index

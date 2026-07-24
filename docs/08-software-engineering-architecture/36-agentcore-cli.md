@@ -32,12 +32,13 @@ related_docs:
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.4.0
+doc_version: 1.0.0
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 36 - AgentCore CLI

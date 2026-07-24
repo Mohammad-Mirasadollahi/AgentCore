@@ -30,7 +30,7 @@ related_docs:
 - ac.doc.codegraph.neo4j-migration-plan
 - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
 - docs/07-code-knowledge-graph/48-ast-and-lsp-hybrid-parsing-adr.md
-doc_version: 1.2.0
+doc_version: 1.0.0
 audience:
 - engineer
 - architect
@@ -50,6 +50,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 10 - Language Support Policy

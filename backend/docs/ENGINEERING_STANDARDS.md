@@ -5,7 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Mandatory implementation standards for AgentCore backend modules (DI, ports, errors, tests).
+summary: Mandatory implementation standards for AgentCore backend modules (DI, ports, errors,
+  tests).
 tags:
 - backend
 - engineering
@@ -22,6 +23,8 @@ visibility: internal
 linked_symbols: []
 language: en
 security_classification: internal
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # Backend Engineering Standards

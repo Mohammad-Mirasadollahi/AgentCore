@@ -21,6 +21,8 @@ authority: normative
 visibility: internal
 linked_symbols:
 - tests/backend/services/core-data-service/test_core_data_service.py::ApiClient
+doc_version: 1.0.0
+updated_at: '2026-07-24'
 ---
 
 # 33 - Testing Seams And Contract Boundary Standards

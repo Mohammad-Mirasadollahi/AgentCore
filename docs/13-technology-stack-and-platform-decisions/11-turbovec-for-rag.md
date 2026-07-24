@@ -60,6 +60,7 @@ external_refs:
 - https://github.com/RyanCodrai/turbovec/blob/main/docs/api.md
 - https://arxiv.org/abs/2504.19874
 - https://pypi.org/project/turbovec/
+updated_at: '2026-07-24'
 ---
 
 # 11 - TurboVec For RAG

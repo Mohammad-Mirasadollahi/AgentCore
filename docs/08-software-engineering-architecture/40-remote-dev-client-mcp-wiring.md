@@ -38,6 +38,7 @@ audience:
 - operator
 language: en
 security_classification: internal
+updated_at: '2026-07-24'
 ---
 
 # 40 - Remote Dev Client MCP Wiring
