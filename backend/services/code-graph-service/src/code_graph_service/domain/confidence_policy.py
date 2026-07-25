@@ -1,10 +1,11 @@
 """Call-edge confidence caps and boosts (GAP-T02).
 
 Role: Map evidence class / resolution path (``via``) to ``CallConfidence`` bounds
-and impact eligibility.
+and impact eligibility; hydrate store/API confidence tokens safely.
 Source of truth: ``CallConfidence`` plus ``via`` / ``provenance`` on CODE_REL metadata.
-Allowed: cap or boost confidence without inventing edges. Forbidden: claiming
-``exact`` for reflection/monkeypatch, or silently ignoring ``runtime_trace`` boosts.
+Allowed: cap or boost confidence without inventing edges; coerce null/blank/unknown
+store values via ``parse_call_confidence``. Forbidden: claiming ``exact`` for
+reflection/monkeypatch, or silently ignoring ``runtime_trace`` boosts.
 """
 
 from __future__ import annotations
@@ -87,9 +88,34 @@ _REFLECTION_VIA = frozenset({"reflection", "monkeypatch", "monkey_patch"})
 _RUNTIME_VIA = frozenset({"runtime_trace", "runtime_observed"})
 
 
-def confidence_rank(value: CallConfidence | str) -> int:
+def parse_call_confidence(
+    value: CallConfidence | str | None,
+    *,
+    default: CallConfidence = CallConfidence.EXACT,
+) -> CallConfidence:
+    """Hydrate store/API confidence into ``CallConfidence``.
+
+    Missing/null/blank → ``default`` (``GraphEdge`` default is exact).
+    Unknown tokens → ``probable`` (same as Neo4j pathfinder fallback).
+    """
+    if isinstance(value, CallConfidence):
+        return value
+    if value is None:
+        return default
+    text = str(value).strip()
+    if not text:
+        return default
+    try:
+        return CallConfidence(text)
+    except ValueError:
+        return CallConfidence.PROBABLE
+
+
+def confidence_rank(value: CallConfidence | str | None) -> int:
     if isinstance(value, CallConfidence):
         return _RANK.get(value, 0)
+    if value is None:
+        return 0
     try:
         return _RANK.get(CallConfidence(str(value)), 0)
     except ValueError:

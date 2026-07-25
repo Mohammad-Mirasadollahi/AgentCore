@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import cypher
+
 
 class Neo4jSchemaMixin:
     """Schema constraints/indexes and plugin capability cache."""
@@ -32,6 +34,8 @@ class Neo4jSchemaMixin:
         with self._driver.session(database=self._database) as session:
             for statement in statements:
                 session.run(statement)
+            # Relationship props are not constraint-backed; repair legacy nulls.
+            session.run(cypher.BACKFILL_NULL_CONFIDENCE)
         self._capabilities_cache = None
 
     def capabilities(self) -> dict[str, Any]:

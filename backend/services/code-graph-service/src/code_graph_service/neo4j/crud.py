@@ -6,7 +6,6 @@ import json
 from typing import Any
 
 from ..core import (
-    CallConfidence,
     ConflictError,
     DocStatus,
     GraphEdge,
@@ -15,6 +14,7 @@ from ..core import (
     Scope,
     SymbolKind,
 )
+from ..domain.confidence_policy import parse_call_confidence
 from . import cypher
 
 
@@ -184,12 +184,19 @@ class Neo4jCrudMixin:
                 project_id=scope.project_id,
                 project_group_id=scope.project_group_id,
                 rel_type=edge.rel_type,
-                confidence=edge.confidence.value,
+                confidence=parse_call_confidence(edge.confidence).value,
                 file_path=file_path,
                 metadata_json=json.dumps(metadata, sort_keys=True),
             )
 
-    def list_edges(self, scope: Scope) -> list[GraphEdge]:
+    def list_edges(
+        self,
+        scope: Scope,
+        *,
+        rel_type: str | None = None,
+        source_id: str | None = None,
+        target_id: str | None = None,
+    ) -> list[GraphEdge]:
         with self._driver.session(database=self._database) as session:
             rows = list(
                 session.run(
@@ -197,6 +204,9 @@ class Neo4jCrudMixin:
                     tenant_id=scope.tenant_id,
                     workspace_id=scope.workspace_id,
                     project_id=scope.project_id,
+                    rel_type=rel_type,
+                    source_id=source_id,
+                    target_id=target_id,
                 )
             )
         return [
@@ -206,7 +216,7 @@ class Neo4jCrudMixin:
                 rel_type=row["rel_type"],
                 source_id=row["source_id"],
                 target_id=row["target_id"],
-                confidence=CallConfidence(row["confidence"]),
+                confidence=parse_call_confidence(row["confidence"]),
                 metadata=json.loads(row["metadata_json"] or "{}"),
             )
             for row in rows

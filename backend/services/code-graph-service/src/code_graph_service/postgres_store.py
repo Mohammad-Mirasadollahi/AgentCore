@@ -13,7 +13,6 @@ import json
 from typing import Any
 
 from .core import (
-    CallConfidence,
     ConflictError,
     DocStatus,
     GraphEdge,
@@ -22,6 +21,7 @@ from .core import (
     Scope,
     SymbolKind,
 )
+from .domain.confidence_policy import parse_call_confidence
 from .pg_thread_local import ThreadLocalPsycopg
 
 
@@ -351,20 +351,40 @@ class PostgresStore:
                     edge.rel_type,
                     edge.source_id,
                     edge.target_id,
-                    edge.confidence.value,
+                    parse_call_confidence(edge.confidence).value,
                     self._json(edge.metadata),
                 ),
             )
 
-    def list_edges(self, scope: Scope) -> list[GraphEdge]:
+    def list_edges(
+        self,
+        scope: Scope,
+        *,
+        rel_type: str | None = None,
+        source_id: str | None = None,
+        target_id: str | None = None,
+    ) -> list[GraphEdge]:
         with self._connection.cursor() as cur:
             cur.execute(
                 """
                 SELECT * FROM code_graph.edges
                 WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
+                  AND (%s IS NULL OR rel_type = %s)
+                  AND (%s IS NULL OR source_id = %s)
+                  AND (%s IS NULL OR target_id = %s)
                 ORDER BY id
                 """,
-                (scope.tenant_id, scope.workspace_id, scope.project_id),
+                (
+                    scope.tenant_id,
+                    scope.workspace_id,
+                    scope.project_id,
+                    rel_type,
+                    rel_type,
+                    source_id,
+                    source_id,
+                    target_id,
+                    target_id,
+                ),
             )
             rows = cur.fetchall()
         return [
@@ -374,7 +394,7 @@ class PostgresStore:
                 rel_type=row["rel_type"],
                 source_id=row["source_id"],
                 target_id=row["target_id"],
-                confidence=CallConfidence(row["confidence"]),
+                confidence=parse_call_confidence(row["confidence"]),
                 metadata=dict(row["metadata"] or {}),
             )
             for row in rows

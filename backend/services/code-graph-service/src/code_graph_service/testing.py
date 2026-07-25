@@ -116,9 +116,23 @@ class InMemoryStore:
     def put_edge(self, edge: GraphEdge) -> None:
         self._with_lock(lambda: self._edges.__setitem__(edge.id, deepcopy(edge)))
 
-    def list_edges(self, scope: Scope) -> list[GraphEdge]:
+    def list_edges(
+        self,
+        scope: Scope,
+        *,
+        rel_type: str | None = None,
+        source_id: str | None = None,
+        target_id: str | None = None,
+    ) -> list[GraphEdge]:
         def _run() -> list[GraphEdge]:
-            items = [item for item in self._edges.values() if self._same_project(item.scope, scope)]
+            items = [
+                item
+                for item in self._edges.values()
+                if self._same_project(item.scope, scope)
+                and (rel_type is None or item.rel_type == rel_type)
+                and (source_id is None or item.source_id == source_id)
+                and (target_id is None or item.target_id == target_id)
+            ]
             return deepcopy(sorted(items, key=lambda item: item.id))
 
         return self._with_lock(_run)

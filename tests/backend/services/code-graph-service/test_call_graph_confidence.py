@@ -6,6 +6,7 @@ from code_graph_service.domain.confidence_policy import (
     clamp_confidence,
     confidence_for_evidence,
     impact_eligible,
+    parse_call_confidence,
 )
 from code_graph_service.domain.enums import CallConfidence
 from code_graph_service.domain.models import GraphEdge, Scope
@@ -14,6 +15,23 @@ from code_graph_service.domain.runtime_traces import (
     parse_runtime_trace_payload,
     reconcile_runtime_traces,
 )
+
+
+def test_parse_call_confidence_null_and_blank_default_exact():
+    assert parse_call_confidence(None) == CallConfidence.EXACT
+    assert parse_call_confidence("") == CallConfidence.EXACT
+    assert parse_call_confidence("   ") == CallConfidence.EXACT
+
+
+def test_parse_call_confidence_invalid_token_probable():
+    assert parse_call_confidence("not-a-confidence") == CallConfidence.PROBABLE
+    assert parse_call_confidence("None") == CallConfidence.PROBABLE
+
+
+def test_parse_call_confidence_preserves_valid():
+    assert parse_call_confidence("exact") == CallConfidence.EXACT
+    assert parse_call_confidence(CallConfidence.AMBIGUOUS) == CallConfidence.AMBIGUOUS
+    assert parse_call_confidence("unresolved") == CallConfidence.UNRESOLVED
 
 
 def test_reflection_caps_exact_to_ambiguous():

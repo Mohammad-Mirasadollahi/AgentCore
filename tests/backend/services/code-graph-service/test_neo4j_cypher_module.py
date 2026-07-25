@@ -38,3 +38,15 @@ def test_edge_queries_use_shared_rel_constant():
     assert REL in cypher.DELETE_EDGE
     assert REL in cypher.DELETE_FILE_EDGES
     assert REL in cypher.WIPE_EDGES
+
+
+def test_list_edges_coalesces_null_confidence():
+    assert "coalesce(r.confidence, 'exact')" in cypher.LIST_EDGES
+    assert "coalesce($confidence, 'exact')" in cypher.PUT_EDGE
+    assert "BACKFILL_NULL_CONFIDENCE" in dir(cypher)
+    assert REL in cypher.BACKFILL_NULL_CONFIDENCE
+
+
+def test_list_edges_supports_optional_filters():
+    assert "$rel_type IS NULL OR r.rel_type = $rel_type" in cypher.LIST_EDGES
+    assert "$target_id IS NULL OR target.id = $target_id" in cypher.LIST_EDGES

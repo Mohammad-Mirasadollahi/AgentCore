@@ -182,6 +182,7 @@ class _FakeSession:
             self.store.edges.pop(params["id"], None)
             return _FakeResult([])
         if "MERGE (source)-[r:CODE_REL {id: $id}]->(target)" in q or "MERGE (source)-[r:CODE_REL" in q:
+            conf = params.get("confidence")
             self.store.edges[params["id"]] = {
                 "id": params["id"],
                 "source_id": params["source_id"],
@@ -191,7 +192,7 @@ class _FakeSession:
                 "project_id": params["project_id"],
                 "project_group_id": params.get("project_group_id"),
                 "rel_type": params["rel_type"],
-                "confidence": params["confidence"],
+                "confidence": conf if conf is not None else "exact",
                 "file_path": params["file_path"],
                 "metadata_json": params["metadata_json"],
             }
@@ -202,7 +203,7 @@ class _FakeSession:
                     {
                         "id": edge["id"],
                         "rel_type": edge["rel_type"],
-                        "confidence": edge["confidence"],
+                        "confidence": edge["confidence"] if edge["confidence"] is not None else "exact",
                         "metadata_json": edge["metadata_json"],
                         "source_id": edge["source_id"],
                         "target_id": edge["target_id"],
@@ -212,6 +213,9 @@ class _FakeSession:
                 if edge["tenant_id"] == params["tenant_id"]
                 and edge["workspace_id"] == params["workspace_id"]
                 and edge["project_id"] == params["project_id"]
+                and (params.get("rel_type") is None or edge["rel_type"] == params.get("rel_type"))
+                and (params.get("source_id") is None or edge["source_id"] == params.get("source_id"))
+                and (params.get("target_id") is None or edge["target_id"] == params.get("target_id"))
             ]
             return _FakeResult(rows)
         if "MATCH (n:CodeIdempotency" in q and "RETURN n.resource_id" in q and "MERGE" not in q:
@@ -237,6 +241,13 @@ class _FakeSession:
             return _FakeResult(
                 [_FakeRecord({"payload_json": item["payload_json"]}) for item in self.store.outbox]
             )
+        if "r.confidence IS NULL" in q and "SET r.confidence" in q:
+            repaired = 0
+            for edge in self.store.edges.values():
+                if edge.get("confidence") is None:
+                    edge["confidence"] = "exact"
+                    repaired += 1
+            return _FakeResult([_FakeRecord({"repaired": repaired})])
         raise AssertionError(f"unexpected cypher in fake neo4j driver: {q}")
 
 

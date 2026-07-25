@@ -26,19 +26,24 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.0.0
+updated_at: '2026-07-25'
 linked_symbols:
 - backend/configs/governance/gap-register.json
 - backend/packages/architecture_governance/__init__.py
 - backend/services/code-graph-service/src/code_graph_service/domain/parsers/java_lang.py
 - backend/services/core-data-service/src/core_data_service/core.py::Kind
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/backends/writes.py
+- tests/backend/packages/test_architecture_governance.py::test_bounded_context_map_has_owners_and_forbidden_edges
+- tests/backend/services/code-graph-service/test_di_ingest.py::test_ingest_emits_di_injection_edge
+- tests/backend/services/core-data-service/test_changeset_collaboration.py::test_changeset_lifecycle_and_self_approval_forbidden
+- tests/backend/services/mcp-gateway-service/test_guidance_write_gate.py::test_write_fail_closed_when_guidance_required
 related_docs:
 - ac.doc.gap.architecture-gaps
 - ac.doc.gap.phase10-verification-and-acceptance
 - ac.doc.sea.live-and-unit-test-strategy
 - ac.doc.ckg.prod-retrieval-live-test-gates
 - docs/08-software-engineering-architecture/04-development-port-management.md
-doc_version: 1.0.0
 audience:
 - engineer
 - operator
@@ -59,7 +64,6 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
 ---
 
 # GAP-002 and GAP-A01–A08 Live Verification Runbook

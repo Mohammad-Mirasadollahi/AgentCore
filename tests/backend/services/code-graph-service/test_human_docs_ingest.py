@@ -154,6 +154,99 @@ def test_upsert_human_documentation_links_and_skips_unresolved():
     assert check is not None and check.id in sources
 
 
+def test_upsert_human_docs_prune_does_not_full_scan_edges():
+    """Regression: docs upsert must not list_edges(scope) for the whole graph.
+
+    A full scan made one corrupt CODE_REL.confidence=None abort the entire docs sync.
+    """
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+
+    class GuardStore(InMemoryStore):
+        def list_edges(self, scope, *, rel_type=None, source_id=None, target_id=None):
+            if rel_type is None and source_id is None and target_id is None:
+                raise AssertionError("human docs prune must not full-scan list_edges")
+            return super().list_edges(
+                scope, rel_type=rel_type, source_id=source_id, target_id=target_id
+            )
+
+    guarded = GuardStore()
+    # Copy symbols/edges from ingest store into guarded store.
+    for sym in store.list_symbols(SCOPE):
+        guarded.put_symbol(sym)
+    for edge in store.list_edges(SCOPE):
+        guarded.put_edge(edge)
+    svc2 = CodeGraphService(guarded)
+
+    result = svc2.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    assert result["edges_written"] == 1
+
+
+def test_upsert_human_docs_removes_stale_documented_by_links():
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+    login = store.get_symbol_by_qualified_name(SCOPE, "src.auth.login")
+    check = store.get_symbol_by_qualified_name(SCOPE, "src.auth.check_password")
+    assert login is not None and check is not None
+
+    first = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        linked_symbol_tokens=["src.auth.login", "src.auth.check_password"],
+    )
+    assert first["edges_written"] == 2
+
+    second = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    assert second["edges_removed"] == 1
+    remaining = store.list_edges(
+        SCOPE, rel_type="DOCUMENTED_BY", target_id=first["doc_symbol_id"]
+    )
+    human_links = [
+        e
+        for e in remaining
+        if e.metadata.get("origin") == "human" and e.metadata.get("doc_id") == "doc-login"
+    ]
+    assert {e.source_id for e in human_links} == {login.id}
+
+
+def test_list_edges_filters_by_rel_type_and_target():
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+    login = store.get_symbol_by_qualified_name(SCOPE, "src.auth.login")
+    assert login is not None
+    result = svc.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="x",
+        linked_symbol_tokens=["src.auth.login"],
+    )
+    filtered = store.list_edges(
+        SCOPE, rel_type="DOCUMENTED_BY", target_id=result["doc_symbol_id"]
+    )
+    assert filtered
+    assert all(e.rel_type == "DOCUMENTED_BY" for e in filtered)
+    assert all(e.target_id == result["doc_symbol_id"] for e in filtered)
+    assert store.list_edges(SCOPE, rel_type="CALLS", target_id=result["doc_symbol_id"]) == []
+
+
 def test_human_doc_id_distinct_from_living_doc():
     store = InMemoryStore()
     svc = CodeGraphService(store)

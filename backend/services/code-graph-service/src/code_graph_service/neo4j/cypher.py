@@ -108,7 +108,7 @@ SET r.tenant_id = $tenant_id,
     r.project_id = $project_id,
     r.project_group_id = $project_group_id,
     r.rel_type = $rel_type,
-    r.confidence = $confidence,
+    r.confidence = coalesce($confidence, 'exact'),
     r.file_path = $file_path,
     r.metadata_json = $metadata_json
 """
@@ -118,13 +118,23 @@ MATCH (source:CodeSymbol)-[r:{REL}]->(target:CodeSymbol)
 WHERE r.tenant_id = $tenant_id
   AND r.workspace_id = $workspace_id
   AND r.project_id = $project_id
+  AND ($rel_type IS NULL OR r.rel_type = $rel_type)
+  AND ($source_id IS NULL OR source.id = $source_id)
+  AND ($target_id IS NULL OR target.id = $target_id)
 RETURN r.id AS id,
        r.rel_type AS rel_type,
-       r.confidence AS confidence,
+       coalesce(r.confidence, 'exact') AS confidence,
        r.metadata_json AS metadata_json,
        source.id AS source_id,
        target.id AS target_id
 ORDER BY r.id
+"""
+
+BACKFILL_NULL_CONFIDENCE = f"""
+MATCH ()-[r:{REL}]->()
+WHERE r.confidence IS NULL
+SET r.confidence = 'exact'
+RETURN count(r) AS repaired
 """
 
 BEGIN_IDEMPOTENCY = """

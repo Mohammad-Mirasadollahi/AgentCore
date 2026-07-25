@@ -5,9 +5,9 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Normative rules for AgentCore-created Task records from sync standards
-  gates and quality audit—identity, dedupe, reconcile-to-cancel when debt clears,
-  terminal retention, and how this differs from MemoryItem TTL/decay.
+summary: Normative rules for AgentCore-created Task records from sync standards gates and
+  quality audit—identity, dedupe, reconcile-to-cancel when debt clears, terminal retention,
+  and how this differs from MemoryItem TTL/decay.
 tags:
 - task
 - retention
@@ -24,6 +24,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.2.2
+updated_at: '2026-07-24'
 linked_symbols:
 - backend/packages/agentcore_cli/followup_task_lifecycle.py::retention_days
 - backend/packages/agentcore_cli/followup_task_lifecycle.py::reconcile_automated_followup_tasks
@@ -34,8 +36,8 @@ linked_symbols:
 - backend/services/core-data-service/src/core_data_service/core.py::Kind
 - tests/backend/tools/agentcore-cli/test_followup_task_lifecycle.py::test_fingerprints_are_stable
 - tests/backend/tools/agentcore-cli/test_followup_tasks_cli.py::test_adopt_legacy_quality_stamps_and_cancels_dupes
-doc_version: 1.2.2
-updated_at: '2026-07-24'
+- backend/packages/agentcore_cli/followup_task_lifecycle.py::ensure_platform_imports
+- backend/packages/agentcore_cli/commands/followup_tasks.py::cmd_followup_tasks_adopt_legacy
 ---
 
 # Automated Follow-Up Task Lifecycle and Retention

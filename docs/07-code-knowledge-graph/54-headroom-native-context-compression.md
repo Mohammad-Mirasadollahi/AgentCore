@@ -5,10 +5,10 @@ doc_type: feature_spec
 status: current
 schema_version: '1.0'
 owner: platform-architecture
-summary: Normative requirement that the AgentCore product itself implements a native,
-  local-first context-compression lane inspired by headroomlabs-ai/headroom (Apache 2.0),
-  on LiteLLM and MCP paths — not via the separate ai-toolstack IDE helper. Clean-room
-  package context_compression plus MCP tools and LiteLLM ingress are shipped.
+summary: Normative requirement that the AgentCore product itself implements a native, local-first
+  context-compression lane inspired by headroomlabs-ai/headroom (Apache 2.0), on LiteLLM and
+  MCP paths — not via the separate ai-toolstack IDE helper. Clean-room package context_compression
+  plus MCP tools and LiteLLM ingress are shipped.
 tags:
 - code-intelligence
 - prior-art
@@ -30,11 +30,14 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.2.2
+updated_at: '2026-07-25'
 linked_symbols:
 - backend/packages/context_compression/compress.py
 - backend/packages/context_compression/store.py
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/backends/context.py
 - backend/packages/llm_gateway/gateway.py
+- backend/packages/llm_gateway/gateway.py::LlmGateway
 related_docs:
 - ac.doc.ckg.token-optimization-and-model-routing
 - ac.doc.ckg.context-pack-retrieval-and-agent-workflow
@@ -44,8 +47,6 @@ related_docs:
 external_refs:
 - https://github.com/headroomlabs-ai/headroom
 - https://www.apache.org/licenses/LICENSE-2.0
-doc_version: 1.2.2
-updated_at: '2026-07-25'
 audience:
 - engineer
 - architect

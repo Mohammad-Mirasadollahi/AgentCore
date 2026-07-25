@@ -7,7 +7,6 @@ import json
 from typing import Any
 
 from ..core import (
-    CallConfidence,
     ConflictError,
     DocStatus,
     GraphEdge,
@@ -16,6 +15,7 @@ from ..core import (
     Scope,
     SymbolKind,
 )
+from ..domain.confidence_policy import parse_call_confidence
 from .constants import REL as _REL
 from .lucene import lucene_query as _lucene_query
 
@@ -188,7 +188,7 @@ class Neo4jRetrievalMixin:
                 rel_type=row["rel_type"],
                 source_id=row["source_id"],
                 target_id=row["target_id"],
-                confidence=CallConfidence(row["confidence"]),
+                confidence=parse_call_confidence(row["confidence"]),
                 metadata=json.loads(row["metadata_json"] or "{}"),
             )
             for row in rows
@@ -388,11 +388,7 @@ class Neo4jRetrievalMixin:
                         continue
                     if eid:
                         seen.add(eid)
-                    conf_raw = row["confidence"] or CallConfidence.EXACT.value
-                    try:
-                        conf = CallConfidence(str(conf_raw))
-                    except ValueError:
-                        conf = CallConfidence.PROBABLE
+                    conf = parse_call_confidence(row["confidence"])
                     edges.append(
                         GraphEdge(
                             id=eid or f"cypher:{row['source_id']}:{row['target_id']}",

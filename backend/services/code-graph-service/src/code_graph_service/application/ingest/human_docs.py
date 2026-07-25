@@ -5,8 +5,10 @@ that resolve to existing code symbols.
 Source of truth: Neo4j/store symbols and DOCUMENTED_BY edges; body hash is
 ``digest(body)`` (same as Phase 2 queue classification).
 Allowed: skip re-embed when body hash unchanged; still refresh edges so newly
-resolved tokens can link. Forbidden: invent edges for unresolved tokens; fail
-the whole sync on one bad doc (callers soft-fail per file).
+resolved tokens can link. Prune stale human DOCUMENTED_BY via filtered
+``list_edges(rel_type, target_id)`` — never full-graph scan. Forbidden: invent
+edges for unresolved tokens; fail the whole sync on one bad doc (callers
+soft-fail per file).
 """
 
 from __future__ import annotations
@@ -113,11 +115,11 @@ class HumanDocIngestMixin:
 
         linked_set = set(linked)
         removed = 0
-        for edge in self.store.list_edges(scope):
-            if edge.rel_type != RelType.DOCUMENTED_BY.value:
-                continue
-            if edge.target_id != symbol_id:
-                continue
+        for edge in self.store.list_edges(
+            scope,
+            rel_type=RelType.DOCUMENTED_BY.value,
+            target_id=symbol_id,
+        ):
             if edge.metadata.get("origin") != "human":
                 continue
             if edge.metadata.get("doc_id") != doc_id:

@@ -38,7 +38,7 @@ Full catalog and non-goals → [product scope](docs/00-master-plan/01-product-sc
 | [What it is](#what-it-is) / [Scope](#scope-read-this-first) | Nature and boundaries at a glance |
 | [Quick start](#quick-start) | **Server + client** install and MCP connect (SSH or HTTP) |
 | [Quick architecture](#quick-architecture) | How the pieces connect |
-| [Install](#install) | Local-dev bootstrap details and flags |
+| [Install](#install) | Shared bootstrap (`client` / `server` / `both`) and flags |
 | [Verify](#verify) | Confirm CLI + profiles |
 | [Documentation map](#documentation-map) | Where every topic lives (click through) |
 | **CLI commands (why / flags / examples / what changes)** | **[42 - AgentCore CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md)** |
@@ -48,19 +48,20 @@ Full catalog and non-goals → [product scope](docs/00-master-plan/01-product-sc
 
 ## Quick start
 
-Two machines are typical: an **AgentCore server** (platform + stores) and a **dev host** (your app repo + coding agent). Replace example hostnames with yours.
+Two machines are typical: an **AgentCore server** (platform + stores) and a **dev host** (your app repo + coding agent). The same installer covers both roles (and same-host **both**). Replace example hostnames with yours.
 
 Full examples (SSH vs HTTP, security, troubleshooting) → [One-command connect guide](docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md).
 
-### 1) AgentCore server
+### 1) Install (server, client, or both)
 
-Requires Python 3.12+ and Docker (Compose). On an empty machine, fetch + install in one line:
+One script installs **client**, **server**, or **both** (`--role` or the interactive menu). Requires Python 3.12+. Docker (Compose) is required only for **server** / **both**.
+
+On an empty machine, fetch + install in one line:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/refs/heads/main/scripts/get-agentcore.sh | bash
-# prompts: channel → root → install/upgrade → y/n confirm → role/runtime
+# prompts: channel → root → install/upgrade → y/n confirm → role (client/server/both) → runtime (server/both)
 # choice menus have no default; confirm accepts y/yes or n/no (no default)
-agentcore doctor
 ```
 
 Use `…/refs/heads/main/scripts/get-agentcore.sh` (not bare `/main/…`). GitHub’s raw CDN often serves a stale tip for `/main/`.
@@ -71,10 +72,15 @@ Already cloned:
 cd /opt/AgentCore
 bash install.sh
 # new shell so agentcore is on PATH
+```
+
+**After server or both:**
+
+```bash
 agentcore doctor
 ```
 
-**Optional — HTTP MCP** (long-running; skip if you use SSH-only connect):
+**Optional — HTTP MCP** on the server (long-running; skip if you use SSH-only connect):
 
 ```bash
 export AGENTCORE_MCP_TOKEN_SECRET='replace-with-a-long-random-secret'
@@ -84,7 +90,7 @@ agentcore mcp serve-http --host 0.0.0.0 --port 32500
 
 ### 2) Dev host (client)
 
-Install the CLI only (no Docker required on the client):
+CLI-only path (no Docker on the client). Same installer with `--role client` (or choose **client** in the menu):
 
 ```bash
 # empty machine — fully non-interactive client (no prompts after channel/root flags):
@@ -208,20 +214,27 @@ Deeper design → [Global Architecture HLD](docs/00-master-plan/03-global-archit
 
 ## Install
 
-Local-dev bootstrap of this checkout (same as **Quick start → AgentCore server**). Requires Python 3.12+, Docker (for Postgres/Neo4j), and a clone of this repo.
+Local-dev bootstrap of this checkout (same as **Quick start → Install**). One entrypoint (`get-agentcore.sh` / `install.sh`) covers **client**, **server**, and **both**. Requires Python 3.12+ and a clone (or fetch). Docker is required only for **server** / **both** (Postgres/Neo4j).
 
 ```bash
 bash install.sh
+# interactive: install/upgrade → confirm → role (client/server/both) → runtime when needed
+# unattended examples:
+#   bash install.sh --non-interactive --role server --runtime venv
+#   bash install.sh --non-interactive --role client
+#   bash install.sh --non-interactive --role both --runtime venv
 ```
 
 Open a **new** shell, then:
 
 ```bash
-agentcore doctor
+agentcore doctor          # server / both
+agentcore connect         # client / both (after connect.yaml)
 ```
 
 - Full steps, flags, and troubleshooting → [Local install runbook](docs/08-software-engineering-architecture/39-local-install-runbook.md)
-- Venv only (no Compose infra) → `bash install.sh --skip-infra` (typical **dev host / client**)
+- Venv only (no Compose infra) → `bash install.sh --skip-infra` or `--role client` (typical **dev host**)
+- Same-host dogfood → `bash install.sh --role both`
 - **CLI command reference (every command)** → [42 - AgentCore CLI Command Reference](docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md)
 - CLI install / PATH overview → [36 - AgentCore CLI](docs/08-software-engineering-architecture/36-agentcore-cli.md)
 - Server + client MCP connect → [One-command connect](docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md)
