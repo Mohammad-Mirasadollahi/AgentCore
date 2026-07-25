@@ -1,9 +1,0 @@
-.....F...........                                                        [100%]
-=================================== FAILURES ===================================
-E   AssertionError: {'ok': False, 'findings': [{'code': 'schema_validation_failed', 'severity': 'error', 'message': "Additional properties...b9-4065-85f8-7e51252fe131': 'e88e6513d146c9dedbb1cb58b4643651cea573571d741f2891a9346aaba3995a'}, 'used_tokens': 9, ...}
-    assert False
-     +  where False = BundleVerificationResult(ok=False, findings=[VerificationFinding(code='schema_validation_failed', severity='error', me...:00', 'checks': ['scope', 'source_refs', 'freshness_digests', 'inclusion_exclusion_completeness', 'token_accounting']}).ok
-/opt/AgentCore/tests/backend/services/memory-service/test_context_bundle_verifier.py:62: AssertionError: {'ok': False, 'findings': [{'code': 'schema_validation_failed', 'severity': 'error', 'message': "Additional properties...b9-4065-85f8-7e51252fe131': 'e88e6513d146c9dedbb1cb58b4643651cea573571d741f2891a9346aaba3995a'}, 'used_tokens': 9, ...}
-=========================== short test summary info ============================
-FAILED tests/backend/services/memory-service/test_context_bundle_verifier.py::test_verify_fresh_bundle_passes_schema_and_checks
-1 failed, 16 passed in 0.79s

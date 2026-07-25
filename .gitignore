@@ -110,6 +110,11 @@ temp/
 Thumbs.db
 .pip-show.txt
 .pip-*.txt
+.tmp-mem.txt
+.tmp-tv.txt
+
+# Local-only CI probe (not product workflow)
+.github/workflows/turbovec-contract.yml
 
 # Agent / IDE local wiring (never sync)
 # Installed Cursor / Claude / Codex / other agent tooling — never commit
