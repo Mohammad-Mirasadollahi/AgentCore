@@ -2,7 +2,7 @@
 doc_id: ac.doc.stack.turbovec-ann-acceleration
 title: 08 - TurboVec ANN Acceleration Integration
 doc_type: adr
-status: draft
+status: accepted
 schema_version: '1.0'
 owner: platform-architecture
 summary: This ADR defines how AgentCore may combine with [turbovec](https://github.com/RyanCodrai/turbovec)
@@ -26,44 +26,18 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
-related_docs:
-- ac.doc.stack.data-rag-analytics-storage
-- ac.doc.stack.service-product-standard
-- ac.doc.gap.technical-implementation
-- ac.doc.stack.turbovec-for-rag
-doc_version: 1.0.0
-audience:
-- engineer
-- architect
-- agent
-primary_entities:
-- VectorIndexPort
-- TurboVecReplica
-- HybridRetrievalPlan
-relations_declared:
-- type: depends_on
-  target: docs/13-technology-stack-and-platform-decisions/04-data-rag-analytics-and-storage-stack.md
-- type: depends_on
-  target: docs/13-technology-stack-and-platform-decisions/07-service-product-standard.md
-- type: complements
-  target: docs/02-memory-and-context/
-- type: complements
-  target: docs/07-code-knowledge-graph/
-- type: complements
-  target: docs/11-logical-implementation-examples/08-turbovec-hybrid-retrieval-example.md
-- type: complements
-  target: docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md
-chunk_hints:
-  strategy: heading_h2
-  max_tokens: 800
-  overlap_tokens: 64
-language: en
-security_classification: internal
-external_refs:
-- https://github.com/RyanCodrai/turbovec
-- https://arxiv.org/abs/2504.19874
-updated_at: '2026-07-24'
+linked_symbols:
+- backend/packages/vector_index/port.py::VectorIndexPort
+- backend/packages/vector_index/turbovec_adapter.py::TurboVecIndexAdapter
+- backend/packages/vector_index/factory.py::try_build_accelerator
+- backend/packages/vector_index/id_map.py::PostgresEntityIdMap
+- backend/packages/vector_index/promotion_gate.py::run_promotion_gate
+- backend/services/code-graph-service/src/code_graph_service/application/queries.py::QueryUseCases._maybe_turbovec_rerank
+- backend/services/memory-service/src/memory_service/domain/embeddings_store.py::stage1_retrieve
+- backend/services/memory-service/src/memory_service/core.py::MemoryService.explain_retrieval
+- backend/services/memory-service/src/memory_service/postgres_embeddings.py::PostgresMemoryEmbeddingStore
+doc_version: 1.2.0
+updated_at: '2026-07-25'
 ---
 
 # 08 - TurboVec ANN Acceleration Integration
@@ -97,7 +71,7 @@ turbovec addresses those workloads with online ingest (no train step), 2/3/4-bit
 | Optional quantized ANN replica + dense top-k / rerank | turbovec (`IdMapIndex`) | Acceleration replica only |
 | Embedding model calls | Existing provider adapters | turbovec does not embed |
 
-**Status:** `proposed`. Enablement requires a feature flag, measured evidence against the enablement gates below, and no bypass of project isolation.
+**Status:** `accepted` (implementation shipped behind `AGENTCORE_RAG_ANN_ACCELERATOR`; run `python -m vector_index.promotion_gate` before production enablement).
 
 ## Goals
 
@@ -278,25 +252,25 @@ Emit metrics: `rag.accelerator.search_latency`, `rag.accelerator.recall_proxy`, 
 
 ## Engineering Acceptance Criteria
 
-- [ ] pgvector remains mandatory SoR for embeddings in baseline profiles.
-- [ ] Product code depends on `VectorIndexPort`, not `from turbovec import ...` in domain layers.
-- [ ] Only `IdMapIndex` is used for AgentCore entity ids.
-- [ ] Hybrid allowlist path is the default multi-tenant search shape.
-- [ ] Accelerator failure never bypasses ACL; it only falls back to SoR retrieval.
-- [ ] Snapshots are rebuildable derivatives under object storage with project-scoped keys.
-- [ ] Optional CI profile installs `turbovec` and runs adapter contract tests.
+- [x] pgvector remains mandatory SoR for embeddings in baseline profiles.
+- [x] Product code depends on `VectorIndexPort`, not `from turbovec import ...` in domain layers.
+- [x] Only `IdMapIndex` is used for AgentCore entity ids.
+- [x] Hybrid allowlist path is the default multi-tenant search shape.
+- [x] Accelerator failure never bypasses ACL; it only falls back to SoR retrieval.
+- [x] Snapshots are rebuildable derivatives under object storage with project-scoped keys.
+- [x] Optional CI profile installs `turbovec` and runs adapter contract tests.
+- [x] In-repo promotion gate reports recall@k / latency / RSS proxy (`vector_index.promotion_gate`).
+- [x] Durable `PostgresEntityIdMap` is used when service database URL + table are available.
 
 ## Product Acceptance Criteria
 
-- [ ] Operators can enable/disable the accelerator per deployment profile without code changes.
-- [ ] ContextBundle explain output can attribute hits to `pgvector` vs `turbovec` stage.
-- [ ] Air-gapped profile can run retrieve with local embeddings + turbovec and no managed vector SaaS.
+- [x] Operators can enable/disable the accelerator per deployment profile without code changes.
+- [x] ContextBundle explain output can attribute hits to `pgvector` vs `turbovec` stage.
+- [x] Air-gapped profile can run retrieve with local embeddings + turbovec and no managed vector SaaS.
 
 ## Open Gaps
 
-- Exact `entity_ref → uint64` scheme (table vs hash) — decide per service migration.
-- Whether memory-service Phase 2 lexical path gains embeddings before or with turbovec wiring.
-- GAP-T03 refresh policy remains open; this ADR only fixes **vector index ownership** for the optional accelerator role.
+- None for the in-repo implementation path. Operators still run `python -m vector_index.promotion_gate` (or the pytest promotion suite) on representative host hardware before flipping production profiles to `AGENTCORE_RAG_ANN_ACCELERATOR=turbovec`.
 
 ## Related Documents
 

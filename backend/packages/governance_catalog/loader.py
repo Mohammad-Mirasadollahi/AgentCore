@@ -9,6 +9,13 @@ GOVERNANCE_DIR = Path(__file__).resolve().parents[2] / "configs" / "governance"
 RISK_CATALOG_PATH = GOVERNANCE_DIR / "risk-open-decisions.json"
 IMPACT_KPI_PATH = GOVERNANCE_DIR / "impact-kpis.json"
 GAP_REGISTER_PATH = GOVERNANCE_DIR / "gap-register.json"
+BOUNDED_CONTEXT_MAP_PATH = GOVERNANCE_DIR / "bounded-context-map.json"
+SYNC_ASYNC_PATH = GOVERNANCE_DIR / "sync-async-boundaries.json"
+READ_MODEL_PATH = GOVERNANCE_DIR / "read-model-catalog.json"
+TENANCY_MODES_PATH = GOVERNANCE_DIR / "tenancy-deployment-modes.json"
+AGENT_TRUST_PATH = GOVERNANCE_DIR / "agent-trust-policy.json"
+IDE_BOUNDARY_PATH = GOVERNANCE_DIR / "ide-product-boundary.json"
+ADMIN_MATRIX_PATH = GOVERNANCE_DIR / "admin-permission-matrix.json"
 
 ALLOWED_GAP_STATUSES = {
     "OPEN",
@@ -66,6 +73,34 @@ def load_impact_kpis(path: Path | None = None) -> dict[str, Any]:
 
 def load_gap_register(path: Path | None = None) -> dict[str, Any]:
     return _load_json(path or GAP_REGISTER_PATH)
+
+
+def load_bounded_context_map(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or BOUNDED_CONTEXT_MAP_PATH)
+
+
+def load_sync_async_boundaries(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or SYNC_ASYNC_PATH)
+
+
+def load_read_model_catalog(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or READ_MODEL_PATH)
+
+
+def load_tenancy_deployment_modes(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or TENANCY_MODES_PATH)
+
+
+def load_agent_trust_policy(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or AGENT_TRUST_PATH)
+
+
+def load_ide_product_boundary(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or IDE_BOUNDARY_PATH)
+
+
+def load_admin_permission_matrix(path: Path | None = None) -> dict[str, Any]:
+    return _load_json(path or ADMIN_MATRIX_PATH)
 
 
 def validate_risk_catalog(catalog: dict[str, Any]) -> list[str]:

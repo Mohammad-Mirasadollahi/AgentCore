@@ -22,7 +22,7 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/services/code-graph-service/test_code_graph_service.py::check_password
-doc_version: 1.0.0
+doc_version: 1.0.1
 updated_at: '2026-07-24'
 ---
 
@@ -50,6 +50,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `12-neo4j-runtime-plugins.md` defines required APOC and Graph Data Science plugins for Neo4j.
 - `13-codesymbol-projection-adr.md` accepts `CodeSymbol` + `CODE_REL` as the canonical Neo4j runtime projection.
 - `14-repository-code-wiki-feature-specification.md` defines Repository Code Wiki (holistic repo-level wiki generation; CodeWiki / Google Code Wiki–inspired).
+- `15-call-graph-confidence-and-runtime-traces.md` defines CALL evidence classes, confidence caps/boosts, impact eligibility, and runtime-trace reconciliation (GAP-T02).
 - `15-repository-code-wiki-high-level-design.md` defines wiki job architecture, ownership, and boundaries with living docs and docs-sync.
 - `16-repository-code-wiki-low-level-design.md` defines module-tree, hierarchical decomposition, incremental dirty-set, and Mermaid validation algorithms.
 - `17-repository-code-wiki-data-contracts-and-events.md` defines job/page/MCP contracts and domain events.
@@ -90,6 +91,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 
 ## History
 
+- 2026-07-24: Added `15-call-graph-confidence-and-runtime-traces.md` (GAP-T02 confidence + runtime traces).
 - 2026-07-24: Added `51-client-standards-gate-and-watcher-policy.md` (Client standards-gate preference + watcher policy).
 - 2026-07-24: Added `50-sync-cpu-budget-and-store-concurrency-lld.md`; corrected Neo4j store concurrency vs exclusive write lock in `03`/`38`/`39` and LiteLLM env knobs.
 - 2026-07-23: Added `49-lsp-edit-session-feature-specification.md` and shipped edit-session tools (ADR 48 ID5).

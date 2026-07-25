@@ -42,6 +42,37 @@ class GraphServiceSupport:
     docs: HeuristicDocGenerator
     embeddings: LocalEmbeddingStub
     embedding_index: EmbeddingIndex | None
+    vector_index: Any | None
+    entity_id_map: Any | None
+
+    def _ann_sync_on_write(self) -> bool:
+        # Composition root only injects vector_index when accelerator is enabled.
+        return self.vector_index is not None and self.entity_id_map is not None
+
+    def _sync_vector_replica_upsert(self, symbol_id: str, vector: list[float]) -> None:
+        if not self._ann_sync_on_write():
+            return
+        try:
+            import numpy as np
+
+            uid = self.entity_id_map.get_or_assign(symbol_id)
+            arr = np.asarray([vector], dtype=np.float32)
+            self.vector_index.upsert([uid], arr)
+        except Exception:
+            # Replica lag is fail-open; pgvector SoR remains authoritative.
+            return
+
+    def _sync_vector_replica_delete(self, symbol_id: str) -> None:
+        if self.vector_index is None or self.entity_id_map is None:
+            return
+        try:
+            uid = self.entity_id_map.to_uint64(symbol_id)
+            if uid is None:
+                return
+            self.vector_index.remove([uid])
+            self.entity_id_map.remove(symbol_id)
+        except Exception:
+            return
 
     def _index_embedding(
         self,
@@ -59,6 +90,7 @@ class GraphServiceSupport:
             deleter = getattr(self.embedding_index, "delete", None)
             if callable(deleter):
                 deleter(scope, symbol_id)
+            self._sync_vector_replica_delete(symbol_id)
             return
         self.embedding_index.upsert(
             scope,
@@ -67,6 +99,7 @@ class GraphServiceSupport:
             model=self.embeddings.model,
             kind=kind_value,
         )
+        self._sync_vector_replica_upsert(symbol_id, vector)
 
     def _delete_embedding(self, scope: Scope, symbol_id: str) -> None:
         if self.embedding_index is None:
@@ -74,6 +107,7 @@ class GraphServiceSupport:
         deleter = getattr(self.embedding_index, "delete", None)
         if callable(deleter):
             deleter(scope, symbol_id)
+        self._sync_vector_replica_delete(symbol_id)
 
     def _ensure_placeholder_symbol(self, scope: Scope, symbol_id: str) -> None:
         """Materialize unresolved:* / ext:call:* endpoints so edges can attach."""
@@ -165,6 +199,9 @@ class GraphServiceSupport:
             "doc_status": symbol.doc_status.value,
             "visibility": symbol.visibility,
             "version": symbol.version,
+            "language": symbol.language,
+            "hash_version": symbol.hash_version,
+            "parser_version": symbol.parser_version,
         }
 
     @staticmethod

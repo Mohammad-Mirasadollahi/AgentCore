@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/gap-register-verification/run_gate.py::main
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.0.1
+updated_at: '2026-07-25'
 ---
 
 # 10 - Gap Analysis Index
@@ -40,6 +40,7 @@ This section captures known gaps, unresolved assumptions, and areas that need de
 - `04-governance-operations-gaps.md` captures security, compliance, operational, and process gaps.
 - `05-gap-triage-and-resolution-process.md` defines how gaps should be reviewed, owned, prioritized, and closed.
 - `06-phase10-verification-and-acceptance.md` defines the gap-register feature gate and named verification commands under `tests/backend/gates/gap-register-verification/`.
+- `07-gap002-and-gap-a-live-verification.md` is the **live** acceptance runbook for GAP-002 and GAP-A01–A08 (Compose + real HTTP/MCP; unit-only green is not enough).
 
 ## Phase 10 verification home
 

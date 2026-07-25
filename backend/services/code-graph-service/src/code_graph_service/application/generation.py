@@ -101,6 +101,7 @@ class GenerationUseCases(GraphServiceSupport):
             "symbols": [self._symbol_view(symbol) for symbol in symbols],
             "polyglot": polyglot.to_dict(),
             "hybrid_documentation": hybrid,
+            "read_model_id": "code_graph.generation_context",
         }
 
     def validate_generated_code(self, scope: Scope, source: str) -> dict[str, Any]:

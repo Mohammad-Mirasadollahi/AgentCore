@@ -1,3 +1,11 @@
+"""
+Module contract: PostgreSQL Store adapter for rule-engine durability.
+Role: Persist rules, evaluations (incl. judge_replay), approvals, outbox under rule_engine schema.
+SoT: migrations under migrations/; domain models in domain/models.py.
+Allowed failure: connection/psycopg errors raise; missing rows → NotFoundError.
+Forbidden: silent drop of judge_replay or outbox events; cross-project reads.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -61,6 +69,7 @@ class PostgresStore:
             Verdict(row["verdict"]), row["confidence"], row["rationale"], row["evidence_refs"], row["used_llm"],
             EvaluationState(row["state"]), row["shadow"], row["risk_score"], _timestamp(row["created_at"]),
             _timestamp(row["updated_at"]), row["version"],
+            judge_replay=dict(row.get("judge_replay") or {}),
         )
 
     def _approval(self, row: dict[str, Any], scope: Scope) -> ApprovalRequest:
@@ -153,15 +162,18 @@ class PostgresStore:
             cursor.execute(
                 """INSERT INTO rule_engine.evaluations
                    (id,tenant_id,workspace_id,project_id,project_group_id,actor_id,correlation_id,rule_id,subject_ref,
-                    verdict,confidence,rationale,evidence_refs,used_llm,state,shadow,risk_score,version,created_at,updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    verdict,confidence,rationale,evidence_refs,used_llm,state,shadow,risk_score,version,created_at,updated_at,
+                    judge_replay)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                    ON CONFLICT (id) DO UPDATE SET verdict=EXCLUDED.verdict,confidence=EXCLUDED.confidence,
-                   rationale=EXCLUDED.rationale,state=EXCLUDED.state,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at""",
+                   rationale=EXCLUDED.rationale,state=EXCLUDED.state,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at,
+                   judge_replay=EXCLUDED.judge_replay""",
                 (evaluation.id, evaluation.scope.tenant_id, evaluation.scope.workspace_id, evaluation.scope.project_id,
                  evaluation.scope.project_group_id, evaluation.actor_id, evaluation.correlation_id, evaluation.rule_id,
                  evaluation.subject_ref, evaluation.verdict.value, evaluation.confidence, evaluation.rationale,
                  self._json(evaluation.evidence_refs), evaluation.used_llm, evaluation.state.value, evaluation.shadow,
-                 evaluation.risk_score, evaluation.version, evaluation.created_at, evaluation.updated_at),
+                 evaluation.risk_score, evaluation.version, evaluation.created_at, evaluation.updated_at,
+                 self._json(evaluation.judge_replay)),
             )
 
     def list_evaluations(self, scope: Scope) -> list[RuleEvaluation]:

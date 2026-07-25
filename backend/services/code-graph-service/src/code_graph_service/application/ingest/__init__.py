@@ -6,6 +6,7 @@ from ..support import GraphServiceSupport
 from .file_ingest import FileIngestMixin
 from .human_docs import HumanDocIngestMixin
 from .repo_ingest import RepoIngestMixin
+from .runtime_traces import RuntimeTraceIngestMixin
 from .sync import SyncMixin
 
 
@@ -13,6 +14,7 @@ class IngestUseCases(
     FileIngestMixin,
     HumanDocIngestMixin,
     RepoIngestMixin,
+    RuntimeTraceIngestMixin,
     SyncMixin,
     GraphServiceSupport,
 ):
@@ -25,5 +27,6 @@ __all__ = [
     "FileIngestMixin",
     "HumanDocIngestMixin",
     "RepoIngestMixin",
+    "RuntimeTraceIngestMixin",
     "SyncMixin",
 ]

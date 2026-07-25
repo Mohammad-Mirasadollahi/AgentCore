@@ -4,12 +4,14 @@ from dataclasses import dataclass
 import os
 
 from .core import HeuristicJudge, RuleEngineService
+from .domain.judge import Judge
 from .postgres_store import PostgresStore
 
 
 @dataclass(frozen=True)
 class Settings:
     database_url: str
+    rule_judge: str = "heuristic"
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -18,7 +20,8 @@ class Settings:
             raise RuntimeError("AGENTCORE_RULE_ENGINE_DATABASE_URL is required")
         if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
             raise RuntimeError("AGENTCORE_RULE_ENGINE_DATABASE_URL must use PostgreSQL")
-        return cls(database_url=database_url)
+        judge = os.environ.get("AGENTCORE_RULE_JUDGE", "heuristic").strip().lower() or "heuristic"
+        return cls(database_url=database_url, rule_judge=judge)
 
 
 @dataclass(frozen=True)
@@ -35,10 +38,28 @@ class ServiceContainer:
             closer()
 
 
+def build_judge(settings: Settings) -> Judge:
+    """Select Judge adapter: HeuristicJudge default; LiteLLM when AGENTCORE_RULE_JUDGE=litellm."""
+    if settings.rule_judge == "litellm":
+        from llm_gateway import LiteLlmGateway
+
+        from .litellm_judge import LiteLLMJudge
+
+        return LiteLLMJudge(LiteLlmGateway())
+    if settings.rule_judge in {"", "heuristic", "default"}:
+        return HeuristicJudge()
+    raise RuntimeError(
+        f"Unsupported AGENTCORE_RULE_JUDGE={settings.rule_judge!r}; expected heuristic or litellm"
+    )
+
+
 def build_container(settings: Settings | None = None) -> ServiceContainer:
     """Composition root: bind adapters and return a frozen service container."""
     resolved = settings or Settings.from_environment()
-    return ServiceContainer(service=RuleEngineService(PostgresStore(resolved.database_url), HeuristicJudge()), settings=resolved)
+    return ServiceContainer(
+        service=RuleEngineService(PostgresStore(resolved.database_url), build_judge(resolved)),
+        settings=resolved,
+    )
 
 
 def build_service(settings: Settings | None = None) -> RuleEngineService:

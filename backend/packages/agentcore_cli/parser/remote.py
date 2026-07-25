@@ -73,5 +73,20 @@ def register(sub: argparse._SubParsersAction) -> None:
     ports_sub = ports.add_subparsers(dest="ports_command", required=True)
     ports_show = ports_sub.add_parser("show", help="Show resolved ports from profile (env overrides)")
     ports_show.add_argument("--profile", default="", help="Port profile JSON path (default: agentcore-dev)")
-    ports_check = ports_sub.add_parser("check", help="Check that profile ports are free to bind")
+    ports_check = ports_sub.add_parser(
+        "check",
+        help="Preflight: bind check, owning process (ss/lsof), alternate ports; exit 1 on conflict",
+    )
     ports_check.add_argument("--profile", default="", help="Port profile JSON path (default: agentcore-dev)")
+    ports_check.add_argument(
+        "--write-map",
+        nargs="?",
+        const="1",
+        default="",
+        help="Write resolved port-map JSON (default path: .agentcore/run/port-map.json)",
+    )
+    ports_check.add_argument(
+        "--allow-ours",
+        action="store_true",
+        help="Do not block when the listener looks like an AgentCore/docker-proxy process",
+    )

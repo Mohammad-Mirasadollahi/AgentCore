@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ...domain.enums import DocStatus, SymbolKind
-from ...domain.hashing import digest, normalize_source
+from ...domain.hashing import content_hash, digest
 from ...domain.models import GraphSymbol, ParseResult, Scope
 
 
@@ -22,8 +22,14 @@ class FileSymbolsMixin:
         stamp: str,
         previous_file: GraphSymbol | None,
         ai_documentation: str = "",
+        hash_version: str = "",
+        parser_version: str = "",
     ) -> GraphSymbol:
         file_embed = self.embeddings.embed(file_path)
+        meta = {
+            "hash_version": hash_version,
+            "parser_version": parser_version,
+        }
         file_symbol = GraphSymbol(
             id=file_id,
             scope=scope,
@@ -40,6 +46,9 @@ class FileSymbolsMixin:
             created_at=stamp,
             updated_at=stamp,
             language=language,
+            hash_version=hash_version,
+            parser_version=parser_version,
+            metadata=meta,
         )
         if previous_file is not None:
             file_symbol.version = previous_file.version + 1
@@ -77,7 +86,14 @@ class FileSymbolsMixin:
         for item in parsed.symbols:
             symbol_id = f"sym:{scope.project_id}:{item.qualified_name}"
             symbol_ids.append(symbol_id)
-            hash_value = digest(normalize_source(item.body, language))
+            hashed = content_hash(item.body, language)
+            hash_value = hashed["hash"]
+            hash_version = hashed["hash_version"]
+            parser_ver = hashed["parser_version"]
+            hash_meta = {
+                "hash_version": hash_version,
+                "parser_version": parser_ver,
+            }
             previous = self._maybe_get(symbol_id, scope)
             changed = previous is None or previous.hash_value != hash_value
             neighbors = item.calls + item.bases + item.imports
@@ -104,6 +120,9 @@ class FileSymbolsMixin:
                     created_at=previous.created_at if previous else stamp,
                     updated_at=stamp,
                     language=language,
+                    hash_version=hash_version,
+                    parser_version=parser_ver,
+                    metadata=hash_meta,
                 )
                 # Parallel bulk ingest: keep workers on CPU (parse/embed), not blocked
                 # on LiteLLM RPM/network. Living LLM docs can be refreshed later.
@@ -163,6 +182,9 @@ class FileSymbolsMixin:
                 created_at=previous.created_at if previous else stamp,
                 updated_at=stamp,
                 language=language,
+                hash_version=hash_version,
+                parser_version=parser_ver,
+                metadata=hash_meta,
             )
             pending.append((symbol, item.kind.value, doc_symbol))
 

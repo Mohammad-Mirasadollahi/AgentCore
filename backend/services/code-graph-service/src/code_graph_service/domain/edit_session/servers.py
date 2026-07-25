@@ -56,7 +56,7 @@ def resolve_language_server(language: str, file_path: str = "") -> LanguageServe
     lang = normalize_edit_language(language, file_path)
     env_key = _ENV_KEYS.get(lang)
     if env_key:
-        raw = (os.environ.get(env_key) or "").strip()
+        raw = (os.getenv(env_key) or "").strip()
         if raw:
             parts = raw.split()
             if parts:
@@ -69,5 +69,5 @@ def resolve_language_server(language: str, file_path: str = "") -> LanguageServe
 
 def lsp_edit_session_enabled() -> bool:
     """Feature gate: default on; set AGENTCORE_LSP_EDIT_SESSION=0 to disable."""
-    raw = (os.environ.get("AGENTCORE_LSP_EDIT_SESSION") or "1").strip().lower()
+    raw = (os.getenv("AGENTCORE_LSP_EDIT_SESSION") or "1").strip().lower()
     return raw not in {"0", "false", "no", "off"}

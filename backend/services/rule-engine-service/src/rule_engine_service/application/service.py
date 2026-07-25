@@ -308,6 +308,7 @@ class RuleEngineService:
     def _evaluate_one(self, scope: Scope, actor: str, correlation_id: str, rule: Rule, subject: dict[str, Any], shadow: bool, timestamp: str) -> RuleEvaluation:
         evidence = sorted(set((subject.get("evidence_refs") or []) + [subject["subject_ref"], rule.id]))
         used_llm = False
+        judge_replay: dict[str, Any] = {}
         if rule.evaluation_mode == EvaluationMode.MANUAL:
             verdict, confidence, rationale = Verdict.ESCALATE, 1.0, "manual policy always requires human review"
         elif rule.evaluation_mode == EvaluationMode.DETERMINISTIC:
@@ -319,11 +320,13 @@ class RuleEngineService:
                 used_llm = True
                 verdict, confidence, rationale = judged.verdict, judged.confidence, judged.rationale
                 evidence = sorted(set(evidence + judged.matched_examples))
+                judge_replay = dict(judged.replay_metadata or {})
         else:
             judged = self.judge.judge(rule, subject)
             used_llm = True
             verdict, confidence, rationale = judged.verdict, judged.confidence, judged.rationale
             evidence = sorted(set(evidence + judged.matched_examples))
+            judge_replay = dict(judged.replay_metadata or {})
             if confidence < 0.7 and rule.severity in {Severity.HIGH, Severity.CRITICAL}:
                 verdict, rationale = Verdict.ESCALATE, rationale + "; low-confidence high-risk fallback to escalate"
 
@@ -357,12 +360,38 @@ class RuleEngineService:
             risk,
             timestamp,
             timestamp,
+            judge_replay=judge_replay,
         )
 
     def _deterministic(self, rule: Rule, subject: dict[str, Any]) -> tuple[Verdict, float, str]:
         tags = {tag.lower() for tag in subject.get("tags") or []}
         paths = " ".join(subject.get("paths") or []).lower()
         summary = str(subject.get("summary") or "").lower()
+        trust_level = str(subject.get("agent_trust_level") or subject.get("trust_level") or "standard")
+        try:
+            from architecture_governance import provider_rank, trust_allows_high_risk
+
+            if (rule.domain in SENSITIVE_DOMAINS or tags & SENSITIVE_DOMAINS) and not trust_allows_high_risk(
+                trust_level
+            ):
+                provider = str(subject.get("provider") or subject.get("vendor") or trust_level)
+                try:
+                    rank = provider_rank(provider)
+                except Exception:
+                    try:
+                        rank = provider_rank(trust_level)
+                    except Exception:
+                        rank = -1
+                return (
+                    Verdict.ESCALATE,
+                    1.0,
+                    (
+                        f"trust level {trust_level!r} below high-risk floor for '{rule.title}' "
+                        f"(provider_rank={rank}) — require approval"
+                    ),
+                )
+        except Exception:
+            pass
         matched = bool(set(rule.match_tags) & tags) or any(tag in paths or tag in summary for tag in rule.match_tags)
         if not matched and rule.domain not in tags:
             return Verdict.ALLOW, 0.95, f"deterministic pre-check: rule '{rule.title}' not applicable"

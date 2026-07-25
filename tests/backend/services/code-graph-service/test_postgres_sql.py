@@ -31,3 +31,13 @@ def test_core_dml_statements_are_non_empty():
     ):
         text = getattr(pg_sql, name)
         assert isinstance(text, str) and text.strip()
+
+
+def test_embedding_migration_files_include_id_map():
+    assert "0009_embedding_id_map.sql" in pg_sql.EMBEDDING_MIGRATION_FILES
+    from pathlib import Path
+
+    migrations = Path(__file__).resolve().parents[4] / "backend/services/code-graph-service/migrations"
+    sql = (migrations / "0009_embedding_id_map.sql").read_text(encoding="utf-8")
+    assert "code_graph.embedding_id_map" in sql
+    assert "uint64_id" in sql

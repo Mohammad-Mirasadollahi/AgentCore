@@ -132,7 +132,33 @@ def activate_profile(
     now_iso: str,
     require_approval: bool = True,
     directory: Path | None = None,
+    roles: list[str] | None = None,
+    permissions: list[str] | None = None,
 ) -> dict[str, Any]:
+    role_list = list(roles or [])
+    perm_list = list(permissions or [])
+    enforce = str(os.environ.get("AGENTCORE_ENFORCE_ADMIN_MATRIX", "")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if enforce or role_list or perm_list:
+        try:
+            from architecture_governance import admin_action_allowed
+
+            if not admin_action_allowed(
+                "weight_profile.change",
+                roles=role_list,
+                permissions=perm_list,
+            ):
+                raise WeightProfileError("weight_profile.change denied by admin permission matrix")
+        except ImportError as exc:
+            raise WeightProfileError(
+                "weight_profile.change requires architecture_governance when "
+                "AGENTCORE_ENFORCE_ADMIN_MATRIX is enabled or actor roles/permissions "
+                "are supplied"
+            ) from exc
     profile = load_profile(profile_id, directory=directory)
     if profile.get("status") == "retired":
         raise WeightProfileError(f"cannot activate retired profile: {profile_id}")

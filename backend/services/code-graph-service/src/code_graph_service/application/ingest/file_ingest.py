@@ -6,7 +6,7 @@ from typing import Any
 
 from ...domain.errors import ValidationError
 from ...domain.freshness import extract_module_contract_docstring
-from ...domain.hashing import digest, normalize_source, now_iso
+from ...domain.hashing import content_hash, now_iso
 from ...domain.languages import assert_language_supported, detect_language_from_path
 from ...domain.models import IngestResult, Scope
 from ...domain.parsers import parse_source
@@ -50,7 +50,10 @@ class FileIngestMixin(
             raise ValidationError("file_path and source are required")
 
         stamp = now_iso()
-        file_hash = digest(normalize_source(source, language))
+        hashed = content_hash(source, language)
+        file_hash = hashed["hash"]
+        hash_version = hashed["hash_version"]
+        parser_ver = hashed["parser_version"]
         file_id = f"file:{scope.project_id}:{file_path}"
         previous_file = self._maybe_get(file_id, scope)
         module_contract = extract_module_contract_docstring(source, language) or ""
@@ -77,6 +80,8 @@ class FileIngestMixin(
             stamp=stamp,
             previous_file=previous_file,
             ai_documentation=module_contract,
+            hash_version=hash_version,
+            parser_version=parser_ver,
         )
 
         parsed = parse_source(language, file_path, source)
@@ -187,6 +192,8 @@ class FileIngestMixin(
                         "file_id": file_id,
                         "file_path": file_path,
                         "language": language,
+                        "hash_version": hash_version,
+                        "parser_version": parser_ver,
                         "symbols_indexed": len(symbol_ids) + 1,
                         "symbols_changed": len(changed_ids),
                         "symbols_documented": documented,
@@ -223,6 +230,8 @@ class FileIngestMixin(
                         "file_id": file_id,
                         "file_path": file_path,
                         "language": language,
+                        "hash_version": hash_version,
+                        "parser_version": parser_ver,
                         "symbols_indexed": len(symbol_ids) + 1,
                         "symbols_changed": len(changed_ids),
                         "symbols_documented": documented,

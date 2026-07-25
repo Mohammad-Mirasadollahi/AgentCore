@@ -110,19 +110,67 @@ def verify_accepted_risks_have_approvers() -> list[CheckResult]:
         for g in accepted
         if not str(g.get("approver") or "").strip() or not str(g.get("review_date") or "").strip()
     ]
+    # Vacuous pass when no accepted risks remain (closing the last one must not fail Phase 10).
+    if incomplete:
+        status = "failed"
+        detail = f"incomplete={incomplete}"
+    elif not accepted:
+        status = "passed"
+        detail = "accepted=0 review_ok"
+    else:
+        status = "passed"
+        detail = f"accepted={len(accepted)} review_ok"
     return [
         CheckResult(
             "accepted-risks-have-approvers",
             "ownership",
             "accepted-risk",
-            "passed" if accepted and not incomplete else "failed",
-            (
-                f"accepted={len(accepted)} review_ok"
-                if accepted and not incomplete
-                else f"incomplete={incomplete or 'no accepted risks'}"
-            ),
+            status,
+            detail,
             [g["gap_id"] for g in accepted],
             "docs/10-gap-analysis/05-gap-triage-and-resolution-process.md",
+        )
+    ]
+
+
+def verify_register_md_statuses_match_catalog() -> list[CheckResult]:
+    """Keep machine catalog status aligned with the prose master register."""
+    import re
+
+    _ensure_packages_path()
+    from governance_catalog import load_gap_register
+
+    register_md = ROOT / "docs" / "10-gap-analysis" / "01-gap-register.md"
+    text = register_md.read_text(encoding="utf-8")
+    md_statuses = {
+        match.group(1): match.group(2)
+        for match in re.finditer(
+            r"^## (GAP-(?:A\d+|T\d+|\d+))\b[\s\S]*?^Status:\s*(\S+)",
+            text,
+            re.MULTILINE,
+        )
+    }
+    catalog = load_gap_register(GAP_REGISTER)
+    mismatches: list[str] = []
+    for item in catalog.get("gaps", []):
+        gap_id = str(item.get("gap_id") or "")
+        json_status = str(item.get("status") or "").strip()
+        md_status = md_statuses.get(gap_id)
+        if md_status is None:
+            mismatches.append(f"{gap_id}:missing_in_md")
+        elif md_status != json_status:
+            mismatches.append(f"{gap_id}:md={md_status}/json={json_status}")
+    for gap_id in sorted(set(md_statuses) - {str(g.get("gap_id") or "") for g in catalog.get("gaps", [])}):
+        mismatches.append(f"{gap_id}:missing_in_json")
+    return [
+        CheckResult(
+            "register-md-status-matches-catalog",
+            "governance_catalog",
+            "gap-register-parity",
+            "passed" if not mismatches else "failed",
+            "ok" if not mismatches else "; ".join(mismatches),
+            sorted(md_statuses),
+            "docs/10-gap-analysis/01-gap-register.md",
         )
     ]
 
@@ -173,6 +221,7 @@ def verify_gap_register_schema() -> list[CheckResult]:
 def run_all_checks() -> list[CheckResult]:
     results: list[CheckResult] = []
     results.extend(verify_gap_register_schema())
+    results.extend(verify_register_md_statuses_match_catalog())
     results.extend(verify_critical_gaps_have_owners())
     results.extend(verify_high_gaps_linked_to_gates())
     results.extend(verify_open_decisions_have_artifacts())

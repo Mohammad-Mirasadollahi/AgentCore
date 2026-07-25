@@ -701,7 +701,7 @@
       },
       {
         "name": "agentcore_quality_audit",
-        "description": "Categorized docs+code quality findings (standards, size, linking, revision, never-ingested/stale code). Call at session start and after material edits. Returns summary, top findings with fix_hint, and must_remediate. Optional create_tasks writes durable CoreData tasks for high/medium findings.",
+        "description": "Categorized docs+code quality findings (standards, size, linking, revision, never-ingested/stale code). Call at session start and after material edits. Returns summary, top findings with fix_hint, and must_remediate. Optional create_tasks writes durable CoreData tasks for high/medium findings (stable fingerprints). create_tasks implies reconcile_tasks; set reconcile_tasks alone to cancel cleared mcp-quality Tasks and purge terminal ones past retention.",
         "maps_to": "quality.audit",
         "input_schema": {
           "type": "object",
@@ -724,7 +724,12 @@
             "create_tasks": {
               "type": "boolean",
               "default": false,
-              "description": "If true, create durable tasks for high/medium findings"
+              "description": "If true, create durable automated follow-up Tasks for high/medium findings (implies reconcile_tasks)"
+            },
+            "reconcile_tasks": {
+              "type": "boolean",
+              "default": false,
+              "description": "Cancel open mcp-quality automated Tasks whose fingerprint is no longer in the active finding set; purge terminal automated Tasks older than AGENTCORE_FOLLOWUP_TASK_RETENTION_DAYS. Implied when create_tasks is true."
             }
           },
           "additionalProperties": false

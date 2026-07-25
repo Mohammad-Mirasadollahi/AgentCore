@@ -5,10 +5,7 @@ doc_type: contract
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: '- `Agent(id, vendor, model, capabilities, trust_level, owner)` - `Activity(id, agent_id,
-  task_id, timestamp, action_summary, files_changed, command_refs, test_refs, artifact_refs)`
-  - `WorkLog(id, session_id, agent_id, summary, blockers, followups, confidence)` - `Decision(id,
-  tit.'
+summary: Normative core entity and event contracts, including ChangeSet collaboration MVP pointers.
 tags:
 - contract
 - core
@@ -22,8 +19,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-25'
 ---
 
 # Core Data Model - Data Contracts and Events
@@ -31,7 +28,7 @@ updated_at: '2026-07-24'
 
 ## Purpose
 
-- `Agent(id, vendor, model, capabilities, trust_level, owner)` - `Activity(id, agent_id, task_id, timestamp, action_summary, files_changed, command_refs, test_refs, artifact_refs)` - `WorkLog(id, session_id, agent_id, summary, blockers, followups, confidence)` - `Decision(id, tit.
+Normative catalog of core collaboration entities and domain events for AgentCore. Collaboration-surface ChangeSet types are covered below and detailed in the dedicated contracts doc.
 
 ## Core Entities
 
@@ -42,7 +39,7 @@ updated_at: '2026-07-24'
 - `Issue(id, title, description, severity, discovered_by, evidence_refs, status, owner)`
 - `Task(id, issue_id, title, assignee_type, instructions, dependencies, status, acceptance_criteria)`
 
-Collaboration-surface extensions (ChangeSet, ReviewThread, ReviewComment, DiscussionComment, WorkLabel, WorkMilestone) are specified in `08-changeset-review-and-discussion-contracts.md` and must be merged into this catalog when implementation starts.
+Collaboration-surface types (ChangeSet, ReviewThread, ReviewComment, DiscussionComment, WorkLabel) are specified in `08-changeset-review-and-discussion-contracts.md`. Backend MVP is implemented in `core-data-service` (kinds + HTTP routes + self-approval forbid). WorkMilestone remains deferred until a planning surface ships.
 
 ## Events
 
@@ -63,3 +60,9 @@ Collaboration-surface extensions (ChangeSet, ReviewThread, ReviewComment, Discus
 - Large logs, diffs, and generated artifacts are stored as artifact references rather than inline payloads.
 - Security-sensitive fields must be redacted before records are used in prompts, dashboards, or events.
 - Decisions are immutable except for lifecycle fields such as status, superseded_by, and review metadata.
+
+## Related Documents
+
+- `docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md`
+- `docs/01-core-data-model/07-agent-collaboration-work-surface.md`
+- `docs/10-gap-analysis/02-architecture-gaps.md`

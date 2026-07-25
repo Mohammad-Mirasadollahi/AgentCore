@@ -273,6 +273,7 @@ class GuidanceMixin:
         bundle = {
             "bundle_id": bundle_id,
             "schema_version": "1.0",
+            "read_model_id": "common_context.guidance",
             "project_id": resolve_scope.project_id,
             "user_id": uid,
             "layers_considered": layers_considered,

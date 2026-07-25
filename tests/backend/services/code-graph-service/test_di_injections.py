@@ -35,6 +35,56 @@ export class OrdersService {
     )
 
 
+def test_extract_spring_autowired_and_ctor():
+    source = """
+public class OrdersService {
+  @Autowired
+  private UsersService users;
+
+  @Autowired
+  public OrdersService(InventoryService inventory) {
+    this.inventory = inventory;
+  }
+}
+"""
+    hits = extract_injections(source, language="java")
+    assert any(h.framework == "spring" and h.provider_name == "UsersService" for h in hits)
+    assert any(
+        h.consumer_name == "OrdersService"
+        and h.provider_name == "InventoryService"
+        and h.pattern == "constructor_injection"
+        for h in hits
+    )
+
+
+def test_extract_java_plain_ctor_not_di():
+    source = """
+public class ValueObject {
+  public ValueObject(InventoryService inventory) {
+    this.inventory = inventory;
+  }
+}
+"""
+    hits = extract_injections(source, language="java")
+    assert not any(h.provider_name == "InventoryService" for h in hits)
+
+
+def test_extract_go_wire_build():
+    source = """
+package main
+
+import "github.com/google/wire"
+
+func InitializeApp() App {
+    wire.Build(NewApp, NewDB)
+    return App{}
+}
+"""
+    hits = extract_injections(source, language="go")
+    assert any(h.framework == "wire" and h.provider_name == "NewDB" for h in hits)
+    assert any(h.consumer_name == "InitializeApp" for h in hits)
+
+
 def test_clamp_cross_language_caps_exact():
     assert (
         clamp_confidence(

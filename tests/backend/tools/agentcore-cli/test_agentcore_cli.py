@@ -343,24 +343,84 @@ def test_ports_show_and_check(tmp_path, monkeypatch, capsys):
     assert shown["ports"]["AGENTCORE_API_PORT"] == 32155
     assert shown["ports"]["AGENTCORE_ADMIN_PORT"] == 32101
 
-    import agentcore_cli.commands.ports as ports_cmd
+    from port_profile import loader as port_loader
 
-    monkeypatch.setattr(ports_cmd, "check_port_available", lambda port, host="127.0.0.1": True)
+    monkeypatch.setattr(port_loader, "check_port_available", lambda port, host="127.0.0.1": True)
     assert main(["ports", "check", "--profile", str(profile)]) == 0
     ok_payload = json.loads(capsys.readouterr().out)
     assert ok_payload["ok"] is True
-    assert ok_payload["ports"]["AGENTCORE_API_PORT"] == {"port": 32155, "available": True}
+    assert ok_payload["ports"]["AGENTCORE_API_PORT"]["port"] == 32155
+    assert ok_payload["ports"]["AGENTCORE_API_PORT"]["available"] is True
 
     monkeypatch.setattr(
-        ports_cmd,
+        port_loader,
         "check_port_available",
         lambda port, host="127.0.0.1": port != 32155,
     )
+    monkeypatch.setattr(port_loader, "find_port_owner", lambda port: {"pid": 9, "name": "other", "source": "test"})
+    monkeypatch.setattr(port_loader, "suggest_alternate_port", lambda *a, **k: 32156)
     assert main(["ports", "check", "--profile", str(profile)]) == 1
     bad = json.loads(capsys.readouterr().out)
     assert bad["ok"] is False
     assert bad["ports"]["AGENTCORE_API_PORT"]["available"] is False
+    assert bad["ports"]["AGENTCORE_API_PORT"]["suggested_port"] == 32156
+    assert bad["ports"]["AGENTCORE_API_PORT"]["owner"]["name"] == "other"
     assert bad["ports"]["AGENTCORE_ADMIN_PORT"]["available"] is True
+
+
+def test_ports_check_occupied_writes_map_and_suggests(tmp_path, monkeypatch, capsys):
+    """Regression: an occupied profile port fails preflight and writes a port-map artifact."""
+    import socket
+
+    from port_profile import load_profile, run_preflight, write_port_map
+
+    profile_path = tmp_path / "ports.json"
+    _write_mini_profile(profile_path)
+    # Bind an ephemeral port, then force the profile to use it.
+    holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    occupied = holder.getsockname()[1]
+    monkeypatch.setenv("AGENTCORE_API_PORT", str(occupied))
+    monkeypatch.setenv("AGENTCORE_ADMIN_PORT", "32101")
+
+    profile = load_profile(profile_path)
+    report = run_preflight(profile, profile_path=profile_path)
+    assert report["ok"] is False
+    api = report["ports"]["AGENTCORE_API_PORT"]
+    assert api["available"] is False
+    assert api["port"] == occupied
+    assert api.get("suggested_port") is not None
+    assert api["suggested_port"] != occupied
+    assert "AGENTCORE_API_PORT" in report["conflicts"]
+
+    map_path = tmp_path / "port-map.json"
+    write_port_map(map_path, report)
+    written = json.loads(map_path.read_text(encoding="utf-8"))
+    assert written["ok"] is False
+    assert written["ports"]["AGENTCORE_API_PORT"]["port"] == occupied
+
+    map_arg = tmp_path / "cli-port-map.json"
+    assert main(["ports", "check", "--profile", str(profile_path), "--write-map", str(map_arg)]) == 1
+    cli_out = json.loads(capsys.readouterr().out)
+    assert cli_out["ok"] is False
+    assert cli_out["port_map"] == str(map_arg)
+    assert map_arg.is_file()
+    holder.close()
+
+
+def test_find_port_owner_parses_ss(monkeypatch):
+    from port_profile.loader import find_port_owner
+
+    sample = (
+        "State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n"
+        'LISTEN 0 128 127.0.0.1:32100 0.0.0.0:* users:(("python",pid=4242,fd=6))\n'
+    )
+    monkeypatch.setattr("port_profile.loader.shutil.which", lambda name: "/usr/bin/ss" if name == "ss" else None)
+    monkeypatch.setattr("port_profile.loader._run_capture", lambda cmd: sample)
+    owner = find_port_owner(32100)
+    assert owner == {"pid": 4242, "name": "python", "source": "ss", "raw": sample.strip()[:400]}
 
 
 def test_graph_smoke_ingest_explore(capsys, monkeypatch):

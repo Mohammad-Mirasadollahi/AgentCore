@@ -20,7 +20,9 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/gap-register-verification/run_gate.py::main
-doc_version: 1.0.0
+- tests/support/gap_register_gate/checks.py::verify_register_md_statuses_match_catalog
+- tests/support/gap_register_gate/checks.py::verify_accepted_risks_have_approvers
+doc_version: 1.0.1
 updated_at: '2026-07-24'
 ---
 
@@ -50,10 +52,11 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 ## Exit Checks Covered by the Gate
 
 - Required Phase 10 documents exist and contain key topic markers.
+- Machine catalog `status` values match `Status:` lines in `01-gap-register.md`.
 - Critical gaps have owners.
 - High-severity and Critical gaps are linked to phase gates.
 - Open decisions (`OPEN`, `UNDER_REVIEW`, `DECISION_NEEDED`, `PLANNED`) have proposed resolution artifacts.
-- Accepted risks have approvers and review dates.
+- Accepted risks have approvers and review dates (vacuous pass when none remain).
 - Closed gaps reference the documentation that reflects the resolution.
 
 ## Acceptance

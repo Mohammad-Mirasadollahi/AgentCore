@@ -18,6 +18,7 @@ from .domain.enums import (
 )
 from .domain.errors import ConflictError, NotFoundError, RuleEngineError, ValidationError
 from .domain.judge import HeuristicJudge, Judge
+from .litellm_judge import LiteLLMJudge
 from .domain.models import (
     AnomalySignal,
     ApprovalRequest,

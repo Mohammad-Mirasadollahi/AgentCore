@@ -5,9 +5,8 @@ doc_type: contract
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: '- `MemoryItem(id, type, scope, content, confidence, source_refs, status, expires_at)`
-  - `SemanticFact(id, subject, predicate, object, evidence_refs, supersedes, status)` - `ContextBundle(id,
-  task_id, static_section_version, dynamic_refs, token_budget, retrieval_query)` - `Consoli.'
+summary: Memory entity contracts (MemoryItem, SemanticFact, ContextBundle, WeightProfile),
+  events, and ContextBundle audit verification rules for prompt-context safety (GAP-T04).
 tags:
 - contract
 - memory
@@ -20,18 +19,22 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
-placeholder: 1
-doc_version: 1.0.0
+linked_symbols:
+- backend/services/memory-service/src/memory_service/core.py::ContextBundle
+- backend/services/memory-service/src/memory_service/domain/bundle_verifier.py::verify_context_bundle
+- backend/configs/schemas/context-bundle-audit.schema.json
+related_docs:
+- docs/02-memory-and-context/13-context-bundle-audit-and-verification.md
+doc_version: 1.1.0
 updated_at: '2026-07-24'
 ---
 
 # Memory and Context - Data Contracts and Events
 
-## Memory and Context - Data Contracts and Events
 ## Purpose
 
-- `MemoryItem(id, type, scope, content, confidence, source_refs, status, expires_at)` - `SemanticFact(id, subject, predicate, object, evidence_refs, supersedes, status)` - `ContextBundle(id, task_id, static_section_version, dynamic_refs, token_budget, retrieval_query)` - `Consoli.
+Define memory entity contracts, events, WeightProfile rules, and ContextBundle audit
+requirements so retrieval and prompt packing stay scoped, evidenced, and verifiable.
 
 ## Core Entities
 
@@ -58,6 +61,23 @@ updated_at: '2026-07-24'
 - ContextBundles must list included dynamic references so prompt behavior can be audited.
 - Prompt cache profiles must be versioned; any static section change invalidates the cache profile.
 - Deprecated memory remains searchable but is excluded from default prompts.
+
+## ContextBundle Audit Contract (GAP-T04)
+
+Runtime `ContextBundle.public()` fields are validated by
+`backend/configs/schemas/context-bundle-audit.schema.json` and checked by
+`memory_service.domain.bundle_verifier.verify_context_bundle` before prompt use.
+
+Normative checks:
+
+- Scope on the bundle and every included memory must match the retrieval scope.
+- Included memories must carry non-empty `source_refs` or `evidence_refs` (no malformed refs).
+- Freshness digests over `version` / `updated_at` / `body` must match live candidates (stale-after-build fails).
+- Every retrieval candidate id must appear in `items` or `excluded` with a reason; high scorers may not vanish.
+- Restricted memory must never appear in `items`.
+- Sum of `token_estimate` values must not exceed `token_budget`; estimates must match recomputation.
+
+See [13 - Context Bundle Audit And Verification](./13-context-bundle-audit-and-verification.md).
 
 ## Weight Profile Contract
 

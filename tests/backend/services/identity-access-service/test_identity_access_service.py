@@ -62,6 +62,30 @@ def test_unknown_subject_denied():
     assert decision.json()["decision"]["allowed"] is False
 
 
+def test_admin_matrix_authorize_emits_audit_event():
+    store = InMemoryStore()
+    client = ApiClient(app(IdentityAccessService(store)))
+    client.post(
+        "/api/v1/projects/p/principals",
+        headers=H,
+        json={
+            "subject": "ops@example.com",
+            "roles": ["integration_admin"],
+            "permissions": [],
+        },
+    )
+    allowed = client.post(
+        "/api/v1/projects/p/authorize",
+        headers=H,
+        json={"subject": "ops@example.com", "action": "adapter.install", "resource": "connector"},
+    )
+    assert allowed.json()["decision"]["allowed"] is True
+    events = [e for e in store.outbox() if e.get("event_type") == "admin.authorize"]
+    assert events
+    assert events[-1]["allowed"] is True
+    assert events[-1]["action"] == "adapter.install"
+
+
 def test_roles_required():
     client = ApiClient(app(IdentityAccessService(InMemoryStore())))
     bad = client.post("/api/v1/projects/p/principals", headers=H, json={"subject": "x", "roles": []})

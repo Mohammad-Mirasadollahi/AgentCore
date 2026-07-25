@@ -41,12 +41,11 @@ LANGUAGE_MATRIX: dict[str, dict[str, Any]] = {
         "parser": "tree_sitter",
         "extensions": (".rs",),
     },
-    # Wave D: planned — no extensions registered until a parser ships (avoid noisy ingest fails).
     "java": {
-        "status": "planned",
+        "status": "supported",
         "required": False,
         "parser": "tree_sitter",
-        "extensions": (),
+        "extensions": (".java",),
     },
 }
 

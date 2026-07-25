@@ -95,6 +95,7 @@ class RuleEvaluation:
     created_at: str
     updated_at: str
     version: int = 1
+    judge_replay: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:
         return {
@@ -117,6 +118,7 @@ class RuleEvaluation:
             "version": self.version,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "judge_replay": self.judge_replay,
         }
 
 
@@ -290,3 +292,4 @@ class JudgeResult:
     matched_examples: list[str] = field(default_factory=list)
     missing_evidence: list[str] = field(default_factory=list)
     recommended_action: str = ""
+    replay_metadata: dict[str, Any] = field(default_factory=dict)

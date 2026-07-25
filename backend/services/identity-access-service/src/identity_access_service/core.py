@@ -97,12 +97,51 @@ class IdentityAccessService:
     def authorize(self, scope: Scope, subject: str, action: str, resource: str) -> dict[str, Any]:
         if not all((subject.strip(), action.strip(), resource.strip())):
             raise ValidationError("subject, action, and resource are required")
+        admin_actions = {
+            "tenant.create",
+            "project.create",
+            "policy.approve",
+            "weight_profile.change",
+            "adapter.install",
+        }
+
+        def _audit(allowed: bool, principal_id: str | None) -> None:
+            if action not in admin_actions:
+                return
+            self.store.append_event(
+                {
+                    "event_type": "admin.authorize",
+                    "allowed": allowed,
+                    "subject": subject,
+                    "action": action,
+                    "resource": resource,
+                    "principal_id": principal_id,
+                    "scope": {
+                        "tenant_id": scope.tenant_id,
+                        "workspace_id": scope.workspace_id,
+                        "project_id": scope.project_id,
+                    },
+                }
+            )
+
         for principal in self.store.list_principals(scope):
             if principal["subject"] != subject or principal.get("status") != "active":
                 continue
             roles = set(principal.get("roles") or [])
             perms = set(principal.get("permissions") or [])
             allowed = "admin" in roles or action in perms or f"{action}:{resource}" in perms
+            if not allowed and action in admin_actions:
+                try:
+                    from architecture_governance import admin_action_allowed
+
+                    allowed = admin_action_allowed(
+                        action,
+                        roles=sorted(roles),
+                        permissions=sorted(perms),
+                    )
+                except Exception:
+                    allowed = False
+            _audit(allowed, principal["id"])
             return {
                 "allowed": allowed,
                 "subject": subject,
@@ -111,6 +150,7 @@ class IdentityAccessService:
                 "principal_id": principal["id"],
                 "matched_roles": sorted(roles),
             }
+        _audit(False, None)
         return {
             "allowed": False,
             "subject": subject,

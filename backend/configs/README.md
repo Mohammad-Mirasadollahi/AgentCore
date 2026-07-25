@@ -21,6 +21,7 @@ Versioned backend configuration templates and machine-readable catalogs used by 
 | `code-metadata-profiles/` | Code-metadata validation profiles |
 | `environments/` | Environment profiles (`local` … `prod`) |
 | `model-routing/` | Default local/cloud `ModelRoutingProfile` tables (LiteLLM aliases) |
+| `embeddings/` | Embedding refresh policy (GAP-T03 lifecycle / model-change / TurboVec sync) |
 
 ## Rules
 

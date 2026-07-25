@@ -5,12 +5,14 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: AgentCore development environments must avoid port conflicts. Many tools use common
-  default ports. If AgentCore services also use those defaults, developers will hit conflicts
-  with databases, dashboards, local servers, IDE helpers, model runtimes, and other projects.
+summary: AgentCore development environments must avoid port conflicts. Preflight detects
+  owning processes, suggests alternate ports, writes a resolved port-map artifact, and
+  blocks install or service bring-up on foreign conflicts.
 tags:
 - standard
 - sea
+- ports
+- preflight
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/04-development-port-management.md
 lifecycle_lane: current
@@ -20,8 +22,11 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
-doc_version: 1.0.0
+linked_symbols:
+- backend/packages/port_profile/loader.py::run_preflight
+- backend/packages/port_profile/loader.py::find_port_owner
+- backend/packages/agentcore_cli/commands/ports.py::cmd_ports_check
+doc_version: 1.1.0
 updated_at: '2026-07-24'
 ---
 
@@ -31,7 +36,7 @@ updated_at: '2026-07-24'
 
 AgentCore development environments must avoid port conflicts. Many tools use common default ports. If AgentCore services also use those defaults, developers will hit conflicts with databases, dashboards, local servers, IDE helpers, model runtimes, and other projects.
 
-The architecture must therefore require project-scoped, configurable, non-default development ports.
+The architecture must therefore require project-scoped, configurable, non-default development ports, plus a blocking preflight before bring-up.
 
 ## Core Rule
 
@@ -76,30 +81,46 @@ AGENTCORE_DEV_PORT_BASE=32xxx
 service_port = AGENTCORE_DEV_PORT_BASE + service_offset
 ```
 
-The exact base value should be configurable per developer machine.
+The exact base value should be configurable per developer machine. Canonical profile: `backend/configs/port-profiles/agentcore-dev.json`.
 
-### 3. Startup Must Check Port Availability
+### 3. Startup Must Check Port Availability (Preflight)
 
-Before starting services, the development launcher should check whether required ports are available.
+Before starting services, the development launcher must run port preflight.
 
-If a port is occupied, startup should fail with a clear error:
+Implementation (GAP-T07):
+
+| Surface | Behavior |
+| --- | --- |
+| Library | `port_profile.run_preflight` — bind check, owning process, alternate suggestion |
+| CLI | `agentcore ports check [--write-map] [--allow-ours]` |
+| Install | `run_port_preflight` in `scripts/install/common.sh` (stage 04 before Compose up) |
+| Service start | `agentcore service start` runs preflight with `--allow-ours` semantics |
+
+If a port is occupied by a foreign process, startup **blocks** with a clear error:
 
 ```text
-Port 32xxx is already in use by another process.
-Change AGENTCORE_DEV_PORT_BASE or override AGENTCORE_<SERVICE>_PORT.
+Port 32xxx is already in use by another process (name=…, pid=…).
+Suggested alternate: AGENTCORE_<SERVICE>_PORT=32yyy
+See .agentcore/run/port-map.json
 ```
 
-### 4. Services Must Log Their Bound Ports
+Owning-process detection on Linux uses `ss -lptn` first, then `lsof` (best-effort when tools are missing).
+
+### 4. Resolved Port-Map Artifact
+
+Successful or failed preflight writes `.agentcore/run/port-map.json` for startup consumers. The artifact includes resolved ports, per-key availability, owner hints, suggested alternates, and conflict keys.
+
+### 5. Services Must Log Their Bound Ports
 
 Every service should log the host and port it binds to at startup. This helps developers identify incorrect configuration quickly.
 
-### 5. Documentation Examples Must Use Non-Default Ports
+### 6. Documentation Examples Must Use Non-Default Ports
 
 Documentation should not teach developers to use common defaults for development. Examples should use AgentCore-specific development ports and explain how to override them.
 
-### 6. Tests Must Not Depend on Fixed Ports
+### 7. Tests Must Not Depend on Fixed Ports
 
-Automated tests should use ephemeral ports or test-specific allocated ports. Fixed ports in tests create flaky behavior on shared machines and CI runners.
+Automated tests should use ephemeral ports or test-specific allocated ports. Fixed ports in tests create flaky behavior on shared machines and CI runners. Preflight regression tests bind an ephemeral socket and assert conflict + suggestion + map write.
 
 ## Recommended Development Port Profile
 
@@ -146,14 +167,35 @@ load development port profile
 apply local overrides
 for each service:
     validate port is numeric and in allowed range
-    check port availability
+    check port availability (bind probe)
     if unavailable:
-        report owning process when possible
+        report owning process when possible (ss / lsof)
         suggest next available project-scoped port
-        fail startup unless auto-reassign is explicitly enabled
-write resolved port map to runtime summary
+        fail startup unless allow-ours matches AgentCore/docker-proxy
+write resolved port map to .agentcore/run/port-map.json
 start services with resolved ports
 ```
+
+```mermaid
+flowchart TD
+  load[Load port profile] --> resolve[Resolve env overrides]
+  resolve --> check[Bind-check each port]
+  check -->|free| map[Write port-map.json]
+  check -->|busy| owner[Detect owner ss/lsof]
+  owner --> suggest[Suggest alternate in range]
+  suggest -->|foreign| block[Block bring-up]
+  suggest -->|ours allow| map
+  map --> start[Start services]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | CLI / install | Load `agentcore-dev.json` + env | Resolved port map |
+| 2 | `run_preflight` | Bind probe each port | available true/false |
+| 3 | `find_port_owner` | `ss` then `lsof` | pid/name or unknown |
+| 4 | `suggest_alternate_port` | Scan project range | Suggested free port |
+| 5 | Install / service start | Exit non-zero on foreign conflict | Bring-up blocked |
+| 6 | Consumers | Read `.agentcore/run/port-map.json` | Shared runtime evidence |
 
 ## Auto-Reassignment Policy
 
@@ -164,7 +206,8 @@ Allowed behavior:
 - explicit `AGENTCORE_AUTO_PORT=1` enables automatic reassignment,
 - runtime summary prints final assigned ports,
 - generated local `.env` or runtime file records resolved ports,
-- dependent services receive updated ports through service discovery or config injection.
+- dependent services receive updated ports through service discovery or config injection,
+- preflight may **suggest** an alternate without applying it unless auto-reassign is enabled.
 
 Disallowed behavior:
 
@@ -172,6 +215,17 @@ Disallowed behavior:
 - hard-coding fallback ports,
 - changing ports in one service without updating dependents,
 - documenting default vendor ports as AgentCore development defaults.
+
+## Operator Commands
+
+```text
+agentcore ports show
+agentcore ports check
+agentcore ports check --write-map
+agentcore ports check --write-map /tmp/port-map.json --allow-ours
+```
+
+Install stage 04 calls `run_port_preflight` before Compose `up`. Conflict exit code blocks bring-up.
 
 ## CI and Staging Behavior
 
@@ -184,7 +238,16 @@ Staging and production should use service discovery rather than manually assigne
 - No development service requires a hard-coded port.
 - Common vendor defaults are not used as AgentCore development defaults.
 - Startup validates port availability before binding.
-- Port conflicts produce clear errors and remediation guidance.
-- Tests use ephemeral or test-allocated ports.
+- Port conflicts produce clear errors, owning-process hints, and alternate-port suggestions.
+- Preflight writes `.agentcore/run/port-map.json` for consumers.
+- Install and `agentcore service start` block on foreign conflicts.
+- Tests use ephemeral or test-allocated ports; occupied-port regression covers map + suggestion.
 - Documentation examples use AgentCore-specific non-default ports.
 - Developers can override every service port without changing code.
+
+## Related Documents
+
+- [Local venv, Docker, and port policy](../13-technology-stack-and-platform-decisions/06-local-venv-docker-and-port-policy.md)
+- [Local development and environment engineering](13-local-development-and-environment-engineering.md)
+- [Modular project structure](05-modular-project-structure.md)
+- [Zero-touch installation and bootstrap automation](19-zero-touch-installation-and-bootstrap-automation.md)

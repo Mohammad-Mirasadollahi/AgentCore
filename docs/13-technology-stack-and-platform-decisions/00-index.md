@@ -22,7 +22,7 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
+doc_version: 1.0.1
 updated_at: '2026-07-24'
 ---
 
@@ -30,7 +30,7 @@ updated_at: '2026-07-24'
 
 ## Purpose
 
-This section defines the preferred technology stack for AgentCore. The goal is to make implementation decisions explicit before code is written and to ensure that the selected technologies match the documented architecture: modular backend services, admin web interface, metadata-first code understanding, RAG, Neo4j-backed code graph intelligence, project isolation, automation, reporting, SDKs, and strong software engineering standards.
+This section defines the preferred technology stack for AgentCore. The goal is to make implementation decisions explicit before code is written and to ensure that the selected technologies match the documented architecture: modular backend services, admin web interface, metadata-first code understanding, RAG, Neo4j-backed code graph intelligence, project isolation, automation, reporting, SDKs, and strong software engineering standards. Includes the GAP-T03 embedding lifecycle ADR (`14-embedding-lifecycle-and-refresh.md`).
 
 ## Files
 
@@ -47,6 +47,7 @@ This section defines the preferred technology stack for AgentCore. The goal is t
 - `11-turbovec-for-rag.md` is the engineer/agent guide for using turbovec in RAG (IdMapIndex lifecycle, hybrid allowlist, bit-width, persistence, fallback).
 - `12-litellm-environment-configuration.md` is the operator reference for every LiteLLM/code-graph env variable (defaults, change impact, examples).
 - `13-storage-ownership-matrix.md` pins authoritative store and owning service per entity/event class (closes GAP-001).
+- `14-embedding-lifecycle-and-refresh.md` is the ADR for embedding regenerate triggers, model-change scoped re-embed, job states, tenant isolation, pgvector SoR (`vector(1024)`), and TurboVec replica sync after SoR write (closes GAP-T03).
 
 ## Mandatory Baseline
 

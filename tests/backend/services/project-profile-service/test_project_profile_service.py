@@ -49,6 +49,26 @@ def test_register_project_and_group():
     assert any(e["event_type"] == "project.registered" for e in store.outbox())
 
 
+def test_register_project_denied_by_admin_matrix():
+    from project_profile_service.core import ValidationError
+
+    store = InMemoryStore()
+    svc = ProjectProfileService(store)
+    from project_profile_service.core import Scope
+
+    try:
+        svc.register_project(
+            Scope("t", "w", "p-deny"),
+            "viewer",
+            "corr",
+            "deny-key",
+            {"name": "Nope", "actor_roles": ["viewer"]},
+        )
+        raise AssertionError("expected ValidationError")
+    except ValidationError as exc:
+        assert "project.create" in str(exc)
+
+
 def test_idempotent_project_register():
     client = ApiClient(app(ProjectProfileService(InMemoryStore())))
     a = client.post("/api/v1/projects/p/profile", headers=H, json={"name": "A"})

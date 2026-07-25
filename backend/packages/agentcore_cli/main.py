@@ -53,6 +53,13 @@ from agentcore_cli.commands.approval import (
     cmd_approval_reject,
     cmd_approval_show,
 )
+from agentcore_cli.commands.followup_tasks import (
+    cmd_followup_tasks_adopt_legacy,
+    cmd_followup_tasks_list,
+    cmd_followup_tasks_purge,
+    cmd_followup_tasks_reconcile,
+    cmd_followup_tasks_status,
+)
 from agentcore_cli.commands.profile import cmd_profile_list, cmd_profile_show
 from agentcore_cli.commands.project import (
     cmd_project_activate,
@@ -224,6 +231,17 @@ def _dispatch(argv: list[str] | None = None) -> int:
             return cmd_graph_smoke(args)
         if args.graph_command == "watch":
             return cmd_graph_watch(args)
+    if args.command == "followup-tasks":
+        if args.followup_tasks_command == "list":
+            return cmd_followup_tasks_list(args)
+        if args.followup_tasks_command == "status":
+            return cmd_followup_tasks_status(args)
+        if args.followup_tasks_command == "adopt-legacy":
+            return cmd_followup_tasks_adopt_legacy(args)
+        if args.followup_tasks_command == "reconcile":
+            return cmd_followup_tasks_reconcile(args)
+        if args.followup_tasks_command == "purge":
+            return cmd_followup_tasks_purge(args)
     if args.command == "approval":
         if args.approval_command == "mode":
             if args.approval_mode_command == "show":

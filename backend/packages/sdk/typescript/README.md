@@ -4,26 +4,16 @@ Path: `backend/packages/sdk/typescript`
 
 ## Purpose
 
-TypeScript SDK packages.
+TypeScript SDK package `@agentcore/sdk` with GET/POST, correlation, and idempotency parity
+to Python `agentcore_sdk`.
 
-## Modular Boundary
+## Boundaries
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+- May: public HTTP helpers for AgentCore APIs.
+- Must not: embed secret values, import backend service internals.
 
-## Allowed Contents
+## Start here
 
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
-
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
-
-## Status
-
-Scaffold only. No implementation code has been added yet.
+1. `src/client.ts` — `AgentCoreClient`
+2. `package.json` — name `@agentcore/sdk`
+3. `docs/05-interoperability-ecosystem/11-sdk-release-and-adapter-harness.md`

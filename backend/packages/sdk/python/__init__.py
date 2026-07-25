@@ -1,5 +1,5 @@
-"""Python SDK surface."""
+"""Python SDK surface (compat). Prefer `import agentcore_sdk`."""
 
-from .client import AgentCoreClient, SdkError
+from agentcore_sdk import AgentCoreClient, SdkError
 
 __all__ = ["AgentCoreClient", "SdkError"]

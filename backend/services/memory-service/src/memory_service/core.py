@@ -1,3 +1,10 @@
+"""
+Role: Memory domain model and MemoryService orchestration (retrieve, consolidate, decay, FAQ).
+SoT: Scoped MemoryItem / QuestionMemory / WorkBatch / ContextBundle; WeightProfile thresholds.
+Allowed: typed MemoryError subclasses; skip restricted on consolidate/decay; emit outbox events.
+Forbidden: cross-scope retrieval; restricted memory in ContextBundle items; inventing weights.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -371,9 +378,84 @@ class Store(Protocol):
 
 
 class MemoryService:
-    def __init__(self, store: Store, profile: WeightProfile | None = None):
+    def __init__(
+        self,
+        store: Store,
+        profile: WeightProfile | None = None,
+        *,
+        embedding_store: Any | None = None,
+        embedder: Any | None = None,
+        vector_index: Any | None = None,
+        entity_id_map: Any | None = None,
+    ):
         self.store = store
         self.profile = profile or WeightProfile.default()
+        self.embedding_store = embedding_store
+        self.embedder = embedder
+        self.vector_index = vector_index
+        self.entity_id_map = entity_id_map
+
+    def index_memory_embedding(self, scope: Scope, memory_id: str) -> dict[str, Any]:
+        """Persist SoR embedding for one memory item (Stage-1)."""
+        if self.embedding_store is None or self.embedder is None:
+            raise ValidationError("embedding_store and embedder are required")
+        from .domain.embeddings_store import MemoryEmbeddingRow
+
+        item = self.store.get_memory(memory_id, scope)
+        text = f"{item.title} {item.body}".strip()
+        result = self.embedder.embed(text)
+        vector = list(getattr(result, "vector", result))
+        model = str(getattr(result, "model", getattr(self.embedder, "model", "unknown")))
+        dims = int(getattr(result, "dims", len(vector)))
+        row = MemoryEmbeddingRow(
+            memory_id=memory_id,
+            tenant_id=scope.tenant_id,
+            workspace_id=scope.workspace_id,
+            project_id=scope.project_id,
+            vector=vector,
+            model=model,
+            dims=dims,
+            kind=item.kind.value,
+        )
+        self.embedding_store.upsert(row)
+        return {"memory_id": memory_id, "model": model, "dims": dims}
+
+    def retrieve_by_embedding(
+        self,
+        scope: Scope,
+        query: str,
+        *,
+        top_k: int = 5,
+    ) -> dict[str, Any]:
+        """Stage-1 semantic retrieve over memory embeddings; optional Stage-2 ANN."""
+        if self.embedding_store is None or self.embedder is None:
+            raise ValidationError("embedding_store and embedder are required")
+        from .domain.embeddings_store import stage1_retrieve
+
+        if not query.strip():
+            raise ValidationError("query is required")
+        result = self.embedder.embed(query, is_query=True) if hasattr(self.embedder, "embed") else None
+        if result is None:
+            raise ValidationError("embedder.embed is required")
+        vector = list(getattr(result, "vector", result))
+        retrieved = stage1_retrieve(
+            self.embedding_store,
+            scope,
+            vector,
+            top_k=top_k,
+            vector_index=self.vector_index,
+            entity_id_map=self.entity_id_map,
+        )
+        enriched = []
+        for hit in retrieved.hits:
+            try:
+                item = self.store.get_memory(hit["memory_id"], scope)
+                enriched.append({**hit, "memory": item.public()})
+            except NotFoundError:
+                continue
+        payload = retrieved.public()
+        payload["hits"] = enriched
+        return payload
 
     def create_memory(self, scope: Scope, actor: str, correlation_id: str, key: str, payload: dict[str, Any]) -> MemoryItem:
         self._require_key(key)
@@ -402,6 +484,7 @@ class MemoryService:
             timestamp,
         )
         self.store.put_memory(item)
+        self._maybe_upsert_embedding(scope, item)
         self.store.remember(scope, "create_memory", key, payload, item.id)
         self.emit("MemoryItemCreated", item.public(), scope, actor, correlation_id, key, item.id, item.evidence_refs)
         return item
@@ -464,11 +547,25 @@ class MemoryService:
         terms = tokenize(query)
         wants_history = bool(terms & HISTORY_TERMS)
         candidates = self.store.list_memory(scope)
+        embedding_hits = self._embedding_hits(scope, query, candidates)
+        embedding_boosts = {
+            mid: float(hit["score"]) * self.profile.semantic_weight for mid, hit in embedding_hits.items()
+        }
+        dense_stage = "off"
+        if embedding_hits:
+            stages = {str(hit.get("retrieval") or "") for hit in embedding_hits.values()}
+            if any("turbovec" in stage for stage in stages):
+                dense_stage = "pgvector+turbovec"
+            else:
+                dense_stage = "pgvector"
         selected: list[dict[str, Any]] = []
         excluded: list[dict[str, Any]] = []
         used_tokens = 0
         scored = sorted(
-            ((self._score(item, terms, wants_history), item) for item in candidates),
+            (
+                (self._score(item, terms, wants_history) + embedding_boosts.get(item.id, 0.0), item)
+                for item in candidates
+            ),
             key=lambda pair: (-pair[0], pair[1].created_at, pair[1].id),
         )
         for score, item in scored:
@@ -481,26 +578,72 @@ class MemoryService:
                 excluded.append({"id": item.id, "reason": "token_budget_overflow", "score": round(score, 3)})
                 continue
             used_tokens += token_estimate
-            selected.append(
-                {
-                    "memory": item.public(),
-                    "score": round(score, 3),
-                    "selection_reason": "matched query under scoped weight profile",
-                    "token_estimate": token_estimate,
-                }
-            )
+            hit = embedding_hits.get(item.id)
+            selection_reason = "matched query under scoped weight profile"
+            if hit is not None:
+                selection_reason = f"{selection_reason}; dense={hit.get('retrieval', 'stage1')}"
+            entry: dict[str, Any] = {
+                "memory": item.public(),
+                "score": round(score, 3),
+                "selection_reason": selection_reason,
+                "token_estimate": token_estimate,
+            }
+            if hit is not None:
+                entry["dense_retrieval"] = hit.get("retrieval")
+            selected.append(entry)
         bundle = ContextBundle(str(uuid4()), scope, query, budget, self.profile, selected, excluded, now())
-        self.emit("ContextBundleBuilt", bundle.public(), scope, actor, correlation_id, "", bundle.bundle_id, [])
+        # Attach bundle-level attribution for explain/audit consumers.
+        bundle_public_extra = {
+            "dense_retrieval": {
+                "stage": dense_stage,
+                "pgvector": dense_stage.startswith("pgvector"),
+                "turbovec": "turbovec" in dense_stage,
+            }
+        }
+        self.emit(
+            "ContextBundleBuilt",
+            {**bundle.public(), **bundle_public_extra},
+            scope,
+            actor,
+            correlation_id,
+            "",
+            bundle.bundle_id,
+            [],
+        )
         return bundle
 
     def explain_retrieval(self, scope: Scope, query: str) -> dict[str, Any]:
         terms = tokenize(query)
         wants_history = bool(terms & HISTORY_TERMS)
+        dense: dict[str, Any] = {"enabled": False, "stage1": "none", "stage2": "off"}
+        embed_store = getattr(self, "embedding_store", None)
+        if embed_store is not None and hasattr(embed_store, "search"):
+            dense["enabled"] = True
+            dense["stage1"] = "pgvector"
+            try:
+                from vector_index import AnnAcceleratorConfig, turbovec_importable
+
+                cfg = AnnAcceleratorConfig.from_environment()
+                if cfg.enabled and turbovec_importable():
+                    dense["stage2"] = "turbovec"
+                elif cfg.enabled:
+                    dense["stage2"] = "turbovec_unavailable_fallback_pgvector"
+                else:
+                    dense["stage2"] = "off"
+            except Exception:
+                dense["stage2"] = "off"
         return {
             "query_terms": sorted(terms),
             "wants_history": wants_history,
             "weight_profile": self.profile.__dict__,
             "prompt_cache": {"profile_id": self.profile.profile_id, "version": self.profile.version},
+            "dense_retrieval": dense,
+            "read_model_id": "memory.context_bundle",
+
+            "attribution": {
+                "pgvector": dense["stage1"] == "pgvector",
+                "turbovec": dense["stage2"] == "turbovec",
+            },
             "candidates": [
                 {
                     "id": item.id,
@@ -646,6 +789,68 @@ class MemoryService:
         if item.state == MemoryState.CANDIDATE:
             score -= 0.5
         return score
+
+    def _maybe_upsert_embedding(self, scope: Scope, item: MemoryItem) -> None:
+        if self.embedding_store is None or self.embedder is None:
+            return
+        if item.kind == MemoryKind.RESTRICTED or item.state == MemoryState.RESTRICTED:
+            return
+        try:
+            self.index_memory_embedding(scope, item.id)
+        except Exception:  # noqa: BLE001 — create path stays durable without embeddings
+            return
+        # Sync TurboVec replica only after SoR write and only when SoR has rows.
+        models = self.embedding_store.list_models(scope)
+        if not models or self.vector_index is None or self.entity_id_map is None:
+            return
+        try:
+            import numpy as np
+
+            row_models = models
+            if item.id not in row_models:
+                return
+            result = self.embedder.embed(f"{item.title} {item.body}")
+            vector = list(getattr(result, "vector", result))
+            uid = self.entity_id_map.get_or_assign(item.id)
+            self.vector_index.upsert([uid], np.asarray([vector], dtype=np.float32))
+        except Exception:  # noqa: BLE001 — fail-open to SoR
+            return
+
+    def _embedding_hits(
+        self,
+        scope: Scope,
+        query: str,
+        candidates: list[MemoryItem],
+    ) -> dict[str, dict[str, Any]]:
+        """Stage-1 dense hits when SoR embeddings exist; optional Stage-2 TurboVec."""
+        if self.embedding_store is None or self.embedder is None:
+            return {}
+        if not self.embedding_store.list_models(scope):
+            return {}
+        from .domain.embeddings_store import stage1_retrieve
+
+        query_vec = list(self.embedder.embed(query, is_query=True).vector)
+        retrieved = stage1_retrieve(
+            self.embedding_store,
+            scope,
+            query_vec,
+            top_k=max(8, len(candidates) or 8),
+            vector_index=self.vector_index,
+            entity_id_map=self.entity_id_map,
+        )
+        return {str(hit["memory_id"]): hit for hit in retrieved.hits}
+
+    def _embedding_boosts(
+        self,
+        scope: Scope,
+        query: str,
+        candidates: list[MemoryItem],
+    ) -> dict[str, float]:
+        """Scale dense cosine into a modest lexical boost."""
+        return {
+            mid: float(hit["score"]) * self.profile.semantic_weight
+            for mid, hit in self._embedding_hits(scope, query, candidates).items()
+        }
 
     def _exclude_reason(self, item: MemoryItem, score: float, wants_history: bool = False) -> str | None:
         if item.kind == MemoryKind.RESTRICTED or item.state == MemoryState.RESTRICTED:

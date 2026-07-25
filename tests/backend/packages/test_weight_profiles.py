@@ -76,3 +76,39 @@ def test_activate_same_profile_is_idempotent_and_rollback_still_works(tmp_path):
         steps=1,
     )
     assert rolled["active_profile_id"] == "default-memory-profile"
+
+
+def test_activate_denied_by_admin_matrix(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_ENFORCE_ADMIN_MATRIX", "1")
+    with pytest.raises(WeightProfileError, match="denied by admin permission matrix"):
+        activate_profile(
+            tmp_path,
+            "conservative-memory-profile",
+            actor="viewer",
+            reason="nope",
+            now_iso="2026-07-23T00:00:00Z",
+            roles=["viewer"],
+        )
+
+
+def test_activate_fail_closed_when_governance_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTCORE_ENFORCE_ADMIN_MATRIX", "1")
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _blocked(name, *args, **kwargs):
+        if name == "architecture_governance" or name.startswith("architecture_governance."):
+            raise ImportError("blocked for test")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _blocked)
+    with pytest.raises(WeightProfileError, match="requires architecture_governance"):
+        activate_profile(
+            tmp_path,
+            "conservative-memory-profile",
+            actor="admin",
+            reason="enforce",
+            now_iso="2026-07-23T00:00:00Z",
+            roles=["admin"],
+        )

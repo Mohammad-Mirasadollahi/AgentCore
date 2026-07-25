@@ -46,6 +46,27 @@ fail() {
   exit 1
 }
 
+# Block bring-up when profile ports conflict (writes .agentcore/run/port-map.json).
+run_port_preflight() {
+  local cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+  local map_path="${AGENTCORE_ROOT}/.agentcore/run/port-map.json"
+  local rc=0
+
+  if [[ ! -x "${cli}" ]]; then
+    fail "port preflight requires ${cli} (run stage 02 / venv first)"
+  fi
+
+  info "Port preflight (blocks on foreign port conflicts)…"
+  set +e
+  "${cli}" ports check --write-map "${map_path}"
+  rc=$?
+  set -e
+  if [[ "${rc}" -ne 0 ]]; then
+    fail "port preflight failed (exit ${rc}) — free conflicting ports or set AGENTCORE_*_PORT; see ${map_path}"
+  fi
+  ok "port preflight passed (map: ${map_path})"
+}
+
 # curl|bash leaves stdin as the script pipe. Prompt via /dev/tty when needed.
 install_can_prompt() {
   if [[ "${INSTALL_NONINTERACTIVE}" == "1" ]]; then

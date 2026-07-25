@@ -6,7 +6,8 @@ status: draft
 schema_version: '1.0'
 owner: platform-architecture
 summary: Entity fields, state machines, commands, queries, and events for ChangeSet, ReviewThread,
-  ReviewComment, DiscussionComment, WorkLabel, and WorkMilestone.
+  ReviewComment, DiscussionComment, WorkLabel, and WorkMilestone. Backend MVP for ChangeSet review
+  surface ships in core-data-service; WorkMilestone and UI queries remain deferred.
 tags:
 - changeset
 - review
@@ -16,18 +17,20 @@ tags:
 - events
 phase: 01-core-data-model
 canonical_path: docs/01-core-data-model/08-changeset-review-and-discussion-contracts.md
-lifecycle_lane: future
+lifecycle_lane: current
 concern_lane: contract
 audience_lane:
 - platform-engineering
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/services/core-data-service/src/core_data_service/core.py::Kind
+- backend/services/core-data-service/src/core_data_service/core.py::CoreData.create_changeset
 related_docs:
 - ac.doc.core.agent-collaboration-work-surface
 - ac.doc.core.contracts
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -50,7 +53,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 08 - ChangeSet Review And Discussion Contracts
@@ -58,6 +61,8 @@ updated_at: '2026-07-24'
 ## Purpose
 
 Define implementation-grade contracts for the AgentCore-native collaboration aggregates introduced in `07-agent-collaboration-work-surface.md`. These contracts extend Phase 1 core data; they do not replace Activity, WorkLog, Decision, Issue, or Task.
+
+Backend MVP (GAP-A08): `core-data-service` implements kinds `changeset`, `review_thread`, `review_comment`, `discussion_comment`, `work_label` with lifecycle transitions, self-approval forbid, review-verdict rollup to `changes_requested`, and HTTP routes. `WorkMilestone`, full field richness, and `ExplainChangeSetGate` remain deferred with UI surfaces.
 
 ## Professional Audience
 

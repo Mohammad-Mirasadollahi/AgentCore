@@ -405,6 +405,35 @@ class AdapterService:
             "trust_level": payload.get("trust_level") or "standard",
             "credential": payload.get("credential") or "unset",
         }
+        allowed_trust = {"untrusted", "standard", "elevated", "privileged", "local"}
+        if command_payload["trust_level"] not in allowed_trust:
+            raise ValidationError(
+                "trust_level must be one of: " + ", ".join(sorted(allowed_trust))
+            )
+        role_list = [str(r) for r in (payload.get("actor_roles") or [])]
+        perm_list = [str(p) for p in (payload.get("actor_permissions") or [])]
+        enforce = str(__import__("os").environ.get("AGENTCORE_ENFORCE_ADMIN_MATRIX", "")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if enforce or role_list or perm_list:
+            try:
+                from architecture_governance import admin_action_allowed
+
+                if not admin_action_allowed(
+                    "adapter.install",
+                    roles=role_list,
+                    permissions=perm_list,
+                ):
+                    raise ValidationError("adapter.install denied by admin permission matrix")
+            except ImportError as exc:
+                raise ValidationError(
+                    "adapter.install requires architecture_governance when "
+                    "AGENTCORE_ENFORCE_ADMIN_MATRIX is enabled or actor roles/permissions "
+                    "are supplied"
+                ) from exc
         prior = self.store.idempotent(scope, "register_connector", key, command_payload)
         if prior:
             return self.store.get_connector(prior, scope)

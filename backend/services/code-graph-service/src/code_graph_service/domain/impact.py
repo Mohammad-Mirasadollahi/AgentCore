@@ -1,20 +1,23 @@
-"""Directed impact, caller ranking, and escalate hints (Codebase-Memory hybrid Wave A/B)."""
+"""Directed impact, caller ranking, and escalate hints (Codebase-Memory hybrid Wave A/B).
+
+Role: Rank callers and compute directed blast-radius over structural CALL edges.
+Source of truth: CODE_REL confidence + ``min_confidence`` floor (default probable).
+Allowed: filter by confidence / rel_type; escalate hints when sparse. Forbidden:
+treating ambiguous/unresolved as impact-eligible under the default floor.
+"""
 
 from __future__ import annotations
 
 from collections import defaultdict, deque
 from typing import Any, Iterable
 
+from .confidence_policy import (
+    DEFAULT_IMPACT_MIN_CONFIDENCE,
+    confidence_rank,
+    impact_eligible,
+)
 from .enums import CallConfidence
 from .models import GraphEdge, GraphSymbol
-
-_CONFIDENCE_RANK: dict[str, int] = {
-    CallConfidence.EXACT.value: 4,
-    CallConfidence.PROBABLE.value: 3,
-    CallConfidence.AMBIGUOUS.value: 2,
-    CallConfidence.EXTERNAL.value: 1,
-    CallConfidence.UNRESOLVED.value: 0,
-}
 
 DEFAULT_STRUCTURAL_REL_TYPES: frozenset[str] = frozenset(
     {"CALLS", "HTTP_CALLS", "ASYNC_CALLS", "ROUTES_TO"}
@@ -27,15 +30,15 @@ ESCALATE_NEXT = (
 )
 
 
-def confidence_rank(value: str | CallConfidence) -> int:
-    key = value.value if isinstance(value, CallConfidence) else str(value)
-    return _CONFIDENCE_RANK.get(key, 0)
+def meets_min_confidence(
+    value: str | CallConfidence,
+    minimum: str | None = DEFAULT_IMPACT_MIN_CONFIDENCE,
+) -> bool:
+    """True when edge confidence meets the floor (default: probable).
 
-
-def meets_min_confidence(value: str | CallConfidence, minimum: str | None) -> bool:
-    if not minimum:
-        return True
-    return confidence_rank(value) >= confidence_rank(minimum)
+    Pass ``minimum=None`` only to disable the floor (include all confidences).
+    """
+    return impact_eligible(value, min_confidence=minimum)
 
 
 def escalate_hint(*, reason: str = "ok", sparse: bool = False) -> dict[str, Any]:
@@ -67,7 +70,7 @@ def rank_callers(
     *,
     top_k: int = 20,
     max_depth: int = 1,
-    min_confidence: str | None = None,
+    min_confidence: str | None = DEFAULT_IMPACT_MIN_CONFIDENCE,
     rel_types: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Rank inbound callers of seed (fan-in), optionally multi-hop upstream."""
@@ -150,7 +153,7 @@ def directed_impact(
     *,
     direction: str = "both",
     max_depth: int = 3,
-    min_confidence: str | None = None,
+    min_confidence: str | None = DEFAULT_IMPACT_MIN_CONFIDENCE,
     rel_types: frozenset[str] | None = None,
     top_k: int = 50,
 ) -> dict[str, Any]:

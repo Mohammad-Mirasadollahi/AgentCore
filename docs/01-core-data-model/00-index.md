@@ -20,8 +20,8 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-25'
 ---
 
 # 01 - Core Data Model Index
@@ -45,6 +45,7 @@ Turn every agent action, architectural reason, discovered problem, and executabl
 - `06-detailed-section-design.md` provides deep rationale, lifecycle details, examples, edge cases, and phase output.
 - `07-agent-collaboration-work-surface.md` defines the AgentCore-native Issue/Task/AgentTicket/ChangeSet/Review/Comment/Label surface for agents (GitHub-like in role, not GitHub as SoR).
 - `08-changeset-review-and-discussion-contracts.md` defines contracts, state machines, commands, queries, and events for ChangeSet, reviews, discussion, and labels.
+- `09-automated-followup-task-lifecycle-and-retention.md` defines identity, reconcile-to-cancel, and retention for sync/quality automated Tasks (not Memory TTL).
 
 ## Features Covered
 
@@ -52,6 +53,7 @@ Turn every agent action, architectural reason, discovered problem, and executabl
 - Decision Tracking
 - Issue and Task Separation
 - Agent collaboration work surface (ChangeSet, ReviewThread, DiscussionComment, WorkLabel)
+- Automated follow-up Task lifecycle and retention
 
 ## Related Technical Logic
 

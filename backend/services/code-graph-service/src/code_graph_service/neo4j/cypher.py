@@ -32,7 +32,10 @@ SET n.tenant_id = $tenant_id,
     n.version = $version,
     n.created_at = $created_at,
     n.updated_at = $updated_at,
-    n.language = $language
+    n.language = $language,
+    n.hash_version = $hash_version,
+    n.parser_version = $parser_version,
+    n.metadata_json = $metadata_json
 """
 
 DELETE_SYMBOL = """
@@ -54,6 +57,7 @@ RETURN n {
   .id, .kind, .file_path, .name, .qualified_name, .signature,
   .body, .hash_value, .ai_documentation, .doc_status,
   .visibility, .version, .created_at, .updated_at, .language,
+  .hash_version, .parser_version, .metadata_json,
   embedding: []
 } AS n
 """

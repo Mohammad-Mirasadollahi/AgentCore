@@ -81,6 +81,8 @@ stage_04_docker_infra_run() {
   require_file "${COMPOSE_ENV_FILE}"
   require_file "${WAIT_HEALTHY}"
 
+  run_port_preflight
+
   info "Pulling/starting compose profile core (postgres + neo4j)…"
   run _compose --profile core up -d postgres neo4j
 

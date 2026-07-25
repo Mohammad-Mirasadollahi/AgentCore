@@ -21,7 +21,7 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/configs/test_domain_customization_schemas.py::test_first_party_configs_match_schemas
-doc_version: 1.0.0
+doc_version: 1.2.0
 updated_at: '2026-07-24'
 ---
 
@@ -67,23 +67,22 @@ Impact: Tree-sitter supports many languages, but the first implementation must c
 
 Why it matters: Symbol extraction, call resolution, import resolution, and AST hashing differ by language.
 
-Current assumption: **Python is mandatory and currently supported** (stdlib `ast`). TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
+Current assumption: **Python is mandatory**; TypeScript, JavaScript, Go, Rust, and **Java** are supported via tree-sitter adapters. See `docs/07-code-knowledge-graph/10-language-support-policy.md`.
 
-Decision needed: None — confidence caps, package-manager aliases (incl. Cargo/tsconfig/go replace), and DI injection edges shipped.
+Decision needed: None — Java parser + Spring/Wire DI extraction shipped (2026-07-25). Exotic frameworks beyond FastAPI/Nest/Spring/Wire remain iterative.
 
 Suggested owner: Code Graph Lead
 
 Approver: Code Graph Lead
 
-Review date: 2026-07-23
+Review date: 2026-07-25
 
-Resolution path: Cross-language CALLS/IMPORTS + package manifests + DI CALLS (`provenance=di_injection`) + `confidence_policy.clamp_confidence`.
+Resolution path: Cross-language CALLS/IMPORTS + package manifests + DI CALLS (`provenance=di_injection`) including Spring/Wire + `confidence_policy.clamp_confidence`.
 
 Status: CLOSED
 
-Closed in: `domain/package_manifests.py`, `domain/di_injections.py`, `domain/confidence_policy.py`, language policy update (2026-07-23).
-Exotic frameworks beyond FastAPI Depends / Nest-style constructor remain iterative (R-04).
-
+Closed in: `domain/parsers/java_lang.py`, `domain/di_injections.py` (Spring/Wire), language policy 1.1.0 (2026-07-25).
+Exotic frameworks beyond FastAPI / Nest / Spring / Wire remain iterative.
 ## GAP-003 - LLM Provider and Local Model Strategy
 
 Category: Technical Implementation
@@ -306,3 +305,291 @@ Resolution path: Default flipped to Neo4j; Postgres retained for rollback; struc
 Status: CLOSED
 
 Closed in: Neo4j default store + CodeSymbol projection ADR (2026-07-20).
+
+## GAP-T01 - AST Hash Stability
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: Normalized AST/source hashes must be language-correct and stable across formatting-only edits.
+
+Why it matters: Unstable hashes break incremental ingest and false-positive change detection.
+
+Current assumption: Language-aware normalization with parser/hash version metadata.
+
+Decision needed: Ship contract + corpus-backed hashing.
+
+Suggested owner: Code Graph Lead
+
+Resolution path: Hash contract + language-safe hashing + frozen corpus.
+
+Status: CLOSED
+
+Closed in: `docs/07-code-knowledge-graph/14-ast-hash-stability-contract.md` + `domain/hashing.py` + `test_hash_corpus.py` (2026-07-24).
+
+## GAP-T02 - Call Graph Accuracy
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: Call resolution needs confidence, DI/dynamic/reflection rules, and runtime-observed edges.
+
+Why it matters: Wrong CALLS poison impact analysis.
+
+Current assumption: Static + runtime_trace provenance with confidence caps.
+
+Decision needed: Operating standard + accuracy gate.
+
+Suggested owner: Code Graph Lead
+
+Resolution path: Confidence standard + runtime ingest + labeled corpus.
+
+Status: CLOSED
+
+Closed in: `docs/07-code-knowledge-graph/15-call-graph-confidence-and-runtime-traces.md` + `runtime_traces.py` + accuracy gate (2026-07-24).
+
+## GAP-T03 - Embedding Storage and Refresh Policy
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: Full embedding lifecycle and optional TurboVec Stage-2 for code-graph and memory.
+
+Why it matters: Stale embeddings and missing ANN acceleration limit retrieval quality.
+
+Current assumption: pgvector SoR; TurboVec optional replica; model-change refresh jobs.
+
+Decision needed: Lifecycle + dual-service TurboVec wiring.
+
+Suggested owner: AI Platform Lead
+
+Resolution path: Refresh job/CLI + memory embeddings + vector_index package.
+
+Status: CLOSED
+
+Closed in: `docs/13-technology-stack-and-platform-decisions/14-embedding-lifecycle-and-refresh.md` + `vector_index` + memory embeddings (2026-07-24).
+
+## GAP-T04 - Prompt Context Verification
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: ContextBundles need audit schema and verification against retrieval state.
+
+Why it matters: Unverified prompts hide omissions and stale sources.
+
+Current assumption: Versioned audit schema + verifier + prompt-safety suite.
+
+Decision needed: Ship schema and tests.
+
+Suggested owner: Memory Platform Lead
+
+Resolution path: JSON Schema + verifier + safety/fuzz tests.
+
+Status: CLOSED
+
+Closed in: `docs/02-memory-and-context/13-context-bundle-audit-and-verification.md` + `bundle_verifier.py` (2026-07-24).
+
+## GAP-T05 - LLM Judge Determinism
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: LLM-as-judge needs structured verdicts and replay metadata.
+
+Why it matters: Non-reproducible verdicts break governance.
+
+Current assumption: LiteLLMJudge behind Judge port; HeuristicJudge for local/tests.
+
+Decision needed: Operating standard + adapter + replay tests.
+
+Suggested owner: AI Platform Lead
+
+Resolution path: Standard + LiteLLMJudge + schema + replay tests.
+
+Status: CLOSED
+
+Closed in: `docs/04-rule-engine-orchestration/11-llm-judge-operating-standard.md` + `litellm_judge.py` (2026-07-24).
+
+## GAP-T06 - SDK Language Packaging And Adapter Harness
+
+Category: Technical Implementation
+
+Severity: High
+
+Impact: Ship installable Python and TypeScript SDKs with generator and adapter harness.
+
+Why it matters: Without packaging and harness, integrators cannot build safely.
+
+Current assumption: Private registry policy; generated stubs; capability-validated adapters.
+
+Decision needed: Release plan implemented.
+
+Suggested owner: Developer Experience Lead
+
+Resolution path: Packages + generator + adapter harness + CI.
+
+Status: CLOSED
+
+Closed in: `docs/05-interoperability-ecosystem/11-sdk-release-and-adapter-harness.md` + `agentcore_sdk` + `adapter_harness` (2026-07-24).
+
+## GAP-T07 - Port Preflight Tool
+
+Category: Developer Experience
+
+Severity: Medium
+
+Impact: Port conflicts must block startup with owning-process diagnostics and resolved maps.
+
+Why it matters: Silent bind failures look like application bugs.
+
+Current assumption: agentcore ports check is the preflight mechanism.
+
+Decision needed: Install/startup wiring + alternate port suggestion.
+
+Suggested owner: Developer Experience Lead
+
+Resolution path: CLI + install gate + resolved port-map artifact.
+
+Status: CLOSED
+
+Closed in: `port_profile` preflight + `agentcore ports check` + `scripts/install` `run_port_preflight` (2026-07-24).
+
+## GAP-T08 - Test Data and Fixture Strategy
+
+Category: Technical Implementation
+
+Severity: Medium
+
+Impact: Shared fixture catalog and synthetic workflow generator across domains.
+
+Why it matters: Ad-hoc fixtures hide isolation and coverage gaps.
+
+Current assumption: Cataloged fixtures under tests/backend/fixtures with no secrets.
+
+Decision needed: Catalog + generator + validation tests.
+
+Suggested owner: Platform Governance Lead
+
+Resolution path: Catalog doc + shared fixtures + generator.
+
+Status: CLOSED
+
+Closed in: `docs/08-software-engineering-architecture/51-test-fixture-catalog.md` + `tests/backend/fixtures/` + `synthetic_workflow.py` (2026-07-24).
+
+## GAP-A01 - Bounded Context Map
+
+Category: Architecture
+
+Severity: High
+
+Impact: Formal ownership of entities, readers, events, and migrations across services.
+
+Suggested owner: Platform Architect
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/bounded-context-map.json` + `architecture_governance` (2026-07-25).
+
+## GAP-A02 - Synchronous vs Asynchronous Boundaries
+
+Category: Architecture
+
+Severity: High
+
+Impact: Operation catalog for sync vs async jobs with durable delivery and timeouts.
+
+Suggested owner: Platform Architect
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/sync-async-boundaries.json` (2026-07-25).
+
+## GAP-A03 - Read Model Strategy
+
+Category: Architecture
+
+Severity: Medium
+
+Impact: Catalog of materialized vs on-demand read paths with invalidation rules.
+
+Suggested owner: Platform Architect
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/read-model-catalog.json` (2026-07-25).
+
+## GAP-A04 - Multi-Tenant Deployment Modes
+
+Category: Architecture
+
+Severity: High
+
+Impact: Declared tenancy deployment modes with fail-fast env validation.
+
+Suggested owner: Platform Architect
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/tenancy-deployment-modes.json` (2026-07-25).
+
+## GAP-A05 - Agent Trust Model
+
+Category: Architecture
+
+Severity: High
+
+Impact: Trust lifecycle policy wired to adapter trust_level and rule-engine high-risk floor.
+
+Suggested owner: Security Lead
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/agent-trust-policy.json` + rule-engine/adapter wiring (2026-07-25).
+
+## GAP-A06 - Product Boundary Between AgentCore and IDEs
+
+Category: Architecture
+
+Severity: Medium
+
+Impact: Action→surface matrix; MCP fail-closed guidance resolve before writes (UI deferred).
+
+Suggested owner: Developer Experience Lead
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/ide-product-boundary.json` + mcp writes gate (2026-07-25).
+
+## GAP-A07 - Enterprise Administration Model
+
+Category: Architecture
+
+Severity: High
+
+Impact: Admin permission matrix enforced via identity-access authorize (admin UI deferred).
+
+Suggested owner: Platform Governance Lead
+
+Status: CLOSED
+
+Closed in: `backend/configs/governance/admin-permission-matrix.json` (2026-07-25).
+
+## GAP-A08 - Agent Collaboration Surface Completeness
+
+Category: Architecture
+
+Severity: High
+
+Impact: Native ChangeSet / review / discussion / label backend MVP (diff viewer UX deferred).
+
+Suggested owner: Core Data Lead
+
+Status: CLOSED
+
+Closed in: `core-data-service` ChangeSet kinds + API + tests (2026-07-25).

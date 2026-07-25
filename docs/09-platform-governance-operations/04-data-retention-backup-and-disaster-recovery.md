@@ -21,8 +21,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-25'
 ---
 
 # Data Retention, Backup, and Disaster Recovery
@@ -52,6 +52,10 @@ General principles:
 - Prompt-visible summaries can expire earlier than audit evidence.
 - Deprecated memory can be excluded from prompts while retained for audit.
 - Customer data should follow privacy and deletion rules.
+- Automated follow-up Tasks (`retention_class=automated_followup`) are canceled when
+  debt clears and hard-deleted after a short terminal window — see
+  `docs/01-core-data-model/09-automated-followup-task-lifecycle-and-retention.md`.
+  Do not apply MemoryItem decay/TTL to these Tasks.
 
 ## Backup Requirements
 

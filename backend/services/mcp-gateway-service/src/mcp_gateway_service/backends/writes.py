@@ -22,6 +22,16 @@ def write_resource(
 
     hint = None
     if not backends.guidance_was_resolved(scope):
+        try:
+            from architecture_governance import guidance_resolve_required
+
+            if guidance_resolve_required():
+                raise ValueError(
+                    "agentcore_guidance_resolve is required before durable writes "
+                    "(AGENTCORE_GUIDANCE_RESOLVE_REQUIRED=1)"
+                )
+        except ImportError:
+            pass
         hint = (
             "Prefer agentcore_guidance_resolve (MCP-first) before durable writes "
             "so always-on rules and skills are loaded for this project."

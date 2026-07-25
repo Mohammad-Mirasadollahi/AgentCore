@@ -11,6 +11,7 @@ from ..domain.languages import assert_required_languages_supported
 from ..domain.ports import Store
 from ..postgres_side import EmbeddingIndex
 from .edit_session import EditSessionFactory, EditSessionUseCases
+from .embedding_refresh import EmbeddingRefreshMixin
 from .generation import GenerationUseCases
 from .ingest import IngestUseCases
 from .intelligence import IntelligenceUseCases
@@ -23,6 +24,7 @@ class CodeGraphService(
     GenerationUseCases,
     IntelligenceUseCases,
     EditSessionUseCases,
+    EmbeddingRefreshMixin,
 ):
     """Application service entrypoint for the Code-Knowledge Graph."""
 
@@ -34,6 +36,8 @@ class CodeGraphService(
         embedding_index: EmbeddingIndex | None = None,
         llm: Any | None = None,
         edit_session_factory: EditSessionFactory | None = None,
+        vector_index: Any | None = None,
+        entity_id_map: Any | None = None,
     ) -> None:
         assert_required_languages_supported()
         self.store = store
@@ -43,6 +47,9 @@ class CodeGraphService(
         self.llm = llm
         self.freshness = FreshnessState()
         self.edit_session_factory = edit_session_factory
+        # Optional Stage-2 ANN replica (VectorIndexPort); None → pgvector-only path.
+        self.vector_index = vector_index
+        self.entity_id_map = entity_id_map
 
     def llm_providers(self) -> list[dict[str, Any]]:
         if self.llm is None:

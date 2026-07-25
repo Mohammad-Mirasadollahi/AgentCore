@@ -222,3 +222,81 @@ def test_context_injection_and_unauthorized_subscriber():
     delivered = {item["subscription_id"] for item in published["deliveries"] if item["status"] == "delivered"}
     assert allowed_peer.id in delivered
     assert denied_peer.id not in delivered
+
+
+def test_register_connector_rejects_invalid_trust_level():
+    from adapter_service.core import ValidationError
+
+    service = AdapterService(InMemoryStore())
+    try:
+        service.register_connector(
+            SCOPE,
+            "ops",
+            "corr",
+            "bad-trust",
+            {
+                "vendor": "acme",
+                "name": "acme-agent",
+                "capabilities": ["can_edit_code"],
+                "auth_profile": "token",
+                "trust_level": "superuser",
+            },
+        )
+        raise AssertionError("expected ValidationError")
+    except ValidationError as exc:
+        assert "trust_level" in exc.message
+
+
+def test_register_connector_denied_by_admin_matrix():
+    from adapter_service.core import ValidationError
+
+    service = AdapterService(InMemoryStore())
+    try:
+        service.register_connector(
+            SCOPE,
+            "ops",
+            "corr",
+            "denied-install",
+            {
+                "vendor": "acme",
+                "name": "acme-agent",
+                "capabilities": ["can_edit_code"],
+                "auth_profile": "token",
+                "actor_roles": ["viewer"],
+            },
+        )
+        raise AssertionError("expected ValidationError")
+    except ValidationError as exc:
+        assert "adapter.install" in exc.message
+
+
+def test_register_connector_fails_closed_when_governance_missing(monkeypatch):
+    from adapter_service.core import ValidationError
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fake_import(name, *args, **kwargs):
+        if name == "architecture_governance" or name.startswith("architecture_governance."):
+            raise ImportError("missing architecture_governance")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+    monkeypatch.setenv("AGENTCORE_ENFORCE_ADMIN_MATRIX", "1")
+    service = AdapterService(InMemoryStore())
+    try:
+        service.register_connector(
+            SCOPE,
+            "ops",
+            "corr",
+            "enforce-missing-gov",
+            {
+                "vendor": "acme",
+                "name": "acme-agent",
+                "capabilities": ["can_edit_code"],
+                "auth_profile": "token",
+            },
+        )
+        raise AssertionError("expected ValidationError")
+    except ValidationError as exc:
+        assert "architecture_governance" in exc.message

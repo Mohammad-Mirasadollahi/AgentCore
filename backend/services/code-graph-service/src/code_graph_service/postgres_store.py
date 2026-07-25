@@ -134,6 +134,9 @@ class PostgresStore:
         return "|".join((scope.tenant_id, scope.workspace_id, scope.project_id, scope.project_group_id or ""))
 
     def _symbol(self, row: dict[str, Any], scope: Scope) -> GraphSymbol:
+        metadata = row.get("metadata") or {}
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata or "{}")
         return GraphSymbol(
             id=row["id"],
             scope=scope,
@@ -152,6 +155,9 @@ class PostgresStore:
             created_at=_timestamp(row["created_at"]),
             updated_at=_timestamp(row["updated_at"]),
             language=str(row.get("language") or ""),
+            hash_version=str(row.get("hash_version") or ""),
+            parser_version=str(row.get("parser_version") or ""),
+            metadata=dict(metadata or {}),
         )
 
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
@@ -176,9 +182,10 @@ class PostgresStore:
                 INSERT INTO code_graph.symbols (
                     id, tenant_id, workspace_id, project_id, project_group_id, kind, file_path, name,
                     qualified_name, signature, body, hash_value, ai_documentation, doc_status, embedding,
-                    visibility, version, created_at, updated_at, language
+                    visibility, version, created_at, updated_at, language, hash_version, parser_version,
+                    metadata
                 ) VALUES (
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
                 )
                 ON CONFLICT (id) DO UPDATE SET
                     kind = EXCLUDED.kind,
@@ -194,7 +201,10 @@ class PostgresStore:
                     visibility = EXCLUDED.visibility,
                     version = EXCLUDED.version,
                     updated_at = EXCLUDED.updated_at,
-                    language = EXCLUDED.language
+                    language = EXCLUDED.language,
+                    hash_version = EXCLUDED.hash_version,
+                    parser_version = EXCLUDED.parser_version,
+                    metadata = EXCLUDED.metadata
                 """,
                 (
                     symbol.id,
@@ -217,6 +227,9 @@ class PostgresStore:
                     symbol.created_at,
                     symbol.updated_at,
                     symbol.language or "",
+                    symbol.hash_version or "",
+                    symbol.parser_version or "",
+                    self._json(dict(symbol.metadata or {})),
                 ),
             )
             # Refresh FTS document (column added by 0006_symbol_fts.sql).

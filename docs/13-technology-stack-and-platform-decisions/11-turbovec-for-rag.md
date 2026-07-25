@@ -2,7 +2,7 @@
 doc_id: ac.doc.stack.turbovec-for-rag
 title: 11 - TurboVec For RAG
 doc_type: standard
-status: draft
+status: accepted
 schema_version: '1.0'
 owner: platform-architecture
 summary: This guide tells engineers and agents **how to use [turbovec](https://github.com/RyanCodrai/turbovec)
@@ -24,13 +24,16 @@ audience_lane:
 - agents
 authority: informative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/packages/vector_index/promotion_gate.py::run_promotion_gate
+- backend/packages/vector_index/id_map.py::PostgresEntityIdMap
+- backend/services/memory-service/src/memory_service/postgres_embeddings.py::PostgresMemoryEmbeddingStore
 related_docs:
 - ac.doc.stack.turbovec-ann-acceleration
 - ac.doc.stack.data-rag-analytics-storage
 - ac.doc.examples.turbovec-hybrid-retrieval
 - ac.doc.stack.litellm-llm-gateway
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -40,6 +43,7 @@ primary_entities:
 - HybridRetrievalPlan
 - VectorIndexPort
 - TurboVecReplica
+- PromotionGateResult
 relations_declared:
 - type: depends_on
   target: docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md
@@ -60,7 +64,7 @@ external_refs:
 - https://github.com/RyanCodrai/turbovec/blob/main/docs/api.md
 - https://arxiv.org/abs/2504.19874
 - https://pypi.org/project/turbovec/
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 11 - TurboVec For RAG
@@ -211,6 +215,8 @@ Upstream drop-ins exist for LangChain, LlamaIndex, Haystack, and Agno. AgentCore
 | `AGENTCORE_TURBOVEC_BIT_WIDTH` | `2` \| `3` \| `4` | Default `4` |
 | `AGENTCORE_TURBOVEC_SNAPSHOT_URI` | URI template | Object-storage prefix |
 | `AGENTCORE_TURBOVEC_SYNC_MODE` | `sync_on_write` \| `async_job` | Replica freshness policy |
+| `AGENTCORE_TURBOVEC_ID_MAP_TABLE` | `schema.table` | Durable id map (factory override) |
+| `AGENTCORE_TURBOVEC_ID_MAP_DATABASE_URL` | PostgreSQL URL | Optional id-map DB when not passed by composition root |
 
 ## Failure And Fallback
 
@@ -225,13 +231,16 @@ Authorization never falls open: missing accelerator must not widen ACL.
 
 ## Checklist For Implementers
 
-- [ ] Embeddings written to pgvector before or atomically with replica upsert.
-- [ ] Only `IdMapIndex` + durable `uint64` map.
-- [ ] Stage-1 filters always precede Stage-2 allowlist search.
-- [ ] Deletes call `remove` (or full rebuild).
-- [ ] Dim multiple of 8 validated at embedding boundary.
-- [ ] Fallback path tested without the wheel installed.
-- [ ] ContextBundle explain can attribute `turbovec` vs `pgvector`.
+# Mark remaining implementer checklist items that are already enforced in code/tests.
+- [x] Embeddings written to pgvector before or atomically with replica upsert.
+- [x] Only `IdMapIndex` + durable `uint64` map.
+- [x] Stage-1 filters always precede Stage-2 allowlist search.
+- [x] Deletes call `remove` (or full rebuild).
+- [x] Dim multiple of 8 validated at embedding boundary.
+- [x] Fallback path tested without the wheel installed.
+- [x] ContextBundle explain can attribute `turbovec` vs `pgvector`.
+- [x] Run `python -m vector_index.promotion_gate` (recall@k / latency / RSS proxy) before production enablement.
+- [x] Prefer durable `PostgresEntityIdMap` when service database URL is available.
 
 ## Related Documents
 

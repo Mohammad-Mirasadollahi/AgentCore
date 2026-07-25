@@ -35,8 +35,9 @@ linked_symbols:
 - scripts/remediate_docs_standards.py::main
 - scripts/split_soft_budget_docs.py::main
 - scripts/stamp_docs_revision.py::main
+- backend/packages/agentcore_cli/commands/followup_tasks.py::cmd_followup_tasks_list
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
-doc_version: 1.1.9
+doc_version: 1.2.0
 updated_at: '2026-07-24'
 ---
 
@@ -171,7 +172,22 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **Categories** | `docs.standards`, `docs.size_soft`, `docs.size_hard`, `docs.linking_gap`, `docs.flow_table_gap`, `docs.lane_invalid`, `docs.revision_missing`, `docs.revision_invalid`, `code.never_ingested`, `code.stale_edited`, `code.low_symbol_docs` |
 | **Exit code** | `0` when zero findings; `1` when any finding exists (CI-friendly) |
 | **What changes** | Nothing on the graph. `save` only writes report files under the path you named (or `.agentcore/quality-audit/`) |
-| **Normative refs** | `docs/00-master-plan/10-documentation-standardization-procedure.md` |
+| **Normative refs** | `docs/00-master-plan/10-documentation-standardization-procedure.md`; durable Tasks: `docs/01-core-data-model/09-automated-followup-task-lifecycle-and-retention.md` |
+
+### `agentcore followup-tasks`
+
+Operator surface for automated follow-up Tasks created by `sync` / `agentcore_quality_audit` (`retention_class=automated_followup`).
+
+| | |
+| --- | --- |
+| **Why** | Inspect, migrate legacy, reconcile (cancel cleared debt), and purge terminal automated Tasks without a full sync |
+| **Required** | Scope optional (defaults from identity/env/connect). Destructive writes: `purge` and `adopt-legacy` need `--yes` (or use `--dry-run`) |
+| **Subcommands** | `list` · `status` · `adopt-legacy` · `reconcile` · `purge` |
+| **Common flags** | `--origin all\|sync-followup\|mcp-quality` · `--status all\|open\|terminal` (`list`) · `--days N` (`purge`) · `--dry-run` · `--actor` · scope flags |
+| **Example** | `agentcore followup-tasks list --status open` · `agentcore followup-tasks status` · `agentcore followup-tasks adopt-legacy --dry-run` · `agentcore followup-tasks reconcile --dry-run` · `agentcore followup-tasks purge --days 30 --dry-run` |
+| **What changes** | `list`/`status`: read-only JSON. `adopt-legacy`: stamps fingerprints on pre-lifecycle `Quality:` / sync-style titles, cancels dupes/orphans. `reconcile`: cancels open Tasks whose fingerprint is not in the active debt set. `purge`: hard-deletes terminal automated Tasks older than retention (`AGENTCORE_FOLLOWUP_TASK_RETENTION_DAYS`, default 30; `0` = never) |
+| **Env** | `AGENTCORE_FOLLOWUP_TASK_RETENTION_DAYS` |
+| **Normative refs** | `docs/01-core-data-model/09-automated-followup-task-lifecycle-and-retention.md` |
 
 ### `agentcore stats`
 
@@ -208,7 +224,7 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **Required** | Sync filter file at each sync root (see [Sync filters](#sync-filters)). At least one software path from `init` / `paths` (or override with `--path`). Scope defaults if identity/env already set |
 | **Optional** | `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--skip-nonconforming`, `--sync-nonconforming`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
 | **Example** | `agentcore sync` or `agentcore sync --path /opt/MyApp` |
-| **What changes** | Phase 1: upserts code symbols/edges/embeddings. Phase 2 (when `docs.match` is non-empty): indexes human Markdown in docs-sync and projects `DOCUMENTED_BY` for resolved `linked_symbols` |
+| **What changes** | Phase 1: upserts code symbols/edges/embeddings. Phase 2 (when `docs.match` is non-empty): indexes human Markdown in docs-sync and projects `DOCUMENTED_BY` for resolved `linked_symbols`. After standards gate: best-effort automated follow-up Tasks (`create_sync_followup_tasks`) + local mirror `.agentcore/quality-followup-tasks.json` (reconcile/purge per lifecycle doc 09) |
 | **If you change `--path` or scope** | You sync a different tree or different isolation bucket; previous scope data remains |
 | **Software preflight** | If Compose/MCP are not fully running, an interactive TTY asks `Start software now? [y/N]`. `y`/`yes` runs `agentcore service start` first, then sync. Decline or non-TTY → exit with a hint to start services manually. After start, prints each component’s **start time to the second** (`postgres`, `neo4j`, `MCP HTTP`) |
 | **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |

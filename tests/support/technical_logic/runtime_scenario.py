@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .checks import _ensure_paths
+
+_SUPPORT = Path(__file__).resolve().parents[1]
+if str(_SUPPORT) not in sys.path:
+    sys.path.insert(0, str(_SUPPORT))
+
+from synthetic_workflow import generate_workflow  # noqa: E402
 
 
 @dataclass
@@ -30,6 +38,8 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
     Stitch Phases 1 through 5 in-process:
 
     activity/worklog/decision/issue/task -> memory -> docs drift -> rules escalate -> broker department tasks
+
+    Payloads come from ``generate_workflow(seed=0)`` (GAP-T08).
     """
     _ensure_paths()
     from core_data_service.core import CoreData, Kind
@@ -48,19 +58,20 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
     from adapter_service.core import Scope as AdapterScope
     from adapter_service.testing import InMemoryStore as AdapterStore
 
+    wf = generate_workflow(0, correlation_id=correlation_id)
     steps: list[dict[str, Any]] = []
     evidence: list[str] = []
-    actor = "technical-logic-agent"
+    actor = wf.actor
 
     core = CoreData(CoreStore())
-    core_scope = CoreScope("t", "w", "p")
+    core_scope = CoreScope(wf.scope.tenant_id, wf.scope.workspace_id, wf.scope.project_id)
     activity = core.create(
         Kind.ACTIVITY,
         core_scope,
         actor,
         correlation_id,
         "rt-activity",
-        {"action_type": "edit", "action_summary": "migrate password hashing to Argon2", "evidence_refs": ["diff-auth"]},
+        dict(wf.activity),
     )
     worklog = core.create(
         Kind.WORK_LOG,
@@ -68,7 +79,7 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         actor,
         correlation_id,
         "rt-worklog",
-        {"session_id": "sess-1", "agent_id": actor, "summary": "Prepared Argon2 migration"},
+        dict(wf.worklog),
     )
     decision = core.create(
         Kind.DECISION,
@@ -76,62 +87,60 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         actor,
         correlation_id,
         "rt-decision",
-        {
-            "title": "Use Argon2",
-            "context": "password hashing",
-            "options_considered": ["sha256", "argon2"],
-            "chosen_option": "argon2",
-            "consequences": ["slower hashes", "stronger resistance"],
-            "owner": "security",
-            "status": "active",
-        },
+        dict(wf.decision),
+    )
+    issue_payload = dict(wf.issue)
+    issue_payload["evidence_refs"] = list(
+        dict.fromkeys([*(issue_payload.get("evidence_refs") or []), decision.id])
     )
     issue, tasks = core.create_issue(
         core_scope,
         actor,
         correlation_id,
         "rt-issue",
-        {
-            "title": "Legacy SHA256 password hashes remain",
-            "description": "Old users may fail login after Argon2 cutover",
-            "severity": "critical",
-            "evidence_refs": ["diff-auth", decision.id],
-            "task_specs": [
-                {
-                    "title": "Add dual-hash login fallback",
-                    "assignee_type": "backend",
-                    "instructions": "accept sha256 then upgrade",
-                    "acceptance_criteria": ["login works for old hashes"],
-                }
-            ],
-        },
+        issue_payload,
     )
-    steps.append({"service": "core-data-service", "activity_id": activity.id, "worklog_id": worklog.id, "decision_id": decision.id, "issue_id": issue.id, "task_ids": [task.id for task in tasks]})
-    evidence.extend(["diff-auth", activity.id, worklog.id, decision.id, issue.id, *[task.id for task in tasks]])
+    steps.append(
+        {
+            "service": "core-data-service",
+            "activity_id": activity.id,
+            "worklog_id": worklog.id,
+            "decision_id": decision.id,
+            "issue_id": issue.id,
+            "task_ids": [task.id for task in tasks],
+        }
+    )
+    evidence.extend(
+        ["diff-auth", activity.id, worklog.id, decision.id, issue.id, *[task.id for task in tasks]]
+    )
 
     memory = MemoryService(MemoryStore())
-    memory_scope = MemoryScope("t", "w", "p")
+    memory_scope = MemoryScope(wf.scope.tenant_id, wf.scope.workspace_id, wf.scope.project_id)
+    memory_payload = dict(wf.memory)
+    memory_payload["evidence_refs"] = [decision.id]
+    memory_payload["source_refs"] = [worklog.id]
     memory_item = memory.create_memory(
         memory_scope,
         actor,
         correlation_id,
         "rt-memory",
-        {
-            "kind": "semantic",
-            "title": "Password hashing current state",
-            "body": "PaymentGateway unchanged. Password hashing target is Argon2.",
-            "tags": ["security", "auth", "argon2"],
-            "evidence_refs": [decision.id],
-            "source_refs": [worklog.id],
-            "confidence": 0.95,
-        },
+        memory_payload,
     )
-    bundle = memory.retrieve_context(memory_scope, actor, correlation_id, "argon2 password hashing auth", token_budget=120)
-    steps.append({"service": "memory-service", "memory_id": memory_item.id, "bundle_id": bundle.bundle_id, "selected": len(bundle.items)})
+    bundle = memory.retrieve_context(
+        memory_scope, actor, correlation_id, "argon2 password hashing auth", token_budget=120
+    )
+    steps.append(
+        {
+            "service": "memory-service",
+            "memory_id": memory_item.id,
+            "bundle_id": bundle.bundle_id,
+            "selected": len(bundle.items),
+        }
+    )
     evidence.append(memory_item.id)
 
     docs = DocsSyncService(DocsStore())
-    docs_scope = DocsScope("t", "w", "p")
+    docs_scope = DocsScope(wf.scope.tenant_id, wf.scope.workspace_id, wf.scope.project_id)
     symbol = docs.index_symbol(
         docs_scope,
         actor,
@@ -140,7 +149,7 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         {
             "repo": "agentcore",
             "file_path": "src/auth.py",
-            "symbol_path": "auth.hash_password",
+            "symbol_path": wf.docs_note["symbol"],
             "kind": "function",
             "body": "def hash_password(value):\n    return sha256(value)\n",
             "tags": ["auth", "security"],
@@ -156,11 +165,11 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
             "path": "docs/auth.md",
             "frontmatter": {
                 "doc_id": "doc-auth-hash",
-                "title": "Password hashing",
+                "title": wf.docs_note["title"],
                 "owner": "security",
                 "status": "active",
                 "schema_version": "1.0.0",
-                "linked_symbols": ["auth.hash_password"],
+                "linked_symbols": [wf.docs_note["symbol"]],
                 "decision_refs": [decision.id],
             },
             "body": "Uses SHA256 today.",
@@ -181,7 +190,7 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         {
             "repo": "agentcore",
             "file_path": "src/auth.py",
-            "symbol_path": "auth.hash_password",
+            "symbol_path": wf.docs_note["symbol"],
             "kind": "function",
             "body": "def hash_password(value):\n    return argon2(value)\n",
             "tags": ["auth", "security"],
@@ -189,46 +198,41 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         },
     )
     findings = docs.detect_drift(docs_scope, actor, correlation_id, "rt-drift", [symbol.id])
-    steps.append({"service": "docs-sync-service", "symbol_id": symbol.id, "document_id": document.id, "findings": [item.id for item in findings]})
+    steps.append(
+        {
+            "service": "docs-sync-service",
+            "symbol_id": symbol.id,
+            "document_id": document.id,
+            "findings": [item.id for item in findings],
+        }
+    )
     evidence.extend([symbol.id, document.id, *[item.id for item in findings]])
 
     rules = RuleEngineService(RulesStore())
-    rules_scope = RulesScope("t", "w", "p")
-    rules.create_rule(
-        rules_scope,
-        actor,
-        correlation_id,
-        "rt-rule",
-        {
-            "title": "Auth changes require approval",
-            "natural_language_rule": "Authentication and security production changes require human approval",
-            "severity": "critical",
-            "owner": "security-lead",
-            "evaluation_mode": "hybrid",
-            "domain": "security",
-            "match_tags": ["security", "auth", "production"],
-            "required_approval_role": "security-approver",
-        },
-    )
+    rules_scope = RulesScope(wf.scope.tenant_id, wf.scope.workspace_id, wf.scope.project_id)
+    rules.create_rule(rules_scope, actor, correlation_id, "rt-rule", dict(wf.rule))
+    subject = dict(wf.rule_subject)
+    subject["subject_ref"] = symbol.id
+    subject["evidence_refs"] = [decision.id, "diff-auth"]
     evaluation = rules.evaluate_rules(
         rules_scope,
         actor,
         correlation_id,
         "rt-eval",
-        {
-            "subject_ref": symbol.id,
-            "summary": "Migrate production auth hashing to Argon2",
-            "change_type": "code",
-            "tags": ["security", "auth", "production"],
-            "paths": ["src/auth.py"],
-            "evidence_refs": [decision.id, "diff-auth"],
-        },
+        subject,
     )
-    steps.append({"service": "rule-engine-service", "final_verdict": evaluation["final_verdict"], "blocked": evaluation["blocked"], "approvals": len(evaluation["approvals"])})
+    steps.append(
+        {
+            "service": "rule-engine-service",
+            "final_verdict": evaluation["final_verdict"],
+            "blocked": evaluation["blocked"],
+            "approvals": len(evaluation["approvals"]),
+        }
+    )
     evidence.extend([item["id"] for item in evaluation["evaluations"]])
 
     adapter = AdapterService(AdapterStore())
-    adapter_scope = AdapterScope("t", "w", "p")
+    adapter_scope = AdapterScope(wf.scope.tenant_id, wf.scope.workspace_id, wf.scope.project_id)
     connector = adapter.register_connector(
         adapter_scope,
         actor,
@@ -239,16 +243,22 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
             "name": "acme-agent",
             "capabilities": ["can_edit_code", "can_report_task_state"],
             "auth_profile": "token",
-            "credential": "technical-logic-secret",
+            "credential": wf.auth_token,
         },
     )
-    adapter.validate_connector(adapter_scope, actor, correlation_id, "rt-connector-validate", connector.id)
+    adapter.validate_connector(
+        adapter_scope, actor, correlation_id, "rt-connector-validate", connector.id
+    )
     adapter.subscribe(
         adapter_scope,
         actor,
         correlation_id,
         "rt-sub-dept",
-        {"channel": "department.workflows", "subscriber_type": "webhook", "endpoint": "https://example.invalid/hooks"},
+        {
+            "channel": "department.workflows",
+            "subscriber_type": "webhook",
+            "endpoint": "https://example.invalid/hooks",
+        },
     )
     published = adapter.publish_agent_event(
         adapter_scope,
@@ -260,11 +270,14 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
             "schema_version": "1.0.0",
             "sender": "acme",
             "sender_type": "agent",
-            "tenant_id": "t",
-            "project_id": "p",
+            "tenant_id": wf.scope.tenant_id,
+            "project_id": wf.scope.project_id,
             "intent": "CODE_RELEASED",
             "domain": "engineering",
-            "payload": {"summary": "Argon2 migration released", "decision_id": decision.id},
+            "payload": {
+                "summary": wf.broker_event["summary"],
+                "decision_id": decision.id,
+            },
             "status": "completed",
             "refs": [decision.id, issue.id],
             "correlation_id": correlation_id,
@@ -272,7 +285,13 @@ def run_runtime_scenario(correlation_id: str = "corr-technical-logic-runtime") -
         },
     )
     departments = {task["department"] for task in published["department_tasks"]}
-    steps.append({"service": "adapter-service", "event_id": published["event"]["id"], "departments": sorted(departments)})
+    steps.append(
+        {
+            "service": "adapter-service",
+            "event_id": published["event"]["id"],
+            "departments": sorted(departments),
+        }
+    )
     evidence.append(published["event"]["id"])
 
     ok = (

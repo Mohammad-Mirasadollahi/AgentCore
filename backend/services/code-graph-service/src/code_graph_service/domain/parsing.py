@@ -83,15 +83,17 @@ def _function_symbol(
     body = ast.get_source_segment(source, node) or node.name
     args = [arg.arg for arg in node.args.args]
     signature = f"{node.name}({', '.join(args)})"
-    calls = sorted(
-        {
-            _normalize_call_name(_call_name(n))
-            for n in ast.walk(node)
-            if isinstance(n, ast.Call)
-        }
-        | {_normalize_call_name(name) for name in _getattr_call_names(node)}
-    )
-    calls = [c for c in calls if c]
+    direct_calls = {
+        _normalize_call_name(_call_name(n))
+        for n in ast.walk(node)
+        if isinstance(n, ast.Call)
+    }
+    reflection = {
+        _normalize_call_name(name) for name in _getattr_call_names(node)
+    }
+    # getattr itself is not a meaningful callee for CALLS densification.
+    direct_calls.discard("getattr")
+    calls = sorted(c for c in (direct_calls | reflection) if c)
     return ParsedSymbol(
         kind=kind,
         name=node.name,
@@ -102,6 +104,7 @@ def _function_symbol(
         imports=[],
         bases=[],
         visibility="private" if node.name.startswith("_") else "public",
+        reflection_calls=sorted(c for c in reflection if c),
     )
 
 

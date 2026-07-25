@@ -67,6 +67,7 @@ def start_all(root: Path, *, as_part_of: str | None = None) -> dict[str, Any]:
         progress("Restart: starting services")
     else:
         progress("Starting AgentCore (databases, then MCP HTTP)")
+    _run_port_preflight(root)
     compose = runtime.start_compose(root)
     mcp = runtime.start_mcp_http(root)
     ok = bool(compose.get("ok") and mcp.get("ok"))
@@ -81,6 +82,37 @@ def start_all(root: Path, *, as_part_of: str | None = None) -> dict[str, Any]:
         else:
             progress("Start finished with errors — AgentCore is not fully up")
     return {"ok": ok, "compose": compose, "mcp": mcp}
+
+
+def _run_port_preflight(root: Path) -> None:
+    """Block start when profile ports conflict with a foreign process."""
+    from port_profile import load_profile, run_preflight, write_port_map
+    from port_profile.loader import DEFAULT_PORT_MAP_REL
+
+    progress("Port preflight: checking profile ports")
+    profile = load_profile()
+    report = run_preflight(profile, allow_ours=True)
+    map_path = write_port_map(root / DEFAULT_PORT_MAP_REL, report)
+    if report["ok"]:
+        progress(f"Port preflight: ok (map {map_path})")
+        return
+    conflicts = report.get("conflicts") or []
+    details: list[str] = []
+    for key in conflicts:
+        info = (report.get("ports") or {}).get(key) or {}
+        port = info.get("port")
+        owner = info.get("owner") or {}
+        suggest = info.get("suggested_port")
+        who = f"{owner.get('name', '?')} pid={owner.get('pid', '?')}" if owner else "unknown process"
+        line = f"{key}={port} in use by {who}"
+        if suggest is not None:
+            line += f"; try {key}={suggest}"
+        details.append(line)
+    raise SystemExit(
+        "error: port preflight failed — free the ports or override AGENTCORE_*_PORT:\n  "
+        + "\n  ".join(details)
+        + f"\n  port map: {map_path}"
+    )
 
 
 def stop_all(root: Path, *, as_part_of: str | None = None) -> dict[str, Any]:

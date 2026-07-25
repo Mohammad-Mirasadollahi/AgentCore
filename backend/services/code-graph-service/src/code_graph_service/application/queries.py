@@ -126,7 +126,7 @@ class QueryUseCases(GraphServiceSupport):
         *,
         top_k: int = 20,
         max_depth: int = 1,
-        min_confidence: str | None = None,
+        min_confidence: str | None = "probable",
         rel_types: list[str] | None = None,
     ) -> dict[str, Any]:
         symbol = self.store.get_symbol(symbol_id, scope)
@@ -161,7 +161,7 @@ class QueryUseCases(GraphServiceSupport):
         *,
         direction: str = "both",
         max_depth: int = 3,
-        min_confidence: str | None = None,
+        min_confidence: str | None = "probable",
         rel_types: list[str] | None = None,
         top_k: int = 50,
         include_legacy_expand: bool = True,
@@ -240,10 +240,7 @@ class QueryUseCases(GraphServiceSupport):
         expand_seeds: int = DEFAULT_EXPAND_SEEDS,
         expand_depth: int = DEFAULT_EXPAND_DEPTH,
     ) -> list[dict[str, Any]]:
-        """Stage-1 hybrid RAG: kind-filtered pgvector (or in-store) → Neo4j expand on top seeds.
-
-        turbovec is not used here (Stage-2 optional accelerator only).
-        """
+        """Stage-1 hybrid RAG: kind-filtered pgvector (or in-store) → optional TurboVec Stage-2 → Neo4j expand."""
         if not query.strip():
             raise ValidationError("query is required")
         vector = self.embeddings.embed(query, is_query=True).vector
@@ -253,13 +250,13 @@ class QueryUseCases(GraphServiceSupport):
 
         hits: list[dict[str, Any]] = []
         retrieval = "in_store_cosine"
+        candidate_pool = max(top_k * 4, top_k)
         if self.embedding_index is not None:
             retrieval = "pgvector"
-            # Over-fetch slightly so orphan cleanup / missing store rows do not starve top_k.
             for symbol_id, score in self.embedding_index.search(
                 scope,
                 vector,
-                top_k=max(top_k * 2, top_k),
+                top_k=candidate_pool,
                 kinds=sorted(SEARCHABLE_SYMBOL_KINDS),
             ):
                 try:
@@ -277,8 +274,6 @@ class QueryUseCases(GraphServiceSupport):
                         "retrieval": retrieval,
                     }
                 )
-                if len(hits) >= top_k:
-                    break
         else:
             scored: list[tuple[float, GraphSymbol]] = []
             for symbol in self.store.list_symbols(scope):
@@ -286,7 +281,7 @@ class QueryUseCases(GraphServiceSupport):
                     continue
                 scored.append((cosine(vector, symbol.embedding), symbol))
             scored.sort(key=lambda item: (-item[0], item[1].qualified_name))
-            for score, symbol in scored[:top_k]:
+            for score, symbol in scored[:candidate_pool]:
                 if score <= 0:
                     continue
                 hits.append(
@@ -297,6 +292,8 @@ class QueryUseCases(GraphServiceSupport):
                     }
                 )
 
+        hits = self._maybe_turbovec_rerank(scope, vector, hits, top_k=top_k)
+
         self._attach_graph_neighbors(
             scope,
             hits,
@@ -304,6 +301,140 @@ class QueryUseCases(GraphServiceSupport):
             expand_depth=expand_depth,
         )
         return hits[:top_k]
+
+    def _maybe_turbovec_rerank(
+        self,
+        scope: Scope,
+        query_vector: list[float] | tuple[float, ...],
+        hits: list[dict[str, Any]],
+        *,
+        top_k: int,
+    ) -> list[dict[str, Any]]:
+        """Optional Stage-2 dense allowlist via VectorIndexPort; fall back to Stage-1 hits."""
+        if not hits:
+            return hits
+        vector_index = getattr(self, "vector_index", None)
+        entity_id_map = getattr(self, "entity_id_map", None)
+        if vector_index is not None and entity_id_map is not None:
+            return self._stage2_allowlist_search(
+                query_vector,
+                hits,
+                top_k=top_k,
+                vector_index=vector_index,
+                entity_id_map=entity_id_map,
+            )
+        try:
+            from vector_index import (
+                TurboVecIndexAdapter,
+                entity_ref_to_uint64,
+                load_accelerator_config,
+                turbovec_available,
+            )
+        except ImportError:
+            return hits[:top_k]
+        try:
+            cfg = load_accelerator_config()
+        except ValueError:
+            return hits[:top_k]
+        if not cfg.enabled or not turbovec_available():
+            return hits[:top_k]
+        dim = len(query_vector)
+        if dim % 8 != 0:
+            return hits[:top_k]
+        try:
+            accelerator = getattr(self, "_turbovec_index", None)
+            if accelerator is None or getattr(accelerator, "dim", None) != dim:
+                accelerator = TurboVecIndexAdapter.try_create(dim=dim, bit_width=cfg.bit_width)
+                if accelerator is None:
+                    return hits[:top_k]
+                self._turbovec_index = accelerator
+            namespace = f"{scope.tenant_id}:{scope.workspace_id}:{scope.project_id}"
+            ids: list[int] = []
+            vectors: list[list[float]] = []
+            id_to_hit: dict[int, dict[str, Any]] = {}
+            for hit in hits:
+                symbol_view = hit.get("symbol") or {}
+                sid = str(symbol_view.get("id") or "")
+                if not sid:
+                    continue
+                try:
+                    symbol = self.store.get_symbol(sid, scope)
+                except NotFoundError:
+                    continue
+                emb = symbol.embedding
+                if not isinstance(emb, (list, tuple)) or len(emb) != dim:
+                    return hits[:top_k]
+                uid = entity_ref_to_uint64(sid, namespace=namespace)
+                ids.append(uid)
+                vectors.append([float(x) for x in emb])
+                id_to_hit[uid] = hit
+            if not ids:
+                return hits[:top_k]
+            import numpy as np
+
+            accelerator.upsert(ids, np.asarray(vectors, dtype=np.float32))
+            scores, hit_ids = accelerator.search(
+                np.asarray(query_vector, dtype=np.float32),
+                top_k,
+                allowlist=ids,
+            )
+            return self._hits_from_ann_scores(scores, hit_ids, id_to_hit, hits, top_k=top_k)
+        except Exception:
+            return hits[:top_k]
+
+    def _stage2_allowlist_search(
+        self,
+        query_vector: list[float] | tuple[float, ...],
+        hits: list[dict[str, Any]],
+        *,
+        top_k: int,
+        vector_index: Any,
+        entity_id_map: Any,
+    ) -> list[dict[str, Any]]:
+        allowlist: list[int] = []
+        id_to_hit: dict[int, dict[str, Any]] = {}
+        for hit in hits:
+            sid = str((hit.get("symbol") or {}).get("id") or "")
+            if not sid:
+                continue
+            uid = entity_id_map.to_uint64(sid)
+            if uid is None:
+                continue
+            allowlist.append(int(uid))
+            id_to_hit[int(uid)] = hit
+        if not allowlist:
+            return hits[:top_k]
+        try:
+            import numpy as np
+
+            scores, hit_ids = vector_index.search(
+                np.asarray(query_vector, dtype=np.float32),
+                top_k,
+                allowlist=allowlist,
+            )
+            return self._hits_from_ann_scores(scores, hit_ids, id_to_hit, hits, top_k=top_k)
+        except Exception:
+            return hits[:top_k]
+
+    @staticmethod
+    def _hits_from_ann_scores(
+        scores: Any,
+        hit_ids: Any,
+        id_to_hit: dict[int, dict[str, Any]],
+        fallback: list[dict[str, Any]],
+        *,
+        top_k: int,
+    ) -> list[dict[str, Any]]:
+        reranked: list[dict[str, Any]] = []
+        for score, uid in zip(list(scores), list(hit_ids), strict=False):
+            hit = id_to_hit.get(int(uid))
+            if not hit:
+                continue
+            updated = dict(hit)
+            updated["score"] = round(float(score), 6)
+            updated["retrieval"] = "turbovec"
+            reranked.append(updated)
+        return reranked or fallback[:top_k]
 
     def _attach_graph_neighbors(
         self,

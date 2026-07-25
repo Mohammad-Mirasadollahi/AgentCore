@@ -2,10 +2,12 @@
 
 Module contract:
 - Role: turn skipped nonconforming docs (and optional quality code debt) into
-  CoreData tasks + a local JSON mirror the coding agent can read.
-- Source of truth: standards_gate skipped paths; optional quality-audit code rows.
-- Failures: store/create errors are best-effort — never fail sync; surface
-  ``create_errors`` when CoreData write fails (e.g. missing service imports).
+  CoreData tasks + a local JSON mirror; reconcile/purge per
+  ac.doc.core.automated-followup-task-lifecycle-and-retention.
+- Source of truth: standards_gate skipped paths; optional quality-audit code rows;
+  CoreData for durable Task lifecycle.
+- Failures: store/create/reconcile/purge are best-effort — never fail sync;
+  surface create_errors / reconcile_errors / purge_errors.
 """
 
 from __future__ import annotations
@@ -15,6 +17,15 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from agentcore_cli.followup_task_lifecycle import (
+    ORIGIN_SYNC,
+    create_automated_followup_task,
+    open_platform_backends,
+    purge_terminal_automated_followup_tasks,
+    reconcile_automated_followup_tasks,
+    retention_days,
+    sync_fingerprint,
+)
 from agentcore_cli.util import now_iso, repo_root
 
 
@@ -33,73 +44,6 @@ def _write_mirror(rows: list[dict[str, Any]]) -> Path:
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
-
-
-def _ensure_platform_imports() -> None:
-    """Make core-data + MCP platform backends importable from the CLI process."""
-    import sys
-
-    root = Path(repo_root()).resolve()
-    for rel in (
-        ("backend", "services", "mcp-gateway-service", "src"),
-        ("backend", "services", "core-data-service", "src"),
-        ("backend", "services", "memory-service", "src"),
-        ("backend", "services", "code-graph-service", "src"),
-        ("backend", "services", "docs-sync-service", "src"),
-        ("backend", "services", "common-context-service", "src"),
-        ("backend", "packages"),
-    ):
-        path = root.joinpath(*rel)
-        text = str(path)
-        if path.is_dir() and text not in sys.path:
-            sys.path.insert(0, text)
-
-
-def _try_create_core_task(
-    *,
-    title: str,
-    instructions: str,
-    scope: Any,
-    idempotency_key: str,
-) -> dict[str, Any] | None:
-    backends = None
-    try:
-        _ensure_platform_imports()
-        from core_data_service.core import Kind
-        from mcp_gateway_service.backends.platform import PlatformBackends
-
-        backends = PlatformBackends.from_env()
-        scope_dict = {
-            "tenant_id": str(getattr(scope, "tenant_id", "") or "agentcore"),
-            "workspace_id": str(getattr(scope, "workspace_id", "") or "dev"),
-            "project_id": str(getattr(scope, "project_id", "") or "agentcore"),
-        }
-        correlation_id = str(uuid4())
-        record = backends.core.create(
-            Kind.TASK,
-            backends.core_scope(scope_dict),
-            "agentcore-cli-sync",
-            correlation_id,
-            idempotency_key[:200],
-            {
-                "title": title[:240],
-                "assignee_type": "backend",
-                "instructions": instructions,
-                "acceptance_criteria": [
-                    "Finding remediated",
-                    "agentcore_quality_audit clean for path",
-                ],
-            },
-        )
-        return record.public()
-    except Exception as exc:  # noqa: BLE001 — sync must not fail on follow-up
-        return {"error": f"{type(exc).__name__}: {exc}", "ok": False}
-    finally:
-        if backends is not None:
-            try:
-                backends.close()
-            except Exception:  # noqa: BLE001
-                pass
 
 
 def create_sync_followup_tasks(
@@ -143,6 +87,8 @@ def create_sync_followup_tasks(
             }
         )
 
+    create_errors: list[str] = []
+    code_sync_debt_evaluated = False
     if include_code_audit:
         try:
             from agentcore_cli.commands.quality_audit.collect import build_quality_audit_report
@@ -158,6 +104,7 @@ def create_sync_followup_tasks(
                 for f in report.get("findings") or []
                 if f.get("category") == "code.stale_edited"
             ]
+            code_sync_debt_evaluated = True
             if never or stale:
                 specs.append(
                     {
@@ -176,26 +123,77 @@ def create_sync_followup_tasks(
                         "paths": never + stale,
                     }
                 )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            create_errors.append(f"code_audit: {type(exc).__name__}: {exc}")
 
     created: list[dict[str, Any]] = []
-    create_errors: list[str] = []
+    reconcile_errors: list[str] = []
+    purge_errors: list[str] = []
     mirrored: list[dict[str, Any]] = []
     project = str(getattr(scope, "project_id", "") or "agentcore")
+    active: set[str] = set()
     for spec in specs:
         mirrored.append(spec)
-        key = f"sync-followup:{project}:{spec['kind']}:{len(spec.get('paths') or [])}"
-        public = _try_create_core_task(
-            title=str(spec["title"]),
-            instructions=str(spec["instructions"]),
-            scope=scope,
-            idempotency_key=key,
+        fp = sync_fingerprint(str(spec["kind"]))
+        active.add(fp)
+    if not code_sync_debt_evaluated:
+        # Unknown or out-of-scope: keep code.sync_debt open during reconcile.
+        active.add(sync_fingerprint("code.sync_debt"))
+
+    tasks_canceled = 0
+    tasks_purged = 0
+    backends = None
+    try:
+        backends, core_scope, _scope_dict = open_platform_backends(scope)
+        corr = f"cli-sync-followup-{uuid4()}"
+        for spec in specs:
+            fp = sync_fingerprint(str(spec["kind"]))
+            try:
+                public = create_automated_followup_task(
+                    backends.core,
+                    scope=core_scope,
+                    actor="agentcore-cli-sync",
+                    correlation_id=corr,
+                    project_id=project,
+                    title=str(spec["title"]),
+                    instructions=str(spec["instructions"]),
+                    origin=ORIGIN_SYNC,
+                    followup_kind=str(spec["kind"]),
+                    paths=list(spec.get("paths") or []),
+                    fingerprint=fp,
+                )
+                created.append(public)
+            except Exception as exc:  # noqa: BLE001
+                create_errors.append(f"{spec['kind']}: {type(exc).__name__}: {exc}")
+
+        recon = reconcile_automated_followup_tasks(
+            backends.core,
+            scope=core_scope,
+            actor="agentcore-cli-sync",
+            correlation_id=corr,
+            active_fingerprints=active,
+            origins={ORIGIN_SYNC},
         )
-        if public and public.get("ok") is False and public.get("error"):
-            create_errors.append(str(public["error"]))
-        elif public:
-            created.append(public)
+        tasks_canceled = int(recon.get("tasks_canceled") or 0)
+        reconcile_errors.extend(str(e) for e in (recon.get("errors") or []))
+
+        purged = purge_terminal_automated_followup_tasks(
+            backends.core,
+            scope=core_scope,
+            actor="agentcore-cli-sync",
+            correlation_id=corr,
+            retention_days_value=retention_days(),
+        )
+        tasks_purged = int(purged.get("tasks_purged") or 0)
+        purge_errors.extend(str(e) for e in (purged.get("errors") or []))
+    except Exception as exc:  # noqa: BLE001
+        create_errors.append(f"platform: {type(exc).__name__}: {exc}")
+    finally:
+        if backends is not None:
+            try:
+                backends.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     mirror_path = _write_mirror(mirrored)
     return {
@@ -203,7 +201,12 @@ def create_sync_followup_tasks(
         "specs_count": len(specs),
         "tasks_created_count": len(created),
         "tasks_created": created,
+        "tasks_canceled": tasks_canceled,
+        "tasks_purged": tasks_purged,
         "create_errors": create_errors,
+        "reconcile_errors": reconcile_errors,
+        "purge_errors": purge_errors,
         "mirror_path": str(mirror_path),
         "specs": mirrored,
+        "active_fingerprints": sorted(active),
     }

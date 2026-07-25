@@ -40,6 +40,9 @@ class GraphSymbol:
     created_at: str = ""
     updated_at: str = ""
     language: str = ""
+    hash_version: str = ""
+    parser_version: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -209,6 +212,8 @@ class ParsedSymbol:
     bases: list[str]
     visibility: str = "public"
     import_aliases: dict[str, str] = field(default_factory=dict)
+    # Call names observed via getattr / reflection (capped by confidence_policy).
+    reflection_calls: list[str] = field(default_factory=list)
 
 
 @dataclass

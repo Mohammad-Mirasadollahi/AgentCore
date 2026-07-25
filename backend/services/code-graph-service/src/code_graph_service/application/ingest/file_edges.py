@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ...domain.confidence_policy import clamp_confidence
 from ...domain.cross_language import (
     SymbolIndexes,
     build_symbol_indexes,
@@ -147,6 +148,7 @@ class FileEdgesMixin:
                         metadata={"base": base},
                         link_key=f"base:{base}",
                     )
+            reflection_names = set(getattr(item, "reflection_calls", None) or ())
             for call in item.calls:
                 targets, confidence, cross_meta = resolve_call_target_polyglot(
                     call,
@@ -155,6 +157,22 @@ class FileEdgesMixin:
                     module_prefix=parsed.module_prefix,
                     source_language=language,
                 )
+                via = (
+                    "reflection"
+                    if call in reflection_names
+                    else str(cross_meta.get("via") or "")
+                )
+                if via:
+                    confidence = clamp_confidence(
+                        confidence,
+                        source_language=language,
+                        target_language=str(cross_meta.get("target_language") or language),
+                        via=via,
+                    )
+                meta = {**cross_meta, "call": call}
+                if via:
+                    meta["via"] = via
+                    meta["provenance"] = via
                 if confidence == CallConfidence.AMBIGUOUS and targets:
                     for match in targets:
                         written += self._put_edge(
@@ -164,7 +182,7 @@ class FileEdgesMixin:
                             match,
                             file_path=file_path,
                             confidence=CallConfidence.AMBIGUOUS,
-                            metadata={**cross_meta, "call": call},
+                            metadata=meta,
                             link_key=f"call:{call}:{match}",
                         )
                 elif targets:
@@ -175,7 +193,7 @@ class FileEdgesMixin:
                         targets[0],
                         file_path=file_path,
                         confidence=confidence,
-                        metadata={**cross_meta, "call": call},
+                        metadata=meta,
                         link_key=f"call:{call}",
                     )
                 else:
@@ -189,12 +207,15 @@ class FileEdgesMixin:
                             source_id,
                             external_call_symbol_id(scope.project_id, call),
                             file_path=file_path,
-                            confidence=CallConfidence.EXTERNAL,
+                            confidence=clamp_confidence(
+                                CallConfidence.EXTERNAL, via=via or ""
+                            ),
                             metadata={
                                 "call": call,
                                 "is_external": True,
                                 "external_kind": external_kind,
                                 "cross_language": False,
+                                **({"via": via, "provenance": via} if via else {}),
                             },
                             link_key=f"call:{call}",
                         )
@@ -205,8 +226,14 @@ class FileEdgesMixin:
                             source_id,
                             unresolved_symbol_id(scope, call),
                             file_path=file_path,
-                            confidence=CallConfidence.UNRESOLVED,
-                            metadata={"call": call, "cross_language": False},
+                            confidence=clamp_confidence(
+                                CallConfidence.UNRESOLVED, via=via or ""
+                            ),
+                            metadata={
+                                "call": call,
+                                "cross_language": False,
+                                **({"via": via, "provenance": via} if via else {}),
+                            },
                             link_key=f"call:{call}",
                         )
         return written

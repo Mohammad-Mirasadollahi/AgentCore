@@ -29,6 +29,11 @@ class Neo4jCrudMixin:
         embedding = node.get("embedding") or []
         if isinstance(embedding, str):
             embedding = json.loads(embedding)
+        metadata_raw = node.get("metadata_json") or node.get("metadata") or {}
+        if isinstance(metadata_raw, str):
+            metadata = json.loads(metadata_raw or "{}")
+        else:
+            metadata = dict(metadata_raw or {})
         return GraphSymbol(
             id=node["id"],
             scope=scope,
@@ -47,6 +52,9 @@ class Neo4jCrudMixin:
             created_at=str(node["created_at"]),
             updated_at=str(node["updated_at"]),
             language=str(node.get("language") or ""),
+            hash_version=str(node.get("hash_version") or ""),
+            parser_version=str(node.get("parser_version") or ""),
+            metadata=metadata,
         )
 
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
@@ -87,6 +95,9 @@ class Neo4jCrudMixin:
                 created_at=symbol.created_at,
                 updated_at=symbol.updated_at,
                 language=symbol.language or "",
+                hash_version=symbol.hash_version or "",
+                parser_version=symbol.parser_version or "",
+                metadata_json=json.dumps(dict(symbol.metadata or {}), sort_keys=True),
             )
 
     def delete_symbol(self, symbol_id: str, scope: Scope) -> None:

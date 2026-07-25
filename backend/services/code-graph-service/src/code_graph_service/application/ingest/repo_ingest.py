@@ -19,7 +19,7 @@ from .parallel_files import run_parallel_file_jobs
 
 from ...domain.enums import RelType, SymbolKind
 from ...domain.errors import ValidationError
-from ...domain.hashing import digest, normalize_source
+from ...domain.hashing import content_hash
 from ...domain.models import (
     RepoIngestFileOutcome,
     RepoIngestResult,
@@ -87,7 +87,7 @@ class RepoIngestMixin:
                 source = Path(item.absolute_path).read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 return True
-            return digest(normalize_source(source, item.language)) != previous.hash_value
+            return content_hash(source, item.language)["hash"] != previous.hash_value
 
         changed_known = [item for item in known if _known_changed(item)]
         changed_known_paths = {item.relative_path.replace("\\", "/") for item in changed_known}

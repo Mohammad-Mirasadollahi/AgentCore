@@ -408,16 +408,18 @@ class FileEmissionsMixin:
         for synth in synthesize_interface_dispatch(
             symbols=sym_tuples, inherits=inherits, calls=calls
         ):
+            conf = clamp_confidence(CallConfidence.PROBABLE, via="dynamic_dispatch")
             written += self._put_edge(
                 scope,
                 RelType.CALLS.value,
                 synth.source_id,
                 synth.target_id,
                 file_path="",
-                confidence=CallConfidence.PROBABLE,
+                confidence=conf,
                 metadata={
                     "call": synth.method_name,
                     "provenance": synth.provenance,
+                    "via": "dynamic_dispatch",
                     "via_type": synth.via_type,
                     "synthesizedBy": "dynamic_dispatch",
                 },

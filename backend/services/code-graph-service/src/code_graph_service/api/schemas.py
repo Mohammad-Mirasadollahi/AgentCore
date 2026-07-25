@@ -22,6 +22,26 @@ class IngestRepoRequest(BaseModel):
     include_outcomes: bool = True
 
 
+class RuntimeTraceCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str | None = None
+    caller: str | None = None
+    target: str | None = None
+    callee: str | None = None
+    call_site: str = ""
+    count: int = Field(default=1, ge=1)
+    file_path: str = "runtime"
+    rel_type: str = "CALLS"
+    metadata: dict[str, object] | None = None
+
+
+class IngestRuntimeTracesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calls: list[RuntimeTraceCall] = Field(min_length=1)
+
+
 class SemanticSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -56,7 +76,10 @@ class CallersRequest(BaseModel):
 
     top_k: int = Field(default=20, ge=1, le=200)
     max_depth: int = Field(default=1, ge=1, le=8)
-    min_confidence: str | None = None
+    min_confidence: str | None = Field(
+        default="probable",
+        description="Confidence floor for structural edges (GAP-T02 default: probable).",
+    )
     rel_types: list[str] | None = None
 
 
@@ -65,7 +88,10 @@ class ImpactRequest(BaseModel):
 
     direction: str = Field(default="both")
     max_depth: int = Field(default=3, ge=1, le=8)
-    min_confidence: str | None = None
+    min_confidence: str | None = Field(
+        default="probable",
+        description="Confidence floor for structural edges (GAP-T02 default: probable).",
+    )
     rel_types: list[str] | None = None
     top_k: int = Field(default=50, ge=1, le=500)
 

@@ -19,8 +19,9 @@ description: >-
 2. If `must_remediate` is true:
    - Docs findings → skill `agentcore-standards-on-edit` / `agentcore-documentation-authoring`; fix each path (soft size = split sibling; linking = evidence `linked_symbols`; revision = bump stamps with body).
    - Code never-ingested / stale → run `agentcore sync` for those paths (AST-only if cloud LLM blocked); do not leave debt silent.
-3. Re-call `agentcore_quality_audit` until high/medium are clear, or create durable tasks (`create_tasks=true` or `agentcore_create_task`) with the finding list.
+3. Re-call `agentcore_quality_audit` until high/medium are clear, or create durable tasks (`create_tasks=true` or `agentcore_create_task`) with the finding list. Prefer `reconcile_tasks=true` (implied by create) so cleared debt cancels.
 4. CLI fallback when MCP tool missing: `agentcore quality-audit` / `agentcore docs-standards`.
+5. Inspect / lifecycle ops: `agentcore followup-tasks list|status|reconcile|purge`; one-time `adopt-legacy` for pre-lifecycle `Quality:` Tasks.
 
 ## Do not
 

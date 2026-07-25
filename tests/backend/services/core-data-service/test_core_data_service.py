@@ -174,3 +174,117 @@ def test_list_pagination_has_more():
     page = client.get("/api/v1/projects/p/activities?page_size=2", headers=H).json()
     assert len(page["items"]) == 2
     assert page["page"]["has_more"] is True
+
+
+def test_changeset_api_create_approve_and_discussion():
+    store = InMemoryStore()
+    client = ApiClient(app(CoreData(store)))
+    created = client.post(
+        "/api/v1/projects/p/changesets",
+        headers={**H, "Idempotency-Key": "cs-api-1"},
+        json={"title": "API patch", "artifact_ref": "artifact://api-1"},
+    )
+    assert created.status_code == 200
+    cs_id = created.json()["record"]["id"]
+    opened = client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:transition",
+        headers={**H, "Idempotency-Key": "cs-api-open"},
+        json={"status": "open", "reason": "ready"},
+    )
+    assert opened.status_code == 200
+    client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:transition",
+        headers={**H, "Idempotency-Key": "cs-api-review"},
+        json={"status": "in_review", "reason": "review"},
+    )
+    approved = client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:approve",
+        headers={**H, "X-Actor-Id": "reviewer", "Idempotency-Key": "cs-api-approve"},
+        json={"status": "approved", "reason": "lgtm"},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["changeset"]["status"] == "approved"
+    discussion = client.post(
+        "/api/v1/projects/p/discussion-comments",
+        headers={**H, "Idempotency-Key": "dc-api-1"},
+        json={
+            "target_kind": "changeset",
+            "target_id": cs_id,
+            "body": "ship it",
+            "author_ref": "reviewer",
+        },
+    )
+    assert discussion.status_code == 200
+    assert discussion.json()["record"]["kind"] == "discussion_comment"
+
+
+def test_changeset_api_approve_after_changes_requested():
+    store = InMemoryStore()
+    client = ApiClient(app(CoreData(store)))
+    created = client.post(
+        "/api/v1/projects/p/changesets",
+        headers={**H, "Idempotency-Key": "cs-cr-1"},
+        json={"title": "Needs rework", "artifact_ref": "artifact://cr-1"},
+    )
+    cs_id = created.json()["record"]["id"]
+    client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:transition",
+        headers={**H, "Idempotency-Key": "cs-cr-open"},
+        json={"status": "open", "reason": "ready"},
+    )
+    client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:transition",
+        headers={**H, "Idempotency-Key": "cs-cr-review"},
+        json={"status": "in_review", "reason": "review"},
+    )
+    client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:transition",
+        headers={**H, "Idempotency-Key": "cs-cr-req"},
+        json={"status": "changes_requested", "reason": "nits"},
+    )
+    approved = client.post(
+        f"/api/v1/projects/p/changesets/{cs_id}:approve",
+        headers={**H, "X-Actor-Id": "reviewer", "Idempotency-Key": "cs-cr-approve"},
+        json={"status": "approved", "reason": "fixed"},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["changeset"]["status"] == "approved"
+
+
+def test_delete_record_removes_task_and_is_idempotent():
+    service = CoreData(InMemoryStore())
+    scope = Scope("t", "w", "p")
+    created = service.create(
+        Kind.TASK,
+        scope,
+        "agent",
+        "corr-del",
+        "task-del-1",
+        task(),
+    )
+    service.delete_record(
+        scope,
+        "agent",
+        "corr-del",
+        "del-key-1",
+        created.id,
+        kind=Kind.TASK,
+        reason="retention_purge",
+    )
+    try:
+        service.store.get(created.id, scope)
+        raise AssertionError("expected missing record after delete")
+    except Exception as exc:
+        assert "not found" in str(exc).lower()
+    # Idempotent replay does not raise.
+    service.delete_record(
+        scope,
+        "agent",
+        "corr-del",
+        "del-key-1",
+        created.id,
+        kind=Kind.TASK,
+        reason="retention_purge",
+    )
+    events = [e for e in service.store.outbox() if e["event_type"] == "task.deleted"]
+    assert len(events) == 1

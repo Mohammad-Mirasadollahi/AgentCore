@@ -72,7 +72,7 @@ def build_app(
     ) -> dict[str, Any]:
         _ = x_actor_id
         items = service.timeline(Scope(x_tenant_id, x_workspace_id, project_id), correlation_id)
-        return {"items": items}
+        return {"items": items, "read_model_id": "audit.timeline"}
 
     @api.get("/api/v1/projects/{project_id}/audit/events/{event_id}")
     async def get_event(

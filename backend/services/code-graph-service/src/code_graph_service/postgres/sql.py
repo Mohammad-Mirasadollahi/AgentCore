@@ -12,6 +12,7 @@ EMBEDDING_MIGRATION_FILES = (
     "0003_symbol_embeddings.sql",
     "0004_symbol_embeddings_kind.sql",
     "0005_symbol_embeddings_dims_1024.sql",
+    "0009_embedding_id_map.sql",
 )
 
 SELECT_EMBEDDING_COLUMN_TYPE = """

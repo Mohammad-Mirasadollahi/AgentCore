@@ -7,7 +7,7 @@ from fastapi import FastAPI, Header
 
 from ..core import CodeGraphService
 from .common import scope_from
-from .schemas import IngestFileRequest, IngestRepoRequest
+from .schemas import IngestFileRequest, IngestRepoRequest, IngestRuntimeTracesRequest
 
 
 def register(api: FastAPI, service: CodeGraphService) -> None:
@@ -57,6 +57,25 @@ def register(api: FastAPI, service: CodeGraphService) -> None:
             body.model_dump(),
         )
         return result.to_dict()
+
+    @api.post("/api/v1/projects/{project_id}/graph/ingest-runtime-traces")
+    async def ingest_runtime_traces(
+        project_id: str,
+        body: IngestRuntimeTracesRequest,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+        x_correlation_id: str | None = Header(default=None),
+        idempotency_key: str = Header(alias="Idempotency-Key"),
+        x_project_group_id: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        return service.ingest_runtime_traces(
+            scope_from(project_id, x_tenant_id, x_workspace_id, x_project_group_id),
+            x_actor_id,
+            x_correlation_id or str(uuid4()),
+            idempotency_key,
+            body.model_dump(),
+        )
 
     @api.get("/api/v1/projects/{project_id}/graph/language-profile")
     async def language_profile(

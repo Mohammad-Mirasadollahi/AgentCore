@@ -8,6 +8,7 @@ for path in (SUPPORT, PACKAGES):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+import governance_catalog
 from gap_register_gate.catalog import REQUIRED_DOCS
 from gap_register_gate.checks import run_all_checks
 from gap_register_gate.gate import check_phase_gate, explain_failed_check
@@ -34,6 +35,29 @@ def test_gap_register_verification_checks_exit_criteria():
     ]
     types = {item.check_type for item in results}
     assert {"governance_catalog", "ownership", "triage", "documentation"} <= types
+    assert any(item.check_id == "register-md-status-matches-catalog" for item in results)
+
+
+def test_accepted_risks_check_passes_when_none(monkeypatch):
+    from gap_register_gate import checks
+
+    monkeypatch.setattr(
+        governance_catalog,
+        "load_gap_register",
+        lambda _path=None: {"gaps": [{"gap_id": "GAP-X", "status": "CLOSED"}]},
+    )
+    results = checks.verify_accepted_risks_have_approvers()
+    assert len(results) == 1
+    assert results[0].status == "passed"
+    assert results[0].message == "accepted=0 review_ok"
+
+
+def test_register_md_status_matches_catalog():
+    from gap_register_gate.checks import verify_register_md_statuses_match_catalog
+
+    results = verify_register_md_statuses_match_catalog()
+    assert len(results) == 1
+    assert results[0].status == "passed", results[0].message
 
 
 def test_waiver_marks_gate_waived_when_forced_failure(monkeypatch):

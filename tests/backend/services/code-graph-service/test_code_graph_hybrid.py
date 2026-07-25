@@ -135,6 +135,34 @@ def test_hybrid_pgvector_and_inmemory_graph_neighbors():
     assert any(hit.get("graph_expansion") for hit in hits[:2])
 
 
+def test_stage2_vector_index_allowlist_path():
+    """Injected VectorIndexPort Stage-2 sets retrieval=turbovec after Stage-1 candidates."""
+    from vector_index import InMemoryEntityIdMap, InMemoryVectorIndex
+
+    store = InMemoryStore()
+    emb_index = InMemoryEmbeddingIndex()
+    vector_index = InMemoryVectorIndex(dim=16)
+    entity_id_map = InMemoryEntityIdMap()
+    service = CodeGraphService(
+        store,
+        embedding_index=emb_index,
+        vector_index=vector_index,
+        entity_id_map=entity_id_map,
+    )
+    scope = Scope("t", "w", "ann-stage2")
+    service.ingest_file(
+        scope,
+        "agent",
+        "c",
+        "idem-ann",
+        {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
+    )
+    hits = service.semantic_search(scope, "login password check", top_k=3)
+    assert hits
+    assert hits[0]["retrieval"] == "turbovec"
+    assert hits[0]["score"] > 0
+
+
 def test_neo4j_outbox_mirrors_to_postgres_live():
     _require_tcp("127.0.0.1", POSTGRES_PORT)
     _require_tcp("127.0.0.1", NEO4J_BOLT_PORT)

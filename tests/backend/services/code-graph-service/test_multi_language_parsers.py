@@ -55,10 +55,30 @@ fn top() -> bool { Auth::check_password("x") }
 
 
 def test_registered_parsers_include_rust_and_matrix_langs():
-    assert set(registered_parsers()) == {"python", "javascript", "typescript", "go", "rust"}
+    assert set(registered_parsers()) == {
+        "python",
+        "javascript",
+        "typescript",
+        "go",
+        "rust",
+        "java",
+    }
     assert detect_language_from_path("pkg/main.rs") == "rust"
     assert detect_language_from_path("src/app.tsx") == "typescript"
     assert detect_language_from_path("lib/util.go") == "go"
+    assert detect_language_from_path("src/main/java/App.java") == "java"
+
+
+JAVA_SOURCE = """
+package com.acme.auth;
+
+import com.acme.util.Helper;
+
+public class Auth {
+  public boolean login(String password) { return check(password); }
+  public boolean check(String password) { return password.length() > 8; }
+}
+"""
 
 
 def test_parse_javascript_typescript_go_rust_symbols():
@@ -76,6 +96,11 @@ def test_parse_javascript_typescript_go_rust_symbols():
     rust = parse_source("rust", "src/auth.rs", RUST_SOURCE)
     assert any(s.name == "check_password" for s in rust.symbols)
     assert any(s.name == "top" for s in rust.symbols)
+
+    java = parse_source("java", "Auth.java", JAVA_SOURCE)
+    assert any(s.name == "Auth" and s.kind.value == "class" for s in java.symbols)
+    assert any(s.name == "login" for s in java.symbols)
+    assert "Helper" in java.import_aliases
 
 
 def test_ingest_polyglot_project_builds_edges_per_language():

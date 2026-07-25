@@ -187,7 +187,12 @@ def verify_thin_service_ports_and_store_imports() -> list[CheckResult]:
     for service_dir, pkg in THIN_SERVICES:
         pkg_root = SERVICES / service_dir / "src" / pkg
         ports = pkg_root / "ports.py"
-        if not ports.is_file() or "from .core import Store" not in _read(ports):
+        ports_text = _read(ports) if ports.is_file() else ""
+        has_store_port = (
+            "from .core import Store" in ports_text
+            or "class Store(Protocol)" in ports_text
+        )
+        if not ports.is_file() or not has_store_port:
             missing_ports.append(service_dir)
         for path in pkg_root.rglob("*.py"):
             text = path.read_text(encoding="utf-8")
@@ -274,4 +279,40 @@ def run_all_checks() -> list[CheckResult]:
     results.extend(verify_thin_services())
     results.extend(verify_thin_service_ports_and_store_imports())
     results.extend(verify_cli_process_containers())
+    results.extend(verify_bounded_context_forbidden_persistence())
     return results
+
+
+def verify_bounded_context_forbidden_persistence() -> list[CheckResult]:
+    """GAP-A01: enforce forbidden cross-service postgres_store imports from context map."""
+    try:
+        from architecture_governance import forbidden_persistence_violations, load_bounded_context_map
+    except ImportError:
+        return [
+            CheckResult(
+                "a01-bounded-context-forbidden-imports",
+                "architecture",
+                "bounded-context-map",
+                "failed",
+                "architecture_governance not importable",
+                [],
+                "backend/configs/governance/bounded-context-map.json",
+            )
+        ]
+    catalog = load_bounded_context_map()
+    hits: list[str] = []
+    for rule in catalog.get("forbidden_persistence_imports", []):
+        service = str(rule.get("from_service") or "")
+        service_dir = ROOT / "backend" / "services" / service / "src"
+        hits.extend(forbidden_persistence_violations(service_dir, service))
+    return [
+        CheckResult(
+            "a01-bounded-context-forbidden-imports",
+            "architecture",
+            "bounded-context-map",
+            "passed" if not hits else "failed",
+            "no forbidden persistence imports" if not hits else f"hits={hits[:5]}",
+            hits[:20],
+            "backend/configs/governance/bounded-context-map.json",
+        )
+    ]

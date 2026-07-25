@@ -20,7 +20,7 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
+doc_version: 1.0.1
 updated_at: '2026-07-24'
 ---
 
@@ -47,6 +47,7 @@ Coordinate agents and humans through semantic policies, risk detection, escalati
 - `08-domain-pack-feature-profile-and-rule-suggestion-schemas.md` defines normative JSON schemas, ownership, activation workflow, and conflict precedence for DomainPack, FeatureProfile, and RuleSuggestion (closes GAP-009).
 - `09-approval-modes-and-auto-approve.md` defines the three user-selectable Accept modes: `manual`, `auto_approve`, and `system_routed`, plus hard-block overrides and audit.
 - `10-approval-cli-first-surface.md` closes GAP-004: CLI is the first Accept surface (`agentcore approval`).
+- `11-llm-judge-operating-standard.md` closes GAP-T05: deterministic LLM Judge (eligible policies, temperature 0 + JSON object mode, low-confidence escalation, replay metadata).
 
 ## Features Covered
 

@@ -382,28 +382,23 @@ def test_language_matrix_python_required_and_multi_lang_supported():
     assert matrix["python"]["status"] == "supported"
     assert matrix["python"]["required"] is True
     assert matrix["python"]["parser"] == "stdlib_ast"
-    for language in ("typescript", "javascript", "go", "rust"):
+    for language in ("typescript", "javascript", "go", "rust", "java"):
         assert matrix[language]["status"] == "supported"
         assert matrix[language]["parser"] == "tree_sitter"
         assert matrix[language]["required"] is False
     assert "python" in supported_languages()
-    assert set(supported_languages()) >= {"python", "typescript", "javascript", "go", "rust"}
+    assert set(supported_languages()) >= {"python", "typescript", "javascript", "go", "rust", "java"}
     assert "python" in required_languages()
     assert_required_languages_supported()
     assert assert_language_supported("Python") == "python"
     assert assert_language_supported("rust") == "rust"
+    assert assert_language_supported("java") == "java"
     try:
         assert_language_supported("cobol")
         raise AssertionError("unknown language should raise")
     except ValidationError as exc:
         assert "unsupported language" in exc.message
-    assert matrix["java"]["status"] == "planned"
-    try:
-        assert_language_supported("java")
-        raise AssertionError("planned language should raise")
-    except ValidationError as exc:
-        assert "planned" in exc.message
-
+    assert matrix["java"]["extensions"] == (".java",)
 
 def test_import_alias_probable_calls_and_file_imports():
     store = InMemoryStore()

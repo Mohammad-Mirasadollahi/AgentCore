@@ -180,12 +180,16 @@ def sync_one_root(
                 (
                     f"specs={followup.get('specs_count')}  "
                     f"created={followup.get('tasks_created_count')}  "
+                    f"canceled={followup.get('tasks_canceled', 0)}  "
+                    f"purged={followup.get('tasks_purged', 0)}  "
                     f"mirror={followup.get('mirror_path')}"
                 ),
             )
             errs = list(followup.get("create_errors") or [])
+            errs.extend(followup.get("reconcile_errors") or [])
+            errs.extend(followup.get("purge_errors") or [])
             if errs:
-                ui.kv("Follow-up create errors", "; ".join(errs[:2]))
+                ui.kv("Follow-up errors", "; ".join(str(e) for e in errs[:2]))
     except Exception as exc:  # noqa: BLE001 — never fail sync on follow-up
         followup = {"ok": False, "error": str(exc)}
 

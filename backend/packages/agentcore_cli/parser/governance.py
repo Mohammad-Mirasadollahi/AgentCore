@@ -1,4 +1,4 @@
-"""``approval`` and ``weight-profile`` CLI parsers (GAP-004 / GAP-006)."""
+"""``approval``, ``weight-profile``, and ``followup-tasks`` CLI parsers."""
 
 from __future__ import annotations
 
@@ -8,6 +8,93 @@ from agentcore_cli.util import add_scope_args
 
 
 def register(sub: argparse._SubParsersAction) -> None:
+    followup = sub.add_parser(
+        "followup-tasks",
+        help="List / reconcile / purge automated follow-up Tasks (sync + quality)",
+    )
+    followup_sub = followup.add_subparsers(dest="followup_tasks_command", required=True)
+
+    ft_list = followup_sub.add_parser("list", help="List automated follow-up Tasks")
+    add_scope_args(ft_list, required=False)
+    ft_list.add_argument(
+        "--origin",
+        default="all",
+        help="all | sync-followup (sync) | mcp-quality (quality)",
+    )
+    ft_list.add_argument(
+        "--status",
+        default="all",
+        help="all | open | terminal",
+    )
+
+    ft_adopt = followup_sub.add_parser(
+        "adopt-legacy",
+        help="Stamp retention metadata onto pre-lifecycle Quality: Tasks + cancel dupes",
+    )
+    add_scope_args(ft_adopt, required=False)
+    ft_adopt.add_argument("--actor", default="agentcore-cli-followup")
+    ft_adopt.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview adopt/cancel without writing",
+    )
+    ft_adopt.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm adopt (required unless --dry-run)",
+    )
+
+    ft_status = followup_sub.add_parser(
+        "status",
+        help="Summary counts + stale open fingerprints vs current debt",
+    )
+    add_scope_args(ft_status, required=False)
+    ft_status.add_argument(
+        "--origin",
+        default="all",
+        help="all | sync-followup (sync) | mcp-quality (quality)",
+    )
+
+    ft_recon = followup_sub.add_parser(
+        "reconcile",
+        help="Cancel open automated Tasks whose fingerprint is no longer active",
+    )
+    add_scope_args(ft_recon, required=False)
+    ft_recon.add_argument(
+        "--origin",
+        default="all",
+        help="all | sync-followup (sync) | mcp-quality (quality)",
+    )
+    ft_recon.add_argument("--actor", default="agentcore-cli-followup")
+    ft_recon.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show would-cancel list without transitioning",
+    )
+
+    ft_purge = followup_sub.add_parser(
+        "purge",
+        help="Hard-delete terminal automated Tasks older than retention days",
+    )
+    add_scope_args(ft_purge, required=False)
+    ft_purge.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help="Override AGENTCORE_FOLLOWUP_TASK_RETENTION_DAYS (default from env / 30)",
+    )
+    ft_purge.add_argument("--actor", default="agentcore-cli-followup")
+    ft_purge.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show would-purge list without deleting",
+    )
+    ft_purge.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm hard-delete (required unless --dry-run)",
+    )
+
     approval = sub.add_parser("approval", help="Human Accept queue + ApprovalMode (GAP-004)")
     approval_sub = approval.add_subparsers(dest="approval_command", required=True)
 

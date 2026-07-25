@@ -88,6 +88,30 @@ class ProjectProfileService:
         usage_profile = str(payload.get("usage_profile") or "default").strip()
         if not name:
             raise ValidationError("name is required")
+        role_list = [str(r) for r in (payload.get("actor_roles") or [])]
+        perm_list = [str(p) for p in (payload.get("actor_permissions") or [])]
+        enforce = str(__import__("os").environ.get("AGENTCORE_ENFORCE_ADMIN_MATRIX", "")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if enforce or role_list or perm_list:
+            try:
+                from architecture_governance import admin_action_allowed
+
+                if not admin_action_allowed(
+                    "project.create",
+                    roles=role_list,
+                    permissions=perm_list,
+                ):
+                    raise ValidationError("project.create denied by admin permission matrix")
+            except ImportError as exc:
+                raise ValidationError(
+                    "project.create requires architecture_governance when "
+                    "AGENTCORE_ENFORCE_ADMIN_MATRIX is enabled or actor roles/permissions "
+                    "are supplied"
+                ) from exc
         try:
             catalog = load_usage_profile(usage_profile)
         except UsageProfileError as exc:

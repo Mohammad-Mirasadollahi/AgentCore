@@ -4,7 +4,7 @@ from .documentation import HeuristicDocGenerator
 from .embeddings import LocalEmbeddingStub, cosine, embed_text
 from .enums import CallConfidence, DocStatus, SymbolKind
 from .errors import CodeGraphError, ConflictError, NotFoundError, ValidationError
-from .hashing import digest, normalize_source, now_iso
+from .hashing import HASH_VERSION, content_hash, digest, normalize_source, now_iso, parser_version
 from .languages import (
     LANGUAGE_MATRIX,
     REQUIRED_LANGUAGES,
@@ -46,6 +46,7 @@ from .ports import Store
 __all__ = [
     "LANGUAGE_MATRIX",
     "REQUIRED_LANGUAGES",
+    "HASH_VERSION",
     "CallConfidence",
     "CodeGraphError",
     "ConflictError",
@@ -72,6 +73,7 @@ __all__ = [
     "assert_language_supported",
     "assert_required_languages_supported",
     "builtin_names",
+    "content_hash",
     "cosine",
     "defined_names",
     "detect_language_from_path",
@@ -84,6 +86,7 @@ __all__ = [
     "now_iso",
     "parse_python_source",
     "parse_source",
+    "parser_version",
     "registered_parsers",
     "required_languages",
     "resolve_call_target",

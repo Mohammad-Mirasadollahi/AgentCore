@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from typing import Any
 
 from .core import CodeGraphService
 from .llm_wiring import LlmBackedDocGenerator, build_embeddings
@@ -118,6 +119,19 @@ def build_embedding_index(settings: Settings) -> PostgresEmbeddingIndex | None:
     return PostgresEmbeddingIndex(settings.database_url, dims=dims, ensure_schema=True)
 
 
+def build_vector_index(dims: int, *, database_url: str | None = None) -> tuple[Any, Any]:
+    """Optional TurboVec replica + entity id map; (None, None) when off/unavailable."""
+    try:
+        from vector_index import try_build_accelerator
+    except ImportError:
+        return None, None
+    return try_build_accelerator(
+        dim=dims,
+        database_url=database_url,
+        id_map_table="code_graph.embedding_id_map",
+    )
+
+
 def build_llm_gateway():
     """Construct the shared LiteLLM gateway from environment."""
     from llm_gateway import LiteLlmGateway, LlmGatewaySettings
@@ -151,12 +165,16 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
             lock_reads=False,
             max_concurrent=store_conc,
         )
+    dims = int(getattr(embeddings, "dims", 0) or embedding_settings_from_env()["dims"])
+    vector_index, entity_id_map = build_vector_index(dims, database_url=resolved.database_url)
     graph = CodeGraphService(
         LockedStore(store, lock_reads=False, max_concurrent=store_conc),
         docs=LlmBackedDocGenerator(gateway, settings=gateway.settings),
         embeddings=embeddings,
         embedding_index=emb_index,
         llm=gateway,
+        vector_index=vector_index,
+        entity_id_map=entity_id_map,
     )
     return ServiceContainer(graph=graph, settings=resolved)
 

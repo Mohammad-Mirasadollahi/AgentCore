@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Active. `0001_memory.sql` owns the `memory` schema, memory items, question memory, work batches, durable idempotency records, and outbox events.
+Active. `0001_memory.sql` owns the `memory` schema, memory items, question memory, work batches, durable idempotency records, and outbox events. `0003_memory_embeddings.sql` is the pgvector SoR; `0004_embedding_id_map.sql` is the optional TurboVec entity id map (apply with operator migrations).

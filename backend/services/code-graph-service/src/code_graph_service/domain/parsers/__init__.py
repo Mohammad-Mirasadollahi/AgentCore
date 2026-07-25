@@ -9,6 +9,7 @@ from ..languages import assert_language_supported
 from ..models import ParseResult
 from ..parsing import parse_python_source
 from .go_lang import parse_go_source
+from .java_lang import parse_java_source
 from .javascript import parse_javascript_source
 from .rust_lang import parse_rust_source
 from .typescript import parse_typescript_source
@@ -21,6 +22,7 @@ _PARSERS: dict[str, ParserFn] = {
     "typescript": parse_typescript_source,
     "go": parse_go_source,
     "rust": parse_rust_source,
+    "java": parse_java_source,
 }
 
 

@@ -29,6 +29,10 @@ def test_programming_profile_validates_and_lists_mcp_tools():
     assert "agentcore_code_graph_generation_context" in names
     assert "agentcore_docs_catalog" in names
     assert "agentcore_quality_audit" in names
+    qa = next(t for t in profile["mcp"]["tools"] if t["name"] == "agentcore_quality_audit")
+    qa_props = qa["input_schema"]["properties"]
+    assert "create_tasks" in qa_props
+    assert "reconcile_tasks" in qa_props
     assert "agentcore_docs_authoring_standards" in names
     assert "agentcore_code_graph_ingest_file" in names
     assert "agentcore_code_graph_ingest_repo" in names

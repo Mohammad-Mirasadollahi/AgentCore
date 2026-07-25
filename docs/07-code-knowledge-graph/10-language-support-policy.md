@@ -6,7 +6,7 @@ status: active
 schema_version: '1.0'
 owner: code-graph-lead
 summary: 'Normative language matrix for Code-Knowledge Graph ingestion: Python is required;
-  TypeScript, JavaScript, Go, and Rust are supported via tree-sitter adapters into a shared
+  TypeScript, JavaScript, Go, Rust, and Java are supported via tree-sitter adapters into a shared
   symbol schema.'
 tags:
 - code-graph
@@ -14,6 +14,7 @@ tags:
 - tree-sitter
 - python
 - rust
+- java
 phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/10-language-support-policy.md
 lifecycle_lane: current
@@ -30,7 +31,7 @@ related_docs:
 - ac.doc.codegraph.neo4j-migration-plan
 - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
 - docs/07-code-knowledge-graph/48-ast-and-lsp-hybrid-parsing-adr.md
-doc_version: 1.0.0
+doc_version: 1.1.1
 audience:
 - engineer
 - architect
@@ -50,7 +51,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 10 - Language Support Policy
@@ -85,9 +86,9 @@ Current Python parser: stdlib `ast` (`parser=stdlib_ast`).
 | JavaScript | supported | false    | tree_sitter   | `.js`, `.jsx`, `.mjs`, `.cjs`      |
 | Go         | supported | false    | tree_sitter   | `.go`                              |
 | Rust       | supported | false    | tree_sitter   | `.rs`                              |
-| Java       | planned   | false    | tree_sitter   | (extensions deferred until parser) |
+| Java       | supported | false    | tree_sitter   | `.java`                            |
 
-Unsupported languages return a validation error. Planned languages must not be silently skipped with empty graphs. Call resolution also captures `getattr(obj, "name")` string attributes as call refs (Codebase-Memory hybrid Wave D).
+Unsupported languages return a validation error. Call resolution also captures `getattr(obj, "name")` string attributes as call refs (Codebase-Memory hybrid Wave D).
 
 ## Module Ownership
 
@@ -96,12 +97,12 @@ Unsupported languages return a validation error. Planned languages must not be s
 | Language matrix and guards | `code_graph_service.domain.languages` |
 | Parser registry | `code_graph_service.domain.parsers` |
 | Python adapter | `code_graph_service.domain.parsing` (`parse_python_source`) |
-| JS/TS/Go/Rust adapters | `code_graph_service.domain.parsers.{javascript,typescript,go_lang,rust_lang}` |
+| JS/TS/Go/Rust/Java adapters | `code_graph_service.domain.parsers.{javascript,typescript,go_lang,rust_lang,java_lang}` |
 | Ingest orchestration | `code_graph_service.application.service.CodeGraphService` |
 | Cross-language resolution | `code_graph_service.domain.cross_language` |
 | Package-manager aliases | `code_graph_service.domain.package_manifests` |
 | Confidence caps | `code_graph_service.domain.confidence_policy` |
-| DI injection bindings | `code_graph_service.domain.di_injections` |
+| DI injection bindings | `code_graph_service.domain.di_injections` (FastAPI Depends, Nest ctor/`@Inject`, Spring `@Autowired`/`@Inject`, Go Wire `wire.Build`) |
 
 ## Multi-Language Repository Behavior
 
@@ -118,7 +119,7 @@ Unsupported languages return a validation error. Planned languages must not be s
   - `Cargo.toml` package name + `path` dependencies;
   - `package.json` name, `imports`, and local `file:` / `workspace:` deps;
   - `tsconfig.json` `compilerOptions.paths` (root + one-level nested).
-- Confidence caps (`domain/confidence_policy.py`): cross-language and package/DI heuristics never claim `exact`.
+- Confidence caps (`domain/confidence_policy.py`): cross-language and package/DI heuristics never claim `exact`; reflection/monkeypatch cap at `ambiguous`; `runtime_trace` boosts (see `15-call-graph-confidence-and-runtime-traces.md`).
 - Framework DI bindings (`domain/di_injections.py`) emit `CALLS` with `provenance=di_injection` for FastAPI `Depends(...)` and Nest/TS constructor type / `@Inject` patterns.
 - Edge metadata may include `cross_language`, `source_language`, `target_language`, `relinked`, `resolved_via`, and `provenance`.
 - Ambiguous cross-language matches stay `AMBIGUOUS` (multiple candidate edges) rather than inventing a single target.

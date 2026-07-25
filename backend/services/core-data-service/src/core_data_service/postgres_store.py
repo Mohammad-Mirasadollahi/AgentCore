@@ -72,6 +72,16 @@ class PostgresStore:
                  record.version, self._json(record.data), record.created_at, record.updated_at),
             )
 
+    def delete(self, record_id: str, scope: Scope) -> None:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """DELETE FROM core_data.records
+                   WHERE id=%s AND tenant_id=%s AND workspace_id=%s AND project_id=%s""",
+                (record_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            if cursor.rowcount == 0:
+                raise NotFoundError("record not found in project scope")
+
     def idempotent(self, scope: Scope, command: str, key: str, payload: dict[str, Any]) -> str | None:
         with self._connection.cursor() as cursor:
             cursor.execute(

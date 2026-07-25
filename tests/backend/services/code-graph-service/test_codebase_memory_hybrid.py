@@ -220,6 +220,8 @@ def run(obj):
     parsed = parse_python_source("mod.py", src)
     run = next(s for s in parsed.symbols if s.name == "run")
     assert "helper" in run.calls
+    assert "helper" in run.reflection_calls
+    assert "getattr" not in run.calls
 
 
 def test_getattr_ingest_emits_calls_edge() -> None:
@@ -248,6 +250,9 @@ def run(obj):
         if e.rel_type == "CALLS" and e.source_id == run.id and e.target_id == helper.id
     ]
     assert calls, "getattr('helper') should resolve to CALLS edge to helper"
+    # GAP-T02: getattr-derived CALLS are reflection — never exact/probable.
+    assert calls[0].confidence == CallConfidence.AMBIGUOUS
+    assert calls[0].metadata.get("via") == "reflection"
 
 
 def test_http_api_callers_impact_community_routes() -> None:

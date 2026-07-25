@@ -1,6 +1,7 @@
-"""Stage-1 hybrid RAG constants for code-graph retrieval (pgvector + Neo4j expand).
+"""Hybrid RAG constants for code-graph retrieval (pgvector Stage-1 + optional ANN Stage-2).
 
-turbovec / VectorIndexPort are explicitly out of scope for Stage-1.
+Stage-1: kind-filtered pgvector (or in-store cosine) candidate narrowing.
+Stage-2: optional VectorIndexPort allowlist dense search; fall back to Stage-1 scores.
 """
 
 from __future__ import annotations

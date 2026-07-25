@@ -16,6 +16,11 @@ class Kind(StrEnum):
     DECISION = "decision"
     ISSUE = "issue"
     TASK = "task"
+    CHANGESET = "changeset"
+    REVIEW_THREAD = "review_thread"
+    REVIEW_COMMENT = "review_comment"
+    DISCUSSION_COMMENT = "discussion_comment"
+    WORK_LABEL = "work_label"
 
 
 class CoreDataError(Exception):
@@ -86,6 +91,11 @@ DEFAULT_STATUS = {
     Kind.DECISION: "proposed",
     Kind.ISSUE: "open",
     Kind.TASK: "proposed",
+    Kind.CHANGESET: "draft",
+    Kind.REVIEW_THREAD: "open",
+    Kind.REVIEW_COMMENT: "recorded",
+    Kind.DISCUSSION_COMMENT: "recorded",
+    Kind.WORK_LABEL: "active",
 }
 CREATE_EVENTS = {
     Kind.ACTIVITY: "activity.recorded",
@@ -93,6 +103,11 @@ CREATE_EVENTS = {
     Kind.DECISION: "decision.created",
     Kind.ISSUE: "issue.discovered",
     Kind.TASK: "task.created",
+    Kind.CHANGESET: "changeset.created",
+    Kind.REVIEW_THREAD: "review_thread.created",
+    Kind.REVIEW_COMMENT: "review_comment.added",
+    Kind.DISCUSSION_COMMENT: "discussion_comment.added",
+    Kind.WORK_LABEL: "work_label.created",
 }
 TRANSITIONS = {
     Kind.TASK: {
@@ -120,6 +135,16 @@ TRANSITIONS = {
         "deferred": {"triaged", "closed"},
         "closed": {"open"},
     },
+    Kind.CHANGESET: {
+        "draft": {"open", "closed"},
+        "open": {"in_review", "closed"},
+        "in_review": {"approved", "changes_requested", "closed"},
+        "changes_requested": {"open", "in_review", "closed"},
+        "approved": {"applying", "closed"},
+        "applying": {"applied", "changes_requested"},
+        "applied": {"closed"},
+        "closed": set(),
+    },
 }
 REQUIRED = {
     Kind.ACTIVITY: ("action_type", "action_summary"),
@@ -127,6 +152,11 @@ REQUIRED = {
     Kind.DECISION: ("title", "context", "options_considered", "chosen_option", "consequences", "owner"),
     Kind.ISSUE: ("title", "description", "severity"),
     Kind.TASK: ("title", "assignee_type", "instructions", "acceptance_criteria"),
+    Kind.CHANGESET: ("title", "artifact_ref"),
+    Kind.REVIEW_THREAD: ("changeset_id", "anchor_kind"),
+    Kind.REVIEW_COMMENT: ("thread_id", "body", "author_ref"),
+    Kind.DISCUSSION_COMMENT: ("target_kind", "target_id", "body", "author_ref"),
+    Kind.WORK_LABEL: ("name",),
 }
 SECRET = re.compile(r"(?i)((?:api[_-]?key|token|password|secret)\s*[:=]\s*)([^\s,;]+)")
 OPEN_ISSUE_STATES = {"open", "triaged", "accepted"}
@@ -155,6 +185,7 @@ class Store(Protocol):
     def get(self, record_id: str, scope: Scope) -> Record: ...
     def list(self, kind: Kind, scope: Scope) -> list[Record]: ...
     def put(self, record: Record) -> None: ...
+    def delete(self, record_id: str, scope: Scope) -> None: ...
     def idempotent(self, scope: Scope, command: str, key: str, payload: dict[str, Any]) -> str | None: ...
     def remember(self, scope: Scope, command: str, key: str, payload: dict[str, Any], record_id: str) -> None: ...
     def event(self, payload: dict[str, Any]) -> None: ...
@@ -192,7 +223,110 @@ class CoreData:
         self.store.put(record)
         self.store.remember(scope, "create:" + kind.value, key, payload, record.id)
         self.emit(CREATE_EVENTS[kind], record, key)
+        if kind == Kind.REVIEW_COMMENT:
+            self._rollup_review_comment(scope, actor, correlation_id, key, record)
         return record
+
+    def _rollup_review_comment(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        comment: Record,
+    ) -> None:
+        """Doc 08: request_changes/block on a review comment forces ChangeSet changes_requested."""
+        verdict = str(comment.data.get("verdict") or "").strip().lower()
+        if verdict not in {"request_changes", "block", "changes_requested"}:
+            return
+        thread_id = str(comment.data.get("thread_id") or "")
+        if not thread_id:
+            return
+        try:
+            thread = self.store.get(thread_id, scope)
+        except Exception:
+            return
+        if thread.kind != Kind.REVIEW_THREAD:
+            return
+        changeset_id = str(thread.data.get("changeset_id") or "")
+        if not changeset_id:
+            return
+        try:
+            changeset = self.store.get(changeset_id, scope)
+        except Exception:
+            return
+        if changeset.kind != Kind.CHANGESET:
+            return
+        if changeset.status not in {"open", "in_review"}:
+            return
+        target = "changes_requested"
+        if target not in TRANSITIONS[Kind.CHANGESET].get(changeset.status, set()):
+            # open → in_review first when needed
+            if changeset.status == "open" and "in_review" in TRANSITIONS[Kind.CHANGESET]["open"]:
+                self.transition(
+                    scope,
+                    actor,
+                    correlation_id,
+                    key + ":rollup-review",
+                    changeset_id,
+                    "in_review",
+                    f"review verdict {verdict}",
+                    None,
+                    Kind.CHANGESET,
+                )
+            else:
+                return
+        self.transition(
+            scope,
+            actor,
+            correlation_id,
+            key + ":rollup",
+            changeset_id,
+            target,
+            f"review verdict {verdict}",
+            None,
+            Kind.CHANGESET,
+        )
+        self.emit("changeset.review_rollup", self.store.get(changeset_id, scope), key)
+    def delete_record(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        record_id: str,
+        *,
+        kind: Kind | None = None,
+        reason: str = "retention_purge",
+    ) -> None:
+        """Hard-delete a record in scope (used for automated follow-up retention)."""
+        if not key:
+            raise ValidationError("Idempotency-Key header is required")
+        payload = {"id": record_id, "reason": reason, "kind": kind.value if kind else None}
+        prior = self.store.idempotent(scope, "delete:record", key, payload)
+        if prior:
+            return
+        record = self.store.get(record_id, scope)
+        if kind and record.kind != kind:
+            raise ValidationError("record kind mismatch")
+        self.store.delete(record_id, scope)
+        self.store.remember(scope, "delete:record", key, payload, record_id)
+        self.emit(
+            record.kind.value + ".deleted",
+            Record(
+                record.id,
+                record.kind,
+                record.scope,
+                actor,
+                correlation_id,
+                "deleted",
+                {**record.data, "delete_reason": redact(reason)},
+                record.created_at,
+                now(),
+                record.version,
+            ),
+            key,
+        )
 
     def create_issue(self, scope: Scope, actor: str, correlation_id: str, key: str, payload: dict[str, Any]) -> tuple[Record, list[Record]]:
         task_specs = list(payload.get("task_specs") or [])
@@ -247,10 +381,56 @@ class CoreData:
             Kind.TASK: "task.completed" if target == "done" else "task.state_changed",
             Kind.ISSUE: "issue.state_changed",
             Kind.DECISION: "decision.state_changed",
-        }[record.kind]
+            Kind.CHANGESET: {
+                "open": "changeset.opened",
+                "approved": "changeset.approved",
+                "changes_requested": "changeset.changes_requested",
+                "applied": "changeset.applied",
+            }.get(target, "changeset.state_changed"),
+        }.get(record.kind, record.kind.value + ".state_changed")
         self.emit(event_name, record, key)
         return record
 
+    def create_changeset(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        payload: dict[str, Any],
+    ) -> Record:
+        data = dict(payload)
+        data.setdefault("author_ref", actor)
+        data.setdefault("forbid_self_approval", True)
+        return self.create(Kind.CHANGESET, scope, actor, correlation_id, key, data)
+
+    def approve_changeset(
+        self,
+        scope: Scope,
+        actor: str,
+        correlation_id: str,
+        key: str,
+        changeset_id: str,
+        *,
+        reason: str = "approved",
+        version: int | None = None,
+    ) -> Record:
+        record = self.store.get(changeset_id, scope)
+        if record.kind != Kind.CHANGESET:
+            raise ValidationError("record is not a changeset")
+        if bool(record.data.get("forbid_self_approval", True)) and actor == record.data.get("author_ref"):
+            raise ConflictError("self-approval of ChangeSet is forbidden")
+        return self.transition(
+            scope,
+            actor,
+            correlation_id,
+            key,
+            changeset_id,
+            "approved",
+            reason,
+            version,
+            Kind.CHANGESET,
+        )
     def supersede(self, scope: Scope, actor: str, correlation_id: str, key: str, record_id: str, payload: dict[str, Any]) -> Record:
         if not key:
             raise ValidationError("Idempotency-Key header is required")

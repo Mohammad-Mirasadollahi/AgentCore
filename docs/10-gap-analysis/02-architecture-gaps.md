@@ -2,174 +2,87 @@
 doc_id: ac.doc.gap.architecture-gaps
 title: Architecture Gaps
 doc_type: gap
-status: draft
+status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: This document captures architecture-level gaps that should be resolved before implementation
-  reaches production-grade design.
+summary: Architecture-level gaps GAP-A01–A08 with backend closures (catalogs, enforcement,
+  ChangeSet MVP). UI surfaces remain deferred. Live re-validation:
+  07-gap002-and-gap-a-live-verification.md.
 tags:
 - gap
-- gap
+- architecture
 phase: 10-gap-analysis
 canonical_path: docs/10-gap-analysis/02-architecture-gaps.md
-lifecycle_lane: future
+lifecycle_lane: current
 concern_lane: gap
 audience_lane:
 - platform-engineering
 - agents
 authority: informative
 visibility: internal
-linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+linked_symbols:
+- backend/packages/architecture_governance/__init__.py
+- backend/configs/governance/bounded-context-map.json
+- backend/services/core-data-service/src/core_data_service/core.py::Kind
+doc_version: 1.1.2
+updated_at: '2026-07-25'
 ---
 
 # Architecture Gaps
 
 ## Purpose
 
-This document captures architecture-level gaps that should be resolved before implementation reaches production-grade design.
+This document captures architecture-level gaps. Backend closures for GAP-A01–A08 shipped 2026-07-25; UI/IDE chrome remains deferred where noted.
 
 ## GAP-A01 - Bounded Context Map
 
-The documentation defines many services, but it still needs a formal bounded context map.
+Resolution: `backend/configs/governance/bounded-context-map.json` + `architecture_governance.forbidden_persistence_violations`.
 
-Questions:
-
-- Which service owns each entity?
-- Which services are allowed to read each entity?
-- Which services receive events rather than direct reads?
-- Which service owns schema migration for each table or graph label?
-
-Resolution output:
-
-- Bounded context diagram.
-- Entity ownership matrix.
-- Allowed dependency direction map.
+Status: `CLOSED`
 
 ## GAP-A02 - Synchronous vs Asynchronous Boundaries
 
-The design references synchronous APIs and asynchronous jobs, but exact boundaries need definition.
+Resolution: `backend/configs/governance/sync-async-boundaries.json` + `architecture_governance.operation_mode` / `retry_policy` / `timeout_seconds`.
 
-Questions:
-
-- Which operations must complete inside a user request?
-- Which operations can be delayed as jobs?
-- Which events require durable delivery?
-- Which workflows must be eventually consistent?
-
-Resolution output:
-
-- Runtime sequence diagrams.
-- Async job catalog.
-- Retry and timeout policy.
+Status: `CLOSED`
 
 ## GAP-A03 - Read Model Strategy
 
-AgentCore may need multiple read models for dashboard, audit, retrieval, graph queries, and operational metrics.
+Resolution: `backend/configs/governance/read-model-catalog.json` + `architecture_governance.read_model` (tagged on memory/code-graph/audit/guidance paths).
 
-Questions:
-
-- Which read models are materialized?
-- Which are built on demand?
-- How are read models invalidated?
-- How does the system avoid stale dashboard or prompt context?
-
-Resolution output:
-
-- Read model design.
-- Consistency model per read path.
+Status: `CLOSED`
 
 ## GAP-A04 - Multi-Tenant Deployment Modes
 
-The design requires tenant isolation, but deployment mode choices are still open.
+Resolution: `backend/configs/governance/tenancy-deployment-modes.json` + `AGENTCORE_TENANCY_MODE` via `resolve_tenancy_mode` (fail-fast for non-shared modes).
 
-Possible modes:
-
-- shared services with tenant-scoped data,
-- isolated database per tenant,
-- isolated graph per tenant,
-- isolated deployment per enterprise customer.
-
-Resolution output:
-
-- tenancy deployment decision.
-- cost and security tradeoff analysis.
+Status: `CLOSED`
 
 ## GAP-A05 - Agent Trust Model
 
-Agent capability profiles are documented, but a complete trust model is still needed.
+Resolution: `backend/configs/governance/agent-trust-policy.json`; package `agent_trust`; adapter `trust_level` enum; rule-engine high-risk escalate with `provider_rank`.
 
-Questions:
-
-- How does an agent earn higher trust?
-- How is trust revoked?
-- How are model providers ranked by trust?
-- How do failed tasks affect agent trust?
-
-Resolution output:
-
-- Agent trust lifecycle.
-- Capability approval workflow.
-- Trust scoring policy.
+Status: `CLOSED`
 
 ## GAP-A06 - Product Boundary Between AgentCore and IDEs
 
-AgentCore integrates with IDEs, but exact product boundary must be defined.
+Resolution: `backend/configs/governance/ide-product-boundary.json`; MCP `AGENTCORE_GUIDANCE_RESOLVE_REQUIRED` fail-closed writes. IDE plugin chrome / web UI deferred.
 
-Questions:
-
-- Which actions happen inside the IDE plugin?
-- Which actions happen in AgentCore web UI?
-- Which actions happen through CLI or API?
-- How does context injection appear to developers?
-
-Resolution output:
-
-- Interaction model.
-- First IDE integration scope.
-- Developer workflow diagrams.
-
-**Documentation update (2026-07-20):** Connect-time guidance injection shape is specified in [`../15-agent-workspace-guidance/`](../15-agent-workspace-guidance/) (MCP-primary resolve of AGENTS entry / always-on rules / skills, optional filesystem export; Common Context as SoT). This closes the design gap for “how context injection appears” at the guidance-artifact layer. Remaining open: IDE plugin chrome, in-IDE banners, and hard “resolve before write” enforcement. See phase 15 risks doc for residual items. Status: **partially addressed (design docs)**; implementation still open.
+Status: `CLOSED` (backend); UI deferred
 
 ## GAP-A07 - Enterprise Administration Model
 
-The documentation references tenants, profiles, policies, adapters, and port profiles, but admin workflows need more detail.
+Resolution: `backend/configs/governance/admin-permission-matrix.json` + identity-access authorize + weight/adapter/project-profile guards. Admin UI deferred.
 
-Questions:
-
-- Who can create tenants?
-- Who can create projects?
-- Who can approve policies?
-- Who can change WeightProfiles?
-- Who can install adapters?
-
-Resolution output:
-
-- Admin role model.
-- Permission matrix.
-- Audit requirements for admin changes.
+Status: `CLOSED` (backend); UI deferred
 
 ## GAP-A08 - Agent Collaboration Surface Completeness
 
-Issue, Task, and AgentTicket existed, but Pull Request–like ChangeSet, review threads, discussion comments, and labels were underspecified for agent-native collaboration (without GitHub as SoR).
+Resolution: core-data `ChangeSet`, `ReviewThread`, `ReviewComment`, `DiscussionComment`, `WorkLabel` kinds + API + self-approval forbid + review-verdict rollup. Diff viewer UX deferred.
 
-Questions:
+Status: `CLOSED` (backend MVP); UX deferred
 
-- What is the native PR analog and its state machine?
-- How do reviews relate to AgentTicket `:submit-review` and EscalationTicket?
-- How do external GitHub/Jira objects map without becoming SoR?
+## Live re-validation
 
-Partial resolution:
-
-- Product surface: `../01-core-data-model/07-agent-collaboration-work-surface.md`
-- Contracts: `../01-core-data-model/08-changeset-review-and-discussion-contracts.md`
-- External mapping: `../05-interoperability-ecosystem/10-external-vcs-and-tracker-mapping.md`
-
-Still open:
-
-- Diff viewer UX and artifact streaming.
-- Whether WorkMilestone ships with ChangeSet MVP.
-- EscalationTicket vs ApprovalRequest vs ApprovalTicket naming unification.
-
-Status: `PLANNED` (docs proposed; implementation not started).
+Recurring live/production-like acceptance for GAP-002 and GAP-A01–A08:
+`docs/10-gap-analysis/07-gap002-and-gap-a-live-verification.md`.

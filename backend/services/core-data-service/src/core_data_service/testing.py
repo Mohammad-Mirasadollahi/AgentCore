@@ -31,6 +31,12 @@ class InMemoryStore:
     def put(self, record: Record) -> None:
         self._records[record.id] = deepcopy(record)
 
+    def delete(self, record_id: str, scope: Scope) -> None:
+        record = self._records.get(record_id)
+        if record is None or record.scope != scope:
+            raise NotFoundError("record not found in project scope")
+        del self._records[record_id]
+
     def idempotent(self, scope: Scope, command: str, key: str, payload: dict[str, Any]) -> str | None:
         remembered = self._idempotency.get((self._scope_key(scope), command, key))
         if remembered is None:

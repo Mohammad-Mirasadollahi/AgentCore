@@ -101,9 +101,13 @@ def test_create_sync_followup_tasks_writes_mirror(tmp_path: Path, monkeypatch):
         "agentcore_cli.sync_followup_tasks.repo_root",
         lambda: tmp_path,
     )
+
+    def _boom(scope):
+        raise RuntimeError("skip core create in mirror-only test")
+
     monkeypatch.setattr(
-        "agentcore_cli.sync_followup_tasks._try_create_core_task",
-        lambda **_kwargs: None,
+        "agentcore_cli.sync_followup_tasks.open_platform_backends",
+        _boom,
     )
     gate = StandardsGateResult(
         mode="skip",
@@ -132,19 +136,9 @@ def test_ensure_platform_imports_exposes_core_data():
     """Regression: follow-up tasks need core-data on sys.path (was silent created=0)."""
     import sys
 
-    from agentcore_cli.sync_followup_tasks import _ensure_platform_imports
+    from agentcore_cli.followup_task_lifecycle import ensure_platform_imports
 
-    for p in list(sys.path):
-        if "core-data-service" in p or "mcp-gateway-service" in p:
-            sys.path.remove(p)
-    # Drop cached modules so import proves path bootstrap.
-    for name in list(sys.modules):
-        if name == "core_data_service" or name.startswith("core_data_service."):
-            del sys.modules[name]
-        if name == "mcp_gateway_service" or name.startswith("mcp_gateway_service."):
-            del sys.modules[name]
-
-    _ensure_platform_imports()
+    ensure_platform_imports()
     assert any("core-data-service" in p for p in sys.path)
     assert any("mcp-gateway-service" in p for p in sys.path)
     import core_data_service  # noqa: F401
@@ -156,9 +150,13 @@ def test_create_sync_followup_surfaces_create_errors(tmp_path: Path, monkeypatch
         "agentcore_cli.sync_followup_tasks.repo_root",
         lambda: tmp_path,
     )
+
+    def _boom(scope):
+        raise RuntimeError("platform down")
+
     monkeypatch.setattr(
-        "agentcore_cli.sync_followup_tasks._try_create_core_task",
-        lambda **_kwargs: {"ok": False, "error": "ModuleNotFoundError: core_data_service"},
+        "agentcore_cli.sync_followup_tasks.open_platform_backends",
+        _boom,
     )
     gate = StandardsGateResult(
         mode="skip",
@@ -179,4 +177,4 @@ def test_create_sync_followup_surfaces_create_errors(tmp_path: Path, monkeypatch
     )
     assert out["tasks_created_count"] == 0
     assert out["create_errors"]
-    assert "ModuleNotFoundError" in out["create_errors"][0]
+    assert "platform down" in out["create_errors"][0]

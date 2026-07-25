@@ -36,6 +36,20 @@ class CreateRecordRequest(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     status: str | None = None
+    artifact_ref: str | None = None
+    author_ref: str | None = None
+    forbid_self_approval: bool | None = None
+    changeset_id: str | None = None
+    anchor_kind: str | None = None
+    thread_id: str | None = None
+    body: str | None = None
+    target_kind: str | None = None
+    target_id: str | None = None
+    name: str | None = None
+    task_id: str | None = None
+    issue_id: str | None = None
+    external_fingerprint: str | None = None
+    verdict: str | None = None
 
 
 class TransitionTaskStateRequest(BaseModel):
@@ -119,6 +133,9 @@ def build_app(
             if kind == Kind.ISSUE:
                 issue, tasks = service.create_issue(scope, actor, correlation_id, idempotency_key or "", payload)
                 return {"record": issue.public(), "tasks": [task.public() for task in tasks], "correlation_id": correlation_id}
+            if kind == Kind.CHANGESET:
+                record = service.create_changeset(scope, actor, correlation_id, idempotency_key or "", payload)
+                return {"record": record.public(), "correlation_id": correlation_id}
             return {
                 "record": service.create(kind, scope, actor, correlation_id, idempotency_key or "", payload).public(),
                 "correlation_id": correlation_id,
@@ -155,6 +172,11 @@ def build_app(
         "decisions": Kind.DECISION,
         "issues": Kind.ISSUE,
         "tasks": Kind.TASK,
+        "changesets": Kind.CHANGESET,
+        "review-threads": Kind.REVIEW_THREAD,
+        "review-comments": Kind.REVIEW_COMMENT,
+        "discussion-comments": Kind.DISCUSSION_COMMENT,
+        "work-labels": Kind.WORK_LABEL,
     }.items():
         api.post("/api/v1/projects/{project_id}/" + path, operation_id="create_" + kind.value)(post(kind))
         api.get("/api/v1/projects/{project_id}/" + path, operation_id="list_" + kind.value)(listing(kind))
@@ -195,6 +217,64 @@ def build_app(
     api.post("/api/v1/projects/{project_id}/decisions/{record_id}:transition", operation_id="transition_decision_state")(
         transition_route(Kind.DECISION, "decision")
     )
+    api.post("/api/v1/projects/{project_id}/changesets/{record_id}:transition", operation_id="transition_changeset_state")(
+        transition_route(Kind.CHANGESET, "changeset")
+    )
+
+    @api.post("/api/v1/projects/{project_id}/changesets/{record_id}:approve", operation_id="approve_changeset")
+    async def approve_changeset(
+        project_id: str,
+        record_id: str,
+        body: TransitionTaskStateRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        # Normalize into in_review before approve (including after changes_requested rollup).
+        current = service.store.get(record_id, scope)
+        if current.status == "draft":
+            service.transition(
+                scope, actor, correlation_id, (idempotency_key or "") + ":open", record_id, "open", "open for review", None, Kind.CHANGESET
+            )
+            current = service.store.get(record_id, scope)
+        if current.status == "changes_requested":
+            service.transition(
+                scope,
+                actor,
+                correlation_id,
+                (idempotency_key or "") + ":resume",
+                record_id,
+                "in_review",
+                "resume review after changes",
+                None,
+                Kind.CHANGESET,
+            )
+            current = service.store.get(record_id, scope)
+        if current.status == "open":
+            service.transition(
+                scope,
+                actor,
+                correlation_id,
+                (idempotency_key or "") + ":review",
+                record_id,
+                "in_review",
+                "start review",
+                None,
+                Kind.CHANGESET,
+            )
+        record = service.approve_changeset(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            record_id,
+            reason=body.reason,
+            version=body.expected_version,
+        )
+        return {"changeset": record.public(), "correlation_id": correlation_id}
 
     @api.post("/api/v1/projects/{project_id}/decisions/{decision_id}:supersede", operation_id="supersede_decision")
     async def supersede_decision(

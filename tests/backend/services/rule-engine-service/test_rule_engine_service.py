@@ -321,3 +321,27 @@ def test_api_contract_routes_are_registered():
     assert "/api/v1/projects/{project_id}/approval-queue" in routes
     assert "/api/v1/projects/{project_id}/anomalies" in routes
     assert "/api/v1/projects/{project_id}/rule-health" in routes
+
+
+def test_trust_below_floor_escalates_high_risk():
+    service = RuleEngineService(InMemoryStore())
+    service.create_rule(SCOPE, "agent", "corr", "rule-trust", security_rule())
+    result = service.evaluate_rules(
+        SCOPE,
+        "agent",
+        "corr",
+        "eval-trust",
+        {
+            "subject_ref": "change-auth-trust",
+            "summary": "Update production auth middleware",
+            "change_type": "code",
+            "tags": ["security", "auth", "production"],
+            "paths": ["src/auth/middleware.py"],
+            "evidence_refs": ["diff-trust"],
+            "agent_trust_level": "standard",
+            "provider": "standard",
+        },
+    )
+    assert result["blocked"] is True
+    assert result["final_verdict"] == "escalate"
+    assert any("below high-risk floor" in (e.get("rationale") or "") for e in result["evaluations"])
