@@ -290,39 +290,82 @@ def test_run_install_role_implies_noninteractive(tmp_path: Path) -> None:
     assert "INSTALL_ARGS:--yes --non-interactive --role client" in proc.stdout
 
 
-def test_discard_generated_checkout_dirt_removes_egg_info(tmp_path: Path) -> None:
-    """Editable-install egg-info must not block ff-only pull."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    egg = repo / "backend" / "packages" / "agentcore.egg-info"
-    egg.mkdir(parents=True)
-    (egg / "PKG-INFO").write_text("Name: agentcore\n", encoding="utf-8")
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
-    (egg / "PKG-INFO").write_text("Name: agentcore\nVersion: dirty\n", encoding="utf-8")
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=repo,
+def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
         capture_output=True,
         text=True,
         check=True,
     )
-    assert "PKG-INFO" in dirty.stdout
+
+
+def test_discard_generated_checkout_dirt_removes_egg_info(tmp_path: Path) -> None:
+    """Untracked editable-install egg-info must be removed before channel sync."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("ok\n", encoding="utf-8")
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "init")
+    egg = repo / "backend" / "packages" / "agentcore.egg-info"
+    egg.mkdir(parents=True)
+    (egg / "PKG-INFO").write_text("Name: agentcore\nVersion: dirty\n", encoding="utf-8")
+    dirty = _git(repo, "status", "--porcelain", "-u")
+    assert "egg-info" in dirty.stdout
 
     proc = _source_helpers(f"discard_generated_checkout_dirt {repo.as_posix()!r}")
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert not egg.exists()
-    clean = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
+    clean = _git(repo, "status", "--porcelain", "-u")
+    assert clean.stdout.strip() == ""
+
+
+def test_sync_git_checkout_to_origin_discards_tracked_dirt(tmp_path: Path) -> None:
+    """Main-channel update must converge despite dirty tracked docs (not only egg-info)."""
+    upstream = tmp_path / "upstream.git"
+    subprocess.run(["git", "init", "--bare", str(upstream)], check=True, capture_output=True)
+
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _git(seed, "init")
+    _git(seed, "config", "user.email", "t@example.com")
+    _git(seed, "config", "user.name", "t")
+    (seed / "docs").mkdir()
+    (seed / "docs" / "note.md").write_text("v1\n", encoding="utf-8")
+    _git(seed, "add", "-A")
+    _git(seed, "commit", "-m", "v1")
+    _git(seed, "branch", "-M", "main")
+    _git(seed, "remote", "add", "origin", str(upstream))
+    _git(seed, "push", "-u", "origin", "main")
+
+    work = tmp_path / "work"
+    subprocess.run(
+        ["git", "clone", "--branch", "main", str(upstream), str(work)],
         check=True,
+        capture_output=True,
     )
-    assert "egg-info" not in clean.stdout
+    assert (work / "docs" / "note.md").is_file()
+    _git(work, "config", "user.email", "t@example.com")
+    _git(work, "config", "user.name", "t")
+    (work / ".env").write_text("KEEP=1\n", encoding="utf-8")
+    (work / "docs" / "note.md").write_text("local dirt\n", encoding="utf-8")
+
+    (seed / "docs" / "note.md").write_text("v2\n", encoding="utf-8")
+    _git(seed, "add", "-A")
+    _git(seed, "commit", "-m", "v2")
+    _git(seed, "push", "origin", "main")
+
+    proc = _source_helpers(f"sync_git_checkout_to_origin {work.as_posix()!r} main")
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert (work / "docs" / "note.md").read_text(encoding="utf-8") == "v2\n"
+    assert (work / ".env").read_text(encoding="utf-8") == "KEEP=1\n"
+    tip = _git(work, "rev-parse", "origin/main").stdout.strip()
+    head = _git(work, "rev-parse", "HEAD").stdout.strip()
+    assert head == tip
+    assert "Discarding local tracked changes" in proc.stderr
 
 
 def test_noninteractive_requires_channel() -> None:

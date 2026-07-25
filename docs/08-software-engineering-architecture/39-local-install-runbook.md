@@ -30,11 +30,13 @@ authority: normative
 visibility: internal
 linked_symbols:
 - tests/backend/tools/install/test_install_smoke.py::test_install_smoke_script_exists_and_executable
+- tests/backend/tools/install/test_get_agentcore.py::test_sync_git_checkout_to_origin_discards_tracked_dirt
 - scripts/install/common.sh::resolve_install_role
 - scripts/install/common.sh::resolve_install_runtime
 - scripts/get-agentcore.sh::parse_and_run
 - scripts/get-agentcore.sh::fetch_release_into
 - scripts/get-agentcore.sh::fetch_main_into
+- scripts/get-agentcore.sh::sync_git_checkout_to_origin
 related_docs:
 - docs/08-software-engineering-architecture/19-zero-touch-installation-and-bootstrap-automation.md
 - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
@@ -42,14 +44,14 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.5
+doc_version: 1.3.6
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 39 - Local Install Runbook
@@ -76,7 +78,7 @@ You will be asked:
 
 1. **Channel**
    - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
-   - **main** — tip of the `main` branch (may include unreleased commits)
+   - **main** — tip of the `main` branch (may include unreleased commits). Re-running on an existing git checkout resets tracked files to `origin/main` (same overwrite intent as the release tarball sync). Operator state under preserve paths (`.agentcore`, `.env`, `.venv`, compose `.env.local`, …) is kept.
 2. **Install root** (default `/opt/AgentCore`)
 3. Then `install.sh` menus: install/upgrade (no default) → **y/n confirm** (no default; `y`/`yes` or `n`/`no`) → client/server (no default; and server MCP mode). Unattended: pass `--role` (implies `--non-interactive --yes`) or explicit `--yes --non-interactive`.
 

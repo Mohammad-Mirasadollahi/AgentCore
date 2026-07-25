@@ -289,7 +289,7 @@ fetch_release_into() {
   cleanup_release
 }
 
-# Drop local setuptools dirt so ff-only pull is not blocked after editable installs.
+# Drop local setuptools dirt after editable installs.
 # Does not touch operator state (.agentcore, .env, compose .env.local, …).
 discard_generated_checkout_dirt() {
   local root="$1"
@@ -298,7 +298,7 @@ discard_generated_checkout_dirt() {
 
   while IFS= read -r dir; do
     [[ -n "${dir}" ]] || continue
-    # Reset tracked copies first (pull may delete them once clean).
+    # Reset tracked copies first (channel sync may delete them once clean).
     git -C "${root}" checkout -- "${dir}" >/dev/null 2>&1 || true
     git -C "${root}" clean -fd -- "${dir}" >/dev/null 2>&1 || true
     rm -rf "${dir}"
@@ -311,16 +311,42 @@ discard_generated_checkout_dirt() {
   done < <(git -C "${root}" diff --name-only --diff-filter=M -- '*.egg-info/*' '**/*.egg-info/**' 2>/dev/null || true)
 }
 
+# Converge an existing AgentCore git checkout to origin/<branch>.
+# get/bootstrap applies the channel tip (same overwrite semantics as release
+# tarball sync). Tracked local edits and non-ff local commits are discarded.
+# Operator state in preserve_paths is gitignored / untracked and stays.
+sync_git_checkout_to_origin() {
+  local root="$1"
+  local branch="$2"
+  local tip="origin/${branch}"
+
+  discard_generated_checkout_dirt "${root}"
+  git -C "${root}" fetch --tags origin
+  git -C "${root}" checkout "${branch}"
+
+  if ! git -C "${root}" rev-parse --verify "${tip}" >/dev/null 2>&1; then
+    fail "missing ${tip} after fetch"
+  fi
+
+  if ! git -C "${root}" diff-index --quiet HEAD -- 2>/dev/null; then
+    warn "Discarding local tracked changes so ${branch} tip can apply (operator paths preserved)"
+  elif [[ "$(git -C "${root}" rev-parse HEAD)" != "$(git -C "${root}" rev-parse "${tip}")" ]]; then
+    # Ahead/behind or diverged: still converge; warn only when rewriting local commits.
+    if [[ -n "$(git -C "${root}" rev-list --max-count=1 "${tip}..HEAD" 2>/dev/null || true)" ]]; then
+      warn "Discarding local commits not on ${tip} so channel tip can apply"
+    fi
+  fi
+
+  git -C "${root}" reset --hard "${tip}"
+}
+
 fetch_main_into() {
   local root="$1"
   require_cmds git
   if is_agentcore_git_checkout "${root}"; then
     info "Updating existing git checkout at ${root}"
-    discard_generated_checkout_dirt "${root}"
-    git -C "${root}" fetch --tags origin
-    git -C "${root}" checkout "${AGENTCORE_DEFAULT_BRANCH}"
-    git -C "${root}" pull --ff-only origin "${AGENTCORE_DEFAULT_BRANCH}"
-    ok "Pulled ${AGENTCORE_DEFAULT_BRANCH} → ${root}"
+    sync_git_checkout_to_origin "${root}" "${AGENTCORE_DEFAULT_BRANCH}"
+    ok "Synced ${AGENTCORE_DEFAULT_BRANCH} → ${root}"
     return 0
   fi
 
