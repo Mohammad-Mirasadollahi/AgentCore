@@ -97,6 +97,7 @@ class SyncProgressTracker:
     def _update_unlocked(self, event: dict[str, Any]) -> None:
         event = dict(event)
         previous_sessions = self._latest.get("llm_sessions")
+        previous_status = str(self._latest.get("status") or "")
         if "llm_sessions" not in event and isinstance(previous_sessions, dict):
             event["llm_sessions"] = dict(previous_sessions)
             event.setdefault("rpm", int(previous_sessions.get("rpm") or 0))
@@ -189,8 +190,19 @@ class SyncProgressTracker:
         }
         self._write(snapshot)
 
-        # Print sparsely: start/finish/cancel, first ETA, then every interval_sec.
-        force = status in {"started", "finished", "cancelled"} or pct >= 100.0
+        if status in {"finished", "cancelled"}:
+            self._finished = True
+
+        # Empty queue (noop): keep snapshot for live readers, no 0/0 theater.
+        if total == 0:
+            return
+
+        # Force only on status *transition* into start/finish/cancel — not every
+        # RPM session poll while status remains "started"/"finished".
+        milestone = status in {"started", "finished", "cancelled"}
+        force = (milestone and status != previous_status) or (
+            pct >= 100.0 and self._last_pct_printed < 100.0
+        )
         due = (now - self._last_print) >= self.interval_sec
         rate_became_available = bool(self._ewma_rate) and not self._had_rate
         if self._ewma_rate:
@@ -200,8 +212,6 @@ class SyncProgressTracker:
         self._last_print = now
         self._last_pct_printed = pct
         print_progress_line(snapshot)
-        if status in {"finished", "cancelled"}:
-            self._finished = True
 
     def finish(self, *, cancelled: bool = False) -> None:
         with self._lock:

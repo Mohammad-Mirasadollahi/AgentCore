@@ -537,3 +537,78 @@ def test_ingest_calls_on_progress(tmp_path: Path):
     assert events[-1]["status"] == "finished"
     assert events[-1]["total"] >= 2
     assert events[-1]["done"] == events[-1]["total"]
+
+
+def test_session_updates_do_not_reprint_while_status_started(
+    tmp_path: Path, monkeypatch, capsys
+):
+    """Regression: status=started must not force-print on every RPM poll."""
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 10,
+            "status": "started",
+            "files_in_flight": 1,
+            "file_workers": 1,
+        }
+    )
+    capsys.readouterr()
+    sessions_a = {
+        "rpm": 30,
+        "inflight_cap": 30,
+        "starts_in_window": 0,
+        "inflight_count": 0,
+        "inflight": [],
+        "history": [],
+    }
+    sessions_b = {**sessions_a, "starts_in_window": 1}
+    tracker.update_sessions(sessions_a)
+    tracker.update_sessions(sessions_b)
+    tracker.update_sessions({**sessions_b, "inflight_count": 1})
+    out = capsys.readouterr().out
+    assert "code 0/10" not in out
+    tracker({"phase": "ingest", "done": 10, "total": 10, "status": "finished"})
+    out_fin = capsys.readouterr().out
+    assert "code 10/10" in out_fin
+    tracker.finish()
+
+
+def test_empty_queue_skips_console_progress_theater(
+    tmp_path: Path, monkeypatch, capsys
+):
+    """Noop / 0 files to visit: write snapshot, do not spam 0/0 progress blocks."""
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    progress_file = tmp_path / "sync-progress.json"
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=1.0,
+        progress_file=progress_file,
+    )
+    tracker({"phase": "ingest", "done": 0, "total": 0, "status": "started"})
+    tracker.update_sessions(
+        {
+            "rpm": 30,
+            "inflight_cap": 30,
+            "starts_in_window": 0,
+            "inflight_count": 0,
+            "inflight": [],
+            "history": [],
+        }
+    )
+    tracker({"phase": "ingest", "done": 0, "total": 0, "status": "finished"})
+    out = capsys.readouterr().out
+    assert "0/0" not in out
+    assert "0.0%" not in out
+    data = json.loads(progress_file.read_text(encoding="utf-8"))
+    assert data["total"] == 0
+    assert data["status"] == "finished"
+    tracker.finish()
