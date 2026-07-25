@@ -5,8 +5,6 @@ from __future__ import annotations
 from argparse import Namespace
 from pathlib import Path
 
-import pytest
-
 from agentcore_cli.client_allowlist import (
     CLIENT_TOP_LEVEL_COMMANDS,
     client_command_allowed,
@@ -36,8 +34,9 @@ def test_client_allowlist_excludes_server_admin():
         assert name not in CLIENT_TOP_LEVEL_COMMANDS
 
 
-def test_upgrade_only_client_subcommand_allowed():
+def test_upgrade_client_safe_subcommands_allowed():
     assert client_command_allowed("upgrade", Namespace(upgrade_command="client"))
+    assert client_command_allowed("upgrade", Namespace(upgrade_command="finalize"))
     assert not client_command_allowed("upgrade", Namespace(upgrade_command="run"))
     assert not client_command_allowed("upgrade", Namespace(upgrade_command="prepare"))
 
@@ -52,7 +51,6 @@ def test_full_cli_denies_graph_when_role_client(monkeypatch, tmp_path: Path):
         "agentcore_cli.service_runtime.paths.install_role",
         lambda _root: "client",
     )
-    # Deny must happen before graph side effects.
     assert (
         main_mod.main(["graph", "freshness", "--tenant", "t", "--workspace", "w", "--project", "p"])
         == 2
@@ -60,7 +58,25 @@ def test_full_cli_denies_graph_when_role_client(monkeypatch, tmp_path: Path):
     assert "client" in deny_message_for_client_role("graph").lower()
 
 
-def test_full_cli_allows_graph_when_role_server(monkeypatch, tmp_path: Path):
+def test_full_cli_allows_upgrade_finalize_when_role_client(monkeypatch):
+    from agentcore_cli import main as main_mod
+
+    monkeypatch.setattr(
+        "agentcore_cli.service_runtime.paths.install_role",
+        lambda _root: "client",
+    )
+    called = {"n": 0}
+
+    def _fake_finalize(args):
+        called["n"] += 1
+        return 0
+
+    monkeypatch.setattr(main_mod, "cmd_upgrade_finalize", _fake_finalize)
+    assert main_mod.main(["upgrade", "finalize", "--runtime", "host"]) == 0
+    assert called["n"] == 1
+
+
+def test_full_cli_allows_graph_when_role_server(monkeypatch):
     from agentcore_cli import main as main_mod
 
     monkeypatch.setattr(

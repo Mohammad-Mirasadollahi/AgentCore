@@ -147,15 +147,21 @@ run_install_upgrade() {
   export INSTALL_NONINTERACTIVE
 
   cli="${AGENTCORE_ROOT}/.venv/bin/agentcore"
+  # Prefer role-correct binary (client-only → agentcore-client).
+  if [[ -x "${AGENTCORE_ROOT}/.venv/bin/agentcore-client" ]] && {
+    [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null
+  }; then
+    cli="${AGENTCORE_ROOT}/.venv/bin/agentcore-client"
+  fi
   runtime_arg="${INSTALL_RUNTIME:-venv}"
   if [[ -x "${cli}" ]]; then
-    info "Stamping upgrade evidence via agentcore upgrade finalize"
+    info "Stamping upgrade evidence via ${cli##*/} upgrade finalize"
     case "${runtime_arg}" in
       venv) runtime_arg="host" ;;
     esac
     run "${cli}" upgrade finalize --runtime "${runtime_arg}"
   else
-    warn "agentcore CLI missing after upgrade; wrote backup only at ${backup_dir}"
+    warn "CLI missing after upgrade; wrote backup only at ${backup_dir}"
   fi
   ok "upgrade complete (runtime=${INSTALL_RUNTIME:-venv})"
 }

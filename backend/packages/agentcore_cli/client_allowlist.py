@@ -21,8 +21,8 @@ CLIENT_TOP_LEVEL_COMMANDS = frozenset(
     }
 )
 
-# For ``upgrade``, only the client refresh subcommand is allowed on client hosts.
-CLIENT_UPGRADE_SUBCOMMANDS = frozenset({"client"})
+# For ``upgrade``, only client-safe subcommands (refresh + install finalize stamp).
+CLIENT_UPGRADE_SUBCOMMANDS = frozenset({"client", "finalize"})
 
 
 def client_command_allowed(command: str | None, args: Any | None = None) -> bool:
@@ -41,6 +41,6 @@ def deny_message_for_client_role(command: str | None) -> str:
     cmd = command or "(none)"
     return (
         f"error: command {cmd!r} is not available on install role=client "
-        f"(use the thin client CLI for connect/profile/sync/purge/status, "
+        f"(use agentcore-client for connect/profile/sync/purge/status/upgrade client|finalize, "
         f"or run server-admin commands on the AgentCore server)"
     )

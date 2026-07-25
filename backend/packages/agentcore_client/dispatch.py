@@ -21,7 +21,7 @@ from agentcore_cli.commands.project import (
 )
 from agentcore_cli.commands.status import cmd_status
 from agentcore_cli.commands.sync import cmd_purge, cmd_sync
-from agentcore_cli.commands.upgrade import cmd_upgrade_client
+from agentcore_cli.commands.upgrade import cmd_upgrade_client, cmd_upgrade_finalize
 
 
 def dispatch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -69,5 +69,7 @@ def dispatch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.command == "upgrade":
         if args.upgrade_command == "client":
             return cmd_upgrade_client(args)
+        if args.upgrade_command == "finalize":
+            return cmd_upgrade_finalize(args)
     parser.print_help()
     return 2

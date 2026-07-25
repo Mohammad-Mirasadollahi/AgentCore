@@ -31,9 +31,12 @@ def test_thin_parses_purge_yes():
     assert args.yes is True
 
 
-def test_thin_upgrade_only_client():
+def test_thin_upgrade_client_and_finalize():
     parser = build_parser()
     args = parser.parse_args(["upgrade", "client"])
     assert args.upgrade_command == "client"
+    args_f = parser.parse_args(["upgrade", "finalize", "--runtime", "host"])
+    assert args_f.upgrade_command == "finalize"
+    assert args_f.runtime == "host"
     with pytest.raises(SystemExit):
         parser.parse_args(["upgrade", "run"])

@@ -8,10 +8,10 @@ from agentcore_cli.util import add_scope_args
 
 
 def register_upgrade_client(sub: argparse._SubParsersAction) -> None:
-    """Register only ``upgrade client`` (thin / client-only surface)."""
+    """Register client-safe upgrade subcommands (``client`` + ``finalize``)."""
     upgrade = sub.add_parser(
         "upgrade",
-        help="Refresh client CLI + optional connect rewire",
+        help="Client CLI refresh and install finalize stamp",
     )
     up_sub = upgrade.add_subparsers(dest="upgrade_command", required=True)
     client = up_sub.add_parser("client", help="Refresh client CLI + optional connect rewire")
@@ -19,6 +19,12 @@ def register_upgrade_client(sub: argparse._SubParsersAction) -> None:
     client.add_argument("--from-ping", default="", help="Optional server ping JSON for compat check")
     client.add_argument("--skip-venv", action="store_true")
     client.add_argument("--skip-connect", action="store_true")
+    finalize = up_sub.add_parser(
+        "finalize",
+        help="Stamp versions/evidence after install.sh --upgrade (client or server)",
+    )
+    finalize.add_argument("--job-id", default="")
+    finalize.add_argument("--runtime", default="")
 
 
 def register(sub: argparse._SubParsersAction) -> None:

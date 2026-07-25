@@ -271,15 +271,30 @@ seed_repo_operator_files() {
   copy_example_if_missing "${REPO_SYNC_EXAMPLE}" "${REPO_SYNC_FILE}" "agentcore.sync.yaml"
 }
 
+# Role-correct venv CLI path (client-only → agentcore-client; else agentcore).
+role_venv_cli() {
+  local root="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin"
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    printf '%s\n' "${root}/agentcore-client"
+  else
+    printf '%s\n' "${root}/agentcore"
+  fi
+}
+
+# Role-correct PATH shim name.
+role_cli_name() {
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    printf '%s\n' "agentcore-client"
+  else
+    printf '%s\n' "agentcore"
+  fi
+}
+
 # Symlink the role-correct CLI onto ~/.local/bin and ensure PATH export in shell rc.
 install_cli_on_path() {
   local cli="${1:?}"
-  local client_only=0
-  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
-    client_only=1
-  fi
-  local link_name="agentcore"
-  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link_name
+  link_name="$(role_cli_name)"
   local link="${HOME}/.local/bin/${link_name}"
   [[ -x "${cli}" ]] || fail "CLI missing at ${cli}"
 
@@ -304,12 +319,8 @@ install_cli_on_path() {
 }
 
 user_cli_on_path() {
-  local client_only=0
-  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
-    client_only=1
-  fi
-  local link_name="agentcore"
-  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link_name
+  link_name="$(role_cli_name)"
   local link="${HOME}/.local/bin/${link_name}"
   [[ -e "${link}" || -L "${link}" ]]
 }
@@ -317,12 +328,8 @@ user_cli_on_path() {
 # True when the role-correct ~/.local/bin shim already points at this checkout's venv CLI.
 path_shim_matches_venv() {
   local cli="${1:?}"
-  local client_only=0
-  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
-    client_only=1
-  fi
-  local link_name="agentcore"
-  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link_name
+  link_name="$(role_cli_name)"
   local link="${HOME}/.local/bin/${link_name}"
   [[ -x "${cli}" ]] || return 1
   [[ -L "${link}" || -e "${link}" ]] || return 1
@@ -335,15 +342,8 @@ path_shim_matches_venv() {
 # Always ensure ~/.local/bin is exported for this process and present on disk.
 ensure_agentcore_on_path() {
   local venv_cli link_name
-  # Client-only: PATH name is agentcore-client (no bare agentcore).
-  # Server/both: PATH name is agentcore (full CLI; agentcore-client not required on PATH).
-  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
-    venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore-client"
-    link_name="agentcore-client"
-  else
-    venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
-    link_name="agentcore"
-  fi
+  venv_cli="$(role_venv_cli)"
+  link_name="$(role_cli_name)"
   export PATH="${HOME}/.local/bin:${PATH}"
   [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
   if path_shim_matches_venv "${venv_cli}" && command -v "${link_name}" >/dev/null 2>&1; then

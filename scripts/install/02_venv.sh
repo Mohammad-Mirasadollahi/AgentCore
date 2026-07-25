@@ -12,10 +12,11 @@ _venv_path() {
 # Virtualenv + imports only (PATH shim checked separately).
 stage_02_venv_only_check() {
   local errors=0
-  local venv_path py cli
+  local venv_path py cli role_cli
   venv_path="$(_venv_path)"
   py="${venv_path}/bin/python"
   cli="${venv_path}/bin/agentcore"
+  role_cli="$(role_venv_cli 2>/dev/null || printf '%s\n' "${cli}")"
 
   if [[ ! -x "${py}" ]]; then
     warn "missing ${py}"
@@ -31,12 +32,25 @@ stage_02_venv_only_check() {
     ok "venv agentcore present"
   fi
 
+  if [[ ! -x "${role_cli}" ]]; then
+    warn "missing ${role_cli} (role CLI incomplete)"
+    errors=1
+  else
+    ok "role CLI present: ${role_cli##*/}"
+  fi
+
   if [[ -x "${py}" ]]; then
     if ! "${py}" -c 'import fastapi, httpx, pytest, psycopg, agentcore_cli, usage_profile'; then
       warn "required Python imports failed inside venv"
       errors=1
     else
       ok "core Python imports OK"
+    fi
+    if [[ "$(role_cli_name 2>/dev/null || true)" == "agentcore-client" ]]; then
+      if ! "${py}" -c 'import agentcore_client'; then
+        warn "agentcore_client import failed inside venv"
+        errors=1
+      fi
     fi
   fi
 
@@ -45,13 +59,15 @@ stage_02_venv_only_check() {
 
 stage_02_venv_check() {
   local errors=0
+  local shim_name
+  shim_name="$(role_cli_name 2>/dev/null || printf '%s\n' agentcore)"
   stage_02_venv_only_check || errors=1
 
   if ! user_cli_on_path; then
-    warn "missing ${HOME}/.local/bin/agentcore (PATH shim)"
+    warn "missing ${HOME}/.local/bin/${shim_name} (PATH shim)"
     errors=1
   else
-    ok "user PATH shim: ${HOME}/.local/bin/agentcore"
+    ok "user PATH shim: ${HOME}/.local/bin/${shim_name}"
   fi
 
   return "${errors}"
@@ -88,7 +104,7 @@ stage_02_venv_run() {
   fi
 
   # Always (re)install PATH shim + shell rc — never skip when venv was already OK.
-  install_cli_on_path "${venv_path}/bin/agentcore"
+  install_cli_on_path "$(role_venv_cli)"
   stage_02_venv_check || fail "venv/PATH verification failed after path install"
   seed_repo_operator_files
   mark_stage "02_venv" "ok"
