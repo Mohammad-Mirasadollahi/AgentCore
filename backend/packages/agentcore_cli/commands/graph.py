@@ -80,11 +80,16 @@ def _require_cloud_llm_consent(
     paths: Sequence[str | Path] | None = None,
     input_fn: Any | None = None,
     stdin_isatty: bool | None = None,
-) -> None:
-    """Fail closed on non-private LLM routes unless flag or interactive yes."""
+) -> bool:
+    """Fail closed on non-private LLM routes unless flag or interactive yes.
+
+    Returns True when this run is explicitly allowed (flag or interactive consent)
+    so remote SSH sync can forward ``--allow-cloud-llm``. Returns False when the
+    route is disabled/private (no flag needed).
+    """
     config = svc.llm_config()
     if not config.get("enabled"):
-        return
+        return False
     models: list[str] = []
     for enabled_key, route_key in (
         ("docs_enabled", "route_docs"),
@@ -99,7 +104,7 @@ def _require_cloud_llm_consent(
             if isinstance(model, str) and model.strip()
         )
     if not models:
-        return
+        return False
     host = urlparse(str(config.get("api_base") or "")).hostname or ""
     try:
         loopback = ip_address(host).is_loopback
@@ -107,8 +112,10 @@ def _require_cloud_llm_consent(
         loopback = False
     local_prefixes = ("local/", "localai/", "lm_studio/", "ollama/", "ollama_chat/", "hosted_vllm/")
     private_route = loopback and all(model.lower().startswith(local_prefixes) for model in models)
-    if private_route or allowed:
-        return
+    if private_route:
+        return False
+    if allowed:
+        return True
 
     path_list = [str(Path(p)) for p in (paths or [])]
     tty = sys.stdin.isatty() if stdin_isatty is None else bool(stdin_isatty)
@@ -164,6 +171,7 @@ def _require_cloud_llm_consent(
     ).strip().lower()
     if answer2 not in {"y", "yes"}:
         raise SystemExit("error: scope ID confirmation declined. Nothing was synced.")
+    return True
 
 
 

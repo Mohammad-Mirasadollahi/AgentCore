@@ -141,9 +141,9 @@ def test_sync_cloud_llm_requires_explicit_per_run_consent():
             stdin_isatty=False,
         )
     # Flag skips prompt
-    _require_cloud_llm_consent(Service("openai/gpt-oss"), allowed=True, stdin_isatty=False)
+    assert _require_cloud_llm_consent(Service("openai/gpt-oss"), allowed=True, stdin_isatty=False) is True
     # Local private route needs no consent
-    _require_cloud_llm_consent(Service("ollama/local-model"), allowed=False, stdin_isatty=False)
+    assert _require_cloud_llm_consent(Service("ollama/local-model"), allowed=False, stdin_isatty=False) is False
 
     class EmbedService:
         def llm_config(self):
@@ -164,15 +164,18 @@ def test_sync_cloud_llm_requires_explicit_per_run_consent():
 
     # Interactive: both yes steps required
     answers = iter(["yes", "yes"])
-    _require_cloud_llm_consent(
-        Service("openai/gpt-oss"),
-        allowed=False,
-        tenant="acme",
-        workspace="eng",
-        project="agentcore",
-        paths=["/opt/MyApp"],
-        input_fn=lambda _p: next(answers),
-        stdin_isatty=True,
+    assert (
+        _require_cloud_llm_consent(
+            Service("openai/gpt-oss"),
+            allowed=False,
+            tenant="acme",
+            workspace="eng",
+            project="agentcore",
+            paths=["/opt/MyApp"],
+            input_fn=lambda _p: next(answers),
+            stdin_isatty=True,
+        )
+        is True
     )
     # Decline on first yes
     with pytest.raises(SystemExit, match="cloud LLM consent declined"):

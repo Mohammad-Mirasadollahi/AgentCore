@@ -30,11 +30,11 @@ linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
 - backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
-- backend/packages/agentcore_cli/connect_flow.py::run_connect
+- backend/packages/agentcore_cli/connect_flow/run.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
-doc_version: 1.2.3
-updated_at: '2026-07-24'
+doc_version: 1.2.4
+updated_at: '2026-07-25'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding

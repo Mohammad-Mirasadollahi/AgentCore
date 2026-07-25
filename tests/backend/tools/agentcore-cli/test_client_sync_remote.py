@@ -18,8 +18,12 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
         seen.append(list(remote_command))
         return 0
 
-    monkeypatch.setattr("agentcore_cli.connect_flow._run_ssh", fake_run)
-    monkeypatch.setattr("agentcore_cli.connect_flow._remote_is_dir", lambda *_a, **_k: True)
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.run_ssh", fake_run)
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.client_remote_cloud_llm_allowed",
+        lambda *_a, **_k: False,
+    )
     settings = ConnectSettings(
         ssh="user@host",
         remote_root="/opt/AgentCore",
@@ -36,6 +40,13 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
         max_files=100,
         force=True,
         allow_cloud_llm=False,
+        cpu_percent=None,
+        progress_interval=30.0,
+        skip_nonconforming=False,
+        sync_nonconforming=False,
+        exclude_dir=[],
+        include_path=[],
+        include_ext=[],
     )
     assert remote_sync_from_args(settings, args) == 0
     assert seen
@@ -48,14 +59,141 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
     assert "--max-files" not in cmd and "--max-file" not in cmd
     # sync has no --force; must not forward it or remote parse fails after max-file.
     assert "--force" not in cmd
+    assert "--allow-cloud-llm" not in cmd
     from agentcore_cli.parser import build_parser
 
     parsed = build_parser().parse_args(cmd[1:])
     assert parsed.max_files == 100
 
 
+def test_remote_sync_prompts_local_cloud_llm_consent_and_forwards_flag(monkeypatch):
+    """SSH has no TTY — consent must run locally, then --allow-cloud-llm goes remote."""
+    seen: list[list[str]] = []
+    prompts: list[str] = []
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.run_ssh",
+        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
+    )
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.remote_llm_config",
+        lambda _settings: {
+            "enabled": True,
+            "api_base": "https://llm.example.com",
+            "docs_enabled": True,
+            "embeddings_enabled": False,
+            "route_docs": {"primary_model": "openai/gpt-oss", "fallback_models": []},
+            "route_embed": {"primary_model": "", "fallback_models": []},
+        },
+    )
+    answers = iter(["y", "yes"])
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(answers)
+
+    import agentcore_cli.commands.graph as graph_mod
+
+    real_consent = graph_mod._require_cloud_llm_consent
+
+    def consent_on_tty(svc, **kwargs):
+        kwargs.setdefault("stdin_isatty", True)
+        kwargs.setdefault("input_fn", fake_input)
+        return real_consent(svc, **kwargs)
+
+    monkeypatch.setattr(graph_mod, "_require_cloud_llm_consent", consent_on_tty)
+    settings = ConnectSettings(
+        ssh="user@host",
+        remote_root="/opt/AgentCore",
+        tenant="mir",
+        workspace="dev",
+        project="ThinkingSOC",
+        source_server_path="/opt/ThinkingSOC",
+    )
+    args = Namespace(
+        tenant=None,
+        workspace=None,
+        project=None,
+        path=None,
+        max_files=2000,
+        allow_cloud_llm=False,
+        cpu_percent="40",
+        progress_interval=15.0,
+        skip_nonconforming=True,
+        sync_nonconforming=False,
+        exclude_dir=["vendor"],
+        include_path=["src/**"],
+        include_ext=[".py"],
+    )
+    assert remote_sync_from_args(settings, args) == 0
+    assert len(prompts) == 2
+    assert "Allow cloud LLM" in prompts[0]
+    cmd = seen[0]
+    assert "--allow-cloud-llm" in cmd
+    assert "--cpu-percent" in cmd and "40" in cmd
+    assert "--progress-interval" in cmd and "15.0" in cmd
+    assert "--skip-nonconforming" in cmd
+    assert "--exclude-dir" in cmd and "vendor" in cmd
+    assert "--include-path" in cmd and "src/**" in cmd
+    assert "--include-ext" in cmd and ".py" in cmd
+    from agentcore_cli.parser import build_parser
+
+    parsed = build_parser().parse_args(cmd[1:])
+    assert parsed.allow_cloud_llm is True
+    assert parsed.skip_nonconforming is True
+    assert parsed.cpu_percent == "40"
+
+
+def test_remote_sync_forwards_allow_cloud_llm_without_reprompt(monkeypatch):
+    seen: list[list[str]] = []
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.run_ssh",
+        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
+    )
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.remote_llm_config",
+        lambda _settings: {
+            "enabled": True,
+            "api_base": "https://llm.example.com",
+            "docs_enabled": True,
+            "embeddings_enabled": False,
+            "route_docs": {"primary_model": "openai/gpt-oss", "fallback_models": []},
+            "route_embed": {"primary_model": "", "fallback_models": []},
+        },
+    )
+
+    def boom(_prompt: str) -> str:
+        raise AssertionError("must not prompt when --allow-cloud-llm already set")
+
+    monkeypatch.setattr("agentcore_cli.commands.graph._read_cloud_llm_yes_no", boom)
+    settings = ConnectSettings(
+        ssh="user@host",
+        remote_root="/opt/AgentCore",
+        source_server_path="/opt/src",
+    )
+    args = Namespace(
+        tenant="t",
+        workspace="w",
+        project="p",
+        path=None,
+        max_files=10,
+        allow_cloud_llm=True,
+        cpu_percent=None,
+        progress_interval=30.0,
+        skip_nonconforming=False,
+        sync_nonconforming=False,
+        exclude_dir=[],
+        include_path=[],
+        include_ext=[],
+    )
+    assert remote_sync_from_args(settings, args) == 0
+    assert "--allow-cloud-llm" in seen[0]
+
+
 def test_remote_sync_from_args_rejects_missing_server_path(monkeypatch):
-    monkeypatch.setattr("agentcore_cli.connect_flow._remote_is_dir", lambda *_a, **_k: False)
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: False)
     settings = ConnectSettings(
         ssh="user@host",
         remote_root="/opt/AgentCore",
@@ -78,8 +216,8 @@ def test_remote_ingest_skips_optional_when_path_missing_on_server(monkeypatch, c
         calls.append(list(remote_command))
         return 0
 
-    monkeypatch.setattr("agentcore_cli.connect_flow._run_ssh", fake_run)
-    monkeypatch.setattr("agentcore_cli.connect_flow._remote_is_dir", lambda *_a, **_k: False)
+    monkeypatch.setattr("agentcore_cli.connect_flow.ingest.run_ssh", fake_run)
+    monkeypatch.setattr("agentcore_cli.connect_flow.ingest.remote_is_dir", lambda *_a, **_k: False)
     settings = ConnectSettings(
         ssh="user@host",
         remote_root="/opt/AgentCore",
@@ -97,7 +235,7 @@ def test_remote_ingest_skips_optional_when_path_missing_on_server(monkeypatch, c
 
 
 def test_remote_ingest_fails_always_when_path_missing_on_server(monkeypatch, capsys):
-    monkeypatch.setattr("agentcore_cli.connect_flow._remote_is_dir", lambda *_a, **_k: False)
+    monkeypatch.setattr("agentcore_cli.connect_flow.ingest.remote_is_dir", lambda *_a, **_k: False)
     settings = ConnectSettings(
         ssh="user@host",
         remote_root="/opt/AgentCore",
