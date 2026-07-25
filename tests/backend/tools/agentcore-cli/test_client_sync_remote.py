@@ -43,8 +43,15 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
     assert cmd[0] == "/opt/AgentCore/.venv/bin/agentcore"
     assert cmd[1] == "sync"
     assert "--path" in cmd and "/opt/src" in cmd
-    assert "--force" in cmd
-    assert "--max-files" in cmd and "100" in cmd
+    # Remote argv must use bare max-file (peel_sync_max_file rejects --max-files).
+    assert "max-file" in cmd and "100" in cmd
+    assert "--max-files" not in cmd and "--max-file" not in cmd
+    # sync has no --force; must not forward it or remote parse fails after max-file.
+    assert "--force" not in cmd
+    from agentcore_cli.parser import build_parser
+
+    parsed = build_parser().parse_args(cmd[1:])
+    assert parsed.max_files == 100
 
 
 def test_remote_sync_from_args_rejects_missing_server_path(monkeypatch):

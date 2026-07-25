@@ -244,11 +244,11 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
         target = "server pinned software paths"
     max_files = getattr(args, "max_files", None)
     if max_files is not None:
-        remote_cmd.extend(["--max-files", str(max_files)])
-    if getattr(args, "force", False):
-        remote_cmd.append("--force")
+        # Bare form only — AgentCoreArgumentParser.peel_sync_max_file rejects --max-files.
+        remote_cmd.extend(["max-file", str(max_files)])
     if getattr(args, "allow_cloud_llm", False):
         remote_cmd.append("--allow-cloud-llm")
+    # Do not forward --force: sync has no such flag (init/project do).
     print(f"   {ui.warn('…')} remote sync on server ({target})")
     return _run_ssh(settings, remote_cmd)
 

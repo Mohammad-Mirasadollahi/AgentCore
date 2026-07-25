@@ -10,7 +10,7 @@ DEFAULT_SYNC_MAX_FILES = 2000
 
 
 def peel_sync_max_file(argv: list[str], error) -> tuple[list[str], int | None]:
-    """Accept bare ``max-file N`` on sync; reject dashed spellings."""
+    """Accept bare ``max-file N`` on sync; dashed forms are aliases (same value)."""
     if not argv or argv[0] != "sync":
         return argv, None
     out: list[str] = []
@@ -18,15 +18,14 @@ def peel_sync_max_file(argv: list[str], error) -> tuple[list[str], int | None]:
     i = 0
     while i < len(argv):
         tok = argv[i]
-        if tok in _SYNC_MAX_FILE_DASHED:
-            error("use max-file <n> (no leading dashes)")
-        if tok == "max-file":
+        if tok in _SYNC_MAX_FILE_DASHED or tok == "max-file":
+            label = "max-file" if tok == "max-file" else tok.lstrip("-")
             if i + 1 >= len(argv):
-                error("argument max-file: expected one integer argument")
+                error(f"argument {label}: expected one integer argument")
             try:
                 override = int(argv[i + 1])
             except ValueError:
-                error(f"argument max-file: invalid int value: {argv[i + 1]!r}")
+                error(f"argument {label}: invalid int value: {argv[i + 1]!r}")
             i += 2
             continue
         out.append(tok)

@@ -65,7 +65,10 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Override: sync only these roots (repeatable). Default: paths from init / paths list",
     )
     sync.set_defaults(max_files=DEFAULT_SYNC_MAX_FILES)
-    sync.epilog = "Limit file count with bare: max-file <n>  (example: agentcore sync max-file 50)"
+    sync.epilog = (
+        "Limit file count with: max-file <n>  "
+        "(aliases: --max-files / --max-file; example: agentcore sync max-file 50)"
+    )
     sync.add_argument(
         "--cpu-percent",
         default=None,

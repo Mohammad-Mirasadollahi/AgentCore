@@ -293,14 +293,10 @@ def test_parser_sync_defaults_path_and_optional_scope():
     assert purge.yes is True
 
 
-def test_parser_sync_max_file_bare_word_only():
+def test_parser_sync_max_file_forms():
     parser = build_parser()
     args = parser.parse_args(["sync", "max-file", "50"])
     assert args.max_files == 50
-    for bad in ("-max-file", "--max-file", "--max-files"):
-        try:
-            parser.parse_args(["sync", bad, "50"])
-        except SystemExit as exc:
-            assert exc.code == 2
-        else:
-            raise AssertionError(f"{bad} must be rejected for sync")
+    # Dashed forms are aliases (remote clients historically sent --max-files).
+    for alias in ("-max-file", "--max-file", "--max-files"):
+        assert parser.parse_args(["sync", alias, "50"]).max_files == 50
