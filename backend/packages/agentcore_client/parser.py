@@ -10,7 +10,7 @@ from agentcore_cli.parser._core import AgentCoreArgumentParser
 
 def build_parser() -> argparse.ArgumentParser:
     parser = AgentCoreArgumentParser(
-        prog="agentcore",
+        prog="agentcore-client",
         description=(
             "AgentCore client CLI — connect, Usage Profile, and process control "
             "(sync/purge/status) for your scope on the AgentCore server"

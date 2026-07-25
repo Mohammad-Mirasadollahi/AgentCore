@@ -271,11 +271,17 @@ seed_repo_operator_files() {
   copy_example_if_missing "${REPO_SYNC_EXAMPLE}" "${REPO_SYNC_FILE}" "agentcore.sync.yaml"
 }
 
-# Symlink ~/.local/bin/agentcore and ensure a durable PATH export in shell rc.
+# Symlink the role-correct CLI onto ~/.local/bin and ensure PATH export in shell rc.
 install_cli_on_path() {
   local cli="${1:?}"
-  local link="${HOME}/.local/bin/agentcore"
-  [[ -x "${cli}" ]] || fail "agentcore CLI missing at ${cli}"
+  local client_only=0
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    client_only=1
+  fi
+  local link_name="agentcore"
+  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link="${HOME}/.local/bin/${link_name}"
+  [[ -x "${cli}" ]] || fail "CLI missing at ${cli}"
 
   # Always persist PATH into the user's shell rc (path install creates rc if missing).
   # AGENTCORE_SHELL_RC overrides auto-detect (.bashrc/.profile or .zshrc).
@@ -287,25 +293,37 @@ install_cli_on_path() {
   fi
 
   if [[ ! -e "${link}" && ! -L "${link}" ]]; then
-    fail "PATH install failed: missing ${link} (agentcore must be on user PATH)"
+    fail "PATH install failed: missing ${link} (${link_name} must be on user PATH)"
   fi
-  # Current process + child stages see agentcore immediately.
+  # Current process + child stages see the CLI immediately.
   export PATH="${HOME}/.local/bin:${PATH}"
-  if ! command -v agentcore >/dev/null 2>&1; then
-    fail "PATH install failed: agentcore not resolvable after exporting ${HOME}/.local/bin"
+  if ! command -v "${link_name}" >/dev/null 2>&1; then
+    fail "PATH install failed: ${link_name} not resolvable after exporting ${HOME}/.local/bin"
   fi
-  ok "agentcore PATH shim: ${link}"
+  ok "${link_name} PATH shim: ${link}"
 }
 
 user_cli_on_path() {
-  local link="${HOME}/.local/bin/agentcore"
+  local client_only=0
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    client_only=1
+  fi
+  local link_name="agentcore"
+  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link="${HOME}/.local/bin/${link_name}"
   [[ -e "${link}" || -L "${link}" ]]
 }
 
-# True when ~/.local/bin/agentcore already points at this checkout's venv CLI.
+# True when the role-correct ~/.local/bin shim already points at this checkout's venv CLI.
 path_shim_matches_venv() {
   local cli="${1:?}"
-  local link="${HOME}/.local/bin/agentcore"
+  local client_only=0
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    client_only=1
+  fi
+  local link_name="agentcore"
+  [[ "${client_only}" -eq 1 ]] && link_name="agentcore-client"
+  local link="${HOME}/.local/bin/${link_name}"
   [[ -x "${cli}" ]] || return 1
   [[ -L "${link}" || -e "${link}" ]] || return 1
   local want have
@@ -316,22 +334,25 @@ path_shim_matches_venv() {
 
 # Always ensure ~/.local/bin is exported for this process and present on disk.
 ensure_agentcore_on_path() {
-  local venv_cli
-  # Client-only: PATH agentcore must resolve to thin entry (agentcore-client).
+  local venv_cli link_name
+  # Client-only: PATH name is agentcore-client (no bare agentcore).
+  # Server/both: PATH name is agentcore (full CLI; agentcore-client not required on PATH).
   if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
     venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore-client"
+    link_name="agentcore-client"
   else
     venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+    link_name="agentcore"
   fi
   export PATH="${HOME}/.local/bin:${PATH}"
   [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
-  if path_shim_matches_venv "${venv_cli}" && command -v agentcore >/dev/null 2>&1; then
-    ok "PATH ready: ${HOME}/.local/bin/agentcore"
+  if path_shim_matches_venv "${venv_cli}" && command -v "${link_name}" >/dev/null 2>&1; then
+    ok "PATH ready: ${HOME}/.local/bin/${link_name}"
     return 0
   fi
   install_cli_on_path "${venv_cli}"
-  user_cli_on_path || fail "agentcore still not on user PATH after install"
-  ok "PATH ready: ${HOME}/.local/bin/agentcore"
+  user_cli_on_path || fail "${link_name} still not on user PATH after install"
+  ok "PATH ready: ${HOME}/.local/bin/${link_name}"
 }
 
 # Normalize INSTALL_ROLE → client|server|both.

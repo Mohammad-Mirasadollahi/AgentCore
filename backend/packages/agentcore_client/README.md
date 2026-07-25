@@ -4,7 +4,7 @@ Thin CLI package for **client-only** AgentCore installs (`install.sh --role clie
 
 ## Purpose
 
-Expose only connect / Usage Profile / process-lifecycle commands so a laptop cannot run server-admin AgentCore operations. Operators still type `agentcore` — the PATH shim points here.
+Expose only connect / Usage Profile / process-lifecycle commands so a laptop cannot run server-admin AgentCore operations. The PATH name on client-only hosts is **`agentcore-client`** (bare `agentcore` is not installed).
 
 ## Boundaries
 
@@ -12,7 +12,7 @@ Expose only connect / Usage Profile / process-lifecycle commands so a laptop can
 | --- | --- |
 | Parse allowlisted commands | Register `service`, `graph`, `mcp serve`, governance, … |
 | Dispatch to shared `agentcore_cli` handlers | Call local graph purge when `connect.yaml` has SSH |
-| Stay import-light at the entry | Replace full CLI on `server` / `both` hosts |
+| Own the PATH name `agentcore-client` on `role=client` | Put bare `agentcore` on PATH for client-only; replace full CLI on `server` / `both` |
 
 ## Start here
 

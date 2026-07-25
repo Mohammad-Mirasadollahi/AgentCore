@@ -92,9 +92,9 @@ agentcore mcp serve-http --host 0.0.0.0 --port 32500
 
 CLI-only path (no Docker on the client). Same installer with `--role client` (or choose **client** in the menu).
 
-**Client-only installs use the thin CLI** (`agentcore-client`). After install, `~/.local/bin/agentcore` points at that thin entry — you still type `agentcore`, but only connect / profile / process commands are available (`connect`, `profile`, `project`, `sync`, `purge`, `status`, plus `doctor` / `client` / `path` / `upgrade client`). Server-admin commands (`service`, `graph`, `mcp serve`, …) are not on the client PATH.
+**Client-only installs use `agentcore-client` only** (no bare `agentcore` on PATH). After install, run `agentcore-client connect`, `agentcore-client sync`, etc. Server-admin commands (`service`, `graph`, `mcp serve`, …) are not available.
 
-**Server** and **both** keep the **full** `agentcore` CLI (and can run client workflows such as `connect` without a second client install).
+**Server** and **both** use bare **`agentcore`** (full CLI). Client workflows such as `connect` work there without a separate client install — `agentcore-client` is not needed on PATH.
 
 ```bash
 # empty machine — fully non-interactive client (no prompts after channel/root flags):
@@ -102,11 +102,11 @@ curl -fsSL https://raw.githubusercontent.com/Mohammad-Mirasadollahi/AgentCore/re
   | bash -s -- --channel main --role client
 # or from an existing clone:
 bash install.sh --skip-infra --yes --non-interactive --role client
-agentcore path install   # if needed; open a new shell
-agentcore connect
+agentcore-client path install   # if needed; open a new shell
+agentcore-client connect
 ```
 
-From the client you manage **your connected scope** on the server: `agentcore sync`, `agentcore status`, and `agentcore purge --yes` (purge is remote; scope is locked to `connect.yaml`).
+From the client you manage **your connected scope** on the server: `agentcore-client sync`, `agentcore-client status`, and `agentcore-client purge --yes` (purge is remote; scope is locked to `connect.yaml`).
 
 Edit `.agentcore/connect.yaml` under the checkout (or run the connect wizard).
 
@@ -234,9 +234,9 @@ bash install.sh
 Open a **new** shell, then:
 
 ```bash
-agentcore doctor          # server / both (full CLI)
-agentcore connect         # client-only or both (after connect.yaml)
-# Client-only PATH is the thin CLI; server/both PATH is the full CLI.
+agentcore doctor          # server / both (full CLI; bare agentcore only)
+agentcore-client connect  # client-only host (no bare agentcore on PATH)
+# Client-only PATH name is agentcore-client; server/both PATH name is agentcore.
 ```
 
 - Full steps, flags, and troubleshooting → [Local install runbook](docs/08-software-engineering-architecture/39-local-install-runbook.md)

@@ -93,33 +93,34 @@ def _resolve_shell_rcs(args: argparse.Namespace) -> list[Path]:
 
 
 def cmd_path_install(args: argparse.Namespace) -> int:
-    """Ensure agentcore is on PATH: symlink + durable shell rc PATH export (default)."""
+    """Ensure the role-correct CLI name is on PATH (symlink + shell rc PATH export)."""
     quiet = bool(getattr(args, "quiet", False))
     root = repo_root()
     venv_dir = os.environ.get("AGENTCORE_VENV_DIR", ".venv")
     from agentcore_cli.service_runtime.paths import install_role
 
-    # Client-only: PATH `agentcore` must resolve to the thin entry.
-    bin_name = "agentcore-client" if install_role(root) == "client" else "agentcore"
+    role = install_role(root)
+    # client-only → agentcore-client only (no bare agentcore on PATH).
+    # server / both → bare agentcore only (full CLI; no agentcore-client on PATH).
+    client_only = role == "client"
+    bin_name = "agentcore-client" if client_only else "agentcore"
     source = root / venv_dir / "bin" / bin_name
     if not source.is_file():
         raise SystemExit(
             f"error: {venv_dir}/bin/{bin_name} missing; run: bash scripts/ensure-venv.sh"
         )
     local_bin = Path(os.path.expanduser("~")) / ".local" / "bin"
-    target = local_bin / "agentcore"
+    target = local_bin / bin_name
+    other = local_bin / ("agentcore" if client_only else "agentcore-client")
     symlink_error: str | None = None
     try:
         local_bin.mkdir(parents=True, exist_ok=True)
         if target.is_symlink() or target.exists():
             target.unlink()
         target.symlink_to(source.resolve())
-        # Also expose the thin name on client hosts for explicit use.
-        if bin_name == "agentcore-client":
-            thin_link = local_bin / "agentcore-client"
-            if thin_link.is_symlink() or thin_link.exists():
-                thin_link.unlink()
-            thin_link.symlink_to(source.resolve())
+        # Opposite name must not linger on PATH for this install role.
+        if other.is_symlink() or other.exists():
+            other.unlink()
     except OSError as exc:  # sandbox / read-only home
         symlink_error = str(exc)
 
@@ -157,6 +158,9 @@ def cmd_path_install(args: argparse.Namespace) -> int:
     payload: dict = {
         "symlink": str(target),
         "points_to": str(source.resolve()),
+        "cli_name": bin_name,
+        "install_role": role or "unknown",
+        "removed_other": str(other),
         "local_bin_on_path": on_path,
         "symlink_ok": symlink_error is None,
         "shell_rcs": rc_results,
@@ -168,5 +172,4 @@ def cmd_path_install(args: argparse.Namespace) -> int:
         print_json(payload)
     elif hint:
         print(hint)
-    # Symlink is required for default install UX (client + server).
     return 0 if symlink_error is None else 1

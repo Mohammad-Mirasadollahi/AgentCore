@@ -136,11 +136,11 @@ Thin package **imports** allowed command handlers from `agentcore_cli` (shared i
 
 ### Install / PATH
 
-| Install role | PATH `agentcore` | Thin package |
+| Install role | PATH CLI name | Thin package |
 | --- | --- | --- |
-| `client` | Shim to **thin** (`agentcore_client.main`) | **Required** — this is the only supported CLI |
-| `server` | Full `agentcore_cli.main` | Not required; full CLI covers client workflows |
-| `both` | Full `agentcore_cli.main` | Not required; same as server for CLI surface |
+| `client` | **`agentcore-client` only** (remove bare `agentcore` if present) | Required |
+| `server` | **`agentcore` only** (remove `agentcore-client` if present) | Not on PATH |
+| `both` | **`agentcore` only** (full CLI; remove `agentcore-client` if present) | Not on PATH |
 
 Defense in depth: if `install_role(root) == "client"` and someone invokes `python -m agentcore_cli.main <cmd>`, **deny** any command not on the allowlist with a clear error pointing at the thin client entry.  
 Do **not** apply that allowlist gate when role is `server` or `both` — those hosts keep the full surface (client ops included).
@@ -217,9 +217,10 @@ Do **not** apply that allowlist gate when role is `server` or `both` — those h
 | --- | --- |
 | Approach | **2** — separate thin package for **client-only**; server keeps full CLI |
 | Server as client | **Yes** — full `agentcore` includes client workflows; no second client install |
-| Client-only | **Must** use thin package (`agentcore` shim → `agentcore_client`) |
+| Client-only | **Must** use PATH name `agentcore-client` only (no bare `agentcore`) |
 | Purge from client-only | **Yes**, own scope only, remote |
-| PATH UX on client-only | `agentcore` → thin implementation |
+| PATH UX on client-only | `agentcore-client` only |
+| PATH UX on server/both | `agentcore` only (full CLI; `agentcore-client` not on PATH) |
 | Security bar | Fail-closed scope lock; no local purge; SSH argv safety; dual gate on client role only |
 
 ## Related Documents

@@ -37,7 +37,7 @@ related_docs:
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.1.0
+doc_version: 1.1.1
 audience:
 - engineer
 - operator
@@ -54,10 +54,10 @@ updated_at: '2026-07-25'
 
 **Install roles and CLI surface:**
 
-| Role | PATH `agentcore` | Surface |
+| Role | PATH CLI name | Surface |
 | --- | --- | --- |
-| `server` / `both` | Full entry (`.venv/bin/agentcore` → `agentcore_cli`) | Full command catalog; includes client workflows (`connect`, remote sync) — no second client install |
-| `client` | Thin entry (shim → `.venv/bin/agentcore-client` → `agentcore_client`) | Allowlist only: connect, profile/project, sync, purge, status, doctor, client wire, path, `upgrade client` |
+| `server` / `both` | `agentcore` only (full `agentcore_cli`) | Full catalog; includes client workflows — no `agentcore-client` on PATH |
+| `client` | `agentcore-client` only (thin `agentcore_client`) | Allowlist only; bare `agentcore` is **not** installed on PATH |
 
 Client-only `purge` / `sync` / `status` run against the AgentCore **server** over SSH using `connect.yaml` scope (fail-closed if CLI scope flags disagree). Design SoT: [thin-client CLI design](../superpowers/specs/2026-07-25-thin-client-cli-design.md).
 
@@ -90,7 +90,7 @@ This will:
 1. Create/refresh `.venv`
 2. Install `requirements-dev.txt`
 3. `pip install -e .` so `.venv/bin/agentcore` and `.venv/bin/agentcore-client` exist
-4. Symlink `~/.local/bin/agentcore` → full or thin binary according to `role=` in install-state
+4. Symlink `~/.local/bin/agentcore` (server/both) or `~/.local/bin/agentcore-client` (client-only); remove the opposite name if present
 5. Append a PATH export to `~/.bashrc` or `~/.zshrc` when `~/.local/bin` is not already on PATH
 
 Manual PATH install:

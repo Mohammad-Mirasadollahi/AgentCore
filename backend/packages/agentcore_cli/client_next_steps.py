@@ -1,6 +1,6 @@
 """Post-install / post-upgrade next steps for coding-agent (client) hosts.
 
-Usage Profile id is never set during client install — only at ``agentcore connect``.
+Usage Profile id is never set during client install — only at ``agentcore-client connect``.
 """
 
 from __future__ import annotations
@@ -12,27 +12,27 @@ CLIENT_USAGE_PROFILE_NEXT_STEPS = """\
 Usage Profile id (set at connect — not during client install/upgrade):
 
   List ids:
-    agentcore profile list
+    agentcore-client profile list
 
   Interactive (from your app repo):
     cd /path/to/YourApp
-    agentcore connect
+    agentcore-client connect
     # Wizard asks for Usage Profile: enter an id or list number
 
   Non-interactive — remote AgentCore server (SSH):
-    agentcore connect --usage-profile programming-cursor-mcp \\
+    agentcore-client connect --usage-profile programming-cursor-mcp \\
       --tenant TENANT --workspace WORKSPACE \\
       --ssh user@agentcore-host
 
   Non-interactive — same-host dogfood (local stdio):
-    agentcore connect --local --usage-profile programming-cursor-mcp \\
+    agentcore-client connect --local --usage-profile programming-cursor-mcp \\
       --tenant TENANT --workspace WORKSPACE
 
   Non-interactive — connect.yaml already has usage_profile: <id>:
-    agentcore connect --config .agentcore/connect.yaml
+    agentcore-client connect --config .agentcore/connect.yaml
 
   Multi-app:
-    agentcore connect /opt/App1,/opt/App2 --usage-profile programming-cursor-mcp \\
+    agentcore-client connect /opt/App1,/opt/App2 --usage-profile programming-cursor-mcp \\
       --tenant TENANT --workspace WORKSPACE --ssh user@agentcore-host
 """
 

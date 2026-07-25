@@ -44,7 +44,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.4.0
+doc_version: 1.4.1
 audience:
 - engineer
 - operator
@@ -127,12 +127,12 @@ Then open a new shell if needed (so `~/.local/bin` is on `PATH`) and run:
 
 ```bash
 agentcore doctor          # server / both (full CLI)
-agentcore connect         # client-only (thin CLI) or both
+agentcore-client connect  # client-only (thin CLI; no bare agentcore on PATH)
 ```
 
-**Client-only (`role=client`):** PATH `agentcore` resolves to the thin entry (`agentcore-client`). Allowed: connect, profile/project, sync, purge, status, doctor, client wire helpers, path, `upgrade client`. Server-admin commands are absent. Sync/purge/status use the remote AgentCore server via `connect.yaml`.
+**Client-only (`role=client`):** PATH exposes **`agentcore-client` only** (bare `agentcore` is removed from `~/.local/bin` if present). Allowed: connect, profile/project, sync, purge, status, doctor, client wire helpers, path, `upgrade client`. Sync/purge/status use the remote AgentCore server via `connect.yaml`.
 
-**Server / both:** PATH keeps the full CLI. Client workflows (`connect`, and so on) work on the same host without installing a separate client package.
+**Server / both:** PATH exposes **`agentcore` only** (full CLI). Client workflows (`connect`, and so on) work on the same host without installing a separate client package; `agentcore-client` is not required on PATH.
 
 App Docker details: [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-and-wheelhouse-runbook.md).
 
@@ -164,7 +164,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | 0 | role + runtime | `--role` / `--runtime` / prompts / defaults | Persists `role=` and `runtime=` in `.agentcore/install-state.env` |
 | 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker (interactive installs always run this) |
-| 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore` (thin when `role=client`, full otherwise) |
+| 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore-client` when `role=client`, else `~/.local/bin/agentcore` |
 | 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates (server) |
 | 4 | `04_docker_infra` | Postgres + Neo4j `healthy` | `docker compose --profile core up -d` + `wait-healthy.sh` (server) |
 | 5 | `05_verify` | `agentcore doctor` + PATH + infra | Fail with stage hint; optional ai-toolstack |

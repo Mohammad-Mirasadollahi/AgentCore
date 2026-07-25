@@ -40,7 +40,7 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/docs_standards/cmd.py::cmd_docs_standards
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
-doc_version: 1.2.0
+doc_version: 1.2.1
 updated_at: '2026-07-25'
 ---
 
@@ -54,8 +54,8 @@ This document is the **canonical operator reference** for the `agentcore` CLI: e
 
 | Install role | Binary on PATH | Catalog in this doc |
 | --- | --- | --- |
-| `server` / `both` | Full `agentcore_cli` | All sections below |
-| `client` | Thin `agentcore_client` (still invoked as `agentcore`) | Only: `version`, `doctor`, `status`, `connect`, `sync`, `purge`, `profile`, `project`, `client`, `path`, `upgrade client` |
+| `server` / `both` | `agentcore` only (full `agentcore_cli`) | All sections below |
+| `client` | `agentcore-client` only (thin; **no** bare `agentcore`) | Only: `version`, `doctor`, `status`, `connect`, `sync`, `purge`, `profile`, `project`, `client`, `path`, `upgrade client` |
 
 On client-only hosts, `purge` / `sync` / `status` are remote operations scoped to `connect.yaml` (CLI `--tenant` / `--workspace` / `--project` must match or the command fails closed). Server and `both` do **not** need a separate thin-client install to run `connect`.
 
