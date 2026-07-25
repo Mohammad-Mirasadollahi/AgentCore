@@ -33,7 +33,7 @@ related_docs:
 - ac.doc.awg.mcp-first-skills-rules
 - docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
 - docs/00-master-plan/01-product-scope-and-feature-catalog.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -55,7 +55,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 36 - Dead-Code Candidates And Cleanup Loop
@@ -157,6 +157,7 @@ Respect session pending-sync and stale banners already defined for explore / det
 - Return candidates with `freshness` and `confidence` capped.
 - Do not claim live indexing.
 - Skill body must tell the agent to re-ingest or treat high-impact deletes as uncertain.
+- Response includes `index_coverage` (`status`, `pending_count`, `safe_absence_claims`) so agents refuse `safe_to_delete` when the index is incomplete (CI-40).
 
 ## Live-Until-Proven Exclusions
 
@@ -195,6 +196,12 @@ Tool name: `agentcore_code_graph_unused_candidates`
 {
   "freshness": "ok|pending_sync|stale",
   "scope_mode": "changed_symbols",
+  "index_coverage": {
+    "status": "ok|incomplete",
+    "pending_count": 0,
+    "safe_absence_claims": true,
+    "note": "…"
+  },
   "candidates": [
     {
       "symbol": "pkg.module.OldHelper",

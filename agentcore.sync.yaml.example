@@ -3,7 +3,8 @@
 # The local agentcore.sync.yaml is gitignored (like .env); only this example is tracked.
 # Wildcards: *, ?, [], **
 #
-# Exclude lists live ONLY in this YAML (plus optional .agentcore/sync.yaml).
+# Exclude lists: this YAML + optional .agentcore/sync.yaml, plus layered ignore files
+# (.gitignore then .agentcoreignore) merged into code exclude globs at resolve time.
 # Nothing is hardcoded in Python — edit code.exclude / docs.exclude freely.
 # Remove AgentCore-specific path entries (deploy-toolkit, …) for other repos.
 

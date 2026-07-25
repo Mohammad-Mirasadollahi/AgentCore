@@ -58,9 +58,21 @@ class QueryUseCases(GraphServiceSupport):
             )
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
+        pending_count = int(banner.get("pending_count") or len(pending) or 0)
         payload["freshness_detail"] = {
             "pending_files": pending if isinstance(pending, list) else [],
             "last_sync_at": banner.get("last_sync_at"),
+        }
+        payload["index_coverage"] = {
+            "status": "incomplete" if freshness != "ok" or pending_count else "ok",
+            "pending_count": pending_count,
+            "safe_absence_claims": freshness == "ok" and pending_count == 0,
+            "note": (
+                "Refuse safe_to_delete when index incomplete (CI-40); "
+                "run agentcore sync / check freshness before dead-code claims"
+                if freshness != "ok" or pending_count
+                else "index looks fresh for scoped absence claims"
+            ),
         }
         return payload
 

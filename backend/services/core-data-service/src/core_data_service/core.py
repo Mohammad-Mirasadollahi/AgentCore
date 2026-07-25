@@ -420,6 +420,37 @@ class CoreData:
             raise ValidationError("record is not a changeset")
         if bool(record.data.get("forbid_self_approval", True)) and actor == record.data.get("author_ref"):
             raise ConflictError("self-approval of ChangeSet is forbidden")
+        # Normalize into in_review so approve works from draft/open/changes_requested.
+        if record.status == "draft":
+            self.transition(
+                scope, actor, correlation_id, key + ":open", changeset_id, "open", "open for review", None, Kind.CHANGESET
+            )
+            record = self.store.get(changeset_id, scope)
+        if record.status == "changes_requested":
+            self.transition(
+                scope,
+                actor,
+                correlation_id,
+                key + ":resume",
+                changeset_id,
+                "in_review",
+                "resume review after changes",
+                None,
+                Kind.CHANGESET,
+            )
+            record = self.store.get(changeset_id, scope)
+        if record.status == "open":
+            self.transition(
+                scope,
+                actor,
+                correlation_id,
+                key + ":review",
+                changeset_id,
+                "in_review",
+                "start review",
+                None,
+                Kind.CHANGESET,
+            )
         return self.transition(
             scope,
             actor,

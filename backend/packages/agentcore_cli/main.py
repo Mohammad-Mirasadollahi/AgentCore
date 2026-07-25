@@ -27,6 +27,8 @@ from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
 from agentcore_cli.commands.list_profiles import cmd_list_profiles
 from agentcore_cli.commands.sync import cmd_purge, cmd_sync
 from agentcore_cli.commands.llm_cmd import cmd_llm_sessions, cmd_llm_test
+from agentcore_cli.commands.context_cmd import cmd_context_measure, cmd_context_stats
+from agentcore_cli.commands.pack_cmd import cmd_pack_review
 from agentcore_cli.commands.graph import (
     cmd_graph_explore,
     cmd_graph_freshness,
@@ -162,6 +164,14 @@ def _dispatch(argv: list[str] | None = None) -> int:
             return cmd_llm_sessions(args)
         if args.llm_command == "test":
             return cmd_llm_test(args)
+    if args.command == "context":
+        if args.context_command == "measure":
+            return cmd_context_measure(args)
+        if args.context_command == "stats":
+            return cmd_context_stats(args)
+    if args.command == "pack":
+        if args.pack_command == "review":
+            return cmd_pack_review(args)
     if args.command == "purge":
         return cmd_purge(args)
     if args.command == "destroy-profile":

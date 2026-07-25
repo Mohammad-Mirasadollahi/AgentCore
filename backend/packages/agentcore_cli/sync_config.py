@@ -236,6 +236,19 @@ def resolve_sync_filters(
         + _as_str_list(code_sec.get("exclude_dirs"))
         + _as_str_list(code_sec.get("exclude_globs"))
     )
+    # CI-45 / RM-05: layered ignore files under the software root.
+    layered_globs: list[str] = []
+    layered_sources: list[str] = []
+    layered_reinclude: list[str] = []
+    try:
+        from repo_pack import collect_layered_ignore_globs, collect_layered_reinclude_globs
+
+        layered_globs, layered_sources = collect_layered_ignore_globs(root)
+        layered_reinclude = collect_layered_reinclude_globs(root)
+        code_patterns = code_patterns + list(layered_globs)
+    except ImportError:
+        layered_globs, layered_sources, layered_reinclude = [], [], []
+
     exclude_dirs, exclude_globs = _merge_exclude(
         user_patterns=code_patterns,
         env_value=os.environ.get("AGENTCORE_SYNC_EXCLUDE_DIRS", ""),
@@ -341,4 +354,7 @@ def resolve_sync_filters(
         # Legacy alias: non-empty only when old doc_paths style was used as prefixes.
         "doc_paths": legacy_paths if legacy_paths and docs_enabled else [],
         "sources": sources,
+        "layered_ignore_globs": layered_globs,
+        "layered_ignore_sources": layered_sources,
+        "layered_reinclude_globs": layered_reinclude,
     }

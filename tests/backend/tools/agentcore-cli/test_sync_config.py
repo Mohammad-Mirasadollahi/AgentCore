@@ -60,7 +60,17 @@ def test_resolve_reads_repo_yaml_and_merges_cli(tmp_path: Path, monkeypatch):
     assert any(str(tmp_path / "agentcore.sync.yaml") == s for s in filters["sources"])
 
 
-def test_local_override_merges_on_top(tmp_path: Path, monkeypatch):
+def test_resolve_merges_gitignore_and_agentcoreignore(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_SYNC_EXCLUDE_DIRS", raising=False)
+    (tmp_path / "agentcore.sync.yaml").write_text("code:\n  exclude: [docs]\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("build/\n*.log\n", encoding="utf-8")
+    (tmp_path / ".agentcoreignore").write_text("vendor/**\n", encoding="utf-8")
+    filters = resolve_sync_filters(root=tmp_path)
+    assert "docs" in filters["exclude_dirs"]
+    assert any("build" in g or g.endswith("/**") for g in filters["exclude_globs"])
+    assert "vendor/**" in filters["exclude_globs"] or any("vendor" in g for g in filters["exclude_globs"])
+    assert filters["layered_ignore_globs"]
+    assert len(filters["layered_ignore_sources"]) == 2
     monkeypatch.delenv("AGENTCORE_SYNC_EXCLUDE_DIRS", raising=False)
     (tmp_path / "agentcore.sync.yaml").write_text(
         "exclude: [docs]\n",
@@ -148,6 +158,21 @@ def test_discover_respects_include_prefixes(tmp_path: Path):
     rels = {f.relative_path for f in found}
     assert "backend/services/a.py" in rels
     assert "tests/t.py" not in rels
+
+
+def test_discover_reinclude_globs(tmp_path: Path):
+    (tmp_path / "keep.py").write_text("print('x')\n", encoding="utf-8")
+    (tmp_path / "drop.py").write_text("print('y')\n", encoding="utf-8")
+    found = discover_source_files(
+        tmp_path,
+        include_extensions=[".py"],
+        exclude_dirs=[],
+        exclude_globs=["*.py"],
+        reinclude_globs=["keep.py"],
+    )
+    paths = {f.relative_path for f in found}
+    assert "keep.py" in paths
+    assert "drop.py" not in paths
 
 
 def test_discover_exclude_globs_and_include_glob(tmp_path: Path):

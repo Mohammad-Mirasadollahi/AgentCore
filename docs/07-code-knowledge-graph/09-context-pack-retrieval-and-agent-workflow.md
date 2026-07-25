@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-25'
 ---
 
 # 09 - Context Pack Retrieval And Agent Workflow
@@ -46,8 +46,10 @@ A context pack should include:
 - risk tags.
 - freshness and confidence.
 - source-read recommendations.
-- token estimate.
+- token estimate (`estimated_tokens` on explore packs uses chars÷4).
 - evidence references.
+
+Optional offline **change-scoped** export (not the primary agent loop): `agentcore pack review` — see [`53-repomix-prior-art-ideas-and-license.md`](53-repomix-prior-art-ideas-and-license.md). Residual bulky JSON/logs: native compress in [`54-headroom-native-context-compression.md`](54-headroom-native-context-compression.md).
 
 ## Retrieval Algorithm
 

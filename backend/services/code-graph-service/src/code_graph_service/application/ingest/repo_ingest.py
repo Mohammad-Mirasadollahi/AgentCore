@@ -58,6 +58,7 @@ class RepoIngestMixin:
         include_extensions = payload.get("include_extensions")
         exclude_dirs = payload.get("exclude_dirs")
         exclude_globs = payload.get("exclude_globs")
+        reinclude_globs = payload.get("reinclude_globs")
         include_path_prefixes = payload.get("include_path_prefixes") or payload.get("include_paths")
         max_files = int(payload.get("max_files") or DEFAULT_MAX_FILES)
         max_file_bytes = int(payload.get("max_file_bytes") or DEFAULT_MAX_FILE_BYTES)
@@ -67,6 +68,7 @@ class RepoIngestMixin:
             include_extensions=include_extensions,
             exclude_dirs=exclude_dirs,
             exclude_globs=exclude_globs,
+            reinclude_globs=reinclude_globs,
             include_path_prefixes=include_path_prefixes,
             max_files=None,
             max_file_bytes=max_file_bytes,

@@ -22,8 +22,10 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+related_docs:
+- ac.doc.ckg.headroom-native-context-compression
+doc_version: 1.1.0
+updated_at: '2026-07-25'
 ---
 
 # Token Optimization and Model Routing
@@ -31,6 +33,18 @@ updated_at: '2026-07-24'
 ## Purpose
 
 The Code-Knowledge Graph must reduce LLM cost while improving output quality. It does this by avoiding full-repository prompting, processing only changed symbols, routing tasks to the cheapest capable model, and using graph summaries instead of raw code where possible.
+
+**Native context compression** for bulky tool/RAG/JSON payloads is a separate AgentCore product obligation (inspired by Headroom, Apache 2.0) — see [`54-headroom-native-context-compression.md`](54-headroom-native-context-compression.md). That lane runs inside AgentCore before LiteLLM; it does not replace hash-diff or graph packs.
+
+### Shipped surfaces (verify)
+
+| Surface | How to use |
+| --- | --- |
+| MCP | `agentcore_context_compress` / `retrieve` / `stats` (`programming-cursor-mcp` ≥ 1.3.1) |
+| LiteLLM | Auto on long message contents; `AGENTCORE_CONTEXT_COMPRESS=0` disables |
+| CLI | `agentcore context measure --file …` · `agentcore context stats` |
+| Change-scoped export | `agentcore pack review` (secret scan + token budget; see [`53`](53-repomix-prior-art-ideas-and-license.md)) |
+| Explore packs | Response includes `estimated_tokens` (`chars÷4`) |
 
 ## LLM Gateway (normative)
 

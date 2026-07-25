@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/services/code-graph-service/test_code_graph_service.py::check_password
-doc_version: 1.0.1
-updated_at: '2026-07-24'
+doc_version: 1.0.5
+updated_at: '2026-07-25'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -57,8 +57,11 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `18-repository-code-wiki-risks-challenges-and-acceptance.md` defines risks, acceptance gates, and open gaps.
 - `19-competitive-code-intelligence-roadmap-adr.md` adopts Wave 1–3 roadmap from CodeGraph / code-review-graph / graphify (explore, risk, routes, communities) without SQLite SoR.
 - `20-repository-code-wiki-prior-art-ideas-and-license.md` catalogs transferable CodeWiki / Google Code Wiki ideas and normative license rules.
-- `21-code-intelligence-prior-art-ideas-and-license.md` catalogs transferable CodeGraph / code-review-graph / graphify ideas and **MIT** compliance rules.
-- `THIRD_PARTY_NOTICES.md` retains MIT copyright and permission notices for those three projects.
+- `21-code-intelligence-prior-art-ideas-and-license.md` catalogs transferable CodeGraph / code-review-graph / graphify / Codebase-Memory / Repomix ideas and **MIT** compliance rules.
+- `THIRD_PARTY_NOTICES.md` retains MIT copyright and permission notices (including DeusData and Repomix).
+- `52-codebase-memory-language-breadth-and-indexing-speed.md` explains how upstream CBM reaches ~158 languages and extreme index/query speed (ideas-only; AgentCore mapping).
+- `53-repomix-prior-art-ideas-and-license.md` catalogs Repomix pack/token/security ideas under MIT (ideas-only).
+- `54-headroom-native-context-compression.md` requires **AgentCore product** native context compression inspired by Headroom (Apache 2.0); IDE toolstack is not a substitute.
 - `22-code-intelligence-enhancements-feature-specification.md` product requirements for explore, routes, TESTED_BY, change risk, Wave 2–3 analytics.
 - `23-code-intelligence-enhancements-high-level-design.md` runtime topology and module boundaries.
 - `24-code-intelligence-enhancements-low-level-design.md` algorithms (routes, flows, risk, explore, Leiden/RRF sketches).
@@ -88,9 +91,16 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `49-lsp-edit-session-feature-specification.md` ships IDE-semantic find-refs / definition / rename via local LSP + reconcile.
 - `50-sync-cpu-budget-and-store-concurrency-lld.md` CPU percent → workers/embeds/Torch pins; Neo4j bounded store slots; list_symbols without embeddings.
 - `51-client-standards-gate-and-watcher-policy.md` AgentCore Client mutable Skip vs Ingest preference for nonconforming docs/code; watcher/flush precedence (`lifecycle_lane: future` until Client UI ships).
+- `52-codebase-memory-language-breadth-and-indexing-speed.md` Codebase-Memory prior art: language breadth (~158 via vendored tree-sitter + Hybrid LSP) and indexing/query speed stack; AgentCore adopt/adapt/avoid.
+- `53-repomix-prior-art-ideas-and-license.md` Repomix (MIT) prior art; **shipped** layered ignore + `agentcore pack review` (secret scan / token budget).
+- `54-headroom-native-context-compression.md` Headroom (Apache 2.0): **shipped** native compress/retrieve/stats on LiteLLM + MCP + CLI.
 
 ## History
 
+- 2026-07-25: Verified/wired `context_compression` + `repo_pack` in `pyproject.toml`; docs/operator surfaces for pack review + context measure/stats.
+- 2026-07-25: Added `54-headroom-native-context-compression.md` (native AgentCore compression; Apache 2.0 notices).
+- 2026-07-25: Added `53-repomix-prior-art-ideas-and-license.md` (Repomix MIT ideas + notices).
+- 2026-07-25: Added `52-codebase-memory-language-breadth-and-indexing-speed.md` (CBM language breadth + speed mechanisms; MIT ideas-only).
 - 2026-07-24: Added `15-call-graph-confidence-and-runtime-traces.md` (GAP-T02 confidence + runtime traces).
 - 2026-07-24: Added `51-client-standards-gate-and-watcher-policy.md` (Client standards-gate preference + watcher policy).
 - 2026-07-24: Added `50-sync-cpu-budget-and-store-concurrency-lld.md`; corrected Neo4j store concurrency vs exclusive write lock in `03`/`38`/`39` and LiteLLM env knobs.
@@ -154,7 +164,7 @@ Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session t
 - This section adds the explicit Neo4j-backed code graph and graph-guided code generation layer.
 - Repository Code Wiki (`14`–`18`, `20`) adds repository-level wiki generation on top of the graph; published pages feed docs-sync.
 - Wiki + graph composed retrieval (`43`) defines how wiki narrative and graph/hybrid evidence combine for higher-understanding Q&A after Wiki ships.
-- Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`) add explore/risk/routes analytics inspired by MIT prior art.
+- Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`, `52`–`54`) add explore/risk/routes analytics, CBM language/speed notes, Repomix-inspired **pack review** + layered ignore, and **native Headroom-inspired compression** (MCP/CLI/LiteLLM) for the AgentCore product.
 - Production Retrieval Stack (`27`–`31`) adds BM25/FTS/BGE/APOC/free Leiden for agent search quality.
 - Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
 - AST vs LSP hybrid (`48`–`49`) keeps durable knowledge↔code edges on AST ingest; LSP edit-session tools are IDE-semantic and reconcile via re-ingest.

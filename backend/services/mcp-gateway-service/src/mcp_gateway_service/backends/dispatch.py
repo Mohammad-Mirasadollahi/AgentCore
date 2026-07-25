@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
-from . import code_graph, docs, guidance, quality, writes
+from . import code_graph, context, docs, guidance, quality, writes
 from core_data_service.core import Kind
 
 from .platform import PlatformBackends
@@ -36,6 +36,19 @@ def dispatch_capability(
 
     if maps_to == "memory.retrieve":
         return _memory_retrieve(backends, arguments, scope=scope, correlation_id=correlation_id, base=base)
+
+    if maps_to == "context.compress":
+        return context.context_compress(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "context.retrieve":
+        return context.context_retrieve(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
+    if maps_to == "context.stats":
+        return context.context_stats(
+            backends, arguments, scope=scope, correlation_id=correlation_id, base=base
+        )
 
     if maps_to == "code_graph.search":
         return code_graph.search(backends, arguments, scope=scope, base=base)

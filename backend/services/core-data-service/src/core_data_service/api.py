@@ -233,38 +233,6 @@ def build_app(
         x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     ):
         scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
-        # Normalize into in_review before approve (including after changes_requested rollup).
-        current = service.store.get(record_id, scope)
-        if current.status == "draft":
-            service.transition(
-                scope, actor, correlation_id, (idempotency_key or "") + ":open", record_id, "open", "open for review", None, Kind.CHANGESET
-            )
-            current = service.store.get(record_id, scope)
-        if current.status == "changes_requested":
-            service.transition(
-                scope,
-                actor,
-                correlation_id,
-                (idempotency_key or "") + ":resume",
-                record_id,
-                "in_review",
-                "resume review after changes",
-                None,
-                Kind.CHANGESET,
-            )
-            current = service.store.get(record_id, scope)
-        if current.status == "open":
-            service.transition(
-                scope,
-                actor,
-                correlation_id,
-                (idempotency_key or "") + ":review",
-                record_id,
-                "in_review",
-                "start review",
-                None,
-                Kind.CHANGESET,
-            )
         record = service.approve_changeset(
             scope,
             actor,

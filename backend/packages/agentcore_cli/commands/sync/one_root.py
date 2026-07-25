@@ -85,6 +85,7 @@ def sync_one_root(
                 "include_extensions": filters["include_extensions"],
                 "exclude_dirs": filters["exclude_dirs"],
                 "exclude_globs": filters["exclude_globs"],
+                "reinclude_globs": filters.get("layered_reinclude_globs") or [],
                 "include_path_prefixes": filters["include_paths"],
                 "max_files": int(args.max_files),
                 "include_outcomes": True,

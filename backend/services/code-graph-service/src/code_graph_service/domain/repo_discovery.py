@@ -188,6 +188,7 @@ def discover_source_files(
     include_extensions: Iterable[str] | None = None,
     exclude_dirs: Iterable[str] | None = None,
     exclude_globs: Iterable[str] | None = None,
+    reinclude_globs: Iterable[str] | None = None,
     include_path_prefixes: Iterable[str] | None = None,
     max_files: int | None = DEFAULT_MAX_FILES,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
@@ -196,6 +197,7 @@ def discover_source_files(
 
     Skips excluded directory names, exclude globs, hidden parents, oversized files,
     and undetectable languages. Optional include patterns/prefixes narrow the tree.
+    ``reinclude_globs`` force-keeps paths that matched an exclude glob (gitignore ``!``).
     """
     root = Path(root_path).expanduser().resolve()
     if not root.exists():
@@ -207,6 +209,11 @@ def discover_source_files(
     max_file_bytes = max(1, int(max_file_bytes))
     extensions = _normalize_extensions(include_extensions)
     excluded, globs = _split_excludes(exclude_dirs, exclude_globs)
+    reincludes = [
+        str(p).strip().replace("\\", "/")
+        for p in (reinclude_globs or [])
+        if str(p).strip()
+    ]
     include_patterns = [
         str(p).strip().replace("\\", "/")
         for p in (include_path_prefixes or [])
@@ -219,7 +226,8 @@ def discover_source_files(
         if not any(name_lower.endswith(ext) for ext in extensions):
             continue
         if globs and _matches_any_glob(rel_s, globs):
-            continue
+            if not (reincludes and _matches_any_glob(rel_s, reincludes)):
+                continue
         relative = Path(rel_s)
         if include_patterns and not _matches_include(relative, include_patterns):
             continue

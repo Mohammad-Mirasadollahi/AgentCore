@@ -383,10 +383,18 @@ class IntelligenceUseCases(GraphServiceSupport):
             budget_chars=budget_chars,
         )
         paths = [sec.file_path for sec in pack.sections]
+        try:
+            from repo_pack import tokens_from_chars
+
+            estimated_tokens = tokens_from_chars(pack.used_chars)
+        except ImportError:
+            estimated_tokens = (pack.used_chars + 3) // 4
         return {
             "query": pack.query,
             "budget_chars": pack.budget_chars,
             "used_chars": pack.used_chars,
+            "estimated_tokens": estimated_tokens,
+            "token_estimate_method": "chars_div_4",
             "seed_ids": seed_ids,
             "call_path_ids": pack.call_path_ids,
             "terms": terms,

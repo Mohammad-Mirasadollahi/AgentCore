@@ -291,3 +291,28 @@ def test_create_task_requires_title():
         assert False, "expected error"
     except McpGatewayError as exc:
         assert "title" in exc.message
+
+
+def test_context_compress_retrieve_round_trip():
+    gw = gateway()
+    catalog = {t["name"] for t in gw.catalog_tools()}
+    assert "agentcore_context_compress" in catalog
+    assert "agentcore_context_retrieve" in catalog
+    assert "agentcore_context_stats" in catalog
+    payload = json.dumps({"rows": [{"n": i, "s": "y" * 300} for i in range(50)]})
+    out = gw.call_tool(
+        "agentcore_context_compress",
+        {"payload": payload, "content_type": "json", "ttl_seconds": 120},
+    )["structuredContent"]
+    assert out.get("ok") is True
+    assert out.get("skipped") is False
+    assert out.get("chars_saved", 0) > 0
+    handle = out["handle"]
+    assert handle
+    got = gw.call_tool("agentcore_context_retrieve", {"handle": handle})["structuredContent"]
+    assert got.get("ok") is True
+    assert got.get("payload") == payload
+    stats = gw.call_tool("agentcore_context_stats", {})["structuredContent"]
+    assert stats.get("ok") is True
+    assert stats["metrics"]["chars_saved"] > 0
+    assert stats["metrics"]["pct_saved"] > 0

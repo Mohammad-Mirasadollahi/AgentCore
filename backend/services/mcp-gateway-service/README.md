@@ -13,6 +13,9 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_ping` | read | Connectivity + profile metadata |
 | `agentcore_get_effective_profile` | read | Effective Usage Profile |
 | `agentcore_memory_retrieve` | read | Retrieve memory for a query |
+| `agentcore_context_compress` | write | Native compress bulky JSON/text; store original under TTL handle |
+| `agentcore_context_retrieve` | read | Retrieve original payload by compress handle (same scope) |
+| `agentcore_context_stats` | read | Process-local compression counters (chars saved / pct) |
 | `agentcore_code_graph_search` | read | Semantic search over the code-knowledge graph |
 | `agentcore_code_graph_get_symbol` | read | Fetch one symbol by id or qualified_name |
 | `agentcore_code_graph_neighbors` | read | **Structural** neighbors (CALLS/IMPORTS/…); `reference_kind=structural` |
@@ -57,6 +60,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `backends/dispatch.py` | capability router (`maps_to`) |
 | `backends/writes.py` | `platform.write` (memory/task/activity/decision) |
 | `backends/docs.py` | docs-sync write/status/drift helpers |
+| `backends/context.py` | native context compress/retrieve/stats (doc 54) |
 | `backends/guidance.py` | Agent Workspace Guidance resolve/list/get-skill |
 | `backends/_paths.py` | PYTHONPATH bootstrap for in-process services |
 | `server.py` | MCP JSON-RPC stdio surface |

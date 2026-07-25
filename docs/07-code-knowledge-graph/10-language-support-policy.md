@@ -31,7 +31,8 @@ related_docs:
 - ac.doc.codegraph.neo4j-migration-plan
 - docs/07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md
 - docs/07-code-knowledge-graph/48-ast-and-lsp-hybrid-parsing-adr.md
-doc_version: 1.1.1
+- ac.doc.ckg.codebase-memory-language-breadth-and-speed
+doc_version: 1.1.2
 audience:
 - engineer
 - architect
@@ -150,3 +151,4 @@ Unsupported languages return a validation error. Call resolution also captures `
 - Contract: `backend/services/code-graph-service/docs/phase-7-api-contract.md`
 - Migration: `11-neo4j-migration-plan.md`
 - AST vs optional LSP: `48-ast-and-lsp-hybrid-parsing-adr.md`
+- Upstream CBM language breadth / speed (ideas only): `52-codebase-memory-language-breadth-and-indexing-speed.md`

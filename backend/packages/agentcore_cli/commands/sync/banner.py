@@ -88,4 +88,13 @@ def print_filters_banner(
     if sample_g:
         bits.append(f"e.g. {', '.join(sample_g)}")
     ui.kv("Code exclude", " · ".join(bits))
+    layered_n = len(filters.get("layered_ignore_globs") or [])
+    rein_n = len(filters.get("layered_reinclude_globs") or [])
+    if layered_n or rein_n or filters.get("layered_ignore_sources"):
+        src = filters.get("layered_ignore_sources") or []
+        ui.kv(
+            "Layered ignore",
+            f"{layered_n} exclude · {rein_n} reinclude"
+            + (f" · {', '.join(Path(s).name for s in src)}" if src else ""),
+        )
     ui.blank()

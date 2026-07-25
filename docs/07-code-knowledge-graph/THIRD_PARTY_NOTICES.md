@@ -5,10 +5,16 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: 'Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`.'
+summary: MIT attribution for prior-art code-intelligence projects and Apache 2.0 Headroom
+  notices; AgentCore native context compression required per doc 54 (not IDE toolstack).
 tags:
 - standard
 - ckg
+- license
+- mit
+- apache-2.0
+- prior-art
+- headroom
 phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md
 lifecycle_lane: current
@@ -16,29 +22,32 @@ concern_lane: standard
 audience_lane:
 - platform-engineering
 - agents
+- security
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+related_docs:
+- ac.doc.ckg.code-intel-prior-art-license
+- ac.doc.ckg.repomix-prior-art-ideas-and-license
+- ac.doc.ckg.headroom-native-context-compression
+doc_version: 1.3.0
+updated_at: '2026-07-25'
 ---
 
 # Third-Party Notices — Code Intelligence Prior Art
 
-
 ## Purpose
 
-Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`.
-
-Path: `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md`
-
-This file records **attribution** for MIT-licensed open-source projects whose
+This file records **attribution** for open-source projects whose
 **ideas** (and, if ever approved by ADR, source) inform AgentCore Code-Knowledge
-Graph intelligence features. AgentCore’s default policy is clean-room
+Graph and related agent context features. AgentCore’s default policy is clean-room
 re-implementation; see
-[`21-code-intelligence-prior-art-ideas-and-license.md`](21-code-intelligence-prior-art-ideas-and-license.md).
+[`21-code-intelligence-prior-art-ideas-and-license.md`](21-code-intelligence-prior-art-ideas-and-license.md),
+[`53-repomix-prior-art-ideas-and-license.md`](53-repomix-prior-art-ideas-and-license.md),
+and [`54-headroom-native-context-compression.md`](54-headroom-native-context-compression.md).
 
-Verification date for LICENSE URLs: **2026-07-20**.
+Verification date for LICENSE files: **2026-07-25** (DeusData, Repomix, and Headroom
+re-verified from upstream `LICENSE` / GitHub `main`).
 
 ---
 
@@ -141,6 +150,114 @@ SOFTWARE.
 
 ---
 
+## DeusData/codebase-memory-mcp
+
+- Repository: https://github.com/DeusData/codebase-memory-mcp
+- Paper: https://arxiv.org/abs/2603.27277
+- License: MIT
+- Copyright: Copyright (c) 2025 DeusData
+- Verified commit: `97ce23f9827177fff3858831156e9795c6832b18` (2026-07-25)
+- AgentCore use: **ideas only** (structural MCP UX, HTTP_CALLS / escalate hybrid,
+  coverage-before-absence, compact payloads). Clean-room on Neo4j per docs `44`–`47`.
+  **Do not** vendor the C binary, Hybrid LSP C sources, or tree-sitter grammar tree
+  unless a future ADR + SBOM explicitly approve MIT redistribution.
+
+```text
+MIT License
+
+Copyright (c) 2025 DeusData
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## yamadashy/repomix
+
+- Repository: https://github.com/yamadashy/repomix
+- License: MIT
+- Copyright: Copyright 2024 Kazuki Yamada
+- Verified commit: `f0968929bc1cfd8aee61b89682b95e684d6e2c27` (2026-07-25)
+- AgentCore use: **ideas only** (AI-oriented packs, token budget gates, layered ignore,
+  Tree-sitter compress patterns, secret-scan-before-export). Clean-room preferred.
+  **Do not** vendor the npm CLI/runtime unless ADR + SBOM approve. Do not use hosted
+  remote packing for private AgentCore trees (no-cloud-exfiltration).
+
+```text
+MIT License
+
+Copyright 2024 Kazuki Yamada
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## headroomlabs-ai/headroom
+
+- Repository: https://github.com/headroomlabs-ai/headroom
+- License: Apache License 2.0
+- Copyright: Copyright 2025 Headroom Contributors
+- Verified commit: `a6d4921e82c1e9fe1a5ca8b90ffd16aa84a698d4` (2026-07-25)
+- AgentCore use: **Native product requirement** — AgentCore software must implement a
+  local-first context-compression lane inspired by Headroom (see doc `54`). Prefer
+  clean-room on LiteLLM + MCP gateway seams. **Do not** treat separate IDE/dev stacks
+  (for example `ai-toolstack`) as the AgentCore product SoT. If the `headroom-ai`
+  package or upstream source is redistributed: ship Apache 2.0 LICENSE + NOTICE and
+  mark modifications per Apache 2.0 §§4(a)–(d).
+
+```text
+Copyright 2025 Headroom Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+Full Apache License 2.0 text: https://www.apache.org/licenses/LICENSE-2.0
+
+---
+
 ## Runtime Python packages (retrieval stack)
 
 These are **dependencies**, not prior-art idea sources. Keep versions pinned in
@@ -171,3 +288,10 @@ When adding a vendored dependency or copying substantial upstream source:
 2. Ensure redistributed artifacts include the MIT notices.
 3. Record an ADR acceptance for the vendoring decision.
 4. Update SBOM generation inputs used by release pipelines.
+
+## Related Documents
+
+- [`21-code-intelligence-prior-art-ideas-and-license.md`](21-code-intelligence-prior-art-ideas-and-license.md)
+- [`53-repomix-prior-art-ideas-and-license.md`](53-repomix-prior-art-ideas-and-license.md)
+- [`54-headroom-native-context-compression.md`](54-headroom-native-context-compression.md)
+- [`44-codebase-memory-neo4j-hybrid-feature-specification.md`](44-codebase-memory-neo4j-hybrid-feature-specification.md)

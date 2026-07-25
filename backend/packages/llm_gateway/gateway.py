@@ -1,4 +1,11 @@
-"""LiteLLM-backed LLM gateway and test double."""
+"""
+Module contract: LiteLLM application port for AgentCore.
+
+Role: Sole LLM egress via LiteLLM; optional native context compression before complete().
+SoT/invariants: Settings from env; RPM gate; no third-party LLM proxy; no cloud compress.
+Allowed failures: provider timeout/quota; ImportError/skip when compress package missing.
+Forbidden: bypass LiteLLM; cross-tenant context retrieve; shipping secrets in prompts intentionally.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +32,36 @@ class LlmGateway(Protocol):
 
 class ProviderQuotaTripped(RuntimeError):
     """Provider rate/quota limit tripped for this process; stop calling the LLM."""
+
+
+def _maybe_compress_message_content(content: str) -> str:
+    """Native AgentCore compression before LiteLLM (doc 54). Opt-out: AGENTCORE_CONTEXT_COMPRESS=0."""
+    import os
+
+    flag = os.environ.get("AGENTCORE_CONTEXT_COMPRESS", "1").strip().lower()
+    if flag in {"0", "false", "off", "no"}:
+        return content
+    if not isinstance(content, str) or len(content) < 2000:
+        return content
+    try:
+        from context_compression import compress_payload, default_store
+    except ImportError:
+        return content
+    result = compress_payload(content, content_type="auto")
+    if result.skipped or result.compressed_chars >= result.original_chars:
+        return content
+    handle = default_store().put(
+        content,
+        scope={"tenant_id": "llm", "workspace_id": "local", "project_id": "process"},
+        content_type=result.content_type,
+        lossy=result.lossy,
+        ttl_seconds=3600,
+    )
+    return (
+        f"{result.compressed}\n\n"
+        f"[agentcore_context: handle={handle} chars_saved={result.chars_saved} "
+        f"lossy={result.lossy}; retrieve via agentcore_context_retrieve]"
+    )
 
 
 def _provider_from_model(model: str) -> str:
@@ -162,7 +199,10 @@ class LiteLlmGateway:
         session = self._rpm.acquire("complete", SessionMeta(model=model))
         try:
             _apply_litellm_runtime(litellm, self.settings)
-            messages = [{"role": m.role, "content": m.content} for m in request.messages]
+            messages = [
+                {"role": m.role, "content": _maybe_compress_message_content(m.content)}
+                for m in request.messages
+            ]
             kwargs: dict[str, Any] = {
                 "model": model,
                 "messages": messages,

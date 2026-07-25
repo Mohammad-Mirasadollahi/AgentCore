@@ -149,6 +149,71 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Override AGENTCORE_LITELLM_DEFAULT_MODEL for this call",
     )
 
+    context = sub.add_parser(
+        "context",
+        help="Native context compression (measure savings / process stats)",
+    )
+    context_sub = context.add_subparsers(dest="context_command", required=True)
+    measure = context_sub.add_parser(
+        "measure",
+        help="Compress a sample and report chars saved / percent reduced",
+    )
+    measure.add_argument("--file", default=None, help="Path to text/JSON file")
+    measure.add_argument("--payload", default=None, help="Inline payload string")
+    measure.add_argument(
+        "--content-type",
+        default="auto",
+        choices=["auto", "json", "text"],
+        help="Compressor route (default: auto)",
+    )
+    measure.add_argument(
+        "--min-chars",
+        type=int,
+        default=None,
+        help="Override AGENTCORE_CONTEXT_COMPRESS_MIN_CHARS for this run",
+    )
+    measure.add_argument("--json", action="store_true", help="Print JSON report")
+    ctx_stats = context_sub.add_parser(
+        "stats",
+        help="Show process-local compression counters (CLI process only)",
+    )
+    ctx_stats.add_argument("--json", action="store_true", help="Print JSON report")
+
+    pack = sub.add_parser(
+        "pack",
+        help="Change-scoped review pack (secret scan + token estimate; not whole-repo dump)",
+    )
+    pack_sub = pack.add_subparsers(dest="pack_command", required=True)
+    review = pack_sub.add_parser(
+        "review",
+        help="Pack listed or git-changed files with secret scan and optional --token-budget",
+    )
+    review.add_argument("--root", default=None, help="Repo root (default: AgentCore root)")
+    review.add_argument("--files", default="", help="Comma-separated relative paths")
+    review.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read relative paths from stdin (one per line)",
+    )
+    review.add_argument("--from-git", action="store_true", help="Include files from git diff HEAD")
+    review.add_argument("--staged", action="store_true", help="Use staged diff file list / diffs")
+    review.add_argument("--include-diff", action="store_true", help="Embed unified diffs")
+    review.add_argument("--token-budget", type=int, default=None, help="Fail if estimated tokens exceed N")
+    review.add_argument(
+        "--hotspot-min-tokens",
+        type=int,
+        default=50,
+        help="List files at/above this estimated token count as hotspots (default 50)",
+    )
+    review.add_argument("--max-file-bytes", type=int, default=200_000)
+    review.add_argument(
+        "--allow-secrets",
+        action="store_true",
+        help="Do not fail closed on secret findings (not recommended)",
+    )
+    review.add_argument("--out", default=None, help="Write markdown pack to path when ok")
+    review.add_argument("--json", action="store_true", help="Print JSON summary")
+
     purge = sub.add_parser(
         "purge",
         help="Wipe project graph data only (requires --yes); then run sync to rebuild",

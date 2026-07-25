@@ -80,6 +80,21 @@ def test_no_anchors_refuses_repo_scan():
     assert out.get("note") == "no_anchor_symbols_or_paths"
 
 
+def test_freshness_stale_blocks_safe_delete():
+    helper = _sym("s:helper", "old_helper")
+    out = find_unused_candidates(
+        [helper],
+        [],
+        scope_mode="changed_symbols",
+        anchor_symbols=["old_helper"],
+        freshness="pending_sync",
+        include_uncertain=True,
+    )
+    assert out["candidates"] == []
+    assert out["skipped_uncertain"]
+    assert any("freshness_pending_sync" in (row.get("blockers") or []) for row in out["skipped_uncertain"])
+
+
 def test_inbound_call_excludes_symbol():
     helper = _sym("s:helper", "helper")
     caller = _sym("s:caller", "run")

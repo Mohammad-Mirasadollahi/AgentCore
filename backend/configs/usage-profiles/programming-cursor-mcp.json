@@ -1,6 +1,6 @@
 {
   "profile_id": "programming-cursor-mcp",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "title": "Programming with Cursor via MCP",
   "audience": "software-engineering",
   "description": "Configures AgentCore for software engineering teams that connect Cursor IDE through MCP. Client surface is mcp-lazy style (mcp_search_tools / mcp_execute_tool only on tools/list). Explore-first: prefer agentcore_code_graph_explore before wide Read/Grep; also memory, docs drift/write, tasks, and durable project writes.",
@@ -157,6 +157,60 @@
           "required": [
             "query"
           ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_context_compress",
+        "description": "Native AgentCore context compression (Headroom-inspired, clean-room): shrink large JSON/text, store original under a tenant-scoped TTL handle for retrieve. Prefer for bulky tool/RAG blobs before LiteLLM — not a substitute for code-graph tools.",
+        "maps_to": "context.compress",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "string",
+              "description": "Raw text or JSON string to compress"
+            },
+            "content_type": {
+              "type": "string",
+              "enum": ["auto", "json", "text"],
+              "default": "auto"
+            },
+            "ttl_seconds": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 86400,
+              "default": 3600,
+              "description": "TTL for stored original when compression runs"
+            }
+          },
+          "required": ["payload"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_context_retrieve",
+        "description": "Retrieve the original payload for a handle from agentcore_context_compress (same tenant/workspace/project scope).",
+        "maps_to": "context.retrieve",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "Handle returned by agentcore_context_compress"
+            }
+          },
+          "required": ["handle"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_context_stats",
+        "description": "Process-local native context-compression counters: calls, chars saved, percent reduced, store entries. Use after compress calls on this MCP gateway; CLI equivalent: agentcore context stats / measure.",
+        "maps_to": "context.stats",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
           "additionalProperties": false
         }
       },

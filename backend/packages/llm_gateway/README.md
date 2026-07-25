@@ -39,6 +39,8 @@ Shared LiteLLM adapter for AgentCore services. Implements the stack ADR
 | `AGENTCORE_LITELLM_FALLBACK_MODELS` | _(empty)_ | Comma-separated fallback aliases |
 | `AGENTCORE_LITELLM_RISK_LEVEL` | `low` | Routing risk: `low` / `medium` / `high` |
 | `AGENTCORE_LITELLM_PROFILE_ID` | _(profile file)_ | Route profile label override |
+| `AGENTCORE_CONTEXT_COMPRESS` | `1` | Compress long message contents before LiteLLM (`0`/`false`/`off` to disable) |
+| `AGENTCORE_CONTEXT_COMPRESS_MIN_CHARS` | `2000` | Skip compression below this length |
 
 Auto Base URL: `http://{HOST}:{PORT}` when no override is set.
 

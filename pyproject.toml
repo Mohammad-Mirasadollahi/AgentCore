@@ -59,6 +59,8 @@ packages = [
   "usage_profile",
   "outbox_relay",
   "llm_gateway",
+  "context_compression",
+  "repo_pack",
   "port_profile",
   "approval_modes",
   "weight_profiles",
