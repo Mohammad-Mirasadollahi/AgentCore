@@ -7,6 +7,20 @@ import argparse
 from agentcore_cli.util import add_scope_args
 
 
+def register_upgrade_client(sub: argparse._SubParsersAction) -> None:
+    """Register only ``upgrade client`` (thin / client-only surface)."""
+    upgrade = sub.add_parser(
+        "upgrade",
+        help="Refresh client CLI + optional connect rewire",
+    )
+    up_sub = upgrade.add_subparsers(dest="upgrade_command", required=True)
+    client = up_sub.add_parser("client", help="Refresh client CLI + optional connect rewire")
+    client.add_argument("--project-dir", default="", help="App repo with connect.yaml (default cwd)")
+    client.add_argument("--from-ping", default="", help="Optional server ping JSON for compat check")
+    client.add_argument("--skip-venv", action="store_true")
+    client.add_argument("--skip-connect", action="store_true")
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     upgrade = sub.add_parser(
         "upgrade",

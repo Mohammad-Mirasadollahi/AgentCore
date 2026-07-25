@@ -44,7 +44,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.3.6
+doc_version: 1.4.0
 audience:
 - engineer
 - operator
@@ -126,9 +126,13 @@ Legacy: `--runtime host` is an alias for `--runtime venv`. `--skip-infra` is an 
 Then open a new shell if needed (so `~/.local/bin` is on `PATH`) and run:
 
 ```bash
-agentcore doctor          # server
-agentcore connect         # client
+agentcore doctor          # server / both (full CLI)
+agentcore connect         # client-only (thin CLI) or both
 ```
+
+**Client-only (`role=client`):** PATH `agentcore` resolves to the thin entry (`agentcore-client`). Allowed: connect, profile/project, sync, purge, status, doctor, client wire helpers, path, `upgrade client`. Server-admin commands are absent. Sync/purge/status use the remote AgentCore server via `connect.yaml`.
+
+**Server / both:** PATH keeps the full CLI. Client workflows (`connect`, and so on) work on the same host without installing a separate client package.
 
 App Docker details: [43-app-docker-and-wheelhouse-runbook.md](./43-app-docker-and-wheelhouse-runbook.md).
 
@@ -160,7 +164,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | 0 | role + runtime | `--role` / `--runtime` / prompts / defaults | Persists `role=` and `runtime=` in `.agentcore/install-state.env` |
 | 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker (interactive installs always run this) |
-| 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore` |
+| 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore` (thin when `role=client`, full otherwise) |
 | 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates (server) |
 | 4 | `04_docker_infra` | Postgres + Neo4j `healthy` | `docker compose --profile core up -d` + `wait-healthy.sh` (server) |
 | 5 | `05_verify` | `agentcore doctor` + PATH + infra | Fail with stage hint; optional ai-toolstack |
@@ -172,7 +176,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 
 | Flag | Meaning |
 | --- | --- |
-| `--role ROLE` | `client`, `server`, or `both` (skips first prompt). `both` = same-host dogfood: Compose + local sync + IDE connect |
+| `--role ROLE` | `client`, `server`, or `both` (skips first prompt). `client` = thin CLI only (no Compose). `server` = full CLI + stack. `both` = same-host dogfood: Compose + full CLI (includes client workflows; no second client install) |
 | `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
 | `--yes` / `-y` | Skip the interactive y/n confirmation |
 | `--upgrade` | Upgrade path (interactive still requires y/n unless `--yes` / `--non-interactive`) |

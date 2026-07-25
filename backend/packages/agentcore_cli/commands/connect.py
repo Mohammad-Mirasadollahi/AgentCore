@@ -139,8 +139,9 @@ def _pin_software_paths(settings: ConnectSettings, roots: list[Path]) -> None:
 def _source_path_for_connect(*, local: bool, work: Path, configured: str = "") -> str:
     """Ingest path: same-host cwd is fine; remote SSH needs an on-server path (or empty).
 
-    ``source.server_path`` must exist on the AgentCore host (NFS/clone), not the laptop
-    checkout path. Only dogfood ``--local`` may default to the client project dir.
+    ``source.server_path`` must exist on the AgentCore host (NFS/clone), not a blind
+    copy of the laptop checkout path. Only dogfood ``--local`` may default to cwd.
+    Remote SSH fills this via ``_ensure_remote_source_path`` (probe + prompt).
     """
     text = (configured or "").strip()
     if text:
@@ -148,6 +149,97 @@ def _source_path_for_connect(*, local: bool, work: Path, configured: str = "") -
     if local:
         return str(work)
     return ""
+
+
+def _ensure_remote_source_path(
+    settings: ConnectSettings,
+    work: Path,
+    *,
+    allow_prompt: bool,
+    input_fn=input,
+) -> ConnectSettings:
+    """Set ``source.server_path`` for remote connect: configured → probe cwd → prompt.
+
+    Connect used to leave source empty on purpose (client path ≠ server path), then
+    ``agentcore sync`` fell back to the AgentCore host identity pins and indexed the
+    wrong tree. After SSH works, probe whether *work* exists on the server; if not,
+    ask (TTY) for the real server-side path and persist it.
+    """
+    from agentcore_cli import ui
+    from agentcore_cli.connect_flow.ssh import missing_server_source_message, remote_is_dir
+
+    if settings.local:
+        path = (settings.source_server_path or "").strip() or str(work.resolve())
+        return replace(settings, source_server_path=path)
+
+    configured = (settings.source_server_path or "").strip()
+    if configured:
+        if settings.ssh and not remote_is_dir(settings, configured):
+            raise SystemExit(f"error: {missing_server_source_message(configured)}")
+        return settings
+
+    if not settings.ssh:
+        return settings
+
+    candidate = str(work.resolve())
+    if remote_is_dir(settings, candidate):
+        print(f"   {ui.ok('✔')} source.server_path on server: {candidate}")
+        return replace(settings, source_server_path=candidate)
+
+    if not allow_prompt or not (sys.stdin.isatty() and sys.stdout.isatty()):
+        raise SystemExit(
+            "error: remote connect needs source.server_path "
+            f"(client path {candidate} is not a directory on the AgentCore server)\n"
+            "  Set in .agentcore/connect.yaml:\n"
+            "    source:\n"
+            "      server_path: /opt/YourApp\n"
+            "  Or re-run `agentcore connect` in a TTY to be prompted."
+        )
+
+    from agentcore_cli.connect_wizard import _prompt_line
+
+    ui.blank()
+    ui.heading("Software path on AgentCore server", success=False)
+    ui.blank()
+    ui.bullet(f"This checkout is {candidate} on the client.")
+    ui.bullet("Sync runs on the AgentCore server — that host needs a copy (NFS/rsync/clone).")
+    ui.bullet("Enter the absolute path that exists on the server (not this laptop path unless shared).")
+    ui.blank()
+    while True:
+        raw = _prompt_line(
+            "source.server_path on server",
+            default="",
+            input_fn=input_fn,
+        ).strip()
+        if not raw:
+            print(f"   {ui.warn('!')} path is required for remote sync")
+            continue
+        path = str(Path(raw).expanduser())
+        if not remote_is_dir(settings, path):
+            print(f"   {ui.warn('!')} {missing_server_source_message(path)}")
+            continue
+        print(f"   {ui.ok('✔')} source.server_path on server: {path}")
+        return replace(settings, source_server_path=path)
+
+
+def _persist_and_run_connect(
+    settings: ConnectSettings,
+    *,
+    work: Path,
+    yaml_path: Path,
+    dry_run: bool,
+    allow_prompt: bool,
+) -> tuple[int, ConnectSettings]:
+    """Resolve remote source.server_path, persist connect.yaml, then run_connect."""
+    settings = _ensure_remote_source_path(
+        settings,
+        work,
+        allow_prompt=allow_prompt and not dry_run,
+    )
+    if not dry_run and not settings.local:
+        write_or_merge_connect_yaml(settings, path=yaml_path, prefer_http=settings.prefer_http)
+    code = run_connect(settings, project_dir=work, dry_run=dry_run)
+    return code, settings
 
 
 def _connect_one(
@@ -160,6 +252,8 @@ def _connect_one(
     """Connect a single project directory. Reuse *shared* SSH settings when provided."""
     project_override = str(args.project or "").strip()
     project_id = project_override or work.name or "project"
+    dry_run = bool(args.dry_run)
+    allow_prompt = not dry_run
 
     if args.local and not args.config:
         settings = _settings_for_local(args, work=work)
@@ -170,9 +264,9 @@ def _connect_one(
             source_server_path=_source_path_for_connect(local=True, work=work),
         )
         settings = _ensure_usage_profile(
-            settings, args, allow_prompt=not bool(args.dry_run)
+            settings, args, allow_prompt=allow_prompt
         )
-        code = run_connect(settings, project_dir=work, dry_run=bool(args.dry_run))
+        code = run_connect(settings, project_dir=work, dry_run=dry_run)
         return code, settings
 
     cfg = _config_path_from_args(args, project_dir=work)
@@ -192,12 +286,15 @@ def _connect_one(
         if args.include_user_clients:
             settings = replace(settings, include_user_clients=True)
         settings = _ensure_usage_profile(
-            settings, args, allow_prompt=not bool(args.dry_run)
+            settings, args, allow_prompt=allow_prompt
         )
-        if not bool(args.dry_run):
-            write_or_merge_connect_yaml(settings, path=yaml_path, prefer_http=settings.prefer_http)
-        code = run_connect(settings, project_dir=work, dry_run=bool(args.dry_run))
-        return code, settings
+        return _persist_and_run_connect(
+            settings,
+            work=work,
+            yaml_path=yaml_path,
+            dry_run=dry_run,
+            allow_prompt=allow_prompt,
+        )
 
     if cfg is None and not args.local:
         existing = ConnectSettings(
@@ -229,10 +326,15 @@ def _connect_one(
             ),
         )
         settings = _ensure_usage_profile(
-            settings, args, allow_prompt=not bool(args.dry_run)
+            settings, args, allow_prompt=allow_prompt
         )
-        code = run_connect(settings, project_dir=work, dry_run=bool(args.dry_run))
-        return code, settings
+        return _persist_and_run_connect(
+            settings,
+            work=work,
+            yaml_path=yaml_path,
+            dry_run=dry_run,
+            allow_prompt=allow_prompt,
+        )
 
     settings = load_connect_settings(
         config_path=str(args.config or "") or (str(cfg) if cfg else ""),
@@ -265,17 +367,25 @@ def _connect_one(
         settings = ensure_ssh_ready(
             settings,
             force_edit=force_edit,
-            allow_wizard=not bool(args.dry_run),
+            allow_wizard=not dry_run,
             config_path=cfg or yaml_path,
             project_dir=work,
             ssh_override=str(args.ssh or ""),
         )
 
     settings = _ensure_usage_profile(
-        settings, args, allow_prompt=not bool(args.dry_run)
+        settings, args, allow_prompt=allow_prompt
     )
-    code = run_connect(settings, project_dir=work, dry_run=bool(args.dry_run))
-    return code, settings
+    if settings.local:
+        code = run_connect(settings, project_dir=work, dry_run=dry_run)
+        return code, settings
+    return _persist_and_run_connect(
+        settings,
+        work=work,
+        yaml_path=cfg or yaml_path,
+        dry_run=dry_run,
+        allow_prompt=allow_prompt,
+    )
 
 
 def cmd_connect(args: argparse.Namespace) -> int:

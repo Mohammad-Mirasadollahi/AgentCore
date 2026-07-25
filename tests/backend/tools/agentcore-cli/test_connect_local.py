@@ -71,3 +71,56 @@ def test_source_path_for_connect_remote_does_not_use_client_cwd(tmp_path: Path):
         )
         == "/srv/repos/MyApp"
     )
+
+
+def test_ensure_remote_source_path_autodetects_when_on_server(tmp_path: Path, monkeypatch):
+    from agentcore_cli.commands.connect import _ensure_remote_source_path
+    from agentcore_cli.connect_config import ConnectSettings
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.ssh.remote_is_dir",
+        lambda _settings, path: path == str(tmp_path.resolve()),
+    )
+    settings = ConnectSettings(ssh="user@host", source_server_path="")
+    out = _ensure_remote_source_path(settings, tmp_path, allow_prompt=False)
+    assert out.source_server_path == str(tmp_path.resolve())
+
+
+def test_ensure_remote_source_path_prompts_when_missing_on_server(tmp_path: Path, monkeypatch):
+    from agentcore_cli.commands.connect import _ensure_remote_source_path
+    from agentcore_cli.connect_config import ConnectSettings
+
+    seen: list[str] = []
+
+    def fake_remote_is_dir(_settings, path: str) -> bool:
+        seen.append(path)
+        return path == "/srv/repos/ThinkingSOC"
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", fake_remote_is_dir)
+    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdout.isatty", lambda: True)
+    settings = ConnectSettings(ssh="user@host", source_server_path="")
+    out = _ensure_remote_source_path(
+        settings,
+        tmp_path,
+        allow_prompt=True,
+        input_fn=lambda _p: "/srv/repos/ThinkingSOC",
+    )
+    assert out.source_server_path == "/srv/repos/ThinkingSOC"
+    assert str(tmp_path.resolve()) in seen
+
+
+def test_ensure_remote_source_path_fails_closed_without_tty(tmp_path: Path, monkeypatch):
+    from agentcore_cli.commands.connect import _ensure_remote_source_path
+    from agentcore_cli.connect_config import ConnectSettings
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", lambda *_a, **_k: False)
+    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdin.isatty", lambda: False)
+    settings = ConnectSettings(ssh="user@host", source_server_path="")
+    try:
+        _ensure_remote_source_path(settings, tmp_path, allow_prompt=True)
+        raised = False
+    except SystemExit as exc:
+        raised = True
+        assert "source.server_path" in str(exc)
+    assert raised

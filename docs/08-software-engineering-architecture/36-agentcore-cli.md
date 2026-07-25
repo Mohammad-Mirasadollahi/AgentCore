@@ -5,13 +5,15 @@ doc_type: runbook
 status: active
 schema_version: '1.0'
 owner: platform-product
-summary: '`agentcore` is the operator/developer CLI for Usage Profiles, local project state,
-  coding-agent MCP connection, graph sync/status, and the MCP gateway process.'
+summary: '`agentcore` is the operator/developer CLI. Server/both installs get the full surface;
+  client-only installs use the thin `agentcore-client` entry (PATH still named `agentcore`) for
+  connect, profile, and process control against a remote AgentCore server.'
 tags:
 - cli
 - agentcore
 - operator
 - install
+- client
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/36-agentcore-cli.md
 lifecycle_lane: current
@@ -23,7 +25,9 @@ authority: normative
 visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/main.py::main
-- backend/packages/agentcore_cli/commands/sync.py::cmd_sync
+- backend/packages/agentcore_client/main.py::main
+- backend/packages/agentcore_cli/client_allowlist.py::CLIENT_TOP_LEVEL_COMMANDS
+- backend/packages/agentcore_cli/commands/sync/cmd.py::cmd_sync
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 related_docs:
 - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference.md
@@ -32,20 +36,30 @@ related_docs:
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.0.1
+- docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 36 - AgentCore CLI
 
 ## Purpose
 
-`agentcore` is the operator/developer CLI for Usage Profiles, local project state, coding-agent MCP connection, graph sync/status, and the MCP gateway process. It is installed into the project virtualenv and linked onto the user PATH.
+`agentcore` is the operator/developer CLI for Usage Profiles, local project state, coding-agent MCP connection, graph sync/status, and (on server installs) the MCP gateway and stack. It is installed into the project virtualenv and linked onto the user PATH.
+
+**Install roles and CLI surface:**
+
+| Role | PATH `agentcore` | Surface |
+| --- | --- | --- |
+| `server` / `both` | Full entry (`.venv/bin/agentcore` → `agentcore_cli`) | Full command catalog; includes client workflows (`connect`, remote sync) — no second client install |
+| `client` | Thin entry (shim → `.venv/bin/agentcore-client` → `agentcore_client`) | Allowlist only: connect, profile/project, sync, purge, status, doctor, client wire, path, `upgrade client` |
+
+Client-only `purge` / `sync` / `status` run against the AgentCore **server** over SSH using `connect.yaml` scope (fail-closed if CLI scope flags disagree). Design SoT: [thin-client CLI design](../superpowers/specs/2026-07-25-thin-client-cli-design.md).
 
 **Full command catalog** (why each command exists, required vs optional flags, examples, and what changes when you run it):
 
@@ -57,7 +71,9 @@ Preferred (full local bootstrap including OS deps and Compose when needed):
 
 ```bash
 bash install.sh
-## or venv/PATH only:
+## or client-only (venv/PATH; thin CLI):
+bash install.sh --role client
+## alias:
 bash install.sh --skip-infra
 ```
 
@@ -73,8 +89,8 @@ This will:
 
 1. Create/refresh `.venv`
 2. Install `requirements-dev.txt`
-3. `pip install -e .` so `.venv/bin/agentcore` exists
-4. Symlink `~/.local/bin/agentcore` → `.venv/bin/agentcore`
+3. `pip install -e .` so `.venv/bin/agentcore` and `.venv/bin/agentcore-client` exist
+4. Symlink `~/.local/bin/agentcore` → full or thin binary according to `role=` in install-state
 5. Append a PATH export to `~/.bashrc` or `~/.zshrc` when `~/.local/bin` is not already on PATH
 
 Manual PATH install:
@@ -117,28 +133,30 @@ agentcore purge --yes   # graph only
 
 ## Command index (quick)
 
-| Command | One-line purpose |
-| --- | --- |
-| `agentcore init` | You choose tenant + workspace IDs and software `--path`(s); save identity + `.env` |
-| `agentcore paths` | List / add / remove pinned software roots (sync targets) |
-| `agentcore status` | Scope, paths, infra, graph counts, MCP configs, hints |
-| `agentcore inventory` | Code/docs done vs remaining for pinned software roots |
-| `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent |
-| `agentcore stats` | Code/docs counts, language mix %, processed vs remaining |
-| `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood |
-| `agentcore sync` / `purge` | Load or wipe project graph data (sync requires `agentcore.sync.yaml` + pinned paths) |
-| `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations |
-| `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope |
-| `agentcore doctor` / `version` | Health / version |
-| `agentcore profile *` | Usage Profile catalog |
-| `agentcore project *` | Local project register / activate / show |
-| `agentcore cursor export` | Export Cursor `mcpServers` fragment |
-| `agentcore mcp tools` / `tokens` / `serve` / `serve-http` | List tools; estimate connect/usage tokens; run stdio or HTTP gateway |
-| `agentcore client *` | Remote SSH wire / doctor / list MCP clients |
-| `agentcore path install` | Symlink CLI onto `~/.local/bin` |
-| `agentcore ports show` / `check` | Port profile preflight |
-| `agentcore graph *` | Ingest, freshness, explore, hybrid, smoke, watch |
-| `agentcore upgrade *` | Server/client upgrade, contract check, control-plane jobs |
+Full CLI (`server` / `both`). On **client-only**, only the rows marked **client** appear in `--help`.
+
+| Command | One-line purpose | Client-only |
+| --- | --- | --- |
+| `agentcore init` | You choose tenant + workspace IDs and software `--path`(s); save identity + `.env` | no |
+| `agentcore paths` | List / add / remove pinned software roots (sync targets) | no |
+| `agentcore status` | Scope, paths, infra, graph counts, MCP configs, hints (proxies to server on client) | **yes** |
+| `agentcore inventory` | Code/docs done vs remaining for pinned software roots | no |
+| `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent | no |
+| `agentcore stats` | Code/docs counts, language mix %, processed vs remaining | no |
+| `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood | **yes** |
+| `agentcore sync` / `purge` | Load or wipe project graph data (client: remote SSH, scope locked to connect.yaml) | **yes** |
+| `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations | no |
+| `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope | no |
+| `agentcore doctor` / `version` | Health / version | **yes** |
+| `agentcore profile *` | Usage Profile catalog | **yes** |
+| `agentcore project *` | Local project register / activate / show | **yes** |
+| `agentcore cursor export` | Export Cursor `mcpServers` fragment | no |
+| `agentcore mcp tools` / `tokens` / `serve` / `serve-http` | List tools; estimate connect/usage tokens; run stdio or HTTP gateway | no |
+| `agentcore client *` | Remote SSH wire / doctor / list MCP clients | **yes** |
+| `agentcore path install` | Symlink CLI onto `~/.local/bin` (thin vs full by role) | **yes** |
+| `agentcore ports show` / `check` | Port profile preflight | no |
+| `agentcore graph *` | Ingest, freshness, explore, hybrid, smoke, watch | no |
+| `agentcore upgrade *` | Server/client upgrade, contract check, control-plane jobs | `upgrade client` only |
 
 Every row above is expanded in [doc 42](./42-agentcore-cli-command-reference.md). Upgrade details: [51 - Software Upgrade Server And Client](./51-software-upgrade-server-and-client.md).
 

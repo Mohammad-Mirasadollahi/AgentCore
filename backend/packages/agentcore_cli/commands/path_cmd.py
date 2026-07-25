@@ -97,10 +97,14 @@ def cmd_path_install(args: argparse.Namespace) -> int:
     quiet = bool(getattr(args, "quiet", False))
     root = repo_root()
     venv_dir = os.environ.get("AGENTCORE_VENV_DIR", ".venv")
-    source = root / venv_dir / "bin" / "agentcore"
+    from agentcore_cli.service_runtime.paths import install_role
+
+    # Client-only: PATH `agentcore` must resolve to the thin entry.
+    bin_name = "agentcore-client" if install_role(root) == "client" else "agentcore"
+    source = root / venv_dir / "bin" / bin_name
     if not source.is_file():
         raise SystemExit(
-            f"error: {venv_dir}/bin/agentcore missing; run: bash scripts/ensure-venv.sh"
+            f"error: {venv_dir}/bin/{bin_name} missing; run: bash scripts/ensure-venv.sh"
         )
     local_bin = Path(os.path.expanduser("~")) / ".local" / "bin"
     target = local_bin / "agentcore"
@@ -110,6 +114,12 @@ def cmd_path_install(args: argparse.Namespace) -> int:
         if target.is_symlink() or target.exists():
             target.unlink()
         target.symlink_to(source.resolve())
+        # Also expose the thin name on client hosts for explicit use.
+        if bin_name == "agentcore-client":
+            thin_link = local_bin / "agentcore-client"
+            if thin_link.is_symlink() or thin_link.exists():
+                thin_link.unlink()
+            thin_link.symlink_to(source.resolve())
     except OSError as exc:  # sandbox / read-only home
         symlink_error = str(exc)
 

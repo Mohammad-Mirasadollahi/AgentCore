@@ -7,7 +7,7 @@ import argparse
 from agentcore_cli.util import add_scope_args
 
 
-def register(sub: argparse._SubParsersAction) -> None:
+def register_status(sub: argparse._SubParsersAction) -> None:
     status = sub.add_parser(
         "status",
         help="Show platform + graph sync status (one command)",
@@ -15,6 +15,10 @@ def register(sub: argparse._SubParsersAction) -> None:
     add_scope_args(status, required=False)
     status.add_argument("--json", action="store_true", help="Print full JSON only")
     status.add_argument("--verbose", action="store_true", help="Human summary + JSON")
+
+
+def register(sub: argparse._SubParsersAction) -> None:
+    register_status(sub)
 
     inventory = sub.add_parser(
         "inventory",

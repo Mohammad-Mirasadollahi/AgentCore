@@ -368,6 +368,19 @@ def _print_human(report: dict[str, Any]) -> None:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
+    from agentcore_cli.connect_config import load_connect_settings, try_resolve_config_path
+    from agentcore_cli.service_runtime.paths import local_compose_stack_present
+    from agentcore_cli.util import repo_root
+
+    root = repo_root()
+    # Client install: local status has no live sync / graph — proxy to AgentCore server.
+    if not local_compose_stack_present(root):
+        cfg = try_resolve_config_path()
+        if cfg is not None:
+            settings = load_connect_settings(config_path=str(cfg), allow_incomplete=True)
+            if settings.ssh:
+                return _cmd_status_client_remote(settings, args)
+
     report = build_status_report(
         tenant=str(args.tenant or ""),
         workspace=str(args.workspace or ""),
@@ -386,3 +399,29 @@ def cmd_status(args: argparse.Namespace) -> int:
     if status == "error" or "unreachable" in status:
         code = 1
     return code
+
+
+def _cmd_status_client_remote(settings: Any, args: argparse.Namespace) -> int:
+    """Run ``agentcore status`` on the connected AgentCore server and print its output."""
+    from agentcore_cli import ui
+    from agentcore_cli.connect_flow.ssh import run_ssh
+
+    root = settings.remote_root.rstrip("/\\")
+    agentcore = f"{root}/.venv/bin/agentcore"
+    remote = [agentcore, "status"]
+    tenant = str(getattr(args, "tenant", None) or settings.tenant or "").strip()
+    workspace = str(getattr(args, "workspace", None) or settings.workspace or "").strip()
+    project = str(getattr(args, "project", None) or settings.project or "").strip()
+    if tenant:
+        remote.extend(["--tenant", tenant])
+    if workspace:
+        remote.extend(["--workspace", workspace])
+    if project:
+        remote.extend(["--project", project])
+    if getattr(args, "json", False):
+        remote.append("--json")
+    if getattr(args, "verbose", False):
+        remote.append("--verbose")
+    ui.blank()
+    print(f"   {ui.dim('status via server')}  {settings.ssh}  ({root})", flush=True)
+    return run_ssh(settings, remote)

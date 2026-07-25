@@ -10,7 +10,9 @@ Module contract:
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from agentcore_cli import ui
@@ -18,7 +20,7 @@ from agentcore_cli.connect_config import ConnectSettings
 from agentcore_cli.connect_flow.ssh import (
     missing_server_source_message,
     remote_is_dir,
-    run_ssh,
+    run_ssh_interruptible,
     ssh_command,
 )
 
@@ -126,8 +128,17 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
         target = settings.source_server_path
         consent_paths = [settings.source_server_path]
     else:
-        target = "server pinned software paths"
-        consent_paths = [f"{root} (server pinned software paths)"]
+        # Do not fall back to the AgentCore host identity pins — that silently syncs
+        # /opt/AgentCore (or whatever the server last pinned) instead of the client app.
+        raise SystemExit(
+            "error: remote sync needs an explicit server-side software path\n"
+            "  In .agentcore/connect.yaml (on the client) set:\n"
+            "    source:\n"
+            "      server_path: /opt/YourApp   # path that EXISTS on the AgentCore server\n"
+            "  Or pass once: agentcore sync --path /opt/YourApp\n"
+            "  The client checkout path is not used over SSH; copy/NFS/clone the tree "
+            "onto the server first if it is missing there."
+        )
 
     # SSH has no TTY — ask on the local interactive client, then forward the flag.
     allow_cloud = client_remote_cloud_llm_allowed(
@@ -163,7 +174,35 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
         remote_cmd.extend(["--include-ext", str(item)])
     # Do not forward --force: sync has no such flag (init/project do).
     print(f"   {ui.warn('…')} remote sync on server ({target})")
-    return run_ssh(settings, remote_cmd)
+    print(f"   {ui.dim('Ctrl+C stops the server-side sync (not only this SSH session).')}")
+
+    # Pidfile so client Ctrl+C can kill the remote process (SSH drop alone leaves it running).
+    pidfile = (
+        f"{root}/.agentcore/run/"
+        f"remote-sync-{tenant}-{workspace}-{project}.pid"
+    )
+    wrapped = (
+        f"mkdir -p {shlex.quote(str(Path(pidfile).parent))} && "
+        f"echo $$ > {shlex.quote(pidfile)} && "
+        f"trap 'rm -f {shlex.quote(pidfile)}' EXIT && "
+        f"exec {shlex.join(remote_cmd)}"
+    )
+    return run_ssh_interruptible(
+        settings,
+        ["bash", "-lc", wrapped],
+        on_interrupt_remote=[
+            "bash",
+            "-lc",
+            (
+                f"if [ -f {shlex.quote(pidfile)} ]; then "
+                f"kill -INT \"$(cat {shlex.quote(pidfile)})\" 2>/dev/null || true; "
+                f"sleep 2; "
+                f"kill -TERM \"$(cat {shlex.quote(pidfile)})\" 2>/dev/null || true; "
+                f"rm -f {shlex.quote(pidfile)}; "
+                f"fi"
+            ),
+        ],
+    )
 
 
 # Compat aliases for monkeypatches / older names.

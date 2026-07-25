@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.138-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-ready-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![MCP](https://img.shields.io/badge/MCP-gateway-111827)](docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md)
-[![Version](https://img.shields.io/badge/version-0.1.0-informational)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.1.2-informational)](pyproject.toml)
 [![Phases](https://img.shields.io/badge/roadmap-Phases%201--11-8B5CF6)](docs/00-master-plan/02-roadmap-and-phase-gates.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![GitHub stars](https://img.shields.io/github/stars/Mohammad-Mirasadollahi/AgentCore?style=flat)](https://github.com/Mohammad-Mirasadollahi/AgentCore/stargazers)
@@ -88,9 +88,13 @@ export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
 agentcore mcp serve-http --host 0.0.0.0 --port 32500
 ```
 
-### 2) Dev host (client)
+### 2) Dev host (client-only)
 
-CLI-only path (no Docker on the client). Same installer with `--role client` (or choose **client** in the menu):
+CLI-only path (no Docker on the client). Same installer with `--role client` (or choose **client** in the menu).
+
+**Client-only installs use the thin CLI** (`agentcore-client`). After install, `~/.local/bin/agentcore` points at that thin entry — you still type `agentcore`, but only connect / profile / process commands are available (`connect`, `profile`, `project`, `sync`, `purge`, `status`, plus `doctor` / `client` / `path` / `upgrade client`). Server-admin commands (`service`, `graph`, `mcp serve`, …) are not on the client PATH.
+
+**Server** and **both** keep the **full** `agentcore` CLI (and can run client workflows such as `connect` without a second client install).
 
 ```bash
 # empty machine — fully non-interactive client (no prompts after channel/root flags):
@@ -101,6 +105,8 @@ bash install.sh --skip-infra --yes --non-interactive --role client
 agentcore path install   # if needed; open a new shell
 agentcore connect
 ```
+
+From the client you manage **your connected scope** on the server: `agentcore sync`, `agentcore status`, and `agentcore purge --yes` (purge is remote; scope is locked to `connect.yaml`).
 
 Edit `.agentcore/connect.yaml` under the checkout (or run the connect wizard).
 
@@ -228,8 +234,9 @@ bash install.sh
 Open a **new** shell, then:
 
 ```bash
-agentcore doctor          # server / both
-agentcore connect         # client / both (after connect.yaml)
+agentcore doctor          # server / both (full CLI)
+agentcore connect         # client-only or both (after connect.yaml)
+# Client-only PATH is the thin CLI; server/both PATH is the full CLI.
 ```
 
 - Full steps, flags, and troubleshooting → [Local install runbook](docs/08-software-engineering-architecture/39-local-install-runbook.md)

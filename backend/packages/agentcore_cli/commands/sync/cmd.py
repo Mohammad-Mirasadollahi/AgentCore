@@ -158,6 +158,25 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
 
 
 def cmd_purge(args: argparse.Namespace) -> int:
+    from agentcore_cli.connect_config import load_connect_settings, try_resolve_config_path
+    from agentcore_cli.service_runtime.paths import install_role, local_compose_stack_present
+
+    root = repo_root()
+    # Client-only (or no local stack + connect.yaml): purge on server via SSH — never local.
+    if install_role(root) == "client" or not local_compose_stack_present(root):
+        cfg = try_resolve_config_path()
+        if cfg is None:
+            raise SystemExit(
+                "error: client purge requires connect.yaml (run agentcore connect first)"
+            )
+        settings = load_connect_settings(config_path=str(cfg), allow_incomplete=True)
+        if settings.ssh:
+            from agentcore_cli.connect_flow.remote_purge import remote_purge_from_args
+
+            return remote_purge_from_args(settings, args)
+        if install_role(root) == "client":
+            raise SystemExit("error: client purge requires server.ssh in connect.yaml")
+
     if not args.yes:
         raise SystemExit("error: purge requires --yes (destructive: wipes project graph data)")
     svc = _graph_service()

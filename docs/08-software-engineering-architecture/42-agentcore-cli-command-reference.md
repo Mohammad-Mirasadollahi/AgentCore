@@ -25,6 +25,8 @@ authority: normative
 visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/main.py::main
+- backend/packages/agentcore_client/main.py::main
+- backend/packages/agentcore_cli/client_allowlist.py::CLIENT_TOP_LEVEL_COMMANDS
 - backend/packages/agentcore_cli/sync_config.py::SyncConfigError
 - backend/packages/agentcore_cli/software_paths.py::format_paths_env
 - backend/packages/agentcore_cli/docs_link_sync.py::DocsLinkSyncResult
@@ -34,13 +36,12 @@ linked_symbols:
 - backend/packages/agentcore_cli/cli_defaults.py::load_dotenv_files
 - backend/packages/agentcore_cli/identity.py::identity_path
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
-- backend/packages/agentcore_cli/commands/sync.py::cmd_sync
+- backend/packages/agentcore_cli/commands/sync/cmd.py::cmd_sync
 - backend/packages/agentcore_cli/commands/docs_standards/cmd.py::cmd_docs_standards
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
-placeholder: 1
-doc_version: 1.1.1
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-07-25'
 ---
 
 # 42 - AgentCore CLI Command Reference
@@ -49,7 +50,16 @@ updated_at: '2026-07-24'
 
 This document is the **canonical operator reference** for the `agentcore` CLI: every shipped subcommand, why it exists, which flags are required, a copy-paste example, and what changes on disk or in stores when you run it.
 
-For install / PATH / package layout, see [36-agentcore-cli.md](./36-agentcore-cli.md). For remote MCP onboarding flows, see [41](./41-one-command-cross-platform-agent-onboarding.md). For **server/client upgrade** (`agentcore upgrade *`, `install.sh --upgrade`), see [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md).
+**Two entries:**
+
+| Install role | Binary on PATH | Catalog in this doc |
+| --- | --- | --- |
+| `server` / `both` | Full `agentcore_cli` | All sections below |
+| `client` | Thin `agentcore_client` (still invoked as `agentcore`) | Only: `version`, `doctor`, `status`, `connect`, `sync`, `purge`, `profile`, `project`, `client`, `path`, `upgrade client` |
+
+On client-only hosts, `purge` / `sync` / `status` are remote operations scoped to `connect.yaml` (CLI `--tenant` / `--workspace` / `--project` must match or the command fails closed). Server and `both` do **not** need a separate thin-client install to run `connect`.
+
+For install / PATH / package layout, see [36-agentcore-cli.md](./36-agentcore-cli.md). For remote MCP onboarding flows, see [41](./41-one-command-cross-platform-agent-onboarding.md). For **server/client upgrade** (`agentcore upgrade *`, `install.sh --upgrade`), see [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md). Design: [thin-client CLI](../superpowers/specs/2026-07-25-thin-client-cli-design.md).
 
 ## How to read each command
 

@@ -7,7 +7,7 @@ import argparse
 from agentcore_cli.util import add_scope_args
 
 
-def register(sub: argparse._SubParsersAction) -> None:
+def register_client_and_path(sub: argparse._SubParsersAction) -> None:
     client = sub.add_parser("client", help="Dev host wiring to a remote AgentCore install")
     client_sub = client.add_subparsers(dest="client_command", required=True)
     client_sub.add_parser("list-mcp-clients", help="List supported coding-agent MCP config targets")
@@ -52,7 +52,7 @@ def register(sub: argparse._SubParsersAction) -> None:
 
     path_cmd = sub.add_parser("path", help="Install agentcore onto user PATH")
     path_sub = path_cmd.add_subparsers(dest="path_command", required=True)
-    install = path_sub.add_parser("install", help="Symlink ~/.local/bin/agentcore -> .venv/bin/agentcore")
+    install = path_sub.add_parser("install", help="Symlink ~/.local/bin/agentcore -> thin or full CLI")
     install.add_argument(
         "--shell-rc",
         default="",
@@ -68,6 +68,10 @@ def register(sub: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Suppress human status lines and JSON summary (errors still print)",
     )
+
+
+def register(sub: argparse._SubParsersAction) -> None:
+    register_client_and_path(sub)
 
     ports = sub.add_parser("ports", help="Port profile preflight")
     ports_sub = ports.add_subparsers(dest="ports_command", required=True)

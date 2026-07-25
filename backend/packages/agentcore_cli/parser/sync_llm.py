@@ -8,7 +8,7 @@ from agentcore_cli.parser._core import DEFAULT_SYNC_MAX_FILES
 from agentcore_cli.util import add_scope_args
 
 
-def register(sub: argparse._SubParsersAction) -> None:
+def register_connect(sub: argparse._SubParsersAction) -> None:
     connect = sub.add_parser(
         "connect",
         help="One-command coding-agent onboarding (interactive SSH wizard or connect.yaml)",
@@ -53,6 +53,8 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="AgentCore checkout root (local mode; default: detected repo root / cwd)",
     )
 
+
+def register_sync(sub: argparse._SubParsersAction) -> None:
     sync = sub.add_parser(
         "sync",
         help="Sync code into the project graph (auto full vs incremental)",
@@ -131,6 +133,8 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Override include extensions (repeatable, e.g. --include-ext .py)",
     )
 
+
+def _register_server_only_middle(sub: argparse._SubParsersAction) -> None:
     llm = sub.add_parser("llm", help="LiteLLM gateway (test connectivity, sessions)")
     llm_sub = llm.add_subparsers(dest="llm_command", required=True)
     llm_sub.add_parser(
@@ -217,6 +221,8 @@ def register(sub: argparse._SubParsersAction) -> None:
     review.add_argument("--out", default=None, help="Write markdown pack to path when ok")
     review.add_argument("--json", action="store_true", help="Print JSON summary")
 
+
+def register_purge(sub: argparse._SubParsersAction) -> None:
     purge = sub.add_parser(
         "purge",
         help="Wipe project graph data only (requires --yes); then run sync to rebuild",
@@ -228,6 +234,8 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Confirm destructive wipe of symbols/edges for this scope",
     )
 
+
+def _register_destroy_and_list(sub: argparse._SubParsersAction) -> None:
     destroy = sub.add_parser(
         "destroy-profile",
         help=(
@@ -244,3 +252,11 @@ def register(sub: argparse._SubParsersAction) -> None:
     )
     list_profiles.add_argument("--json", action="store_true", help="Print JSON only")
     list_profiles.add_argument("--verbose", action="store_true", help="Human table + JSON")
+
+
+def register(sub: argparse._SubParsersAction) -> None:
+    register_connect(sub)
+    register_sync(sub)
+    _register_server_only_middle(sub)
+    register_purge(sub)
+    _register_destroy_and_list(sub)

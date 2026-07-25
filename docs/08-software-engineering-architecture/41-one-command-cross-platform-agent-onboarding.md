@@ -33,7 +33,13 @@ linked_symbols:
 - backend/packages/agentcore_cli/connect_flow/run.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
-doc_version: 1.2.4
+- backend/packages/agentcore_client/main.py::main
+related_docs:
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
+- docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
+- docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
+doc_version: 1.3.0
 updated_at: '2026-07-25'
 ---
 
@@ -133,12 +139,15 @@ Open a new shell so `agentcore` is on `PATH` ([36](./36-agentcore-cli.md)).
 ### B) Dev host (once)
 
 ```bash
-## Install CLI only (no need for Docker infra on the laptop)
-bash install.sh --skip-infra
-agentcore path install   # if needed
+## Install CLI only (no Docker infra on the laptop) — thin client entry on PATH
+bash install.sh --role client
+# alias: bash install.sh --skip-infra
+agentcore path install   # if needed; links ~/.local/bin/agentcore → agentcore-client
 cd /opt/MyApp
 agentcore connect
 ```
+
+On **client-only** hosts, `agentcore --help` lists only connect / profile / process commands. Use `agentcore sync`, `agentcore status`, and `agentcore purge --yes` to manage **your** connected scope on the server (scope is locked to `connect.yaml`). Do not expect `service`, `graph`, or `mcp serve` on the client — those stay on the AgentCore server (or on a `both` install).
 
 On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root discovery, **tenant / workspace / Usage Profile**, then project register. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from argparse import Namespace
 from pathlib import Path
 
-from agentcore_cli.commands.status import _overall, build_status_report
+from agentcore_cli.commands.status import _overall, build_status_report, cmd_status
+from agentcore_cli.connect_config import ConnectSettings
 from agentcore_cli.parser import build_parser
 
 
@@ -56,6 +58,33 @@ def test_overall_empty_vs_ready():
         )
         == "Postgres unreachable"
     )
+
+
+def test_cmd_status_proxies_to_server_on_client_install(monkeypatch, tmp_path: Path):
+    cfg = tmp_path / "connect.yaml"
+    cfg.write_text("server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n", encoding="utf-8")
+    seen: list[list[str]] = []
+
+    monkeypatch.setattr(
+        "agentcore_cli.service_runtime.paths.local_compose_stack_present",
+        lambda _root: False,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.load_connect_settings",
+        lambda **_k: ConnectSettings(ssh="alice@srv", remote_root="/opt/AgentCore", project="demo"),
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.ssh.run_ssh",
+        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
+    )
+    assert cmd_status(Namespace(tenant="", workspace="", project="", json=False, verbose=False)) == 0
+    assert seen
+    assert seen[0][0].endswith("/agentcore")
+    assert seen[0][1] == "status"
 
 
 def test_build_status_report_smoke(monkeypatch, tmp_path: Path):

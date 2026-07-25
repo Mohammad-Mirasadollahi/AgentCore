@@ -51,11 +51,13 @@ graph-analytics = [
 
 [project.scripts]
 agentcore = "agentcore_cli.main:main"
+agentcore-client = "agentcore_client.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "backend/packages"}
 packages = [
   "agentcore_cli",
+  "agentcore_client",
   "usage_profile",
   "outbox_relay",
   "llm_gateway",

@@ -111,12 +111,20 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _dispatch(argv: list[str] | None = None) -> int:
+    from agentcore_cli.client_allowlist import client_command_allowed, deny_message_for_client_role
+    from agentcore_cli.service_runtime.paths import install_role
+
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.version and not args.command:
         return cmd_version(args)
     if not args.command:
         parser.print_help()
+        return 2
+
+    # Defense in depth: client-only hosts must not run server-admin via full module.
+    if install_role(repo_root()) == "client" and not client_command_allowed(args.command, args):
+        print(deny_message_for_client_role(args.command), flush=True)
         return 2
 
     if args.command == "version":

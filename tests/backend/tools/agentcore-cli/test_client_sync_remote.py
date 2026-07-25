@@ -6,19 +6,30 @@ from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from agentcore_cli.commands import sync as sync_cmd
 from agentcore_cli.connect_config import ConnectSettings
 from agentcore_cli.connect_flow import remote_ingest, remote_sync_from_args
+import shlex
+
+
+def _unwrap_remote_sync_argv(remote_command: list[str]) -> list[str]:
+    """Remote sync wraps ``agentcore sync …`` in ``bash -lc`` with a pidfile."""
+    assert remote_command[:2] == ["bash", "-lc"]
+    script = remote_command[2]
+    assert "exec " in script
+    return shlex.split(script.split("exec ", 1)[1])
 
 
 def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
     seen: list[list[str]] = []
 
-    def fake_run(settings, remote_command, *, connect_timeout=15):
+    def fake_run(settings, remote_command, *, connect_timeout=15, on_interrupt_remote=None):
         seen.append(list(remote_command))
         return 0
 
-    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.run_ssh", fake_run)
+    monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.run_ssh_interruptible", fake_run)
     monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
     monkeypatch.setattr(
         "agentcore_cli.connect_flow.remote_sync.client_remote_cloud_llm_allowed",
@@ -50,7 +61,7 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
     )
     assert remote_sync_from_args(settings, args) == 0
     assert seen
-    cmd = seen[0]
+    cmd = _unwrap_remote_sync_argv(seen[0])
     assert cmd[0] == "/opt/AgentCore/.venv/bin/agentcore"
     assert cmd[1] == "sync"
     assert "--path" in cmd and "/opt/src" in cmd
@@ -72,8 +83,11 @@ def test_remote_sync_prompts_local_cloud_llm_consent_and_forwards_flag(monkeypat
     prompts: list[str] = []
 
     monkeypatch.setattr(
-        "agentcore_cli.connect_flow.remote_sync.run_ssh",
-        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
+        "agentcore_cli.connect_flow.remote_sync.run_ssh_interruptible",
+        lambda settings, remote_command, *, connect_timeout=15, on_interrupt_remote=None: seen.append(
+            list(remote_command)
+        )
+        or 0,
     )
     monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
     monkeypatch.setattr(
@@ -129,7 +143,7 @@ def test_remote_sync_prompts_local_cloud_llm_consent_and_forwards_flag(monkeypat
     assert remote_sync_from_args(settings, args) == 0
     assert len(prompts) == 2
     assert "Allow cloud LLM" in prompts[0]
-    cmd = seen[0]
+    cmd = _unwrap_remote_sync_argv(seen[0])
     assert "--allow-cloud-llm" in cmd
     assert "--cpu-percent" in cmd and "40" in cmd
     assert "--progress-interval" in cmd and "15.0" in cmd
@@ -148,8 +162,11 @@ def test_remote_sync_prompts_local_cloud_llm_consent_and_forwards_flag(monkeypat
 def test_remote_sync_forwards_allow_cloud_llm_without_reprompt(monkeypatch):
     seen: list[list[str]] = []
     monkeypatch.setattr(
-        "agentcore_cli.connect_flow.remote_sync.run_ssh",
-        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
+        "agentcore_cli.connect_flow.remote_sync.run_ssh_interruptible",
+        lambda settings, remote_command, *, connect_timeout=15, on_interrupt_remote=None: seen.append(
+            list(remote_command)
+        )
+        or 0,
     )
     monkeypatch.setattr("agentcore_cli.connect_flow.remote_sync.remote_is_dir", lambda *_a, **_k: True)
     monkeypatch.setattr(
@@ -189,7 +206,30 @@ def test_remote_sync_forwards_allow_cloud_llm_without_reprompt(monkeypatch):
         include_ext=[],
     )
     assert remote_sync_from_args(settings, args) == 0
-    assert "--allow-cloud-llm" in seen[0]
+    assert "--allow-cloud-llm" in _unwrap_remote_sync_argv(seen[0])
+
+
+def test_remote_sync_requires_explicit_server_path(monkeypatch):
+    """Client remote sync must not silently use AgentCore host identity pins."""
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.client_remote_cloud_llm_allowed",
+        lambda *_a, **_k: False,
+    )
+    settings = ConnectSettings(
+        ssh="user@host",
+        remote_root="/opt/AgentCore",
+        tenant="mir",
+        workspace="dev",
+        project="ThinkingSOC",
+        source_server_path="",
+    )
+    with pytest.raises(SystemExit) as exc:
+        remote_sync_from_args(
+            settings,
+            Namespace(path=None, tenant=None, workspace=None, project=None, max_files=10),
+        )
+    assert "server_path" in str(exc.value)
+    assert "connect.yaml" in str(exc.value)
 
 
 def test_remote_sync_from_args_rejects_missing_server_path(monkeypatch):
@@ -199,14 +239,10 @@ def test_remote_sync_from_args_rejects_missing_server_path(monkeypatch):
         remote_root="/opt/AgentCore",
         source_server_path="/opt/ThinkingSOC",
     )
-    try:
+    with pytest.raises(SystemExit) as exc:
         remote_sync_from_args(settings, Namespace(path=None, tenant=None, workspace=None, project=None))
-        raised = False
-    except SystemExit as exc:
-        raised = True
-        assert "not a directory on the AgentCore server" in str(exc)
-        assert "/opt/ThinkingSOC" in str(exc)
-    assert raised
+    assert "not a directory on the AgentCore server" in str(exc.value)
+    assert "/opt/ThinkingSOC" in str(exc.value)
 
 
 def test_remote_ingest_skips_optional_when_path_missing_on_server(monkeypatch, capsys):

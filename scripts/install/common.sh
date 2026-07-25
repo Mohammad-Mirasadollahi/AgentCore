@@ -317,7 +317,12 @@ path_shim_matches_venv() {
 # Always ensure ~/.local/bin is exported for this process and present on disk.
 ensure_agentcore_on_path() {
   local venv_cli
-  venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+  # Client-only: PATH agentcore must resolve to thin entry (agentcore-client).
+  if [[ "${INSTALL_ROLE:-}" == "client" ]] || grep -q '^role=client$' "${AGENTCORE_ROOT}/.agentcore/install-state.env" 2>/dev/null; then
+    venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore-client"
+  else
+    venv_cli="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/agentcore"
+  fi
   export PATH="${HOME}/.local/bin:${PATH}"
   [[ -x "${venv_cli}" ]] || fail "cannot install PATH: missing ${venv_cli} (stage 02 incomplete)"
   if path_shim_matches_venv "${venv_cli}" && command -v agentcore >/dev/null 2>&1; then

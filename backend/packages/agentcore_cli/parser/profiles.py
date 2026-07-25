@@ -7,7 +7,7 @@ import argparse
 from agentcore_cli.util import add_scope_args
 
 
-def register(sub: argparse._SubParsersAction) -> None:
+def register_profile_and_project(sub: argparse._SubParsersAction) -> None:
     profile = sub.add_parser("profile", help="Usage Profile catalog commands")
     profile_sub = profile.add_subparsers(dest="profile_command", required=False)
     profile_sub.add_parser("list", help="List Usage Profiles (default)")
@@ -34,6 +34,10 @@ def register(sub: argparse._SubParsersAction) -> None:
     add_scope_args(show_p)
     eff = project_sub.add_parser("effective", help="Resolve effective Usage Profile")
     add_scope_args(eff)
+
+
+def register(sub: argparse._SubParsersAction) -> None:
+    register_profile_and_project(sub)
 
     cursor = sub.add_parser("cursor", help="Cursor MCP helpers")
     cursor_sub = cursor.add_subparsers(dest="cursor_command", required=True)
