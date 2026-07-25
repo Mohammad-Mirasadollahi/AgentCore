@@ -161,7 +161,15 @@ class _FakeSession:
                 if node["tenant_id"] == params["tenant_id"]
                 and node["workspace_id"] == params["workspace_id"]
                 and node["project_id"] == params["project_id"]
+                and node.get("kind") is not None
+                and node.get("doc_status") is not None
             ]
+            if "n.file_path = $file_path" in q:
+                rows = [
+                    row
+                    for row in rows
+                    if row.data["n"].get("file_path") == params["file_path"]
+                ]
             return _FakeResult(rows)
         if "DELETE r" in q and "r.file_path = $file_path" in q:
             drop = [
@@ -248,6 +256,15 @@ class _FakeSession:
                     edge["confidence"] = "exact"
                     repaired += 1
             return _FakeResult([_FakeRecord({"repaired": repaired})])
+        if "n.kind IS NULL OR n.doc_status IS NULL" in q and "DETACH DELETE" in q:
+            drop = [
+                sid
+                for sid, node in self.store.symbols.items()
+                if node.get("kind") is None or node.get("doc_status") is None
+            ]
+            for sid in drop:
+                del self.store.symbols[sid]
+            return _FakeResult([_FakeRecord({"repaired": len(drop)})])
         raise AssertionError(f"unexpected cypher in fake neo4j driver: {q}")
 
 

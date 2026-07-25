@@ -47,6 +47,16 @@ def test_list_edges_coalesces_null_confidence():
     assert REL in cypher.BACKFILL_NULL_CONFIDENCE
 
 
+def test_purge_null_symbol_enums_and_list_filters():
+    assert "PURGE_NULL_SYMBOL_ENUMS" in dir(cypher)
+    assert "n.kind IS NULL OR n.doc_status IS NULL" in cypher.PURGE_NULL_SYMBOL_ENUMS
+    assert "DETACH DELETE" in cypher.PURGE_NULL_SYMBOL_ENUMS
+    assert "n.kind IS NOT NULL" in cypher.LIST_SYMBOLS
+    assert "n.doc_status IS NOT NULL" in cypher.LIST_SYMBOLS
+    assert "n.kind IS NOT NULL" in cypher.LIST_SYMBOLS_FOR_FILE
+    assert "n.doc_status IS NOT NULL" in cypher.LIST_SYMBOLS_FOR_FILE
+
+
 def test_list_edges_supports_optional_filters():
     assert "$rel_type IS NULL OR r.rel_type = $rel_type" in cypher.LIST_EDGES
     assert "$target_id IS NULL OR target.id = $target_id" in cypher.LIST_EDGES

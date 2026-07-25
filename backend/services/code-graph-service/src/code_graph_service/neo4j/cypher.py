@@ -51,6 +51,8 @@ MATCH (n:CodeSymbol)
 WHERE n.tenant_id = $tenant_id
   AND n.workspace_id = $workspace_id
   AND n.project_id = $project_id
+  AND n.kind IS NOT NULL
+  AND n.doc_status IS NOT NULL
 WITH n
 ORDER BY n.qualified_name, n.id
 RETURN n {
@@ -68,6 +70,8 @@ WHERE n.tenant_id = $tenant_id
   AND n.workspace_id = $workspace_id
   AND n.project_id = $project_id
   AND n.file_path = $file_path
+  AND n.kind IS NOT NULL
+  AND n.doc_status IS NOT NULL
 RETURN n
 ORDER BY n.qualified_name, n.id
 """
@@ -135,6 +139,15 @@ MATCH ()-[r:{REL}]->()
 WHERE r.confidence IS NULL
 SET r.confidence = 'exact'
 RETURN count(r) AS repaired
+"""
+
+# Required enums cannot be invented; detach-delete unusable orphans (Postgres NOT NULL equivalent).
+PURGE_NULL_SYMBOL_ENUMS = """
+MATCH (n:CodeSymbol)
+WHERE n.kind IS NULL OR n.doc_status IS NULL
+WITH collect(n) AS nodes
+FOREACH (n IN nodes | DETACH DELETE n)
+RETURN size(nodes) AS repaired
 """
 
 BEGIN_IDEMPOTENCY = """

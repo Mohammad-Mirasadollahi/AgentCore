@@ -38,10 +38,8 @@ def resolve_linked_symbol(store: Store, scope: Scope, token: str) -> GraphSymbol
         name = name.strip()
         if not file_path or not name:
             return None
-        for symbol in store.list_symbols(scope):
+        for symbol in store.list_symbols_for_file(scope, file_path):
             if symbol.kind in _SKIP_KINDS:
-                continue
-            if symbol.file_path.replace("\\", "/") != file_path:
                 continue
             if symbol.name == name or symbol.qualified_name.endswith(f".{name}"):
                 return symbol

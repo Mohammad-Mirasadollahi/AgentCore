@@ -74,6 +74,56 @@ def test_resolve_qualified_name_and_path_form():
     assert resolve_linked_symbol(store, SCOPE, "src/auth.py::nope") is None
 
 
+def test_resolve_path_form_uses_list_symbols_for_file_not_full_scan():
+    """Wiki-style tokens must not full-scan list_symbols (blast radius + cost)."""
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+
+    class GuardStore(InMemoryStore):
+        def list_symbols(self, scope):
+            raise AssertionError("path::Name resolve must not call list_symbols")
+
+        def list_symbols_for_file(self, scope, file_path):
+            return super().list_symbols_for_file(scope, file_path)
+
+    guarded = GuardStore()
+    for sym in store.list_symbols(SCOPE):
+        guarded.put_symbol(sym)
+
+    hit = resolve_linked_symbol(guarded, SCOPE, "src/auth.py::login")
+    assert hit is not None
+    assert hit.name == "login"
+
+
+def test_upsert_human_docs_wiki_resolve_ignores_unrelated_full_scan():
+    """Regression: docs upsert with path::Name must not depend on full list_symbols."""
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    _ingest_auth(svc)
+
+    class GuardStore(InMemoryStore):
+        def list_symbols(self, scope):
+            raise AssertionError("human docs wiki resolve must not full-scan list_symbols")
+
+    guarded = GuardStore()
+    for sym in store.list_symbols(SCOPE):
+        guarded.put_symbol(sym)
+    for edge in store.list_edges(SCOPE):
+        guarded.put_edge(edge)
+    svc2 = CodeGraphService(guarded)
+
+    result = svc2.upsert_human_documentation(
+        SCOPE,
+        doc_id="doc-login",
+        relative_path="docs/login.md",
+        body="Login rules.",
+        linked_symbol_tokens=["src/auth.py::login"],
+    )
+    assert result["edges_written"] == 1
+    assert "src/auth.py::login" not in result["unresolved_tokens"]
+
+
 def test_upsert_human_documentation_skips_reembed_when_body_unchanged():
     store = InMemoryStore()
     svc = CodeGraphService(store)

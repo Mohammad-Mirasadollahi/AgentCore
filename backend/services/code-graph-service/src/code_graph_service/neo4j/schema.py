@@ -36,6 +36,8 @@ class Neo4jSchemaMixin:
                 session.run(statement)
             # Relationship props are not constraint-backed; repair legacy nulls.
             session.run(cypher.BACKFILL_NULL_CONFIDENCE)
+            # Symbol kind/doc_status lack Neo4j NOT NULL; purge unusable orphans.
+            session.run(cypher.PURGE_NULL_SYMBOL_ENUMS)
         self._capabilities_cache = None
 
     def capabilities(self) -> dict[str, Any]:

@@ -1,4 +1,10 @@
-"""Neo4j Store CRUD: symbols, edges, idempotency, outbox, wipe."""
+"""Neo4j Store CRUD: symbols, edges, idempotency, outbox, wipe.
+
+Role: hydrate and persist CodeSymbol / CODE_REL for the Neo4j SoR adapter.
+Source of truth: Neo4j node/rel properties; required enums are kind and doc_status.
+Allowed: coalesce edge confidence; purge or skip symbols with null required enums.
+Forbidden: invent SymbolKind/DocStatus; abort a full list_* on one corrupt row.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +19,7 @@ from ..core import (
     NotFoundError,
     Scope,
     SymbolKind,
+    ValidationError,
 )
 from ..domain.confidence_policy import parse_call_confidence
 from . import cypher
@@ -25,7 +32,26 @@ class Neo4jCrudMixin:
     def _scope_key(scope: Scope) -> str:
         return "|".join((scope.tenant_id, scope.workspace_id, scope.project_id, scope.project_group_id or ""))
 
+    @staticmethod
+    def _parse_symbol_kind(raw: Any, *, symbol_id: str) -> SymbolKind:
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            raise ValidationError(f"CodeSymbol {symbol_id!r} has null/blank kind")
+        try:
+            return SymbolKind(raw)
+        except ValueError as exc:
+            raise ValidationError(f"CodeSymbol {symbol_id!r} has invalid kind {raw!r}") from exc
+
+    @staticmethod
+    def _parse_doc_status(raw: Any, *, symbol_id: str) -> DocStatus:
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            raise ValidationError(f"CodeSymbol {symbol_id!r} has null/blank doc_status")
+        try:
+            return DocStatus(raw)
+        except ValueError as exc:
+            raise ValidationError(f"CodeSymbol {symbol_id!r} has invalid doc_status {raw!r}") from exc
+
     def _symbol_from_node(self, node: Any, scope: Scope) -> GraphSymbol:
+        symbol_id = str(node.get("id") or "")
         embedding = node.get("embedding") or []
         if isinstance(embedding, str):
             embedding = json.loads(embedding)
@@ -37,7 +63,7 @@ class Neo4jCrudMixin:
         return GraphSymbol(
             id=node["id"],
             scope=scope,
-            kind=SymbolKind(node["kind"]),
+            kind=self._parse_symbol_kind(node.get("kind"), symbol_id=symbol_id or "?"),
             file_path=node["file_path"],
             name=node["name"],
             qualified_name=node["qualified_name"],
@@ -45,7 +71,7 @@ class Neo4jCrudMixin:
             body=node["body"],
             hash_value=node["hash_value"],
             ai_documentation=node["ai_documentation"],
-            doc_status=DocStatus(node["doc_status"]),
+            doc_status=self._parse_doc_status(node.get("doc_status"), symbol_id=symbol_id or "?"),
             embedding=list(embedding),
             visibility=node["visibility"],
             version=int(node["version"]),
@@ -56,6 +82,16 @@ class Neo4jCrudMixin:
             parser_version=str(node.get("parser_version") or ""),
             metadata=metadata,
         )
+
+    def _symbols_from_rows(self, rows: list[Any], scope: Scope) -> list[GraphSymbol]:
+        """Hydrate list results; skip rows with corrupt required enums (defense in depth)."""
+        out: list[GraphSymbol] = []
+        for row in rows:
+            try:
+                out.append(self._symbol_from_node(row["n"], scope))
+            except ValidationError:
+                continue
+        return out
 
     def get_symbol(self, symbol_id: str, scope: Scope) -> GraphSymbol:
         with self._driver.session(database=self._database) as session:
@@ -120,7 +156,7 @@ class Neo4jCrudMixin:
                     project_id=scope.project_id,
                 )
             )
-        return [self._symbol_from_node(row["n"], scope) for row in rows]
+        return self._symbols_from_rows(rows, scope)
 
     def list_symbols_for_file(self, scope: Scope, file_path: str) -> list[GraphSymbol]:
         path = str(file_path or "").replace("\\", "/")
@@ -134,7 +170,7 @@ class Neo4jCrudMixin:
                     file_path=path,
                 )
             )
-        return [self._symbol_from_node(row["n"], scope) for row in rows]
+        return self._symbols_from_rows(rows, scope)
 
     def get_symbol_by_qualified_name(self, scope: Scope, qualified_name: str) -> GraphSymbol | None:
         with self._driver.session(database=self._database) as session:
