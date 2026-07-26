@@ -22,12 +22,15 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/services/common-context-service/src/common_context_service/guidance_export.py::relative_paths_for_item
+- backend/services/common-context-service/src/common_context_service/layout_profiles.py::get_layout_profile
+- backend/configs/guidance-export/layouts.json
 related_docs:
 - ac.doc.awg.high-level-design
 - ac.doc.awg.data-contracts
 - ac.doc.common_context.low-level-design
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -48,7 +51,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-26'
 ---
 
 # 03 - Agent Workspace Guidance Low-Level Design
@@ -204,31 +207,29 @@ Long rule/skill bodies should support a `summary_body` field for budget trimming
 
 ## Export Layout Mapping
 
-Layout profiles map typed items to paths under a configured workspace root.
+Layout profiles map typed items to paths under a configured workspace root. Profile data lives in `backend/configs/guidance-export/layouts.json` and is loaded by `layout_profiles.get_layout_profile` — Claude aliases are **not** hard-coded in export helpers.
 
 ### Layout `cursor`
 
 | Kind | Path pattern |
 | --- | --- |
 | `agents_entry` | `AGENTS.md` |
-| `always_rule` | `.cursor/rules/<slug>.mdc` |
-| `skill` | `.cursor/skills/<name>/SKILL.md` and/or `.agents/skills/<name>/SKILL.md` |
-
-Frontmatter for `.mdc` export should set always-apply semantics when the item is `always_rule`.
+| `always_rule` | `.cursor/rules/<slug>.mdc` (YAML always-apply frontmatter) |
+| `skill` | `.cursor/skills/<name>/SKILL.md` |
 
 ### Layout `claude_compatible`
 
-| Kind | Path pattern |
+| Kind | Path pattern (default profile) |
 | --- | --- |
-| `agents_entry` | `AGENTS.md` (and optional `CLAUDE.md` alias if profile enables dual write) |
-| `always_rule` | Project rules directory as configured by layout profile |
-| `skill` | Skills directory with `SKILL.md` per name |
+| `agents_entry` | `AGENTS.md` and `CLAUDE.md` (dual write) |
+| `always_rule` | `.claude/rules/<slug>.md` (no Cursor `.mdc` frontmatter) |
+| `skill` | `.claude/skills/<name>/SKILL.md` |
 
-Exact Claude path aliases are layout-profile configuration, not hard-coded product law. The portable contract is the typed Common Context model plus MCP resolve.
+Exact Claude path aliases remain layout-profile configuration. The portable contract is the typed Common Context model plus MCP resolve.
 
 ### Layout `generic_agents_md`
 
-Only writes `AGENTS.md` embedding a generated index of rules and skill names for minimal clients.
+Writes `AGENTS.md` only (rules/skills omitted from filesystem export). Clients that need a catalog should resolve over MCP or embed an index in the entry body via profile flag `embed_catalog_in_agents_entry`.
 
 ## Materialize Conflict Rules
 

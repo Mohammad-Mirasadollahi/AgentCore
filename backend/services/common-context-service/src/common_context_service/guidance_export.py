@@ -1,4 +1,11 @@
-"""Filesystem materialize for Agent Workspace Guidance (Cursor / agents layouts)."""
+"""Filesystem materialize for Agent Workspace Guidance (Cursor / agents layouts).
+
+Role: plan and write IDE-native guidance files from typed CommonItems / seed pack.
+SoT: layout profiles under backend/configs/guidance-export/layouts.json.
+Invariants: never silent-overwrite unmanaged locals; Claude paths come from profile.
+Allowed failure: missing profile keys skip that kind; conflict list on drift.
+Forbidden: hard-coding Claude directory aliases outside the layout profile.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +14,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from common_context_service.layout_profiles import get_layout_profile
 from common_context_service.seed_mcp_first import (
     SEED_PACK_ID,
     SEED_PACK_VERSION,
@@ -25,27 +33,43 @@ def _slugify(raw: str) -> str:
     return slug or "item"
 
 
-def relative_path_for_item(item: dict[str, Any], layout: str) -> str | None:
+def relative_paths_for_item(item: dict[str, Any], layout: str) -> list[str]:
+    """Return one or more relative export paths for an item under a layout profile."""
     kind = str(item.get("item_type") or "")
+    profile = get_layout_profile(layout)
     if kind == "agents_entry":
-        return "AGENTS.md"
+        paths = profile.get("agents_entry_paths") or ["AGENTS.md"]
+        return [str(p).strip() for p in paths if str(p).strip()]
     if kind == "always_rule":
+        rule_dir = profile.get("always_rule_dir")
+        if not rule_dir:
+            return []
+        ext = str(profile.get("always_rule_ext") or ".md")
+        if not ext.startswith("."):
+            ext = f".{ext}"
         slug = _slugify(str(item.get("slug") or item.get("title") or item.get("id") or "rule"))
-        if layout == "cursor":
-            return f".cursor/rules/{slug}.mdc"
-        return f".agent/rules/{slug}.md"
+        return [f"{str(rule_dir).rstrip('/')}/{slug}{ext}"]
     if kind == "skill":
+        skill_dir = profile.get("skill_dir")
+        if not skill_dir:
+            return []
         name = str(item.get("name") or item.get("id") or "skill")
-        if layout == "cursor":
-            return f".cursor/skills/{name}/SKILL.md"
-        return f".agents/skills/{name}/SKILL.md"
-    return None
+        filename = str(profile.get("skill_filename") or "SKILL.md")
+        return [f"{str(skill_dir).rstrip('/')}/{name}/{filename}"]
+    return []
+
+
+def relative_path_for_item(item: dict[str, Any], layout: str) -> str | None:
+    """Backward-compatible single-path helper (first planned path)."""
+    paths = relative_paths_for_item(item, layout)
+    return paths[0] if paths else None
 
 
 def render_file_content(item: dict[str, Any], layout: str) -> str:
     body = str(item.get("body") or "").strip() + "\n"
     kind = str(item.get("item_type") or "")
-    if kind == "always_rule" and layout == "cursor":
+    profile = get_layout_profile(layout)
+    if kind == "always_rule" and profile.get("cursor_mdc_frontmatter"):
         title = str(item.get("title") or item.get("slug") or "AgentCore rule").replace("\n", " ")
         return (
             "---\n"
@@ -60,23 +84,24 @@ def render_file_content(item: dict[str, Any], layout: str) -> str:
 def planned_files_from_items(items: list[dict[str, Any]], layout: str) -> list[dict[str, Any]]:
     planned: list[dict[str, Any]] = []
     for item in items:
-        path = relative_path_for_item(item, layout)
-        if not path:
+        paths = relative_paths_for_item(item, layout)
+        if not paths:
             continue
         content = render_file_content(item, layout)
-        planned.append(
-            {
-                "item_id": item.get("id") or item.get("name") or item.get("slug") or path,
-                "item_type": item.get("item_type"),
-                "path": path,
-                "layer": item.get("layer"),
-                "action": "create_or_update_managed",
-                "content": content,
-                "content_hash": content_sha256(content),
-                "seed_pack": item.get("seed_pack") or SEED_PACK_ID,
-                "seed_pack_version": item.get("seed_pack_version") or SEED_PACK_VERSION,
-            }
-        )
+        for path in paths:
+            planned.append(
+                {
+                    "item_id": item.get("id") or item.get("name") or item.get("slug") or path,
+                    "item_type": item.get("item_type"),
+                    "path": path,
+                    "layer": item.get("layer"),
+                    "action": "create_or_update_managed",
+                    "content": content,
+                    "content_hash": content_sha256(content),
+                    "seed_pack": item.get("seed_pack") or SEED_PACK_ID,
+                    "seed_pack_version": item.get("seed_pack_version") or SEED_PACK_VERSION,
+                }
+            )
     return planned
 
 
@@ -212,12 +237,14 @@ def _prune_retired_seed_files(
         # Pack-stamped or legacy unstamped managed entries (pre-version manifests).
         if pack not in ("", SEED_PACK_ID):
             continue
-        # Only prune pack-owned Cursor/agent paths (never arbitrary user files).
+        # Only prune pack-owned layout paths (never arbitrary user files).
         if not (
             rel.startswith(".cursor/skills/agentcore-")
             or rel.startswith(".agents/skills/agentcore-")
+            or rel.startswith(".claude/skills/agentcore-")
             or rel == ".cursor/rules/mcp-first-agentcore.mdc"
             or rel == ".agent/rules/mcp-first-agentcore.md"
+            or rel == ".claude/rules/mcp-first-agentcore.md"
         ):
             continue
         path = root / rel

@@ -5,8 +5,8 @@ doc_type: gap
 status: active
 schema_version: '1.0'
 owner: platform-product
-summary: Risks, mitigations, engineering and product acceptance gates, and open gaps for Agent
-  Workspace Guidance (docs phase; implementation follow-on).
+summary: Risks, mitigations, engineering and product acceptance gates, and residual open gaps
+  for Agent Workspace Guidance after the MCP-first vertical slice.
 tags:
 - agent-workspace-guidance
 - risks
@@ -22,12 +22,17 @@ audience_lane:
 - product
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/services/common-context-service/src/common_context_service/guidance_export.py::materialize_mcp_first_seed
+- backend/services/common-context-service/src/common_context_service/layout_profiles.py::get_layout_profile
+- backend/services/common-context-service/src/common_context_service/guidance_migrate.py::migrate_untyped_guidance_items
+- backend/configs/guidance-export/layouts.json
 related_docs:
 - ac.doc.awg.feature-specification
 - ac.doc.awg.data-contracts
+- ac.doc.awg.low-level-design
 - ac.doc.gap.architecture-gaps
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -46,7 +51,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-26'
 ---
 
 # 05 - Agent Workspace Guidance Risks Challenges And Acceptance
@@ -104,18 +109,29 @@ This document records risks, mitigations, acceptance gates, and remaining open g
 - Cross-links from docs map, Common Context index, Usage Profile doc, IDE agents index, and GAP-A06 note are present.
 - MCP-first seed rule/skills are specified in [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md).
 - Bodies are English and follow documentation standards 06/08/09.
-- No backend implementation is required to close this documentation pass.
+
+## Implementation Progress (2026-07-26)
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| Typed kinds + resolve + audit | Shipped | `agentcore_guidance_resolve`, Common Context service |
+| MCP-first seed pack + materialize | Shipped | `seed_mcp_first.py`, `materialize_mcp_first_seed` |
+| Layout profiles (Cursor / Claude / generic) | Shipped | `backend/configs/guidance-export/layouts.json`, `layout_profiles.py` |
+| Untyped → typed migration helper | Shipped | `guidance_migrate.py` (propose/apply heuristics) |
+| Soft resolve-before-write | Shipped | MCP-first always rule + skills |
+| Hard resolve-before-write gate | Optional / env | `AGENTCORE_GUIDANCE_RESOLVE_REQUIRED` + MCP gateway writes |
+| GAP-A06 IDE chrome | Deferred | Backend closed; plugin banners remain future |
 
 ## Open Gaps
 
 | Gap | Status | Notes |
 | --- | --- | --- |
-| GAP-A06 IDE boundary / context injection UX | Design addressed for MCP + export shape | Plugin chrome / in-IDE banners remain future work |
-| Exact Claude directory aliases | Open | Configured via layout profiles, not hard-coded |
-| Vertical slice implementation | Open | Common Context kinds + MCP tools + exporter |
-| Agent-enforced “resolve before write” | Open | Soft via MCP-first rule/skills; hard gate optional later |
-| Migration tooling for untyped CommonItems | Open | Follow-on after kinds ship |
-| Seed pack materialization in Common Context | Open | Spec’d in doc 06; implement with vertical slice |
+| GAP-A06 IDE boundary / context injection UX | Deferred | Plugin chrome / in-IDE banners remain future work |
+| Exact Claude directory aliases | Closed | Profile JSON under `backend/configs/guidance-export/layouts.json` (not hard-coded) |
+| Vertical slice implementation | Closed | Common Context kinds + MCP tools + exporter + seed |
+| Agent-enforced “resolve before write” | Partial | Soft via MCP-first; hard gate via env flag |
+| Migration tooling for untyped CommonItems | Closed (helper) | Deterministic propose/apply; operator applies via service/CLI follow-on if needed |
+| Seed pack materialization in Common Context | Closed | Connect-time / ensure-seed + export materialize |
 
 ## Residual Decision Log
 

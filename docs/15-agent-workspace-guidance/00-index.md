@@ -30,7 +30,7 @@ related_docs:
 - ac.doc.awg.mcp-first-skills-rules
 - ac.doc.common_context.index
 - ac.doc.sea.usage-profile-cursor-mcp
-doc_version: 1.0.0
+doc_version: 1.0.1
 audience:
 - engineer
 - architect
@@ -43,7 +43,7 @@ primary_entities:
 - Skill
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-26'
 ---
 
 # 15 - Agent Workspace Guidance Index
@@ -73,7 +73,7 @@ It also specifies the **MCP-first seed pack**: the always-on rule and skills tha
 | [`02-high-level-design.md`](02-high-level-design.md) | Connect-time resolve, MCP surface, optional materialize, ownership |
 | [`03-low-level-design.md`](03-low-level-design.md) | Artifact model, resolve pipeline, budgets, export layout mapping |
 | [`04-data-contracts-and-events.md`](04-data-contracts-and-events.md) | Bundle DTO, MCP tools, events, versioning |
-| [`05-risks-challenges-and-acceptance.md`](05-risks-challenges-and-acceptance.md) | Risks, acceptance gates, open gaps |
+| [`05-risks-challenges-and-acceptance.md`](05-risks-challenges-and-acceptance.md) | Risks, acceptance gates, residual gaps + implementation progress |
 | [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md) | Seed always-on rule + skills that route AgentCore work over MCP (includes dead-code cleanup) |
 
 ## Reading Order

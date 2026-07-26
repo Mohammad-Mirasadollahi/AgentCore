@@ -2,17 +2,19 @@
 doc_id: ac.doc.ops.risk-register-and-open-decisions
 title: Risk Register and Open Decisions
 doc_type: gap
-status: draft
+status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: This document captures important risks and unresolved decisions that should be tracked
-  before implementation.
+summary: Tracked product risks and closed-vs-open decisions for AgentCore platform
+  governance, aligned to the official gap register.
 tags:
 - gap
 - ops
+- risk-register
+- decisions
 phase: 09-platform-governance-operations
 canonical_path: docs/09-platform-governance-operations/07-risk-register-and-open-decisions.md
-lifecycle_lane: future
+lifecycle_lane: current
 concern_lane: gap
 audience_lane:
 - platform-engineering
@@ -20,15 +22,20 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+related_docs:
+- docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md
+- docs/02-memory-and-context/12-weight-profile-governance.md
+- docs/05-interoperability-ecosystem/11-sdk-release-and-adapter-harness.md
+- docs/08-software-engineering-architecture/04-development-port-management.md
+doc_version: 1.1.0
+updated_at: '2026-07-26'
 ---
 
 # Risk Register and Open Decisions
 
 ## Purpose
 
-This document captures important risks and unresolved decisions that should be tracked before implementation. It prevents hidden assumptions from becoming architectural debt.
+This document captures important risks and decisions that should be tracked before and after implementation. It prevents hidden assumptions from becoming architectural debt. Decision closures below mirror `backend/configs/governance/gap-register.json`.
 
 ## Risk Register
 
@@ -66,7 +73,7 @@ Mitigation: Universal Agent JSON, adapter contracts, capability profiles, and mo
 
 Dynamic languages or incomplete parsing may create wrong call relationships.
 
-Mitigation: confidence scores, verification, exact/probable/ambiguous resolution states, and review Tasks.
+Mitigation: confidence scores, verification, exact/probable/ambiguous resolution states, and review Tasks. Structural isolation and hash-stable edge repair are documented in `docs/07-code-knowledge-graph/55-structural-isolation-and-architecture-overview-residuals.md`.
 
 ### Risk 7 - Port Conflicts in Development
 
@@ -80,11 +87,13 @@ Logs, diffs, or artifacts may include secrets or customer data.
 
 Mitigation: redaction pipeline, sensitivity labels, prompt safety checks, and restricted artifact references.
 
-## Open Decisions
+## Decisions
 
 ### Decision 1 - Primary Storage Split
 
-Decide which records live in relational storage, graph storage, object storage, and broker persistence.
+**Closed (2026-07-23):** Storage ownership matrix published under
+`docs/13-technology-stack-and-platform-decisions/13-storage-ownership-matrix.md`.
+Closes GAP-001.
 
 ### Decision 2 - Model Routing Defaults
 
@@ -93,7 +102,8 @@ Decide which records live in relational storage, graph storage, object storage, 
 
 ### Decision 3 - WeightProfile Governance
 
-Define who can create, approve, and change memory and graph retrieval weighting profiles.
+**Closed (2026-07-23):** Owner/approval/rollback policy with CLI under
+`docs/02-memory-and-context/12-weight-profile-governance.md`. Closes GAP-006.
 
 ### Decision 4 - Schema Registry Implementation
 
@@ -103,12 +113,16 @@ Closes GAP-008.
 
 ### Decision 5 - SDK Scope And First Integration Targets
 
-Define the first supported SDK languages, package registries, IDE integrations, CI integrations, ticketing integrations, external agent integrations, and adapter harness scope.
+**Closed (2026-07-24):** Python + TypeScript SDK, generator, and adapter harness under
+`docs/05-interoperability-ecosystem/11-sdk-release-and-adapter-harness.md`. Closes GAP-T06.
 
 ### Decision 6 - Development Port Base Policy
 
-Choose the default AgentCore development port base and override behavior for local machines.
+**Closed (2026-07-23 / 2026-07-24):** Port profile catalog + Phase 8 ownership checks +
+`agentcore ports check` / install preflight (GAP-007, GAP-T07). See
+`docs/08-software-engineering-architecture/04-development-port-management.md` and
+`backend/configs/port-profiles/agentcore-dev.json`.
 
 ## Tracking Rule
 
-Every open decision should become a Decision record before implementation starts. Every risk should have an owner, mitigation, severity, and review date.
+Every new open decision should become a Decision record before implementation starts. Every risk should have an owner, mitigation, severity, and review date. Prefer updating this file when gap-register status changes rather than leaving stale "Open" headings.
