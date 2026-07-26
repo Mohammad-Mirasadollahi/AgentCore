@@ -5,7 +5,55 @@ from uuid import uuid4
 
 from . import _paths  # noqa: F401 — side effect: service path bootstrap
 
+from .code_graph._resolve import resolve_symbol_id
 from .platform import PlatformBackends
+
+
+def _human_documented_by_edges(
+    backends: PlatformBackends,
+    scope: dict[str, str],
+    symbol: str,
+) -> tuple[str, list[dict[str, Any]]] | None:
+    """Return (graph_symbol_id, human DOCUMENTED_BY edge views) when the graph knows the symbol.
+
+    Phase-2 human links live on the code graph (`doc:human:…` / origin=human). docs-sync
+    Postgres anchors are a separate store and must not invent Neo4j edges — but MCP drift
+    must consult the graph SoT before claiming missing_doc.
+    """
+    try:
+        backends.ensure_graph_seed(scope)
+        symbol_id = resolve_symbol_id(backends, scope, {"qualified_name": symbol})
+    except ValueError:
+        return None
+    try:
+        from code_graph_service.domain.errors import NotFoundError
+
+        payload = backends.graph.structural_query(
+            backends.graph_scope(scope),
+            symbol_id,
+            "DOCUMENTED_BY",
+            max_depth=1,
+        )
+    except NotFoundError:
+        return None
+    human: list[dict[str, Any]] = []
+    for edge in payload.get("edges") or []:
+        if str(edge.get("source_id") or "") != symbol_id:
+            continue
+        target = str(edge.get("target_id") or "")
+        meta = edge.get("metadata") if isinstance(edge.get("metadata"), dict) else {}
+        if meta.get("origin") == "human" or target.startswith("doc:human:"):
+            human.append(
+                {
+                    "id": edge.get("id"),
+                    "rel_type": edge.get("rel_type"),
+                    "source_id": edge.get("source_id"),
+                    "target_id": target,
+                    "confidence": edge.get("confidence"),
+                    "metadata": meta,
+                }
+            )
+    return symbol_id, human
 
 
 def docs_authoring_standards(
@@ -88,6 +136,22 @@ def docs_drift_check(
     if not symbol:
         raise ValueError("symbol is required")
     file_path = arguments.get("file_path")
+
+    graph_hit = _human_documented_by_edges(backends, scope, symbol)
+    if graph_hit is not None:
+        graph_symbol_id, human_edges = graph_hit
+        if human_edges:
+            return {
+                **base,
+                "symbol": symbol,
+                "file_path": file_path,
+                "symbol_id": graph_symbol_id,
+                "drift": False,
+                "findings": [],
+                "lookup_source": "graph",
+                "documented_by": human_edges,
+            }
+
     symbol_id = backends.ensure_docs_symbol(scope, symbol, str(file_path) if file_path else None)
     findings = backends.docs.detect_drift(
         backends.docs_scope(scope),
@@ -103,6 +167,7 @@ def docs_drift_check(
         "symbol_id": symbol_id,
         "drift": bool(findings),
         "findings": [item.public() for item in findings],
+        "lookup_source": "docs_sync",
     }
 
 
