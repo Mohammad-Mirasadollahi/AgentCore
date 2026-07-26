@@ -22,3 +22,25 @@ def test_build_service_is_compat_wrapper_callable():
     wrapped = ServiceContainer(graph=CodeGraphService(InMemoryStore()), settings=None)
     assert wrapped.graph.store is not None
     assert callable(build_service)
+
+
+def test_service_close_releases_owned_resources_once():
+    class Resource:
+        def __init__(self) -> None:
+            self.closed = 0
+
+        def close(self) -> None:
+            self.closed += 1
+
+    store = Resource()
+    embedding_index = Resource()
+    service = CodeGraphService(
+        store,
+        embedding_index=embedding_index,
+        vector_index=embedding_index,
+    )
+
+    service.close()
+
+    assert store.closed == 1
+    assert embedding_index.closed == 1

@@ -155,7 +155,12 @@ class McpGateway:
             project_id=project_id,
         )
         self._tools = {str(t["name"]): t for t in self.effective["mcp"]["tools"]}
+        self._owns_backends = backends is None
         self.backends = backends or PlatformBackends.from_env()
+
+    def close(self) -> None:
+        if self._owns_backends:
+            self.backends.close()
 
     @property
     def server_name(self) -> str:
@@ -385,31 +390,34 @@ def main() -> int:
         # Keep stdio MCP process from dying without a clear stderr signal for IDE logs.
         print(f"error: MCP gateway failed to start: {exc}", file=sys.stderr)
         return 1
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            message = json.loads(line)
-        except json.JSONDecodeError:
-            err = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": "parse error"},
-            }
-            sys.stdout.write(json.dumps(err) + "\n")
-            sys.stdout.flush()
-            continue
-        try:
-            response = handle_message(gateway, message)
-        except Exception as exc:  # noqa: BLE001 — last resort; handle_message already catches
-            print(f"error: MCP handle_message crashed: {exc}", file=sys.stderr, flush=True)
-            response = {
-                "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "error": {"code": -32000, "message": f"backend error: {exc}"},
-            }
-        if response is not None:
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                err = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": "parse error"},
+                }
+                sys.stdout.write(json.dumps(err) + "\n")
+                sys.stdout.flush()
+                continue
+            try:
+                response = handle_message(gateway, message)
+            except Exception as exc:  # noqa: BLE001 — last resort; handle_message already catches
+                print(f"error: MCP handle_message crashed: {exc}", file=sys.stderr, flush=True)
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": message.get("id"),
+                    "error": {"code": -32000, "message": f"backend error: {exc}"},
+                }
+            if response is not None:
+                sys.stdout.write(json.dumps(response) + "\n")
+                sys.stdout.flush()
+    finally:
+        gateway.close()
     return 0

@@ -361,6 +361,7 @@ def test_chal_live_postgres_fts_and_hybrid(challenge_ready):
     from code_graph_service.postgres_store import PostgresStore
 
     url = f"postgresql://agentcore:{POSTGRES_PASSWORD}@127.0.0.1:{POSTGRES_PORT}/agentcore"
+    store = None
     try:
         store = PostgresStore(url, ensure_schema=True)
         scope = Scope("tenant-chal", "ws-chal", f"pg-{uuid.uuid4().hex[:8]}")
@@ -372,6 +373,9 @@ def test_chal_live_postgres_fts_and_hybrid(challenge_ready):
             assert hybrid["hits"] or hybrid["mode"] in HYBRID_MODES
     except Exception as exc:  # noqa: BLE001
         skip_on_live_connect_error(exc)
+    finally:
+        if store is not None:
+            store.close()
 
 
 def test_chal_live_random_bm25_soup_still_modes(challenge_corpus):

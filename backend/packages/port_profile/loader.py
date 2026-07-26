@@ -214,6 +214,7 @@ def run_preflight(
     environ: dict[str, str] | None = None,
     host: str = "127.0.0.1",
     allow_ours: bool = False,
+    allowed_pids: set[int] | None = None,
     profile_path: Path | None = None,
 ) -> dict[str, Any]:
     """Check all resolved ports; suggest alternates; optionally tolerate our listeners."""
@@ -235,7 +236,11 @@ def run_preflight(
             if alternate is not None:
                 entry["suggested_port"] = alternate
                 reserved.add(alternate)
-            ours = bool(owner_looks_ours(owner))
+            owner_pid = int(owner.get("pid", 0)) if owner else 0
+            ours = bool(
+                owner_looks_ours(owner)
+                or (owner_pid and owner_pid in (allowed_pids or set()))
+            )
             entry["ours"] = ours
             blocking = not (allow_ours and ours)
             entry["blocking"] = blocking

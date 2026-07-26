@@ -79,8 +79,10 @@ packages = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# So Test Explorer / bare `pytest` can import code_graph_service without exporting PYTHONPATH.
+norecursedirs = ["legacy", "change-society"]
+# So Test Explorer / bare `pytest` can import in-repo packages without exporting PYTHONPATH.
 pythonpath = [
+  "tests/support",
   "backend/services/code-graph-service/src",
   "backend/services/docs-sync-service/src",
   "backend/services/memory-service/src",
@@ -91,6 +93,9 @@ pythonpath = [
   "backend/services/mcp-gateway-service/src",
   "backend/services/project-profile-service/src",
   "backend/services/audit-service/src",
+  "backend/services/common-context-service/src",
+  "backend/services/orchestration-service/src",
+  "backend/services/reporting-service/src",
   "backend/packages",
 ]
 markers = [

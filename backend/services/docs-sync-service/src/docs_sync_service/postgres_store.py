@@ -3,9 +3,10 @@
 Role: persist docs-sync symbols/documents/anchors/findings/drafts/outbox.
 Source of truth: ``docs_sync.*`` tables; each worker thread owns one ``psycopg``
 connection (connections are not shareable across threads).
-Allowed: concurrent Phase-2 writers via thread-local connections; close all
-tracked connections on ``close()``. Forbidden: sharing one cursor/connection
-across threads; inventing rows outside scoped SQL.
+Allowed: concurrent Phase-2 writers via thread-local connections; idempotent
+schema ensure on construct; close all tracked connections on ``close()``.
+Forbidden: sharing one cursor/connection across threads; global document IDs
+that can overwrite another project; inventing rows outside scoped SQL.
 """
 
 from __future__ import annotations
@@ -51,6 +52,22 @@ class PostgresStore:
         self._all_lock = threading.Lock()
         # Fail fast on bad URL / schema; seed the creating thread's connection.
         _ = self._connection
+        self.ensure_schema()
+
+    def ensure_schema(self) -> None:
+        """Apply service-owned idempotent migrations."""
+        from pathlib import Path
+
+        migrations_dir = Path(__file__).resolve().parents[2] / "migrations"
+        with self._connection.cursor() as cursor:
+            for name in (
+                "0001_docs_sync.sql",
+                "0002_outbox_published.sql",
+                "0003_document_scope_primary_key.sql",
+            ):
+                path = migrations_dir / name
+                if path.is_file():
+                    cursor.execute(path.read_text(encoding="utf-8"))
 
     @property
     def _connection(self) -> Any:
@@ -171,7 +188,8 @@ class PostgresStore:
                    (id,tenant_id,workspace_id,project_id,project_group_id,actor_id,correlation_id,path,title,owner,
                     state,schema_version,linked_symbols,decision_refs,frontmatter,body,version,created_at,updated_at)
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                   ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title,owner=EXCLUDED.owner,state=EXCLUDED.state,
+                   ON CONFLICT (id,tenant_id,workspace_id,project_id)
+                   DO UPDATE SET title=EXCLUDED.title,owner=EXCLUDED.owner,state=EXCLUDED.state,
                    linked_symbols=EXCLUDED.linked_symbols,decision_refs=EXCLUDED.decision_refs,
                    frontmatter=EXCLUDED.frontmatter,body=EXCLUDED.body,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at""",
                 (document.id, document.scope.tenant_id, document.scope.workspace_id, document.scope.project_id,

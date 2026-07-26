@@ -19,6 +19,7 @@ services:
       - ../../services/memory-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0021_memory_outbox.sql:ro
       - ../../services/docs-sync-service/migrations/0001_docs_sync.sql:/docker-entrypoint-initdb.d/0030_docs_sync.sql:ro
       - ../../services/docs-sync-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0031_docs_sync_outbox.sql:ro
+      - ../../services/docs-sync-service/migrations/0003_document_scope_primary_key.sql:/docker-entrypoint-initdb.d/0032_docs_sync_document_scope.sql:ro
       - ../../services/code-graph-service/migrations/0001_code_graph.sql:/docker-entrypoint-initdb.d/0040_code_graph.sql:ro
       - ../../services/code-graph-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0041_code_graph_outbox.sql:ro
       - ../../services/code-graph-service/migrations/0003_symbol_embeddings.sql:/docker-entrypoint-initdb.d/0042_code_graph_embeddings.sql:ro
@@ -55,8 +56,9 @@ services:
       NEO4J_server_memory_pagecache_size: 512M
       NEO4J_server_memory_heap_initial__size: 512M
       NEO4J_server_memory_heap_max__size: 512M
-      # Official image auto-installs plugins on first boot.
-      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      # APOC ships in the image and starts offline. GDS is optional because the
+      # official installer performs a network fetch on every container start.
+      NEO4J_PLUGINS: '${AGENTCORE_NEO4J_PLUGINS:-["apoc"]}'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
       NEO4J_dbms_security_procedures_allowlist: apoc.*,gds.*
       NEO4J_apoc_export_file_enabled: "true"

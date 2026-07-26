@@ -242,7 +242,7 @@ class RepoIngestMixin:
             except Exception:  # noqa: BLE001 — progress must never break ingest
                 return
 
-        def _process_one(index: int, item: Any) -> None:
+        def _process_one(_index: int, item: Any) -> None:
             rel = item.relative_path
             with state_lock:
                 active_files.add(rel)
@@ -283,7 +283,8 @@ class RepoIngestMixin:
                 _emit(done, file=rel, status="failed")
                 return
 
-            file_key = f"{idempotency_key}:{rel}:{index}"
+            file_hash = content_hash(text, item.language)["hash"]
+            file_key = f"{idempotency_key}:{rel}:{file_hash}"
             try:
                 result = self.ingest_file(
                     scope,
@@ -351,6 +352,7 @@ class RepoIngestMixin:
         _emit(0, status="started")
         if total_files:
             run_parallel_file_jobs(workers=workers, items=discovered, fn=_process_one)
+            _emit(progress_total, status="finalizing")
             try:
                 finals = self.finalize_cross_file_resolution(
                     scope,
@@ -407,6 +409,15 @@ class RepoIngestMixin:
         if not callable(upsert) or not callable(put_edge):
             return 0
 
+        files_by_parent: dict[str, list[Any]] = {}
+        for symbol in self.store.list_symbols(scope):
+            if symbol.kind != SymbolKind.FILE:
+                continue
+            parent_dir = str(Path((symbol.file_path or "").replace("\\", "/")).parent)
+            if parent_dir in {".", ""}:
+                parent_dir = ""
+            files_by_parent.setdefault(parent_dir, []).append(symbol)
+
         edges = 0
         for readme in root.rglob("README.md"):
             try:
@@ -416,15 +427,11 @@ class RepoIngestMixin:
             if set(rel.split("/")) & skip_parts:
                 continue
             parent = readme.parent
-            has_code = (
-                any(parent.glob("*.py"))
-                or any(parent.glob("*.ts"))
-                or any(parent.glob("*.tsx"))
-                or any(parent.glob("*.js"))
-                or any(parent.glob("*.go"))
-                or any(parent.glob("*.rs"))
-            )
-            if not has_code:
+            dir_prefix = str(Path(rel).parent).replace("\\", "/")
+            if dir_prefix in {".", ""}:
+                dir_prefix = ""
+            file_symbols = files_by_parent.get(dir_prefix, ())
+            if not file_symbols:
                 continue
             try:
                 body = readme.read_text(encoding="utf-8")
@@ -442,21 +449,11 @@ class RepoIngestMixin:
                 linked_symbol_tokens=[],
                 metadata={"origin": "package_readme", "provenance": "package_folder_readme"},
             )
-            dir_prefix = str(Path(rel).parent).replace("\\", "/")
-            if dir_prefix in {".", ""}:
-                dir_prefix = ""
             doc_sid = str(result.get("doc_symbol_id") or "")
             if not doc_sid:
                 continue
-            for sym in self.store.list_symbols(scope):
-                if sym.kind != SymbolKind.FILE:
-                    continue
+            for sym in file_symbols:
                 fp = (sym.file_path or "").replace("\\", "/")
-                parent_dir = str(Path(fp).parent).replace("\\", "/")
-                if parent_dir in {".", ""}:
-                    parent_dir = ""
-                if parent_dir != dir_prefix:
-                    continue
                 edges += put_edge(
                     scope,
                     RelType.DOCUMENTED_BY.value,

@@ -5,8 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: code-graph-lead
-summary: Required Neo4j runtime plugins (APOC, Graph Data Science) for Code-Knowledge Graph
-  traversal, merge utilities, path expansion, and ranking algorithms.
+summary: Default APOC and optional Graph Data Science runtime capabilities for
+  Code-Knowledge Graph traversal, path expansion, and ranking algorithms.
 tags:
 - neo4j
 - apoc
@@ -27,7 +27,7 @@ related_docs:
 - docs/07-code-knowledge-graph/02-neo4j-schema-design.md
 - docs/07-code-knowledge-graph/11-neo4j-migration-plan.md
 - docs/07-code-knowledge-graph/32-intentional-fallbacks-and-neo4j-plugin-licensing.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -47,21 +47,23 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 12 - Neo4j Runtime Plugins
 
 ## Purpose
 
-Defines the Neo4j plugins AgentCore enables so the Code-Knowledge Graph can use production-grade traversal, merge, and ranking capabilities instead of only basic Cypher CRUD.
+Defines the Neo4j plugins AgentCore can enable so the Code-Knowledge Graph can
+use production-grade traversal and ranking capabilities without making normal
+service restarts depend on external downloads.
 
 ## Required Plugins
 
-| Plugin | Compose id | Why AgentCore needs it |
+| Plugin | Compose id | Runtime policy |
 |--------|------------|-------------------------|
-| APOC Core | `apoc` | Path expansion, periodic batch jobs, map/list helpers, meta introspection, safe merge utilities for ingest upserts and neighborhood retrieval |
-| Graph Data Science | `graph-data-science` | Optional degree ranking via GDS **Community Edition** when `AGENTCORE_NEO4J_GDS_ENABLED=true` (default). Free plugin, **≤4 CPU cores** (`AGENTCORE_NEO4J_GDS_CONCURRENCY`, default 4). **Not required** for correctness; Cypher degree fallback always exists. Communities do **not** use GDS. |
+| APOC Core | `apoc` | Default. It ships in the Neo4j image, so Compose can install it without network access. |
+| Graph Data Science | `graph-data-science` | Optional degree ranking via GDS **Community Edition**. Opt in through `AGENTCORE_NEO4J_PLUGINS`; the app still requires `AGENTCORE_NEO4J_GDS_ENABLED=true`. Free plugin, **≤4 CPU cores**. **Not required** for correctness; Cypher degree fallback always exists. Communities do **not** use GDS. |
 
 Embeddings remain in PostgreSQL pgvector. Plugins do not replace pgvector.
 
@@ -69,7 +71,7 @@ Embeddings remain in PostgreSQL pgvector. Plugins do not replace pgvector.
 
 `backend/deployments/compose/compose.yaml` sets:
 
-- `NEO4J_PLUGINS=['apoc','graph-data-science']`
+- `NEO4J_PLUGINS=${AGENTCORE_NEO4J_PLUGINS:-["apoc"]}`
 - unrestricted/allow-listed procedures: `apoc.*`, `gds.*`
 - APOC file import/export flags for local tooling via Compose environment variables (`NEO4J_apoc_*`)
 - Reference `backend/platform/persistence/neo4j/conf/apoc.conf` for operators; do not bind-mount it under `/var/lib/neo4j/conf` (Neo4j chowns conf and read-only mounts fail startup)
@@ -89,17 +91,19 @@ Host ports remain non-default from the port profile (`32287` Bolt, `32474` HTTP)
 | `fulltext` | Lucene fulltext index present |
 
 Startup and live tests should treat missing plugins or `gds_enabled=false` as a
-degraded Neo4j runtime (Store CRUD still works; expansion/degree fall back).
+supported fallback runtime (Store CRUD still works; expansion/degree fall back).
 
 ## Env toggles (application)
 
 | Variable | Default | Effect |
 | --- | --- | --- |
+| `AGENTCORE_NEO4J_PLUGINS` | `["apoc"]` | Compose plugin list. Add `graph-data-science` only when startup can reach its download host. |
 | `AGENTCORE_NEO4J_GDS_ENABLED` | `true` | When `false`, skip all GDS calls (Cypher degree only) |
 | `AGENTCORE_NEO4J_GDS_CONCURRENCY` | `4` | Passed to `gds.degree.stream`; **clamped to 1–4** (Community Edition core limit) |
 
-Compose may still install the `graph-data-science` plugin; the env flag controls
-whether AgentCore **uses** it. Details: [`32`](32-intentional-fallbacks-and-neo4j-plugin-licensing.md).
+Compose installs GDS only when the plugin list opts in; the GDS-enabled env flag
+separately controls whether AgentCore **uses** an installed copy. Details:
+[`32`](32-intentional-fallbacks-and-neo4j-plugin-licensing.md).
 
 ## Usage Boundaries
 

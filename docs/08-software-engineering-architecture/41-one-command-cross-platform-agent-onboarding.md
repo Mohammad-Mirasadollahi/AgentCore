@@ -26,6 +26,13 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+related_docs:
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/39-local-install-runbook.md
+- docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
+- docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
+doc_version: 1.3.2
+updated_at: '2026-07-25'
 linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
@@ -34,13 +41,6 @@ linked_symbols:
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_client/main.py::main
-related_docs:
-- docs/08-software-engineering-architecture/36-agentcore-cli.md
-- docs/08-software-engineering-architecture/39-local-install-runbook.md
-- docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
-- docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.3.1
-updated_at: '2026-07-25'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding
@@ -141,7 +141,7 @@ Open a new shell so `agentcore` is on `PATH` ([36](./36-agentcore-cli.md)).
 ```bash
 ## Install CLI only (no Docker infra on the laptop) — PATH name: agentcore-client only
 bash install.sh --role client
-# alias: bash install.sh --skip-infra
+## alias: bash install.sh --skip-infra
 agentcore-client path install   # if needed; links ~/.local/bin/agentcore-client (removes bare agentcore)
 cd /opt/MyApp
 agentcore-client connect
@@ -178,8 +178,8 @@ SSH mode only needs a completed `install.sh` and a login that can run:
 ```bash
 cd /opt/MyApp
 agentcore connect
-# prompts: host, username, tenant, workspace, Usage Profile, password
-# (remote root auto-discovered; project id = directory name)
+## prompts: host, username, tenant, workspace, Usage Profile, password
+## (remote root auto-discovered; project id = directory name)
 ```
 
 `connect` uses **this directory** as the project (MCP under the checkout; path pinned for later `sync`).
@@ -413,39 +413,6 @@ agentcore connect --project myapp --clients cursor,vscode
 agentcore connect --dry-run
 agentcore client list-mcp-clients
 ```
-
-## Coding-agent files written
-
-With `--clients all` (default), connect merges into project-scoped files under the app repo:
-
-| `client_id` | Path |
-| --- | --- |
-| `cursor` | `.cursor/mcp.json` |
-| `windsurf` | `.windsurf/mcp.json` |
-| `vscode` | `.vscode/mcp.json` |
-| `claude-code` | `.mcp.json` |
-| `continue` | `.continue/mcp.json` |
-| `fragment` | `.agentcore/mcp-servers.json` |
-
-User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-clients`.
-
-## Concurrent agents
-
-| Layer | Behavior |
-| --- | --- |
-| **SSH** | Each IDE session is a separate SSH + stdio MCP process |
-| **HTTP** | Each session is a separate authenticated HTTP client; gateway is multi-request / concurrent |
-| **Data** | Same `tenant/workspace/project` shares Postgres/Neo4j stores |
-| **Different products** | Use different `scope.project` values |
-
-## Security (operator rules)
-
-1. **Never** put OS passwords or database passwords in `connect.yaml` or `mcp.json`.
-2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect edit` (replaces pubkey).
-3. HTTP without TLS: private network + firewall on the MCP port; prefer reverse-proxy TLS for anything beyond a closed lab.
-4. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
-5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.
-6. Prefer non-root SSH users on the AgentCore host.
 
 ## Related Documents
 

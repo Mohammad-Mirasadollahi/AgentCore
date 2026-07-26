@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from code_graph_service.domain.hashing import digest, normalize_source
+from code_graph_service.domain.hashing import content_hash
 from code_graph_service.domain.languages import detect_language_from_path
 
 
@@ -28,7 +28,7 @@ def disk_content_hash(abs_path: Path, language: str) -> str | None:
     except OSError:
         return None
     lang = (language or "").strip() or detect_language_from_path(str(abs_path)) or "python"
-    return digest(normalize_source(text, lang))
+    return str(content_hash(text, lang)["hash"])
 
 
 def classify_edited_paths(

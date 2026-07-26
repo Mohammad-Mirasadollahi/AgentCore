@@ -36,7 +36,7 @@ class StoreBundle:
 
     def close(self) -> None:
         if self.graph_service is not None:
-            closer = getattr(self.graph_service.store, "close", None)
+            closer = getattr(self.graph_service, "close", None)
             if callable(closer):
                 closer()
         for store in (self.core, self.memory, self.graph, self.docs, self.common_context):

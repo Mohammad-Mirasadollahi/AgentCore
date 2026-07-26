@@ -28,8 +28,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/connect.py::_ensure_usage_profile
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_cli/install_root_marker.py::discover_remote_install_root
-doc_version: 1.1.0
-updated_at: '2026-07-24'
+doc_version: 1.1.1
+updated_at: '2026-07-25'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding (Continued)
@@ -153,6 +153,39 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | Bootstrap / sources / ingest / status APIs | Shipped |
 | Multi-client MCP file merge | Shipped |
 | Prefer HTTP with SSH fallback | Shipped |
+
+## Coding-agent files written
+
+With `--clients all` (default), connect merges into project-scoped files under the app repo:
+
+| `client_id` | Path |
+| --- | --- |
+| `cursor` | `.cursor/mcp.json` |
+| `windsurf` | `.windsurf/mcp.json` |
+| `vscode` | `.vscode/mcp.json` |
+| `claude-code` | `.mcp.json` |
+| `continue` | `.continue/mcp.json` |
+| `fragment` | `.agentcore/mcp-servers.json` |
+
+User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-clients`.
+
+## Concurrent agents
+
+| Layer | Behavior |
+| --- | --- |
+| **SSH** | Each IDE session is a separate SSH + stdio MCP process |
+| **HTTP** | Each session is a separate authenticated HTTP client; gateway is multi-request / concurrent |
+| **Data** | Same `tenant/workspace/project` shares Postgres/Neo4j stores |
+| **Different products** | Use different `scope.project` values |
+
+## Security (operator rules)
+
+1. **Never** put OS passwords or database passwords in `connect.yaml` or `mcp.json`.
+2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect edit` (replaces pubkey).
+3. HTTP without TLS: private network + firewall on the MCP port; prefer reverse-proxy TLS for anything beyond a closed lab.
+4. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
+5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.
+6. Prefer non-root SSH users on the AgentCore host.
 
 ## Related Documents
 

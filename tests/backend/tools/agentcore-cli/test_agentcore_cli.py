@@ -423,6 +423,27 @@ def test_find_port_owner_parses_ss(monkeypatch):
     assert owner == {"pid": 4242, "name": "python", "source": "ss", "raw": sample.strip()[:400]}
 
 
+def test_preflight_allows_explicit_owned_pid(monkeypatch):
+    from port_profile import run_preflight
+
+    profile = {
+        "ports": {"AGENTCORE_API_PORT": 32100},
+        "service_owners": {"api": "AGENTCORE_API_PORT"},
+    }
+    monkeypatch.setattr("port_profile.loader.check_port_available", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(
+        "port_profile.loader.find_port_owner",
+        lambda _port: {"pid": 4242, "name": "python", "source": "test"},
+    )
+    monkeypatch.setattr("port_profile.loader.suggest_alternate_port", lambda *_args, **_kwargs: None)
+
+    report = run_preflight(profile, allow_ours=True, allowed_pids={4242})
+
+    assert report["ok"] is True
+    assert report["ports"]["AGENTCORE_API_PORT"]["ours"] is True
+    assert report["ports"]["AGENTCORE_API_PORT"]["blocking"] is False
+
+
 def test_graph_smoke_ingest_explore(capsys, monkeypatch):
     monkeypatch.setenv("AGENTCORE_ROOT", "/opt/AgentCore")
     monkeypatch.setenv("AGENTCORE_GRAPH_CLI_BACKEND", "memory")

@@ -108,4 +108,5 @@ def test_postgres_neo4j_parity_live():
         assert left_targets == right_targets
         assert any(e["rel_type"] == "CALLS" for e in left_n["edges"])
     finally:
+        pg.close()
         nj.close()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from types import SimpleNamespace
 
 from code_graph_service.locked_store import (
     LockedStore,
@@ -302,7 +303,7 @@ def test_build_service_does_not_serialize_remote_embeddings(monkeypatch):
     )
     monkeypatch.setattr(bootstrap, "build_embedding_index", lambda _settings: None)
     monkeypatch.setattr(llm_wiring, "maybe_preload_embeddings", lambda _embeddings: False)
-    service = bootstrap.build_service(object())
+    service = bootstrap.build_service(SimpleNamespace(database_url=""))
 
     errors: list[BaseException] = []
 
@@ -352,7 +353,7 @@ def test_build_service_does_not_serialize_loaded_local_embeddings(monkeypatch):
     monkeypatch.setattr(bootstrap, "build_embeddings", lambda _gateway, settings=None: embeddings)
     monkeypatch.setattr(bootstrap, "build_embedding_index", lambda _settings: None)
     monkeypatch.setattr(llm_wiring, "maybe_preload_embeddings", lambda _embeddings: False)
-    service = bootstrap.build_service(object())
+    service = bootstrap.build_service(SimpleNamespace(database_url=""))
     errors: list[BaseException] = []
 
     def worker(value: str) -> None:

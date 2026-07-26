@@ -32,7 +32,7 @@ class InMemoryStore:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._symbols: dict[str, CodeSymbol] = {}
-        self._documents: dict[str, Document] = {}
+        self._documents: dict[tuple[str, str, str, str], Document] = {}
         self._anchors: dict[str, DocAnchor] = {}
         self._findings: dict[str, DriftFinding] = {}
         self._drafts: dict[str, DocumentationDraft] = {}
@@ -46,6 +46,10 @@ class InMemoryStore:
     @staticmethod
     def _scope_key(scope: Scope) -> str:
         return "|".join((scope.tenant_id, scope.workspace_id, scope.project_id, scope.project_group_id or ""))
+
+    @staticmethod
+    def _document_key(document_id: str, scope: Scope) -> tuple[str, str, str, str]:
+        return (scope.tenant_id, scope.workspace_id, scope.project_id, document_id)
 
     @staticmethod
     def _same_project(left: Scope, right: Scope) -> bool:
@@ -86,15 +90,20 @@ class InMemoryStore:
 
     def get_document(self, document_id: str, scope: Scope) -> Document:
         def _run() -> Document:
-            item = self._documents.get(document_id)
-            if item is None or not self._same_project(item.scope, scope):
+            item = self._documents.get(self._document_key(document_id, scope))
+            if item is None:
                 raise NotFoundError("document not found in project scope")
             return deepcopy(item)
 
         return self._with_lock(_run)
 
     def put_document(self, document: Document) -> None:
-        self._with_lock(lambda: self._documents.__setitem__(document.id, deepcopy(document)))
+        self._with_lock(
+            lambda: self._documents.__setitem__(
+                self._document_key(document.id, document.scope),
+                deepcopy(document),
+            )
+        )
 
     def list_documents(self, scope: Scope) -> list[Document]:
         def _run() -> list[Document]:

@@ -44,6 +44,7 @@ def test_list_projects_reads_state_files(tmp_path: Path):
 
 def test_cmd_list_profiles_marks_active(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr("agentcore_cli.commands.list_profiles.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.cli_defaults.load_dotenv_files", lambda **_: [])
     monkeypatch.setattr("agentcore_cli.cli_defaults.peek_connect_scope", lambda: {})

@@ -63,6 +63,37 @@ def test_ingest_repo_indexes_tree(tmp_path: Path):
     assert "beta" in names
 
 
+def test_repo_idempotency_allows_new_file_content(tmp_path: Path):
+    source = tmp_path / "module.py"
+    source.write_text("def value():\n    return 1\n", encoding="utf-8")
+    service = CodeGraphService(InMemoryStore())
+    scope = Scope("t", "w", "content-idempotency")
+
+    first = service.ingest_repo(
+        scope,
+        "tester",
+        "corr-first",
+        "stable-root-key",
+        {"root_path": str(tmp_path)},
+    )
+    source.write_text("def value():\n    return 2\n", encoding="utf-8")
+    second = service.ingest_repo(
+        scope,
+        "tester",
+        "corr-second",
+        "stable-root-key",
+        {"root_path": str(tmp_path)},
+    )
+
+    file_symbol = service.store.get_symbol(
+        "file:content-idempotency:module.py",
+        scope,
+    )
+    assert first.files_ingested == 1
+    assert second.files_ingested == 1
+    assert "return 2" in file_symbol.body
+
+
 def test_ingest_repo_reports_truncation(tmp_path: Path):
     src = tmp_path / "pkg"
     src.mkdir()
@@ -197,6 +228,103 @@ def test_parallel_repo_relinks_cross_file_imports(monkeypatch, tmp_path: Path):
     ]
     assert any(edge.target_id == "sym:parallel-imports:src.a.Base" for edge in inherits)
     assert not any(edge.target_id.startswith("unresolved:") for edge in inherits)
+
+
+def test_cross_file_finalizer_reuses_symbols_and_filters_edge_reads():
+    class ReadProbeStore(InMemoryStore):
+        def __init__(self):
+            super().__init__()
+            self.symbol_reads = 0
+            self.edge_filters: list[str | None] = []
+
+        def list_symbols(self, scope):
+            self.symbol_reads += 1
+            return super().list_symbols(scope)
+
+        def list_edges(
+            self,
+            scope,
+            *,
+            rel_type=None,
+            source_id=None,
+            target_id=None,
+        ):
+            self.edge_filters.append(rel_type)
+            return super().list_edges(
+                scope,
+                rel_type=rel_type,
+                source_id=source_id,
+                target_id=target_id,
+            )
+
+    store = ReadProbeStore()
+    service = CodeGraphService(store)
+
+    service.finalize_cross_file_resolution(Scope("t", "w", "snapshot-finalizer"))
+
+    assert store.symbol_reads == 1
+    assert None not in store.edge_filters
+    assert store.edge_filters == [
+        "CALLS",
+        "IMPORTS",
+        "INHERITS_FROM",
+        "CALLS",
+        "INHERITS_FROM",
+    ]
+
+
+def test_package_readme_maps_reuse_one_symbol_snapshot(tmp_path: Path):
+    class ReadProbeStore(InMemoryStore):
+        def __init__(self):
+            super().__init__()
+            self.symbol_reads = 0
+
+        def list_symbols(self, scope):
+            self.symbol_reads += 1
+            return super().list_symbols(scope)
+
+    package = tmp_path / "package"
+    package.mkdir()
+    (package / "module.py").write_text("def active():\n    return 1\n", encoding="utf-8")
+    (package / "README.md").write_text(
+        "# Indexed package\n\nThis package contains indexed production code.\n",
+        encoding="utf-8",
+    )
+    orphan = tmp_path / "orphan"
+    orphan.mkdir()
+    (orphan / "module.py").write_text("def ignored():\n    return 1\n", encoding="utf-8")
+    (orphan / "README.md").write_text(
+        "# Unindexed package\n\nThis package has not entered the code graph.\n",
+        encoding="utf-8",
+    )
+
+    store = ReadProbeStore()
+    service = CodeGraphService(store)
+    scope = Scope("t", "w", "package-readme-snapshot")
+    service.ingest_file(
+        scope,
+        "tester",
+        "corr-package",
+        "package-file",
+        {
+            "file_path": "package/module.py",
+            "source": "def active():\n    return 1\n",
+            "language": "python",
+        },
+    )
+
+    store.symbol_reads = 0
+    written = service._ingest_package_readme_maps(scope, str(tmp_path))
+
+    assert store.symbol_reads == 1
+    assert written >= 1
+    docs = {
+        symbol.qualified_name
+        for symbol in InMemoryStore.list_symbols(store, scope)
+        if symbol.kind == SymbolKind.DOCUMENTATION
+    }
+    assert "human:package-readme:package/README.md" in docs
+    assert "human:package-readme:orphan/README.md" not in docs
 
 
 def test_ingest_repo_progress_reports_prior_vs_queue(tmp_path: Path):

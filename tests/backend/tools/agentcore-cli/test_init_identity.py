@@ -19,6 +19,7 @@ def test_slugify_empty_fallback_blank():
 
 
 def test_write_and_peek_identity(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     path = write_identity(tenant="acme", workspace="eng", project="myapp", display_name="Ali")
     assert path.is_file()

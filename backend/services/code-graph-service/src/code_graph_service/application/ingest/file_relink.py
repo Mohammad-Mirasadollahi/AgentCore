@@ -2,27 +2,40 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ...domain.cross_language import build_symbol_indexes, resolve_call_target_polyglot, resolve_import_target
 from ...domain.enums import CallConfidence
 from ...domain.external_calls import classify_external_call, external_call_symbol_id
 from ...domain.languages import detect_language_from_path
-from ...domain.models import Scope
+from ...domain.models import GraphEdge, GraphSymbol, Scope
 from ..support import unresolved_call_name
 
 
 class FileRelinkMixin:
     """Late-binding for placeholders once more of the project graph exists."""
 
-    def _relink_unresolved_calls(self, scope: Scope, *, source_language: str) -> int:
+    def _relink_unresolved_calls(
+        self,
+        scope: Scope,
+        *,
+        source_language: str,
+        symbols: Sequence[GraphSymbol] | None = None,
+        edges: Sequence[GraphEdge] | None = None,
+    ) -> int:
         """Re-resolve previously unresolved CALLS after new symbols land (polyglot).
 
         Also retags clearly-external unresolved placeholders to ``ext:call:``.
         """
-        indexes = build_symbol_indexes(self.store.list_symbols(scope))
+        symbol_snapshot = symbols if symbols is not None else self.store.list_symbols(scope)
+        edge_snapshot = (
+            edges
+            if edges is not None
+            else self.store.list_edges(scope, rel_type="CALLS")
+        )
+        indexes = build_symbol_indexes(symbol_snapshot)
         written = 0
-        for edge in list(self.store.list_edges(scope)):
-            if edge.rel_type != "CALLS":
-                continue
+        for edge in edge_snapshot:
             target = str(edge.target_id)
             if not target.startswith("unresolved:"):
                 continue
@@ -92,11 +105,20 @@ class FileRelinkMixin:
         *,
         source_language: str,
         package_aliases: dict[str, str],
+        symbols: Sequence[GraphSymbol] | None = None,
+        edges: Sequence[GraphEdge] | None = None,
     ) -> int:
-        indexes = build_symbol_indexes(self.store.list_symbols(scope))
+        symbol_snapshot = symbols if symbols is not None else self.store.list_symbols(scope)
+        edge_snapshot = edges
+        if edge_snapshot is None:
+            edge_snapshot = [
+                *self.store.list_edges(scope, rel_type="IMPORTS"),
+                *self.store.list_edges(scope, rel_type="INHERITS_FROM"),
+            ]
+        indexes = build_symbol_indexes(symbol_snapshot)
         by_qualified = indexes.by_qualified
         written = 0
-        for edge in list(self.store.list_edges(scope)):
+        for edge in edge_snapshot:
             file_path = str(edge.metadata.get("file_path") or "")
             edge_language = detect_language_from_path(file_path) or source_language
             if edge.rel_type == "IMPORTS" and str(edge.target_id).startswith("ext:"):
@@ -152,15 +174,36 @@ class FileRelinkMixin:
         source_language: str = "python",
         package_aliases: dict[str, str] | None = None,
     ) -> int:
-        """One post-parallel pass: relink + test/dispatch edges for the whole scope."""
+        """One post-parallel pass using shared, relation-filtered snapshots."""
         aliases = package_aliases if isinstance(package_aliases, dict) else {}
+        symbols = self.store.list_symbols(scope)
+        call_edges = self.store.list_edges(scope, rel_type="CALLS")
+        reference_edges = [
+            *self.store.list_edges(scope, rel_type="IMPORTS"),
+            *self.store.list_edges(scope, rel_type="INHERITS_FROM"),
+        ]
         written = 0
-        written += self._relink_unresolved_calls(scope, source_language=source_language)
+        written += self._relink_unresolved_calls(
+            scope,
+            source_language=source_language,
+            symbols=symbols,
+            edges=call_edges,
+        )
         written += self._relink_unresolved_references(
             scope,
             source_language=source_language,
             package_aliases=aliases,
+            symbols=symbols,
+            edges=reference_edges,
         )
-        written += self._emit_test_links(scope)
-        written += self._emit_dynamic_dispatch(scope)
+        written += self._emit_test_links(scope, symbols=symbols)
+        dispatch_edges = [
+            *self.store.list_edges(scope, rel_type="CALLS"),
+            *self.store.list_edges(scope, rel_type="INHERITS_FROM"),
+        ]
+        written += self._emit_dynamic_dispatch(
+            scope,
+            symbols=symbols,
+            edges=dispatch_edges,
+        )
         return written

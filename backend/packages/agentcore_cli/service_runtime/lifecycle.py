@@ -86,12 +86,18 @@ def start_all(root: Path, *, as_part_of: str | None = None) -> dict[str, Any]:
 
 def _run_port_preflight(root: Path) -> None:
     """Block start when profile ports conflict with a foreign process."""
+    from agentcore_cli import service_runtime as runtime
     from port_profile import load_profile, run_preflight, write_port_map
     from port_profile.loader import DEFAULT_PORT_MAP_REL
 
     progress("Port preflight: checking profile ports")
     profile = load_profile()
-    report = run_preflight(profile, allow_ours=True)
+    mcp_pid = runtime.read_mcp_pid(root)
+    report = run_preflight(
+        profile,
+        allow_ours=True,
+        allowed_pids={mcp_pid} if mcp_pid is not None else set(),
+    )
     map_path = write_port_map(root / DEFAULT_PORT_MAP_REL, report)
     if report["ok"]:
         progress(f"Port preflight: ok (map {map_path})")

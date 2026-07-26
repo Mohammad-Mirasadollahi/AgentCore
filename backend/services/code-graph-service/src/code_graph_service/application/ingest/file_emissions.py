@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ...domain.confidence_policy import clamp_confidence
 from ...domain.di_injections import extract_injections
 from ...domain.dispatch_synth import synthesize_interface_dispatch
@@ -10,7 +12,7 @@ from ...domain.framework_routes import extract_routes, route_symbol_id
 from ...domain.freshness import extract_module_contract_docstring, extract_rationale_comments
 from ...domain.hashing import digest
 from ...domain.http_calls import extract_http_calls, normalize_http_path
-from ...domain.models import GraphSymbol, Scope
+from ...domain.models import GraphEdge, GraphSymbol, Scope
 from ...domain.test_links import suggest_test_links
 from ..support import unresolved_symbol_id
 
@@ -270,11 +272,17 @@ class FileEmissionsMixin:
                     )
         return written
 
-    def _emit_test_links(self, scope: Scope) -> int:
+    def _emit_test_links(
+        self,
+        scope: Scope,
+        *,
+        symbols: Sequence[GraphSymbol] | None = None,
+    ) -> int:
         """Emit convention-based TESTED_BY edges (production → test)."""
         triples: list[tuple[str, str, str]] = []
         id_by_qn: dict[str, str] = {}
-        for sym in self.store.list_symbols(scope):
+        symbol_snapshot = symbols if symbols is not None else self.store.list_symbols(scope)
+        for sym in symbol_snapshot:
             if sym.kind not in {SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS}:
                 continue
             triples.append((sym.qualified_name, sym.name, sym.file_path))
@@ -390,18 +398,36 @@ class FileEmissionsMixin:
             link_key="rationale:1:MODULE_CONTRACT",
         )
 
-    def _emit_dynamic_dispatch(self, scope: Scope) -> int:
-        symbols = list(self.store.list_symbols(scope))
-        edges = list(self.store.list_edges(scope))
-        sym_tuples = [(s.id, s.name, s.qualified_name, s.kind.value) for s in symbols]
+    def _emit_dynamic_dispatch(
+        self,
+        scope: Scope,
+        *,
+        symbols: Sequence[GraphSymbol] | None = None,
+        edges: Sequence[GraphEdge] | None = None,
+    ) -> int:
+        symbol_snapshot = (
+            list(symbols) if symbols is not None else self.store.list_symbols(scope)
+        )
+        edge_snapshot = (
+            list(edges)
+            if edges is not None
+            else [
+                *self.store.list_edges(scope, rel_type=RelType.CALLS.value),
+                *self.store.list_edges(scope, rel_type=RelType.INHERITS_FROM.value),
+            ]
+        )
+        sym_tuples = [
+            (s.id, s.name, s.qualified_name, s.kind.value)
+            for s in symbol_snapshot
+        ]
         inherits = [
             (e.source_id, e.target_id)
-            for e in edges
+            for e in edge_snapshot
             if e.rel_type in {RelType.INHERITS_FROM.value, "INHERITS_FROM"}
         ]
         calls = [
             (e.source_id, e.target_id, str(e.metadata.get("call") or ""))
-            for e in edges
+            for e in edge_snapshot
             if e.rel_type in {RelType.CALLS.value, "CALLS"}
         ]
         written = 0

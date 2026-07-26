@@ -57,7 +57,7 @@ class PostgresStore:
         self._pool.close_all()
 
     def ensure_schema(self) -> None:
-        """Apply core + FTS migrations when present."""
+        """Apply idempotent symbol-store migrations when present."""
         from pathlib import Path
 
         migrations_dir = Path(__file__).resolve().parents[2] / "migrations"
@@ -67,6 +67,7 @@ class PostgresStore:
                 "0002_outbox_published.sql",
                 "0006_symbol_fts.sql",
                 "0007_symbol_language.sql",
+                "0008_symbol_hash_versions.sql",
             ):
                 path = migrations_dir / name
                 if path.is_file():
@@ -369,9 +370,9 @@ class PostgresStore:
                 """
                 SELECT * FROM code_graph.edges
                 WHERE tenant_id = %s AND workspace_id = %s AND project_id = %s
-                  AND (%s IS NULL OR rel_type = %s)
-                  AND (%s IS NULL OR source_id = %s)
-                  AND (%s IS NULL OR target_id = %s)
+                  AND (%s::text IS NULL OR rel_type = %s)
+                  AND (%s::text IS NULL OR source_id = %s)
+                  AND (%s::text IS NULL OR target_id = %s)
                 ORDER BY id
                 """,
                 (

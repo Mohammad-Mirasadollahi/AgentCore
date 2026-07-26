@@ -24,7 +24,8 @@ class Neo4jStore(Neo4jSchemaMixin, Neo4jRetrievalMixin, Neo4jCrudMixin):
         gds_enabled: bool = True,
         gds_concurrency: int = 4,
     ) -> None:
-        if driver is None:
+        owns_driver = driver is None
+        if owns_driver:
             if not uri.startswith(("bolt://", "bolt+s://", "neo4j://", "neo4j+s://")):
                 raise ValueError("Neo4j URI must use bolt://, bolt+s://, neo4j://, or neo4j+s://")
             try:
@@ -39,7 +40,12 @@ class Neo4jStore(Neo4jSchemaMixin, Neo4jRetrievalMixin, Neo4jCrudMixin):
         self._gds_concurrency = max(1, min(int(gds_concurrency), 4))
         self._capabilities_cache: dict[str, Any] | None = None
         if ensure_schema:
-            self.ensure_schema()
+            try:
+                self.ensure_schema()
+            except Exception:
+                if owns_driver:
+                    self.close()
+                raise
 
     def close(self) -> None:
         close = getattr(self._driver, "close", None)

@@ -2,7 +2,7 @@
 doc_id: ac.doc.ckg.headroom-native-context-compression
 title: 54 - Headroom Native Context Compression For AgentCore
 doc_type: feature_spec
-status: current
+status: active
 schema_version: '1.0'
 owner: platform-architecture
 summary: Normative requirement that the AgentCore product itself implements a native, local-first
@@ -30,13 +30,9 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.2.2
+doc_version: 1.2.3
 updated_at: '2026-07-25'
 linked_symbols:
-- backend/packages/context_compression/compress.py
-- backend/packages/context_compression/store.py
-- backend/services/mcp-gateway-service/src/mcp_gateway_service/backends/context.py
-- backend/packages/llm_gateway/gateway.py
 - backend/packages/llm_gateway/gateway.py::LlmGateway
 related_docs:
 - ac.doc.ckg.token-optimization-and-model-routing

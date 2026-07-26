@@ -242,6 +242,7 @@ def test_install_cli_on_path_writes_shim_and_shell_rc(tmp_path: Path) -> None:
     script = r"""
 set -euo pipefail
 export AGENTCORE_ROOT="%s"
+export INSTALL_ROLE=server
 export HOME="%s"
 export SHELL=/bin/bash
 export PATH="%s:${PATH}"
@@ -288,6 +289,7 @@ def test_install_cli_on_path_creates_bashrc_when_missing(tmp_path: Path) -> None
     script = r"""
 set -euo pipefail
 export AGENTCORE_ROOT="%s"
+export INSTALL_ROLE=server
 export HOME="%s"
 export SHELL=/bin/bash
 source "%s/common.sh"

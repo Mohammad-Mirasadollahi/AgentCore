@@ -259,7 +259,7 @@ def test_prompt_menus_go_to_stderr_and_confirm_still_asks_yes() -> None:
 
 def test_prompt_copy_mentions_client_or_server() -> None:
     text = (LIB / "common.sh").read_text(encoding="utf-8")
-    assert "Install client or server" in text
+    assert "Install client, server, or both" in text
     assert "Install new or upgrade existing" in text
     assert "1=venv" in text or "venv" in text
     assert "prompt_install_role" in text

@@ -51,6 +51,21 @@ class CodeGraphService(
         self.vector_index = vector_index
         self.entity_id_map = entity_id_map
 
+    def close(self) -> None:
+        closed: set[int] = set()
+        for resource in (
+            self.store,
+            self.embedding_index,
+            self.vector_index,
+            self.entity_id_map,
+        ):
+            if resource is None or id(resource) in closed:
+                continue
+            closed.add(id(resource))
+            closer = getattr(resource, "close", None)
+            if callable(closer):
+                closer()
+
     def llm_providers(self) -> list[dict[str, Any]]:
         if self.llm is None:
             return []

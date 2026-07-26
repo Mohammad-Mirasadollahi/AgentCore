@@ -279,6 +279,7 @@ def test_fuzz_live_postgres_fts_weird_query(fuzz_live_ready):
 
     _require_tcp(POSTGRES_PORT)
     url = f"postgresql://agentcore:{POSTGRES_PASSWORD}@127.0.0.1:{POSTGRES_PORT}/agentcore"
+    store = None
     try:
         store = PostgresStore(url, ensure_schema=True)
         scope = Scope("tenant-fuzz", "ws-fuzz", f"pgfuzz-{uuid.uuid4().hex[:8]}")
@@ -303,6 +304,9 @@ def test_fuzz_live_postgres_fts_weird_query(fuzz_live_ready):
             assert "hits" in hybrid
     except Exception as exc:  # noqa: BLE001
         skip_on_live_connect_error(exc)
+    finally:
+        if store is not None:
+            store.close()
 
 
 def test_fuzz_live_gds_off_degree_method(fuzz_live_ready):

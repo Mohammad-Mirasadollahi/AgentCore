@@ -11,12 +11,12 @@ Re-run:
 from __future__ import annotations
 
 import os
-import re
 import resource
 import sys
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,14 +24,18 @@ from urllib.request import Request, urlopen
 
 import pytest
 
+from agentcore_cli.docs_link_sync import sync_human_docs
 from code_graph_service.bootstrap import Settings, build_service
 from code_graph_service.core import CodeGraphService, Scope
 from code_graph_service.domain.embeddings import LocalEmbeddingStub
 from code_graph_service.domain.enums import SymbolKind
+from code_graph_service.application.ingest.parallel_files import run_parallel_file_jobs
 from code_graph_service.llm_wiring import LlmBackedDocGenerator
 from code_graph_service.locked_store import LockedStore, sync_max_file_workers
 from code_graph_service.neo4j_store import Neo4jStore
 from code_graph_service.postgres_store import PostgresStore
+from docs_sync_service import DocsSyncService, PostgresStore as DocsPostgresStore
+from docs_sync_service.core import Scope as DocsScope
 from llm_gateway import LiteLlmGateway, LlmGatewaySettings
 
 from live_helpers import (
@@ -79,7 +83,7 @@ def _write_tree(root: Path, n_files: int) -> None:
 
 @pytest.fixture
 def local_litellm(monkeypatch):
-    request_state = {"active": 0, "peak": 0, "released": False}
+    request_state = {"active": 0, "peak": 0, "released": False, "release_at": 4}
     request_condition = threading.Condition()
 
     class Handler(BaseHTTPRequestHandler):
@@ -88,7 +92,7 @@ def local_litellm(monkeypatch):
             with request_condition:
                 request_state["active"] += 1
                 request_state["peak"] = max(request_state["peak"], request_state["active"])
-                if request_state["active"] >= 4:
+                if request_state["active"] >= request_state["release_at"]:
                     request_state["released"] = True
                     request_condition.notify_all()
                 else:
@@ -132,6 +136,82 @@ def local_litellm(monkeypatch):
     server.shutdown()
     server.server_close()
     thread.join(timeout=2.0)
+
+
+def _docs_postgres_url() -> str:
+    return (
+        f"postgresql://agentcore:{POSTGRES_PASSWORD}"
+        f"@127.0.0.1:{POSTGRES_PORT}/agentcore"
+    )
+
+
+def _purge_docs_scope(store: DocsPostgresStore, scope: DocsScope) -> None:
+    scope_params = (scope.tenant_id, scope.workspace_id, scope.project_id)
+    with store._connection.cursor() as cursor:
+        for table in (
+            "anchors",
+            "drift_findings",
+            "drafts",
+            "symbols",
+            "documents",
+        ):
+            cursor.execute(
+                f"DELETE FROM docs_sync.{table} "
+                "WHERE tenant_id=%s AND workspace_id=%s AND project_id=%s",
+                scope_params,
+            )
+        cursor.execute(
+            "DELETE FROM docs_sync.idempotency WHERE scope_key=%s",
+            ("|".join((*scope_params, scope.project_group_id or "")),),
+        )
+        cursor.execute(
+            "DELETE FROM docs_sync.outbox "
+            "WHERE payload->>'tenant_id'=%s "
+            "AND payload->>'workspace_id'=%s "
+            "AND payload->>'project_id'=%s",
+            scope_params,
+        )
+
+
+class _SlowEmbedding:
+    def __init__(self, delay_seconds: float = 0.04) -> None:
+        self._base = LocalEmbeddingStub(dims=16)
+        self.model = self._base.model
+        self.delay_seconds = delay_seconds
+        self.active = 0
+        self.peak = 0
+        self._lock = threading.Lock()
+
+    def embed(self, text: str, *, is_query: bool = False):
+        with self._lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+        try:
+            time.sleep(self.delay_seconds)
+            return self._base.embed(text, is_query=is_query)
+        finally:
+            with self._lock:
+                self.active -= 1
+
+
+class _ProbedDocsPostgresStore(DocsPostgresStore):
+    def __init__(self, database_url: str, delay_seconds: float = 0.08) -> None:
+        self.delay_seconds = delay_seconds
+        self.active_writes = 0
+        self.peak_writes = 0
+        self._probe_lock = threading.Lock()
+        super().__init__(database_url)
+
+    def put_document(self, document):
+        with self._probe_lock:
+            self.active_writes += 1
+            self.peak_writes = max(self.peak_writes, self.active_writes)
+        try:
+            time.sleep(self.delay_seconds)
+            return super().put_document(document)
+        finally:
+            with self._probe_lock:
+                self.active_writes -= 1
 
 
 @pytest.fixture
@@ -208,6 +288,8 @@ def postgres_service(monkeypatch, tmp_path: Path, local_litellm):
         service.purge_scope(scope)
     except Exception:  # noqa: BLE001
         pass
+    finally:
+        store.close()
 
 
 def test_auto_workers_follow_live_rpm(monkeypatch):
@@ -218,7 +300,233 @@ def test_auto_workers_follow_live_rpm(monkeypatch):
 
 
 @pytest.mark.timeout(180)
-def test_parallel_ingest_rpm_sessions_against_neo4j(neo4j_service, monkeypatch):
+def test_docs_postgres_isolates_same_id_across_parallel_project_writes():
+    require_tcp("127.0.0.1", POSTGRES_PORT)
+    store = DocsPostgresStore(_docs_postgres_url())
+    service = DocsSyncService(store)
+    suffix = uuid.uuid4().hex[:10]
+    scopes = (
+        DocsScope("tenant-doc-scope-live", "ws-doc-scope-live", f"project-a-{suffix}"),
+        DocsScope("tenant-doc-scope-live", "ws-doc-scope-live", f"project-b-{suffix}"),
+    )
+    shared_doc_id = f"shared-live-doc-{suffix}"
+
+    def _index(scope: DocsScope) -> None:
+        service.index_document(
+            scope,
+            "live-agent",
+            f"corr-{scope.project_id}",
+            f"idem-{scope.project_id}",
+            {
+                "path": "docs/shared.md",
+                "frontmatter": {
+                    "doc_id": shared_doc_id,
+                    "title": f"Shared doc for {scope.project_id}",
+                    "owner": "platform",
+                    "status": "active",
+                    "schema_version": "1.0",
+                    "linked_symbols": [],
+                    "decision_refs": [],
+                },
+                "body": f"# {scope.project_id}\n",
+            },
+        )
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(_index, scopes))
+        for scope in scopes:
+            document = store.get_document(shared_doc_id, scope)
+            assert document.scope == scope
+            assert len(store.list_documents(scope)) == 1
+    finally:
+        for scope in scopes:
+            _purge_docs_scope(store, scope)
+        store.close()
+
+
+@pytest.mark.parametrize("workers", (1, 2, 4))
+@pytest.mark.timeout(240)
+def test_live_code_and_docs_file_parallelism_matrix(
+    neo4j_service,
+    monkeypatch,
+    tmp_path: Path,
+    workers: int,
+):
+    service, _fixture_scope, _fixture_tree, _gateway, _rpm = neo4j_service
+    monkeypatch.setenv("AGENTCORE_SYNC_MAX_FILE_WORKERS", str(workers))
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY", "0")
+    scope = Scope(
+        "tenant-file-matrix-live",
+        "ws-file-matrix-live",
+        f"proj-w{workers}-{uuid.uuid4().hex[:8]}",
+    )
+    docs_scope = DocsScope(scope.tenant_id, scope.workspace_id, scope.project_id)
+    tree = tmp_path / f"matrix-w{workers}"
+    _write_tree(tree, n_files=6)
+    docs_dir = tree / "docs"
+    docs_dir.mkdir()
+    for index in range(6):
+        (docs_dir / f"doc_{index}.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    f"doc_id: {scope.project_id}-doc-{index}",
+                    f"title: Live matrix doc {index}",
+                    "owner: platform",
+                    "status: active",
+                    'schema_version: "1.0"',
+                    "linked_symbols: []",
+                    "decision_refs: []",
+                    "---",
+                    "",
+                    f"# Live matrix doc {index}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    embedding_probe = _SlowEmbedding()
+    service.embeddings = embedding_probe
+    code_events: list[dict] = []
+    docs_events: list[dict] = []
+    docs_store = _ProbedDocsPostgresStore(_docs_postgres_url())
+    monkeypatch.setattr(
+        "agentcore_cli.docs_link_sync._docs_sync_service",
+        lambda: DocsSyncService(docs_store),
+    )
+
+    try:
+        code_started = time.perf_counter()
+        code_result = service.ingest_repo(
+            scope,
+            "live-agent",
+            f"corr-code-w{workers}",
+            f"idem-code-w{workers}-{uuid.uuid4().hex}",
+            {
+                "root_path": str(tree),
+                "include_extensions": [".py"],
+                "max_files": 6,
+                "include_outcomes": True,
+                "on_progress": code_events.append,
+            },
+        )
+        code_seconds = time.perf_counter() - code_started
+        docs_started = time.perf_counter()
+        docs_result = sync_human_docs(
+            graph_service=service,
+            graph_scope=scope,
+            root_path=tree,
+            filters={
+                "docs_enabled": True,
+                "doc_match_globs": ["**/*.md"],
+                "doc_exclude_dirs": [],
+                "doc_exclude_globs": [],
+                "doc_paths": [],
+                "max_files": 20,
+            },
+            actor="live-agent",
+            correlation_id=f"corr-docs-w{workers}",
+            repo_name="parallel-live-fixture",
+            on_progress=docs_events.append,
+        )
+        docs_seconds = time.perf_counter() - docs_started
+        code_peak = max(int(event.get("files_in_flight") or 0) for event in code_events)
+        docs_peak = max(int(event.get("files_in_flight") or 0) for event in docs_events)
+
+        assert code_result.files_ingested == 6
+        assert code_result.files_failed == 0
+        assert code_peak == workers
+        assert embedding_probe.peak == workers
+        assert docs_result.docs_indexed == 6
+        assert docs_result.errors == []
+        assert docs_peak == workers
+        assert docs_store.peak_writes == workers
+        assert len(docs_store.list_documents(docs_scope)) == 6
+        print(
+            f"parallel matrix workers={workers} "
+            f"code={code_seconds:.2f}s code_peak={code_peak} "
+            f"docs={docs_seconds:.2f}s docs_peak={docs_peak}"
+        )
+    finally:
+        _purge_docs_scope(docs_store, docs_scope)
+        docs_store.close()
+        service.purge_scope(scope)
+
+
+@pytest.mark.parametrize("workers", (1, 2, 4))
+@pytest.mark.timeout(180)
+def test_live_llm_rpm_sessions_follow_parallel_worker_level(
+    neo4j_service,
+    local_litellm,
+    workers: int,
+):
+    service, scope, tree, gateway, rpm = neo4j_service
+    local_litellm.request_state["release_at"] = workers
+    results = []
+    result_lock = threading.Lock()
+    peak_rpm_inflight = 0
+    stop = threading.Event()
+
+    def _watch() -> None:
+        nonlocal peak_rpm_inflight
+        while not stop.is_set():
+            peak_rpm_inflight = max(
+                peak_rpm_inflight,
+                int(gateway.rpm_sessions_snapshot().get("inflight_count") or 0),
+            )
+            time.sleep(0.005)
+
+    def _ingest(index: int, path: Path) -> None:
+        result = service.ingest_file(
+            scope,
+            "live-agent",
+            f"corr-llm-w{workers}",
+            f"idem-llm-w{workers}-{index}-{uuid.uuid4().hex}",
+            {
+                "file_path": f"src/{path.name}",
+                "source": path.read_text(encoding="utf-8"),
+                "language": "python",
+            },
+        )
+        with result_lock:
+            results.append(result)
+
+    watcher = threading.Thread(target=_watch, daemon=True)
+    watcher.start()
+    started = time.perf_counter()
+    try:
+        run_parallel_file_jobs(
+            workers=workers,
+            items=sorted((tree / "src").glob("*.py")),
+            fn=_ingest,
+        )
+    finally:
+        stop.set()
+        watcher.join(timeout=2.0)
+    elapsed = time.perf_counter() - started
+    snapshot = gateway.rpm_sessions_snapshot()
+
+    assert len(results) == 4
+    assert all(result.symbols_documented == 1 for result in results)
+    assert local_litellm.request_state["peak"] == workers
+    assert peak_rpm_inflight == workers
+    assert snapshot["rpm"] == rpm
+    assert snapshot["starts_in_window"] == 4
+    assert snapshot["inflight_count"] == 0
+    assert len(snapshot["history"]) == 4
+    assert {entry["status"] for entry in snapshot["history"]} == {"ok"}
+    print(
+        f"llm matrix workers={workers} wall={elapsed:.2f}s "
+        f"http_peak={local_litellm.request_state['peak']} "
+        f"rpm_peak={peak_rpm_inflight}"
+    )
+
+
+@pytest.mark.timeout(180)
+def test_parallel_ingest_uses_heuristic_docs_against_neo4j(neo4j_service, monkeypatch):
     service, scope, tree, gateway, rpm = neo4j_service
     monkeypatch.setattr("code_graph_service.locked_store.os.cpu_count", lambda: 8)
     workers = sync_max_file_workers()
@@ -266,9 +574,8 @@ def test_parallel_ingest_rpm_sessions_against_neo4j(neo4j_service, monkeypatch):
     snap = gateway.rpm_sessions_snapshot()
     assert snap["inflight_count"] == 0
     assert snap["rpm"] == rpm
-    assert len(snap["history"]) >= 4
-    assert all(h["status"] in {"ok", "error", "cancelled"} for h in snap["history"])
-    assert peak_inflight["n"] >= 2
+    assert snap["history"] == []
+    assert peak_inflight["n"] == 0
 
     symbols = service.store.list_symbols(scope)
     files = [s for s in symbols if s.kind == SymbolKind.FILE]
@@ -276,12 +583,12 @@ def test_parallel_ingest_rpm_sessions_against_neo4j(neo4j_service, monkeypatch):
 
 
 @pytest.mark.timeout(180)
-def test_parallel_ingest_rpm_sessions_against_postgres(postgres_service, monkeypatch):
-    test_parallel_ingest_rpm_sessions_against_neo4j(postgres_service, monkeypatch)
+def test_parallel_ingest_uses_heuristic_docs_against_postgres(postgres_service, monkeypatch):
+    test_parallel_ingest_uses_heuristic_docs_against_neo4j(postgres_service, monkeypatch)
 
 
 @pytest.mark.timeout(180)
-def test_cli_progress_reports_nonzero_live_rpm(
+def test_cli_progress_reports_heuristic_docs_without_rpm_sessions(
     neo4j_service,
     monkeypatch,
     capsys,
@@ -309,12 +616,13 @@ def test_cli_progress_reports_nonzero_live_rpm(
     _sync_one_root(svc=service, scope=scope, root_path=tree, args=args)
 
     output = capsys.readouterr().out
-    assert re.search(r"rpm inflight [1-4]/4", output), output
-    assert "starts 4/4" in output
+    assert "parallel 4 active / 4 workers" in output
+    assert "rpm inflight 0/4  starts 0/4" in output
+    assert "RPM final    inflight 0/4  starts 0/4  history 0" in output
 
 
 @pytest.mark.timeout(300)
-def test_production_build_sends_five_files_concurrently(
+def test_production_build_uses_heuristic_docs_without_rpm_sessions(
     monkeypatch,
     tmp_path: Path,
     local_litellm,
@@ -382,9 +690,9 @@ def test_production_build_sends_five_files_concurrently(
         assert result.files_discovered == 5
         assert result.files_ingested == 5
         assert result.files_failed == 0
-        assert local_litellm.request_state["peak"] >= 4
-        assert peak_inflight >= 4
-        assert len(service.llm_sessions_snapshot()["history"]) >= 5
+        assert local_litellm.request_state["peak"] == 0
+        assert peak_inflight == 0
+        assert service.llm_sessions_snapshot()["history"] == []
         print(
             f"resource metrics: wall={wall_seconds:.2f}s cpu={cpu_seconds:.2f}s "
             f"cpu/wall={cpu_seconds / max(wall_seconds, 0.001):.2f} "

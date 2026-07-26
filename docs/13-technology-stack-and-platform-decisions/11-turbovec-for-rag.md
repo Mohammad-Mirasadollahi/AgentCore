@@ -2,7 +2,7 @@
 doc_id: ac.doc.stack.turbovec-for-rag
 title: 11 - TurboVec For RAG
 doc_type: standard
-status: accepted
+status: active
 schema_version: '1.0'
 owner: platform-architecture
 summary: This guide tells engineers and agents **how to use [turbovec](https://github.com/RyanCodrai/turbovec)
@@ -24,6 +24,8 @@ audience_lane:
 - agents
 authority: informative
 visibility: internal
+doc_version: 1.1.1
+updated_at: '2026-07-25'
 linked_symbols:
 - backend/packages/vector_index/promotion_gate.py::run_promotion_gate
 - backend/packages/vector_index/id_map.py::PostgresEntityIdMap
@@ -33,7 +35,6 @@ related_docs:
 - ac.doc.stack.data-rag-analytics-storage
 - ac.doc.examples.turbovec-hybrid-retrieval
 - ac.doc.stack.litellm-llm-gateway
-doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -64,7 +65,6 @@ external_refs:
 - https://github.com/RyanCodrai/turbovec/blob/main/docs/api.md
 - https://arxiv.org/abs/2504.19874
 - https://pypi.org/project/turbovec/
-updated_at: '2026-07-25'
 ---
 
 # 11 - TurboVec For RAG
@@ -231,7 +231,7 @@ Authorization never falls open: missing accelerator must not widen ACL.
 
 ## Checklist For Implementers
 
-# Mark remaining implementer checklist items that are already enforced in code/tests.
+## Mark remaining implementer checklist items that are already enforced in code/tests.
 - [x] Embeddings written to pgvector before or atomically with replica upsert.
 - [x] Only `IdMapIndex` + durable `uint64` map.
 - [x] Stage-1 filters always precede Stage-2 allowlist search.

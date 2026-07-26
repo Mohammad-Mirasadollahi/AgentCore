@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import pytest
 from starlette.requests import Request
 
 from code_graph_service.api import _is_loopback_request, app
@@ -539,6 +540,31 @@ def test_neo4j_store_round_trip_with_fake_driver():
     assert store.begin_idempotency(SCOPE, "k1", "ingest") is None
     store.complete_idempotency(SCOPE, "k1", "ingest", "res-1")
     assert store.begin_idempotency(SCOPE, "k1", "ingest") == "res-1"
+
+
+def test_neo4j_store_closes_owned_driver_when_schema_setup_fails(monkeypatch):
+    class FailingDriver:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def session(self, database: str = "neo4j"):
+            raise RuntimeError(f"schema unavailable for {database}")
+
+        def close(self) -> None:
+            self.closed = True
+
+    driver = FailingDriver()
+    monkeypatch.setattr("neo4j.GraphDatabase.driver", lambda *_args, **_kwargs: driver)
+
+    with pytest.raises(RuntimeError, match="schema unavailable"):
+        Neo4jStore(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="test",
+            ensure_schema=True,
+        )
+
+    assert driver.closed is True
 
 
 def test_neo4j_backed_python_ingest():

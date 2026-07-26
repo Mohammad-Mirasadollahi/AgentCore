@@ -34,6 +34,7 @@ linked_symbols:
 - backend/packages/agentcore_cli/mcp_client_targets.py::write_fragment_to_clients
 - backend/packages/agentcore_cli/mcp_client_targets.py::McpClientTarget
 - backend/packages/agentcore_cli/parser/profiles.py::register
+- backend/packages/agentcore_cli/parser/profiles.py::register_profile_and_project
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/server.py::handle_message
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/server.py::McpGatewayError
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/lazy_facade.py::lazy_tools_list
@@ -48,7 +49,7 @@ related_docs:
 - ac.doc.sea.agentcore-cli-command-reference
 - ac.doc.sea.remote-dev-client-mcp-wiring
 - ac.doc.sea.one-command-cross-platform-agent-onboarding
-doc_version: 1.1.0
+doc_version: 1.1.1
 audience:
 - engineer
 - operator

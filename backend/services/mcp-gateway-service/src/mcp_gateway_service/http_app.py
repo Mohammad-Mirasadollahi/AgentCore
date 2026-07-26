@@ -74,32 +74,43 @@ def create_http_app(*, backends: Any | None = None) -> FastAPI:
             )
 
         try:
-            body = await request.json()
-        except Exception:
-            return JSONResponse(
-                {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}},
-                status_code=400,
-            )
+            try:
+                body = await request.json()
+            except Exception:
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32700, "message": "parse error"},
+                    },
+                    status_code=400,
+                )
 
-        if isinstance(body, list):
-            responses = []
-            for message in body:
-                if not isinstance(message, dict):
-                    continue
-                resp = handle_message(gateway, message)
-                if resp is not None:
-                    responses.append(resp)
-            return JSONResponse(responses)
+            if isinstance(body, list):
+                responses = []
+                for message in body:
+                    if not isinstance(message, dict):
+                        continue
+                    resp = handle_message(gateway, message)
+                    if resp is not None:
+                        responses.append(resp)
+                return JSONResponse(responses)
 
-        if not isinstance(body, dict):
-            return JSONResponse(
-                {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}},
-                status_code=400,
-            )
-        response = handle_message(gateway, body)
-        if response is None:
-            return JSONResponse({})
-        return JSONResponse(response)
+            if not isinstance(body, dict):
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32600, "message": "invalid request"},
+                    },
+                    status_code=400,
+                )
+            response = handle_message(gateway, body)
+            if response is None:
+                return JSONResponse({})
+            return JSONResponse(response)
+        finally:
+            gateway.close()
 
     return api
 

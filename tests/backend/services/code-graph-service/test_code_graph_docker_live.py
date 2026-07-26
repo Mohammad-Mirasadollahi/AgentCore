@@ -59,20 +59,23 @@ def test_postgres_store_python_ingest_live():
         f"postgresql://agentcore:{POSTGRES_PASSWORD}@127.0.0.1:{POSTGRES_PORT}/agentcore"
     )
     store = PostgresStore(url)
-    scope = Scope("tenant-live", "ws-live", f"proj-{uuid.uuid4().hex[:8]}")
-    service = CodeGraphService(store)
-    result = service.ingest_file(
-        scope,
-        "agent",
-        "corr-pg",
-        f"idem-pg-{uuid.uuid4().hex}",
-        {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
-    )
-    assert result.symbols_indexed >= 3
-    login_id = f"sym:{scope.project_id}:src.auth.login"
-    neighbors = service.structural_query(scope, login_id, "CALLS")
-    assert any(edge["rel_type"] == "CALLS" for edge in neighbors["edges"])
-    assert store.outbox()[-1]["event_type"] in {"FileIngested", "SymbolsDocumented"}
+    try:
+        scope = Scope("tenant-live", "ws-live", f"proj-{uuid.uuid4().hex[:8]}")
+        service = CodeGraphService(store)
+        result = service.ingest_file(
+            scope,
+            "agent",
+            "corr-pg",
+            f"idem-pg-{uuid.uuid4().hex}",
+            {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
+        )
+        assert result.symbols_indexed >= 3
+        login_id = f"sym:{scope.project_id}:src.auth.login"
+        neighbors = service.structural_query(scope, login_id, "CALLS")
+        assert any(edge["rel_type"] == "CALLS" for edge in neighbors["edges"])
+        assert store.outbox()[-1]["event_type"] in {"FileIngested", "SymbolsDocumented"}
+    finally:
+        store.close()
 
 
 def test_neo4j_store_python_ingest_live():

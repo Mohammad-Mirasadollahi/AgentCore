@@ -214,13 +214,13 @@ def test_format_detail_text_contains_file_models():
 
 def test_classify_edited_pending_and_hash(tmp_path: Path):
     from agentcore_cli.commands.inventory.edited import classify_edited_paths, disk_content_hash
-    from code_graph_service.domain.hashing import digest, normalize_source
+    from code_graph_service.domain.hashing import content_hash
 
     root = tmp_path / "app"
     (root / "src").mkdir(parents=True)
     path = root / "src" / "x.py"
     path.write_text("def x():\n    return 1\n", encoding="utf-8")
-    good_hash = digest(normalize_source(path.read_text(encoding="utf-8"), "python"))
+    good_hash = str(content_hash(path.read_text(encoding="utf-8"), "python")["hash"])
     assert disk_content_hash(path, "python") == good_hash
 
     edited = classify_edited_paths(
@@ -238,7 +238,7 @@ def test_classify_edited_pending_and_hash(tmp_path: Path):
 
 def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     from agentcore_cli.commands import inventory as inv
-    from code_graph_service.domain.hashing import digest, normalize_source
+    from code_graph_service.domain.hashing import content_hash
 
     app = tmp_path / "app"
     (app / "src").mkdir(parents=True)
@@ -249,8 +249,8 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     (app / "src" / "edited.py").write_text(edited_src, encoding="utf-8")
     (app / "src" / "todo.py").write_text("def pending():\n    return 2\n", encoding="utf-8")
     (app / "docs" / "guide.md").write_text("# Guide\n", encoding="utf-8")
-    done_hash = digest(normalize_source(done_src, "python"))
-    stale_hash = digest(normalize_source("def old():\n    return 0\n", "python"))
+    done_hash = str(content_hash(done_src, "python")["hash"])
+    stale_hash = str(content_hash("def old():\n    return 0\n", "python")["hash"])
 
     symbols = [
         SimpleNamespace(

@@ -248,7 +248,7 @@ def test_live_simple_ingest_hybrid_explore(live_ready):
         assert pack.get("retrieval")
         assert "freshness" in pack
     finally:
-        store.close()
+        service.close()
 
 
 def test_live_simple_path_architecture_freshness(live_ready):
@@ -319,7 +319,7 @@ def test_live_challenge_rrf_prefers_auth_over_noise(live_ready):
         # Ensure noise file is not the only top hit family
         assert "render_dashboard" not in blob and "format_currency" not in blob
     finally:
-        store.close()
+        service.close()
 
 
 def test_live_challenge_fastapi_routes_and_tested_by(live_ready):
@@ -431,21 +431,24 @@ def test_live_challenge_postgres_fts_channel(live_ready):
     from code_graph_service.postgres_store import PostgresStore
 
     store = PostgresStore(_postgres_url(), ensure_schema=True)
-    scope = _unique_scope("pgfts")
-    service = _service(store)
-    service.ingest_file(
-        scope,
-        "agent",
-        "corr-pgfts",
-        f"idem-pgfts-{uuid.uuid4().hex}",
-        {"file_path": "src/auth.py", "source": AUTH_PY, "language": "python"},
-    )
-    hits = store.fulltext_search(scope, "login password", top_k=10)
-    # FTS may be empty if tsquery tokenization differs; hybrid BM25 still required
-    hybrid = service.hybrid_search(scope, "login password", top_k=5)
-    assert hybrid["hits"]
-    if hits:
-        assert hits[0].get("method") == "postgres.fts"
+    try:
+        scope = _unique_scope("pgfts")
+        service = _service(store)
+        service.ingest_file(
+            scope,
+            "agent",
+            "corr-pgfts",
+            f"idem-pgfts-{uuid.uuid4().hex}",
+            {"file_path": "src/auth.py", "source": AUTH_PY, "language": "python"},
+        )
+        hits = store.fulltext_search(scope, "login password", top_k=10)
+        # FTS may be empty if tsquery tokenization differs; hybrid BM25 still required
+        hybrid = service.hybrid_search(scope, "login password", top_k=5)
+        assert hybrid["hits"]
+        if hits:
+            assert hits[0].get("method") == "postgres.fts"
+    finally:
+        store.close()
 
 
 def test_live_challenge_results_artifact(live_ready, tmp_path: Path):
@@ -482,4 +485,4 @@ def test_live_challenge_results_artifact(live_ready, tmp_path: Path):
         out.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         assert out.is_file() and out.stat().st_size > 20
     finally:
-        store.close()
+        service.close()

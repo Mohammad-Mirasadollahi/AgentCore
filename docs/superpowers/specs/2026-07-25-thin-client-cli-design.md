@@ -15,7 +15,7 @@ tags:
 phase: 08-software-engineering-architecture
 canonical_path: docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
 lifecycle_lane: current
-concern_lane: architecture
+concern_lane: design
 audience_lane:
 - platform-engineering
 - agents
@@ -29,7 +29,7 @@ related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/superpowers/plans/2026-07-25-thin-client-cli.md
-doc_version: 1.0.0
+doc_version: 1.0.1
 updated_at: '2026-07-25'
 ---
 

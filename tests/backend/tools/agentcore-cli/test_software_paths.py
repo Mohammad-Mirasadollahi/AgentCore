@@ -17,9 +17,9 @@ from agentcore_cli.commands.paths_cmd import cmd_paths_remove
 
 
 def test_persist_and_peek_paths(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.software_paths.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     app = tmp_path / "app"
     app.mkdir()
     paths = persist_software_paths(
@@ -48,9 +48,9 @@ def test_require_paths_errors_when_empty(monkeypatch):
 
 
 def test_paths_remove_warns_and_keeps_other(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.software_paths.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     a = tmp_path / "a"
     b = tmp_path / "b"
     a.mkdir()
@@ -68,9 +68,9 @@ def test_paths_remove_warns_and_keeps_other(tmp_path: Path, monkeypatch):
 
 
 def test_paths_remove_last_rejected(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.software_paths.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     a = tmp_path / "a"
     a.mkdir()
     persist_software_paths([str(a)], tenant="acme", workspace="eng", project="myapp")

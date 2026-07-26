@@ -141,7 +141,11 @@ def verify_register_md_statuses_match_catalog() -> list[CheckResult]:
     from governance_catalog import load_gap_register
 
     register_md = ROOT / "docs" / "10-gap-analysis" / "01-gap-register.md"
-    text = register_md.read_text(encoding="utf-8")
+    register_parts = [
+        register_md,
+        *sorted(register_md.parent.glob("01-gap-register-continued*.md")),
+    ]
+    text = "\n".join(path.read_text(encoding="utf-8") for path in register_parts)
     md_statuses = {
         match.group(1): match.group(2)
         for match in re.finditer(

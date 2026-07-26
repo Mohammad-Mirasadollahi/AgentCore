@@ -10,8 +10,8 @@ from agentcore_cli.client_next_steps import (
 
 def test_client_next_steps_cover_interactive_and_noninteractive():
     text = CLIENT_USAGE_PROFILE_NEXT_STEPS
-    assert "agentcore profile list" in text
-    assert "agentcore connect" in text
+    assert "agentcore-client profile list" in text
+    assert "agentcore-client connect" in text
     assert "--usage-profile" in text
     assert "--local" in text
     assert "--ssh" in text
@@ -23,4 +23,4 @@ def test_print_client_connect_next_steps(capsys):
     out = capsys.readouterr().out
     assert "Usage Profile" in out
     assert "--usage-profile" in out
-    assert "agentcore connect" in out
+    assert "agentcore-client connect" in out

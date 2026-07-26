@@ -46,7 +46,7 @@ stage_02_venv_only_check() {
     else
       ok "core Python imports OK"
     fi
-    if [[ "$(role_cli_name 2>/dev/null || true)" == "agentcore-client" ]]; then
+    if [[ "$(role_cli_name 2>/dev/null)" == "agentcore-client" ]]; then
       if ! "${py}" -c 'import agentcore_client'; then
         warn "agentcore_client import failed inside venv"
         errors=1

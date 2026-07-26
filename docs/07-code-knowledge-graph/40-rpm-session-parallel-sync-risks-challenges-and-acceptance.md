@@ -22,12 +22,18 @@ audience_lane:
 - operators
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/packages/llm_gateway/rate_limit.py::RpmSessionGate
+- backend/services/code-graph-service/src/code_graph_service/application/ingest/parallel_files.py::run_parallel_file_jobs
+- backend/services/code-graph-service/src/code_graph_service/application/ingest/repo_ingest.py::RepoIngestMixin
+- backend/services/code-graph-service/src/code_graph_service/domain/dispatch_synth.py::synthesize_interface_dispatch
+- backend/services/docs-sync-service/src/docs_sync_service/postgres_store.py::PostgresStore
+- backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 related_docs:
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.rpm-session-parallel-sync-lld
 - ac.doc.stack.litellm-llm-gateway
-doc_version: 1.0.2
+doc_version: 1.1.2
 audience:
 - engineer
 - architect
@@ -44,7 +50,7 @@ chunk_hints:
   overlap_tokens: 40
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 40 - RPM Session Parallel Sync Risks Challenges And Acceptance
@@ -59,7 +65,7 @@ Risks, challenges, known limits, and acceptance gates for RPM-session-tracked pa
 **Implemented.** Re-check acceptance gates below against the current tree when
 claiming production readiness; keep multi-process RPM sharing as a known v1 limit.
 
-Last verified: 2026-07-22
+Last verified: 2026-07-25
 
 ## Challenges (must be designed for)
 
@@ -75,10 +81,13 @@ Last verified: 2026-07-22
 | C-08 | Local BGE vs LiteLLM embed | BGE must not consume RPM slots or serialize all files | Only `gateway.embed` acquires; model construction is process-serialized and inference is bounded to four concurrent calls process-wide across cached models |
 | C-09 | Hung sessions | Provider hang beyond operator patience | Timeout = `AGENTCORE_LITELLM_TIMEOUT_SECONDS`; forced end |
 | C-10 | Multi-process CLI | Two `agentcore sync` processes do not share registry | Document known limit; no Redis in v1 |
-| C-11 | File monopoly | One huge file’s symbols starve others | Per-file round-robin DocWork scheduling |
+| C-11 | File monopoly | One huge file’s network-backed symbol work can starve others | Bulk sync uses heuristic living docs; an explicit round-robin network DocWork scheduler is not implemented and remains outside the accepted path |
 | C-12 | Progress races | Unsynchronized counters mislead ETA | Lock/queue in `SyncProgressTracker` |
 | C-13 | Observability secrets | Status API could leak prompts/keys | Snapshot fields allowlist only |
 | C-14 | Test flakiness | Real 60s sleeps | Fake clock / injected time; never sleep a full minute in unit CI |
+| C-15 | Serial finalization masks worker gains | Whole-scope reads or quadratic dispatch run after progress reaches 100% | Shared symbol snapshot, relation-filtered edges, indexed dispatch, explicit `finalizing` status |
+| C-16 | Restart depends on plugin network | Official GDS installer fetches on every container start | APOC-only offline-safe default; GDS is explicit `AGENTCORE_NEO4J_PLUGINS` opt-in |
+| C-17 | Stable root idempotency suppresses later edits | A prior file key short-circuits before hash comparison | Derive the file key from root key + path + content hash |
 | C-15 | CLI/service config drift | In-process sync silently falls back when model env is absent | Graph CLI loads repo-root `.env` (single source of truth); process env retains precedence |
 | C-16 | Silent cloud code egress | A configured provider may receive symbol bodies without per-run consent | Non-private/uncertain routes fail closed before ingest; interactive TTY consent (tenant/workspace/project/paths shown) or `--allow-cloud-llm` |
 
@@ -88,7 +97,7 @@ Last verified: 2026-07-22
 | --- | --- | --- |
 | R-01 | Operators believe RPM is cluster-wide | Docs + CLI banner: process-local; warn if multiple syncs |
 | R-02 | Raising file workers without RPM headroom | Queue grows; wall time flat; document worker ≤ inflight guidance |
-| R-03 | Serial writer becomes bottleneck after LLM | Acceptable in v1; follow-up = connection pool + careful Neo4j concurrency |
+| R-03 | Store concurrency overwhelms persistence | `LockedStore` bounds operations; Postgres adapters use tracked per-thread connections |
 | R-04 | Provider 429 despite client RPM | Lower RPM; retries amplify load — tune `NUM_RETRIES` |
 | R-05 | Partial graph on soft-fail | Same as today; outcomes list failed files |
 | R-06 | Docs claim shipped while code serial | `lifecycle_lane: current` until gates pass; honesty in status section |
@@ -101,6 +110,9 @@ Last verified: 2026-07-22
   docs-sync and code-graph Postgres adapters use **per-thread** connections so
   Phase-1/2 writers share the ``LockedStore`` slot budget (not exclusive
   ``lock_reads`` serialization).
+- Bulk repository ingest has no round-robin network DocWork queue. It generates
+  living docs heuristically; explicit network calls are bounded by
+  `RpmSessionGate`, but cross-file fairness is not claimed.
 - No distributed limiter across hosts.
 
 ## Acceptance gates
@@ -120,17 +132,32 @@ Uncheck → check only when proven in code + tests.
 - [x] Store ops use bounded slots for Neo4j **and** Postgres (per-thread
   connections); paths pass `test_rpm_session_parallel_sync_live.py` with
   concurrent local HTTP LLM calls.
-- [x] Production composition with real cached BGE, real Neo4j, five changed files,
-  and local HTTP reaches `http_peak=5` and `rpm_peak=5`
-  (`test_production_build_sends_five_files_concurrently`).
+- [x] Production bulk composition with real cached BGE and real Neo4j completes
+  five changed files with heuristic living docs and zero false HTTP/RPM sessions
+  (`test_production_build_uses_heuristic_docs_without_rpm_sessions`).
+- [x] Explicit network-backed per-file ingest against real Neo4j reaches exact
+  HTTP/RPM peaks 1, 2, and 4 with no leaked sessions
+  (`test_live_llm_rpm_sessions_follow_parallel_worker_level`).
 - [x] Multiple service instances and cached models observe the same four-call
   process-wide bound
   (`test_local_embedding_limit_is_shared_across_service_instances`).
 - [x] Concurrent cache misses cannot construct multiple large local models at once
   (`test_local_model_loads_are_process_serialized`).
 - [x] Per-file soft-fail preserved; one failure does not abort the job.
-- [ ] Fairness: multi-file fixture shows interleaved DocWork under low inflight cap.
-- [x] Idempotency keys unique per file under concurrency.
+- [ ] Fairness for a future network DocWork queue: multi-file fixture shows
+  interleaved symbol work under a low in-flight cap. This does not block the
+  current heuristic bulk path.
+- [x] Idempotency keys are unique per file and content version under
+  concurrency. Same-content retries no-op; later edits ingest
+  (`test_repo_idempotency_allows_new_file_content`).
+- [x] Cross-file finalization reuses one symbol snapshot and never performs an
+  unfiltered edge read
+  (`test_cross_file_finalizer_reuses_symbols_and_filters_edge_reads`).
+- [x] Package README mapping uses one symbol snapshot and skips folders without
+  indexed code (`test_package_readme_maps_reuse_one_symbol_snapshot`).
+- [x] Dynamic-dispatch ownership and call lookup are indexed. The 2026-07-25
+  live graph measurement was 0.117s for 14,732 symbols and 27,049 CALL edges,
+  down from 12.143s.
 
 ### Observability gate
 
@@ -138,8 +165,9 @@ Uncheck → check only when proven in code + tests.
 - [x] CLI exposes the same snapshot fields from an active CLI sync or the running
   HTTP service (`test_llm_sessions_prefers_active_sync_process`,
   `test_llm_sessions_reads_running_service_snapshot`; live HTTP/CLI verified 2026-07-22).
-- [x] Live CLI progress observes non-zero concurrent sessions instead of only
-  configured capacity (`test_cli_progress_reports_nonzero_live_rpm`).
+- [x] CLI progress reports zero sessions on heuristic bulk work without inventing
+  activity (`test_cli_progress_reports_heuristic_docs_without_rpm_sessions`);
+  the network-backed Live matrix separately proves non-zero 1/2/4 session peaks.
 - [x] CLI loads LiteLLM / model configuration from repo-root `.env`
   (`test_load_dotenv_files_reads_root_litellm_config`,
   `test_graph_cli_builds_gateway_from_root_env`).
@@ -154,9 +182,14 @@ Uncheck → check only when proven in code + tests.
   is explicitly `0600` (`test_llm_sessions_route_is_loopback_only`,
   `test_tracker_snapshot_is_private_before_json_is_written`).
 - [x] Human-docs Phase 2 (`docs_link_sync`) uses ``sync_max_file_workers`` with
-  concurrent docs-sync writes (`test_sync_human_docs_runs_with_parallel_workers`).
+  concurrent docs-sync writes. The Live matrix verifies exact 1/2/4 peaks
+  against PostgreSQL and Neo4j
+  (`test_live_code_and_docs_file_parallelism_matrix`).
 - [x] Unchanged session polls do not rewrite/fsync transient progress
   (`test_tracker_skips_unchanged_session_snapshot`).
+- [x] Default Compose restart is offline-safe and does not fetch GDS. A real
+  restart completed healthy in 38.71s after the prior network-backed attempt
+  timed out at 300s.
 
 ### Documentation / honesty gate
 
@@ -170,6 +203,7 @@ Uncheck → check only when proven in code + tests.
 | Gap | Notes |
 | --- | --- |
 | Shared ``psycopg_pool`` | Optional; per-thread connections already allow parallel Phase-2 writers |
+| Round-robin network DocWork fairness | Not part of heuristic bulk ingest; add only with a network living-doc refresh workflow |
 | Shared limiter across processes | Redis/file lock — only if multi-sync becomes common |
 | Attempt-level session nesting | If ops need per-retry visibility |
 

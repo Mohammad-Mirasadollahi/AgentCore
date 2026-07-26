@@ -77,6 +77,7 @@ def test_cmd_destroy_profile_runs_after_confirm(monkeypatch):
 
 
 def test_destroy_profile_data_clears_pins_not_source(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.commands.destroy_cmd.repo_root", lambda: tmp_path)
     source = tmp_path / "src" / "app.py"
@@ -131,6 +132,7 @@ def test_destroy_profile_data_clears_pins_not_source(tmp_path: Path, monkeypatch
 
 
 def test_clear_identity_skips_other_scope(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     monkeypatch.setattr("agentcore_cli.identity.Path.home", lambda: tmp_path)
     write_identity(tenant="acme", workspace="eng", project="app")
     assert clear_identity_if_matches(tenant="other", workspace="eng", project="app") is False

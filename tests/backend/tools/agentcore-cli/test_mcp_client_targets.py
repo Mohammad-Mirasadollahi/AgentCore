@@ -21,7 +21,7 @@ def test_resolve_client_ids_unknown():
     try:
         resolve_client_ids("not-a-client")
     except SystemExit as exc:
-        assert "unknown" in str(exc.value).lower()
+        assert "unknown" in str(exc).lower()
     else:
         raise AssertionError("expected SystemExit")
 

@@ -7,8 +7,8 @@ schema_version: '1.0'
 owner: code-graph-lead
 summary: Why AgentCore keeps LocalEmbeddingStub, in-process Louvain, Cypher degree ranking,
   and legacy fulltext query fallback — plus Neo4j APOC/GDS Community vs Enterprise licensing
-  and AGENTCORE_NEO4J_GDS_* env toggles (default on, concurrency capped at 4 Community cores;
-  verified 2026-07-20).
+  and offline-safe plugin startup (APOC default, GDS opt-in, concurrency capped
+  at 4 Community cores; verified 2026-07-25).
 tags:
 - licensing
 - neo4j
@@ -34,7 +34,7 @@ external_refs:
 - https://neo4j.com/docs/graph-data-science/current/introduction/
 - https://neo4j.com/docs/graph-data-science/current/installation/installation-enterprise-edition/
 - https://neo4j.com/docs/graph-data-science/current/algorithms/degree-centrality/
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
@@ -55,7 +55,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-25'
 ---
 
 # 32 - Intentional Fallbacks And Neo4j Plugin Licensing
@@ -119,14 +119,18 @@ Controlled by **`AGENTCORE_NEO4J_GDS_ENABLED`** (default **`true`**) and
 When `AGENTCORE_NEO4J_GDS_ENABLED=false`, AgentCore never probes or calls GDS
 (`capabilities().gds` is false); degree ranking uses Cypher only.
 
-Compose still may install the `graph-data-science` plugin. **Production
-correctness never depends on GDS**: degree falls back to Cypher; communities
-never call GDS.
+Compose defaults to the image-bundled APOC plugin only. Operators may opt in to
+`graph-data-science` with
+`AGENTCORE_NEO4J_PLUGINS=["apoc","graph-data-science"]` when startup has access
+to the plugin host. This avoids making every local Restart wait on the official
+runtime downloader. **Production correctness never depends on GDS**: degree
+falls back to Cypher; communities never call GDS.
 
 ## Env reference
 
 | Variable | Default | Notes |
 | --- | --- | --- |
+| `AGENTCORE_NEO4J_PLUGINS` | `["apoc"]` | Compose plugin list; GDS is explicit opt-in because its installer fetches at startup |
 | `AGENTCORE_NEO4J_GDS_ENABLED` | `true` | App opt-in for optional `gds.degree` |
 | `AGENTCORE_NEO4J_GDS_CONCURRENCY` | `4` | Clamped to `1..4` (Community Edition core limit) |
 

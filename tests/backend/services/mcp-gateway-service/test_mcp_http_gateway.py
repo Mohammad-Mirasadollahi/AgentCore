@@ -39,8 +39,20 @@ def test_static_token_requires_scope_headers(monkeypatch):
 
 
 def test_http_mcp_initialize(monkeypatch):
+    class Backends:
+        def __init__(self) -> None:
+            self.close_count = 0
+
+        def close(self) -> None:
+            self.close_count += 1
+
+    backends = Backends()
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     monkeypatch.setenv("AGENTCORE_MCP_STORE_MODE", "memory")
+    monkeypatch.setattr(
+        "mcp_gateway_service.server.PlatformBackends.from_env",
+        lambda: backends,
+    )
     from mcp_gateway_service.http_app import create_http_app
 
     token = mint_connect_token(tenant_id="t", workspace_id="w", project_id="p")
@@ -71,3 +83,4 @@ def test_http_mcp_initialize(monkeypatch):
             assert listed == {"mcp_search_tools", "mcp_execute_tool"}
 
     asyncio.run(run())
+    assert backends.close_count == 2

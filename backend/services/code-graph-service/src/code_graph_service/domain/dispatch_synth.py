@@ -34,24 +34,33 @@ def synthesize_interface_dispatch(
     for child, parent in inherits:
         children_of[parent].append(child)
 
+    class_ids_by_name: dict[str, list[str]] = defaultdict(list)
+    class_ids_by_reference: dict[str, list[str]] = defaultdict(list)
+    for symbol_id, name, qualified_name, kind in symbols:
+        if kind != "class":
+            continue
+        class_ids_by_name[name].append(symbol_id)
+        normalized = qualified_name.replace("::", ".")
+        references = {name, normalized}
+        parts = normalized.split(".")
+        references.update(".".join(parts[index:]) for index in range(len(parts)))
+        for reference in references:
+            class_ids_by_reference[reference].append(symbol_id)
+
     # class_id -> {method_name: method_id}
     methods_by_class: dict[str, dict[str, str]] = defaultdict(dict)
     for sid, name, qn, kind in symbols:
         if kind != "method":
             continue
-        # Heuristic owner: class whose qualified_name is a prefix of method qn
-        for cid, _cn, cqn, ckind in symbols:
-            if ckind == "class" and (qn.startswith(cqn + ".") or qn.startswith(cqn + "::")):
-                methods_by_class[cid][name] = sid
-                break
-        else:
-            # Fallback: "Class.method" in qualified_name
-            if "." in qn:
-                owner = qn.rsplit(".", 1)[0]
-                for cid, cn, cqn, ckind in symbols:
-                    if ckind == "class" and (cqn == owner or cn == owner.split(".")[-1]):
-                        methods_by_class[cid][name] = sid
-                        break
+        normalized = qn.replace("::", ".")
+        if "." not in normalized:
+            continue
+        owner = normalized.rsplit(".", 1)[0]
+        owners = class_ids_by_reference.get(owner)
+        if not owners:
+            owners = class_ids_by_name.get(owner.rsplit(".", 1)[-1])
+        if owners:
+            methods_by_class[owners[0]][name] = sid
 
     out: list[SynthesizedCall] = []
     seen: set[tuple[str, str]] = set()
@@ -63,21 +72,17 @@ def synthesize_interface_dispatch(
             base_ids.append(target_id)
         # call like Base.method
         if "." in call_name:
-            type_part = call_name.rsplit(".", 1)[0]
-            for sid, name, qn, kind in symbols:
-                if kind == "class" and (name == type_part or qn.endswith("." + type_part) or qn == type_part):
-                    base_ids.append(sid)
+            type_part = call_name.rsplit(".", 1)[0].replace("::", ".")
+            base_ids.extend(class_ids_by_reference.get(type_part, ()))
         # unresolved target name equals a class
         tsym = by_id.get(target_id)
         if tsym and tsym[3] == "class":
             base_ids.append(target_id)
         if str(target_id).startswith("unresolved:"):
             unresolved_name = str(target_id).split(":")[-1]
-            for sid, name, qn, kind in symbols:
-                if kind == "class" and name == unresolved_name:
-                    base_ids.append(sid)
+            base_ids.extend(class_ids_by_name.get(unresolved_name, ()))
 
-        for base_id in base_ids:
+        for base_id in dict.fromkeys(base_ids):
             base = by_id.get(base_id)
             via = base[1] if base else "base"
             for child_id in children_of.get(base_id, ()):

@@ -26,4 +26,6 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active. Migrations define the docs-sync schema, outbox publication metadata,
+and the project-scoped document primary key. `PostgresStore.ensure_schema()`
+applies them idempotently for both existing and newly initialized databases.

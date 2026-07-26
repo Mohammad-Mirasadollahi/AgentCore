@@ -75,10 +75,7 @@ class ServiceContainer:
     settings: Settings | None = None
 
     def close(self) -> None:
-        store = getattr(self.graph, "store", None)
-        closer = getattr(store, "close", None) if store is not None else None
-        if callable(closer):
-            closer()
+        self.graph.close()
 
 
 def _env_flag(raw: str | None, *, default: bool) -> bool:

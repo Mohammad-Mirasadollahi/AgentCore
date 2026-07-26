@@ -50,6 +50,20 @@ def test_inmemory_store_put_document_is_safe_under_threads():
     assert len(store.list_documents(SCOPE)) == 40
 
 
+def test_inmemory_store_keeps_same_document_id_isolated_by_scope():
+    store = InMemoryStore()
+    other_scope = Scope("t", "w", "other-project")
+    first = _doc("shared-doc")
+    second = _doc("shared-doc")
+    second.scope = other_scope
+
+    store.put_document(first)
+    store.put_document(second)
+
+    assert store.get_document("shared-doc", SCOPE).scope == SCOPE
+    assert store.get_document("shared-doc", other_scope).scope == other_scope
+
+
 def test_postgres_store_uses_per_thread_connections():
     created: list[object] = []
     lock = threading.Lock()

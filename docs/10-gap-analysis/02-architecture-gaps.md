@@ -5,8 +5,9 @@ doc_type: gap
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Architecture-level gaps GAP-A01–A08 with backend closures (catalogs, enforcement,
-  ChangeSet MVP). UI surfaces remain deferred. Live re-validation:
+summary: >-
+  Architecture-level gaps GAP-A01–A08 with backend closures (catalogs, enforcement,
+  ChangeSet MVP). UI surfaces remain deferred. Live re-validation is recorded in
   07-gap002-and-gap-a-live-verification.md.
 tags:
 - gap
@@ -24,7 +25,7 @@ linked_symbols:
 - backend/packages/architecture_governance/__init__.py
 - backend/configs/governance/bounded-context-map.json
 - backend/services/core-data-service/src/core_data_service/core.py::Kind
-doc_version: 1.1.2
+doc_version: 1.1.3
 updated_at: '2026-07-25'
 ---
 

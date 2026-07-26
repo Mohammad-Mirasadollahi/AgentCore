@@ -14,6 +14,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from ...domain.hashing import content_hash
 from ...domain.package_manifests import load_package_aliases
 from ...domain.errors import ValidationError
 from ...domain.languages import detect_language_from_path
@@ -190,7 +191,7 @@ class SyncMixin:
             except Exception:  # noqa: BLE001
                 return
 
-        def _process_one(index: int, raw: str) -> None:
+        def _process_one(_index: int, raw: str) -> None:
             nonlocal done_count
             rel, abs_path = self._resolve_pending_path(root, raw)
             if abs_path is None or not abs_path.is_file():
@@ -249,7 +250,8 @@ class SyncMixin:
                         )
                 _emit(done, file=rel, status="failed")
                 return
-            file_key = f"{idempotency_key}:pending:{rel}:{index}"
+            file_hash = content_hash(text_body, language)["hash"]
+            file_key = f"{idempotency_key}:pending:{rel}:{file_hash}"
             try:
                 result = self.ingest_file(
                     scope,
@@ -381,4 +383,3 @@ class SyncMixin:
             "symbols_after": len(self.store.list_symbols(scope)),
             "edges_after": len(self.store.list_edges(scope)),
         }
-

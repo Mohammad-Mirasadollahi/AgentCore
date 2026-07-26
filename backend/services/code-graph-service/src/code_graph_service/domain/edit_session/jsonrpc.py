@@ -48,6 +48,15 @@ class JsonRpcLspClient:
             self._proc.terminate()
         except Exception:  # noqa: BLE001
             pass
+        try:
+            self._proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            self._proc.wait(timeout=2)
+        self._reader.join(timeout=2)
+        for stream in (self._proc.stdout, self._proc.stderr):
+            if stream is not None:
+                stream.close()
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> Any:
         with self._lock:

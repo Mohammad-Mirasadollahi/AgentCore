@@ -175,6 +175,8 @@ def test_read_mcp_pid_clears_stale(tmp_path: Path, monkeypatch):
 
 
 def test_start_all_calls_compose_and_mcp(tmp_path: Path, monkeypatch, capsys):
+    from agentcore_cli.service_runtime import lifecycle
+
     calls: list[str] = []
 
     def fake_compose(_root: Path):
@@ -187,6 +189,7 @@ def test_start_all_calls_compose_and_mcp(tmp_path: Path, monkeypatch, capsys):
 
     monkeypatch.setattr(runtime, "start_compose", fake_compose)
     monkeypatch.setattr(runtime, "start_mcp_http", fake_mcp)
+    monkeypatch.setattr(lifecycle, "_run_port_preflight", lambda _root: None)
     report = runtime.start_all(tmp_path)
     assert report["ok"] is True
     assert calls == ["compose", "mcp"]
@@ -936,4 +939,3 @@ def test_start_mcp_http_ready_wait_covers_cold_start_beyond_six_seconds(
     assert report["ok"] is True
     assert report["pid"] == 8888
     assert polls["n"] >= 40
-

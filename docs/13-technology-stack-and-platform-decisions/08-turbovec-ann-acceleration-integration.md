@@ -2,7 +2,7 @@
 doc_id: ac.doc.stack.turbovec-ann-acceleration
 title: 08 - TurboVec ANN Acceleration Integration
 doc_type: adr
-status: accepted
+status: active
 schema_version: '1.0'
 owner: platform-architecture
 summary: This ADR defines how AgentCore may combine with [turbovec](https://github.com/RyanCodrai/turbovec)
@@ -26,6 +26,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.2.1
+updated_at: '2026-07-25'
 linked_symbols:
 - backend/packages/vector_index/port.py::VectorIndexPort
 - backend/packages/vector_index/turbovec_adapter.py::TurboVecIndexAdapter
@@ -36,8 +38,6 @@ linked_symbols:
 - backend/services/memory-service/src/memory_service/domain/embeddings_store.py::stage1_retrieve
 - backend/services/memory-service/src/memory_service/core.py::MemoryService.explain_retrieval
 - backend/services/memory-service/src/memory_service/postgres_embeddings.py::PostgresMemoryEmbeddingStore
-doc_version: 1.2.0
-updated_at: '2026-07-25'
 ---
 
 # 08 - TurboVec ANN Acceleration Integration
