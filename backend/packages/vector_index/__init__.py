@@ -14,6 +14,12 @@ from .id_map import (
     stable_hash_uint64,
 )
 from .in_memory import InMemoryVectorIndex
+from .metrics import (
+    AcceleratorMetrics,
+    InstrumentedVectorIndex,
+    get_accelerator_metrics,
+    reset_accelerator_metrics,
+)
 from .port import VectorIndexPort
 from .turbovec_adapter import (
     TurboVecIndexAdapter,
@@ -24,9 +30,11 @@ from .turbovec_adapter import (
 
 __all__ = [
     "ENTITY_ID_MAP_TABLE_SQL",
+    "AcceleratorMetrics",
     "AnnAcceleratorConfig",
     "InMemoryEntityIdMap",
     "InMemoryVectorIndex",
+    "InstrumentedVectorIndex",
     "PostgresEntityIdMap",
     "PromotionGateResult",
     "TurboVecIndexAdapter",
@@ -34,7 +42,9 @@ __all__ = [
     "VectorIndexPort",
     "ann_accelerator_enabled",
     "entity_ref_to_uint64",
+    "get_accelerator_metrics",
     "load_accelerator_config",
+    "reset_accelerator_metrics",
     "run_promotion_gate",
     "stable_hash_uint64",
     "try_build_accelerator",
@@ -48,4 +58,4 @@ def __getattr__(name: str) -> Any:
         from . import promotion_gate
 
         return getattr(promotion_gate, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

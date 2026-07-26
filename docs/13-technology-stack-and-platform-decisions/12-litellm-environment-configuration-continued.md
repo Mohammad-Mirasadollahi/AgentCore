@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-26'
 ---
 
 # 12 - LiteLLM Environment Configuration (Continued)
@@ -90,6 +90,33 @@ AGENTCORE_EMBEDDING_CACHE_DIR=/opt/agentcore-models
 AGENTCORE_EMBEDDING_DIMS=1024
 AGENTCORE_EMBEDDING_DEVICE=cpu
 ```
+
+### Optional Stage-2 ANN (`AGENTCORE_RAG_ANN_*` / `AGENTCORE_TURBOVEC_*`)
+
+Durable embeddings remain **PostgreSQL + pgvector** (Stage-1). Turbovec is an **optional** in-process Stage-2 allowlist accelerator. Default is **off** — everyday installs need no Turbovec wheel.
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `AGENTCORE_RAG_ANN_ACCELERATOR` | `off` or `turbovec` | `off` |
+| `AGENTCORE_TURBOVEC_BIT_WIDTH` | Quantization bits `2` / `3` / `4` | `4` |
+| `AGENTCORE_TURBOVEC_SNAPSHOT_URI` | Local/`file://` path for `.tvim` (or fake) snapshot | empty |
+| `AGENTCORE_TURBOVEC_SYNC_MODE` | `sync_on_write` (quality path) or `async_job` (parsed; not required) | `sync_on_write` |
+| `AGENTCORE_TURBOVEC_ID_MAP_TABLE` | Override durable id-map table name | service default |
+| `AGENTCORE_TURBOVEC_ID_MAP_DATABASE_URL` | Override id-map DB URL | service database URL |
+
+```bash
+## Everyday (default — leave unset or explicit off):
+AGENTCORE_RAG_ANN_ACCELERATOR=off
+
+## Optional enable after: pip install '.[turbovec]'
+## and: python -m vector_index.promotion_gate
+# AGENTCORE_RAG_ANN_ACCELERATOR=turbovec
+# AGENTCORE_TURBOVEC_BIT_WIDTH=4
+# AGENTCORE_TURBOVEC_SNAPSHOT_URI=/var/lib/agentcore/ann-replica.tvim
+# AGENTCORE_TURBOVEC_SYNC_MODE=sync_on_write
+```
+
+Normative ADR: `08-turbovec-ann-acceleration-integration.md`. Operator guide: `11-turbovec-for-rag.md`.
 
 ### `AGENTCORE_LITELLM_EMBEDDINGS_ENABLED`
 

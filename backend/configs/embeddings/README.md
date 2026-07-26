@@ -17,4 +17,5 @@ Machine-readable embedding lifecycle and refresh policy for code-graph and memor
 
 - Durable embeddings remain PostgreSQL + pgvector (`vector(1024)` for BGE-large).
 - TurboVec is an optional rebuildable replica; sync only after successful SoR write.
-- Cross-tenant refresh is forbidden; jobs always bind `tenant_id` / `workspace_id` / `project_id`.
+- Cross-project refresh is forbidden; jobs always bind `tenant_id` / `workspace_id` / `project_id`.
+- Operator enablement: root `.env` / `.env.example` (`AGENTCORE_RAG_ANN_ACCELERATOR`, default `off`). Guide: `docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md`.

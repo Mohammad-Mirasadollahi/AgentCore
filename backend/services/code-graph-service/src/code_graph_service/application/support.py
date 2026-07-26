@@ -59,6 +59,12 @@ class GraphServiceSupport:
             arr = np.asarray([vector], dtype=np.float32)
             self.vector_index.upsert([uid], arr)
         except Exception:
+            try:
+                from vector_index import get_accelerator_metrics
+
+                get_accelerator_metrics().record_fallback()
+            except Exception:
+                pass
             # Replica lag is fail-open; pgvector SoR remains authoritative.
             return
 
@@ -72,6 +78,12 @@ class GraphServiceSupport:
             self.vector_index.remove([uid])
             self.entity_id_map.remove(symbol_id)
         except Exception:
+            try:
+                from vector_index import get_accelerator_metrics
+
+                get_accelerator_metrics().record_fallback()
+            except Exception:
+                pass
             return
 
     def _index_embedding(

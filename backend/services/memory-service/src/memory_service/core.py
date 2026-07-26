@@ -396,7 +396,7 @@ class MemoryService:
         self.entity_id_map = entity_id_map
 
     def index_memory_embedding(self, scope: Scope, memory_id: str) -> dict[str, Any]:
-        """Persist SoR embedding for one memory item (Stage-1)."""
+        """Persist SoR embedding for one memory item (Stage-1), then sync ANN replica."""
         if self.embedding_store is None or self.embedder is None:
             raise ValidationError("embedding_store and embedder are required")
         from .domain.embeddings_store import MemoryEmbeddingRow
@@ -418,7 +418,18 @@ class MemoryService:
             kind=item.kind.value,
         )
         self.embedding_store.upsert(row)
+        self._sync_vector_replica_upsert(memory_id, vector)
         return {"memory_id": memory_id, "model": model, "dims": dims}
+
+    def delete_memory_embedding(self, scope: Scope, memory_id: str) -> dict[str, Any]:
+        """Delete SoR embedding then remove ANN replica id (fail-open on replica)."""
+        if self.embedding_store is None:
+            raise ValidationError("embedding_store is required")
+        deleter = getattr(self.embedding_store, "delete", None)
+        if callable(deleter):
+            deleter(scope, memory_id)
+        self._sync_vector_replica_delete(memory_id)
+        return {"memory_id": memory_id, "deleted": True}
 
     def retrieve_by_embedding(
         self,
@@ -530,6 +541,11 @@ class MemoryService:
                 continue
             item.mark_stale(timestamp, payload["reason"])
             self.store.put_memory(item)
+            if self.embedding_store is not None:
+                try:
+                    self.delete_memory_embedding(scope, memory_id)
+                except Exception:  # noqa: BLE001 — decay stays durable without embeddings
+                    pass
             decayed.append(item)
         if not decayed:
             raise ValidationError("no eligible memory items to decay")
@@ -790,6 +806,31 @@ class MemoryService:
             score -= 0.5
         return score
 
+    def _sync_vector_replica_upsert(self, memory_id: str, vector: list[float]) -> None:
+        if self.vector_index is None or self.entity_id_map is None:
+            return
+        try:
+            import numpy as np
+
+            uid = self.entity_id_map.get_or_assign(memory_id)
+            self.vector_index.upsert([uid], np.asarray([vector], dtype=np.float32))
+        except Exception:  # noqa: BLE001 — fail-open to SoR
+            return
+
+    def _sync_vector_replica_delete(self, memory_id: str) -> None:
+        if self.vector_index is None or self.entity_id_map is None:
+            return
+        try:
+            uid = self.entity_id_map.to_uint64(memory_id)
+            if uid is None:
+                return
+            self.vector_index.remove([uid])
+            remover = getattr(self.entity_id_map, "remove", None)
+            if callable(remover):
+                remover(memory_id)
+        except Exception:  # noqa: BLE001 — fail-open to SoR
+            return
+
     def _maybe_upsert_embedding(self, scope: Scope, item: MemoryItem) -> None:
         if self.embedding_store is None or self.embedder is None:
             return
@@ -798,22 +839,6 @@ class MemoryService:
         try:
             self.index_memory_embedding(scope, item.id)
         except Exception:  # noqa: BLE001 — create path stays durable without embeddings
-            return
-        # Sync TurboVec replica only after SoR write and only when SoR has rows.
-        models = self.embedding_store.list_models(scope)
-        if not models or self.vector_index is None or self.entity_id_map is None:
-            return
-        try:
-            import numpy as np
-
-            row_models = models
-            if item.id not in row_models:
-                return
-            result = self.embedder.embed(f"{item.title} {item.body}")
-            vector = list(getattr(result, "vector", result))
-            uid = self.entity_id_map.get_or_assign(item.id)
-            self.vector_index.upsert([uid], np.asarray([vector], dtype=np.float32))
-        except Exception:  # noqa: BLE001 — fail-open to SoR
             return
 
     def _embedding_hits(

@@ -35,7 +35,7 @@ related_docs:
 - ac.doc.ckg.prod-retrieval-live-test-gates
 - docs/07-code-knowledge-graph/18-repository-code-wiki-risks-challenges-and-acceptance.md
 - docs/10-gap-analysis/01-gap-register.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - product
 - engineer
@@ -64,7 +64,7 @@ retirement:
     permanent docs (26, 31, 33, product scope, gap register).
   action: Set status archived OR delete this file; remove index bullet from 00-index.md; never
     reuse doc_id.
-updated_at: '2026-07-24'
+updated_at: '2026-07-26'
 ---
 
 # 34 - Core Product Readiness Phased Backlog
@@ -184,7 +184,8 @@ Do **not** hold launch for these unless product explicitly expands scope.
 | F4 | Zero-touch installer / upgrade / repair productization | Platform Phases 8–9 depth | deferred |
 | F5 | Full admin web UI (`frontend/` today empty) | After CLI/MCP wedge | deferred |
 | F6 | Human approval UX (GAP-004) | Governed sells later | deferred |
-| F7 | Turbovec Stage-1 / SQL-schema ingest | Optional accelerators | deferred |
+| F7a | Turbovec Stage-2 ANN accelerator | Optional; default off | [x] `vector_index` + memory/code-graph parity, metrics, snapshots (2026-07-26); GAP-T03 |
+| F7b | SQL-schema ingest | Optional accelerator | deferred (ADR `19`) |
 
 Also shipped with F2/F3: optional **batched** pending-sync poll watcher (`agentcore graph watch --debounce/--max-wait`) — coalesces agent coding bursts; does not replace explicit ingest.
 
@@ -194,7 +195,7 @@ Also shipped with F2/F3: optional **batched** pending-sync poll watcher (`agentc
 
 ```text
 A (eval) ──► B (freshness) ──► C (connect/measure) ──► D (trust) ──► E (launch copy)
-                              └── F2/F3 (+ poll watcher) shipped; F1/F4–F7 remain deferred
+                              └── F2/F3/F7a (+ poll watcher) shipped; F1/F4–F6/F7b remain deferred
 ```
 
 Do not start Code Wiki (F1) before E1 freeze unless product re-scopes v1.
@@ -210,7 +211,7 @@ Do not start Code Wiki (F1) before E1 freeze unless product re-scopes v1.
 | C | done | platform-product | Exit criteria C — 2026-07-21 |
 | D | done | platform-product | Exit criteria D — 2026-07-21 |
 | E | done | platform-product | Exit criteria E — 2026-07-21 |
-| F | partial | platform-product | F2/F3 + poll watcher done 2026-07-21; F1/F4–F7 remain deferred |
+| F | partial | platform-product | F2/F3/F7a + poll watcher done; F1/F4–F6/F7b remain deferred |
 
 Update status in this table only. When a phase exits, fold durable gates into permanent docs (`26`, `31`, `33`, gap register, product scope)—**do not** leave acceptance only here.
 

@@ -11,10 +11,11 @@ Shared `VectorIndexPort` for optional in-process ANN acceleration (turbovec `IdM
 
 ## Start here
 
-1. `port.py` — `VectorIndexPort`
+1. `port.py` — `VectorIndexPort` (incl. `rebuild_from_rows`)
 2. `turbovec_adapter.py` — optional vendor wrapper
 3. `in_memory.py` — unit-test fake
 4. `id_map.py` — durable id mapping + SQL snippet (`PostgresEntityIdMap`)
 5. `config.py` — `AGENTCORE_RAG_ANN_*` / `AGENTCORE_TURBOVEC_*`
-6. `factory.py` — `try_build_accelerator` for composition roots
-7. `promotion_gate.py` — recall@k / latency / RSS proxy vs dense baseline
+6. `factory.py` — `try_build_accelerator` (snapshot load + metrics wrap)
+7. `metrics.py` — process-local counters + `InstrumentedVectorIndex`
+8. `promotion_gate.py` — recall@k / latency / RSS proxy vs dense baseline

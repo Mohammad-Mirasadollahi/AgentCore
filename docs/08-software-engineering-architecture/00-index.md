@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/port-profile-verification/run_gate.py::main
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.0.1
+updated_at: '2026-07-26'
 ---
 
 # 08 - Software Engineering Architecture Index
@@ -71,10 +71,10 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 28-common-context-and-reuse-engineering.md defines reusable common context engineering, including project-scoped common items, configurable scoring, context bundle resolution, admin management, and structure placement.
 - 29-engineering-best-practices-and-implementation-standards.md defines mandatory implementation standards including DI, dependency inversion, ports/adapters, configuration, validation, errors, transactions, observability, security, and testing seams.
 - 30-dependency-injection-and-composition-root.md defines Dependency Injection, composition roots, allowed injection patterns, forbidden service locator patterns, lifetime rules, and testability requirements.
-- 45-backend-di-composition-feature-specification.md specifies the **not-yet-shipped** migration to uniform `ServiceContainer` / composition-root wiring (read with 46–48).
+- 45-backend-di-composition-feature-specification.md specifies uniform `ServiceContainer` / composition-root wiring (**Phases A–D shipped**; read with 46–48).
 - 46-backend-di-composition-high-level-design.md is the HLD topology for process containers and port/adapter boundaries.
 - 47-backend-di-composition-low-level-design.md is the phased file-level migration (Phase A pathfinders → thin services → port hygiene → CLI).
-- 48-backend-di-composition-risks-challenges-and-acceptance.md lists risks and acceptance checkboxes before claiming “backend is on DI”.
+- 48-backend-di-composition-risks-challenges-and-acceptance.md lists risks and acceptance checkboxes for the shipped DI composition path.
 - 31-error-handling-validation-and-result-standards.md defines typed errors, validation layers, problem-details responses, safe diagnostics, recovery rules, and logging requirements.
 - 32-transaction-idempotency-and-concurrency-standards.md defines transaction boundaries, idempotency keys, outbox/inbox, concurrency control, retries, dead-letter behavior, and race-condition handling.
 - 33-testing-seams-and-contract-boundary-standards.md defines test seams, fakes, mocks, contract boundaries, deterministic tests, LLM test strategy, and acceptance criteria.
@@ -180,7 +180,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | domain customization, feature profiles, and rule suggestions | 26-domain-customization-and-feature-control.md |
 | reusable common context and repeated-instruction reduction | 28-common-context-and-reuse-engineering.md and ../12-common-context-reuse/ |
 | engineering best practices, DI, errors, transactions, and test seams | 29-engineering-best-practices-and-implementation-standards.md through 33-testing-seams-and-contract-boundary-standards.md |
-| backend DI composition migration (not shipped) | 45–48 backend-di-composition-*.md |
+| backend DI composition (Phases A–D shipped) | 45–48 backend-di-composition-*.md |
 | local and remote development | 13-local-development-and-environment-engineering.md |
 | logs, metrics, traces, diagnostics | 14-observability-and-debuggability-engineering.md |
 | adapters, plugins, rules, parser extensions | 15-extensibility-and-plugin-engineering.md |

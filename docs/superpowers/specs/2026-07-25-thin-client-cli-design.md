@@ -24,13 +24,14 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_client/main.py::main
 - backend/packages/agentcore_cli/client_allowlist.py::CLIENT_TOP_LEVEL_COMMANDS
+- backend/packages/agentcore_cli/client_allowlist.py::client_command_allowed
 - backend/packages/agentcore_cli/connect_flow/remote_purge.py::remote_purge_from_args
 related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/superpowers/plans/2026-07-25-thin-client-cli.md
-doc_version: 1.0.1
-updated_at: '2026-07-25'
+doc_version: 1.0.2
+updated_at: '2026-07-26'
 ---
 
 # Thin Client CLI (agentcore-client) — Design
@@ -103,22 +104,23 @@ Everything else is **absent** from the thin parser (not merely rejected after th
 
 ### Server install (`agentcore` full) — also acts as client
 
-When the machine is installed as **server** (including today’s `role=server` and `role=both`):
+When the machine is installed as **server** (including `role=server` and `role=both`):
 
 - PATH exposes the **full** `agentcore` CLI only.
-- That full CLI **already includes** every client capability (connect, profile/project, remote sync/purge/status, MCP wire helpers, `upgrade client`, etc.).
+- That full CLI **includes** every client capability (connect, profile/project, remote sync/purge/status, MCP wire helpers, `upgrade client`, etc.).
 - Operators must **not** need a second “client install” or the thin package on that host to connect outward or dogfood locally.
 - Thin entry `agentcore-client` is **optional** on server hosts (may exist in the venv from the monorepo install) but is **not** required for UX and must **not** replace `agentcore` on PATH.
 
 `role=both` remains “server stack + client workflows on one host” using the **same** full binary — not a dual PATH of thin+full.
 
-### Client-only install — thin package required
+### Client-only install — thin package required (**shipped**)
 
 When the machine is **client-only** (`role=client` / skip-infra):
 
-- Must use the **new thin package** entry (`agentcore-client` implementation).
+- Uses the thin package entry (`agentcore-client` / allowlist-gated full CLI).
 - PATH `agentcore` → thin entry (so muscle memory stays `agentcore …`).
-- Full server command surface must not be reachable as the primary CLI.
+- Full server command surface is denied by `client_allowlist.py` when `install_role()==client`.
+- Implementation: `backend/packages/agentcore_client/` + `backend/packages/agentcore_cli/client_allowlist.py`.
 
 ## Packaging
 

@@ -37,3 +37,6 @@ class VectorIndexPort(Protocol):
 
     def load_snapshot(self, uri: str) -> None:
         """Load derivative snapshot; reject on dim/bit_width mismatch."""
+
+    def rebuild_from_rows(self, ids: Sequence[int], vectors: NDArray[np.float32]) -> None:
+        """Replace replica contents from SoR-derived (id, vector) rows."""

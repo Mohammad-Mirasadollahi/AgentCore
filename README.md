@@ -259,6 +259,18 @@ agentcore --help
 
 Tests and suite layout → [tests/README.md](tests/README.md).
 
+### Optional Stage-2 ANN (Turbovec)
+
+Semantic retrieval **defaults to PostgreSQL + pgvector only** (`AGENTCORE_RAG_ANN_ACCELERATOR=off` in `.env.example`). That is the supported everyday path after install.
+
+You may optionally enable an in-process **Turbovec** Stage-2 allowlist accelerator for denser corpora:
+
+1. `pip install '.[turbovec]'` (or `agentcore[turbovec]`)
+2. Set `AGENTCORE_RAG_ANN_ACCELERATOR=turbovec` in the repo-root `.env` (see commented knobs in `.env.example`)
+3. Run `python -m vector_index.promotion_gate` on representative hardware before production
+
+Operator guide → [11 - Turbovec for RAG](docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md). ADR → [08 - Turbovec ANN acceleration](docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md).
+
 ---
 
 ## Documentation map
@@ -277,6 +289,7 @@ Start at the docs hub, then open the chapter you need:
 | Governance & ops | [09-platform-governance-operations](docs/09-platform-governance-operations/00-index.md) |
 | Gap register | [10-gap-analysis](docs/10-gap-analysis/00-index.md) |
 | Technology stack | [13-technology-stack](docs/13-technology-stack-and-platform-decisions/00-index.md) |
+| Optional Turbovec ANN | [11 - Turbovec for RAG](docs/13-technology-stack-and-platform-decisions/11-turbovec-for-rag.md) |
 | API naming | [14-api-design](docs/14-api-design-and-naming-standards/00-index.md) |
 | Backend layout | [backend/docs/STRUCTURE_STANDARD.md](backend/docs/STRUCTURE_STANDARD.md) |
 | Agent workspace rules | [AGENTS.md](AGENTS.md) |

@@ -26,8 +26,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.2.1
-updated_at: '2026-07-25'
+doc_version: 1.3.0
+updated_at: '2026-07-26'
 linked_symbols:
 - backend/packages/vector_index/port.py::VectorIndexPort
 - backend/packages/vector_index/turbovec_adapter.py::TurboVecIndexAdapter
@@ -261,6 +261,10 @@ Emit metrics: `rag.accelerator.search_latency`, `rag.accelerator.recall_proxy`, 
 - [x] Optional CI profile installs `turbovec` and runs adapter contract tests.
 - [x] In-repo promotion gate reports recall@k / latency / RSS proxy (`vector_index.promotion_gate`).
 - [x] Durable `PostgresEntityIdMap` is used when service database URL + table are available.
+- [x] Memory and code-graph SoR index/delete keep the ANN replica consistent (`sync_on_write`).
+- [x] Process-local accelerator metrics (`vector_index.metrics`) record search/sync/fallback/snapshot.
+- [x] Boot loads `AGENTCORE_TURBOVEC_SNAPSHOT_URI` when set; mutations persist local/`file://` snapshots.
+- [x] Isolation unit tests assert Stage-2 allowlists cannot return foreign project candidates.
 
 ## Product Acceptance Criteria
 
@@ -270,7 +274,9 @@ Emit metrics: `rag.accelerator.search_latency`, `rag.accelerator.recall_proxy`, 
 
 ## Open Gaps
 
-- None for the in-repo implementation path. Operators still run `python -m vector_index.promotion_gate` (or the pytest promotion suite) on representative host hardware before flipping production profiles to `AGENTCORE_RAG_ANN_ACCELERATOR=turbovec`.
+- Operators still run `python -m vector_index.promotion_gate` (or the pytest promotion suite) on representative host hardware before flipping production profiles to `AGENTCORE_RAG_ANN_ACCELERATOR=turbovec`.
+- `AGENTCORE_TURBOVEC_SYNC_MODE=async_job` remains parsed for forward compatibility; quality path uses `sync_on_write` (default). In-process async drain is not required for retrieval correctness.
+- Cloud object-storage `.tvim` backends beyond local/`file://` URIs remain future work.
 
 ## Related Documents
 

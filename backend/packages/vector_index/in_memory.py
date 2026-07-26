@@ -114,6 +114,22 @@ class InMemoryVectorIndex:
             for uid, row in zip(ids, vectors, strict=True):
                 self._vectors[int(uid)] = np.ascontiguousarray(row, dtype=np.float32)
 
+    def size(self) -> int:
+        with self._lock:
+            return len(self._vectors)
+
+    def rebuild_from_rows(self, ids: Sequence[int], vectors: NDArray[np.float32]) -> None:
+        arr = np.asarray(vectors, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        if len(ids) != arr.shape[0]:
+            raise ValueError("ids length must match vectors rows")
+        with self._lock:
+            self._vectors = {}
+            self._dim = int(arr.shape[1]) if arr.size else self._dim
+        if arr.size:
+            self.upsert(ids, arr)
+
 
 def _local_path(uri: str) -> Path:
     text = str(uri).strip()

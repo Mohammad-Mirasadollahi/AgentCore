@@ -134,3 +134,18 @@ class TurboVecIndexAdapter:
         if loaded_bw is not None and int(loaded_bw) != self._bit_width:
             raise ValueError(f"snapshot bit_width {loaded_bw} != adapter bit_width {self._bit_width}")
         self._idx = loaded
+
+    def size(self) -> int:
+        ntotal = getattr(self._idx, "ntotal", None)
+        if ntotal is not None:
+            return int(ntotal)
+        return 0
+
+    def rebuild_from_rows(self, ids: Sequence[int], vectors: NDArray[np.float32]) -> None:
+        """Clear-and-reload replica from SoR rows (derivative rebuild)."""
+        from turbovec import IdMapIndex
+
+        self._idx = IdMapIndex(dim=self._dim, bit_width=self._bit_width)
+        if len(ids) == 0:
+            return
+        self.upsert(ids, vectors)

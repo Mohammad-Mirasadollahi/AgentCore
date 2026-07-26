@@ -185,3 +185,76 @@ def test_promotion_gate_with_turbovec():
     )
     assert result.accelerator == "turbovec"
     assert result.passed, result.reason
+
+
+def test_rebuild_from_rows_and_instrumented_metrics(tmp_path):
+    from vector_index import (
+        InstrumentedVectorIndex,
+        get_accelerator_metrics,
+        reset_accelerator_metrics,
+    )
+
+    reset_accelerator_metrics()
+    snap = tmp_path / "replica.npz"
+    idx = InstrumentedVectorIndex(
+        InMemoryVectorIndex(dim=8),
+        metrics=get_accelerator_metrics(),
+        snapshot_uri=str(snap),
+    )
+    ids = [1, 2]
+    vectors = np.eye(8, dtype=np.float32)[:2]
+    idx.rebuild_from_rows(ids, vectors)
+    query = np.asarray([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    _, hits = idx.search(query, k=1, allowlist=[1, 2])
+    assert int(hits[0]) == 1
+    assert snap.is_file()
+    public = get_accelerator_metrics().public()
+    assert public["rag.accelerator.sync_total"] >= 1
+    assert public["rag.accelerator.search_count"] >= 1
+    assert public["rag.accelerator.snapshot_write_total"] >= 1
+
+
+def test_allowlist_isolation_rejects_foreign_ids():
+    """Stage-2 allowlist must not return ids outside the authorized candidate set."""
+    idx = InMemoryVectorIndex(dim=8)
+    vectors = np.asarray(
+        [
+            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.99, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
+    # 101/102 = project A candidates; 999 = foreign project vector also in replica.
+    idx.upsert([101, 102, 999], vectors)
+    query = np.asarray([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    _, hit_ids = idx.search(query, k=5, allowlist=[101, 102])
+    assert set(int(x) for x in hit_ids) <= {101, 102}
+    assert 999 not in {int(x) for x in hit_ids}
+
+
+def test_try_build_accelerator_loads_snapshot(tmp_path, monkeypatch):
+    if not turbovec_importable():
+        pytest.skip("turbovec not installed")
+    from vector_index import reset_accelerator_metrics
+
+    reset_accelerator_metrics()
+    snap = tmp_path / "boot.tvim"
+    seed = TurboVecIndexAdapter.try_create(dim=8, bit_width=4)
+    assert seed is not None
+    seed.upsert(
+        [7],
+        np.asarray([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], dtype=np.float32),
+    )
+    seed.write_snapshot(str(snap))
+    adapter, id_map = try_build_accelerator(
+        dim=8,
+        environ={
+            "AGENTCORE_RAG_ANN_ACCELERATOR": "turbovec",
+            "AGENTCORE_TURBOVEC_SNAPSHOT_URI": str(snap),
+        },
+    )
+    assert adapter is not None and id_map is not None
+    query = np.asarray([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    _, hits = adapter.search(query, k=1, allowlist=[7])
+    assert int(hits[0]) == 7

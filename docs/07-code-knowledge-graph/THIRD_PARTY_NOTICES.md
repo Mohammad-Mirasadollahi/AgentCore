@@ -30,8 +30,8 @@ related_docs:
 - ac.doc.ckg.code-intel-prior-art-license
 - ac.doc.ckg.repomix-prior-art-ideas-and-license
 - ac.doc.ckg.headroom-native-context-compression
-doc_version: 1.3.0
-updated_at: '2026-07-25'
+doc_version: 1.4.0
+updated_at: '2026-07-26'
 ---
 
 # Third-Party Notices — Code Intelligence Prior Art
@@ -262,6 +262,16 @@ Full Apache License 2.0 text: https://www.apache.org/licenses/LICENSE-2.0
 
 These are **dependencies**, not prior-art idea sources. Keep versions pinned in
 `pyproject.toml`.
+
+### turbovec
+
+- Package: `turbovec` (optional extra `agentcore[turbovec]`)
+- Upstream: https://github.com/RyanCodrai/turbovec
+- License: confirm on each release pin (see package metadata / upstream LICENSE)
+- Role: Optional in-process Stage-2 ANN replica (`IdMapIndex` only) behind
+  `VectorIndexPort`. PostgreSQL + pgvector remains durable embedding SoR.
+  Enable with `AGENTCORE_RAG_ANN_ACCELERATOR=turbovec` after
+  `python -m vector_index.promotion_gate`.
 
 ### rank-bm25
 

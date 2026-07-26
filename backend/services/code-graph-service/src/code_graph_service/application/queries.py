@@ -322,77 +322,24 @@ class QueryUseCases(GraphServiceSupport):
         *,
         top_k: int,
     ) -> list[dict[str, Any]]:
-        """Optional Stage-2 dense allowlist via VectorIndexPort; fall back to Stage-1 hits."""
+        """Optional Stage-2 dense allowlist via injected VectorIndexPort + durable id map.
+
+        Production path requires composition-root injection. Env-only hash id maps are not used
+        (collision risk across projects). Fail open to Stage-1 hits when unbound or on error.
+        """
         if not hits:
             return hits
         vector_index = getattr(self, "vector_index", None)
         entity_id_map = getattr(self, "entity_id_map", None)
-        if vector_index is not None and entity_id_map is not None:
-            return self._stage2_allowlist_search(
-                query_vector,
-                hits,
-                top_k=top_k,
-                vector_index=vector_index,
-                entity_id_map=entity_id_map,
-            )
-        try:
-            from vector_index import (
-                TurboVecIndexAdapter,
-                entity_ref_to_uint64,
-                load_accelerator_config,
-                turbovec_available,
-            )
-        except ImportError:
+        if vector_index is None or entity_id_map is None:
             return hits[:top_k]
-        try:
-            cfg = load_accelerator_config()
-        except ValueError:
-            return hits[:top_k]
-        if not cfg.enabled or not turbovec_available():
-            return hits[:top_k]
-        dim = len(query_vector)
-        if dim % 8 != 0:
-            return hits[:top_k]
-        try:
-            accelerator = getattr(self, "_turbovec_index", None)
-            if accelerator is None or getattr(accelerator, "dim", None) != dim:
-                accelerator = TurboVecIndexAdapter.try_create(dim=dim, bit_width=cfg.bit_width)
-                if accelerator is None:
-                    return hits[:top_k]
-                self._turbovec_index = accelerator
-            namespace = f"{scope.tenant_id}:{scope.workspace_id}:{scope.project_id}"
-            ids: list[int] = []
-            vectors: list[list[float]] = []
-            id_to_hit: dict[int, dict[str, Any]] = {}
-            for hit in hits:
-                symbol_view = hit.get("symbol") or {}
-                sid = str(symbol_view.get("id") or "")
-                if not sid:
-                    continue
-                try:
-                    symbol = self.store.get_symbol(sid, scope)
-                except NotFoundError:
-                    continue
-                emb = symbol.embedding
-                if not isinstance(emb, (list, tuple)) or len(emb) != dim:
-                    return hits[:top_k]
-                uid = entity_ref_to_uint64(sid, namespace=namespace)
-                ids.append(uid)
-                vectors.append([float(x) for x in emb])
-                id_to_hit[uid] = hit
-            if not ids:
-                return hits[:top_k]
-            import numpy as np
-
-            accelerator.upsert(ids, np.asarray(vectors, dtype=np.float32))
-            scores, hit_ids = accelerator.search(
-                np.asarray(query_vector, dtype=np.float32),
-                top_k,
-                allowlist=ids,
-            )
-            return self._hits_from_ann_scores(scores, hit_ids, id_to_hit, hits, top_k=top_k)
-        except Exception:
-            return hits[:top_k]
+        return self._stage2_allowlist_search(
+            query_vector,
+            hits,
+            top_k=top_k,
+            vector_index=vector_index,
+            entity_id_map=entity_id_map,
+        )
 
     def _stage2_allowlist_search(
         self,

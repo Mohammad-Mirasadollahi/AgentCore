@@ -32,7 +32,7 @@ related_docs:
 - ac.doc.ckg.prod-retrieval-risks
 - ac.doc.ckg.intentional-fallbacks-and-plugin-licensing
 - ac.doc.ckg.code-intel-feature-spec
-doc_version: 1.0.0
+doc_version: 1.0.1
 audience:
 - engineer
 - architect
@@ -52,7 +52,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-26'
 ---
 
 # 27 - Production Retrieval Stack Feature Specification
@@ -96,7 +96,7 @@ flowchart TD
 
 - Neo4j GDS **Enterprise** (paid key). GDS **Community** may be installed for optional `gds.degree` only; communities stay in-process — see [`32`](32-intentional-fallbacks-and-neo4j-plugin-licensing.md).
 - GPL `leidenalg` / `igraph` dependencies.
-- turbovec as Stage-1 (remains Stage-2 optional accelerator).
+- turbovec as Stage-1 SoR (forbidden — remains Stage-2 optional accelerator only).
 - Replacing Neo4j SoR.
 
 ## User-visible behaviors

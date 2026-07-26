@@ -196,6 +196,112 @@ def test_stage2_allowlist_when_vector_index_injected():
     assert result.hits[0]["retrieval"] == "stage1+turbovec"
 
 
+def test_index_and_delete_memory_embedding_keeps_replica_consistent():
+    from vector_index import InMemoryEntityIdMap, InMemoryVectorIndex
+
+    store = InMemoryStore()
+    emb = InMemoryMemoryEmbeddingStore()
+    stub = _HashEmbedder()
+    idx = InMemoryVectorIndex(dim=8)
+    id_map = InMemoryEntityIdMap()
+    service = MemoryService(
+        store,
+        embedding_store=emb,
+        embedder=stub,
+        vector_index=idx,
+        entity_id_map=id_map,
+    )
+    created = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "m-sync",
+        {
+            "kind": "semantic",
+            "title": "alpha",
+            "body": "body",
+            "tags": [],
+            "evidence_refs": [],
+            "source_refs": [],
+            "confidence": 1.0,
+        },
+    )
+    # create_memory already indexes; ensure durable map + replica size.
+    uid = id_map.to_uint64(created.id)
+    assert uid is not None
+    assert idx.size() >= 1
+    service.delete_memory_embedding(SCOPE, created.id)
+    assert emb.get_vector(SCOPE, created.id) is None
+    assert idx.size() == 0
+    # decay should also drop SoR + replica
+    created2 = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "m-decay",
+        {
+            "kind": "semantic",
+            "title": "beta",
+            "body": "body",
+            "tags": [],
+            "evidence_refs": [],
+            "source_refs": [],
+            "confidence": 1.0,
+        },
+    )
+    service.decay_memory(SCOPE, "agent", "corr", "d1", [created2.id], "stale")
+    assert emb.get_vector(SCOPE, created2.id) is None
+
+
+def test_stage2_project_scope_isolation_with_shared_replica():
+    """Authorized Stage-1 candidates for one Scope must not surface foreign project ids."""
+    from vector_index import InMemoryEntityIdMap, InMemoryVectorIndex
+
+    emb = InMemoryMemoryEmbeddingStore()
+    idx = InMemoryVectorIndex(dim=8)
+    id_map = InMemoryEntityIdMap()
+    local = Scope("t", "w", "project-a")
+    foreign = Scope("t", "w", "project-b")
+    emb.upsert(
+        MemoryEmbeddingRow(
+            memory_id="local-best",
+            tenant_id=local.tenant_id,
+            workspace_id=local.workspace_id,
+            project_id=local.project_id,
+            vector=[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            model="m",
+            dims=8,
+        )
+    )
+    emb.upsert(
+        MemoryEmbeddingRow(
+            memory_id="foreign-best",
+            tenant_id=foreign.tenant_id,
+            workspace_id=foreign.workspace_id,
+            project_id=foreign.project_id,
+            vector=[0.99, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            model="m",
+            dims=8,
+        )
+    )
+    # Poison replica with foreign id mapping as if a buggy path wrote it.
+    foreign_uid = id_map.get_or_assign("foreign-best")
+    idx.upsert(
+        [foreign_uid],
+        [[0.99, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
+    )
+    result = stage1_retrieve(
+        emb,
+        local,
+        [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        top_k=5,
+        vector_index=idx,
+        entity_id_map=id_map,
+    )
+    assert all(h["memory_id"] != "foreign-best" for h in result.hits)
+    assert result.hits and result.hits[0]["memory_id"] == "local-best"
+
+
 def test_local_hash_embedder_and_migration_files():
     from pathlib import Path
 

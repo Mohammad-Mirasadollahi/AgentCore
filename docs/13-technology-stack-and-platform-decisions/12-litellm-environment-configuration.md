@@ -28,8 +28,10 @@ related_docs:
 - ac.doc.stack.litellm-llm-gateway
 - ac.doc.ckg.rpm-session-parallel-sync-feature-spec
 - ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+- ac.doc.stack.turbovec-ann-acceleration
+- ac.doc.stack.turbovec-for-rag
+doc_version: 1.1.0
+updated_at: '2026-07-26'
 ---
 
 # 12 - LiteLLM Environment Configuration
@@ -65,10 +67,11 @@ Platform operators, backend engineers wiring `code-graph-service` or other consu
 
 | Artifact | Role |
 | --- | --- |
-| `.env.example` → `.env` (repo root) | **Single** operator template: scope, Neo4j, LiteLLM, embeddings |
+| `.env.example` → `.env` (repo root) | **Single** operator template: scope, Neo4j, LiteLLM, embeddings, optional ANN |
 | This document | Behavioral contract + examples |
 | `09-litellm-llm-gateway.md` | Why LiteLLM is mandatory |
 | `10-model-routing-profiles-with-litellm.md` | Task/risk → model alias rules |
+| `08-turbovec-ann-acceleration-integration.md` / `11-turbovec-for-rag.md` | Optional Stage-2 Turbovec ANN |
 | `backend/packages/llm_gateway/` | Runtime implementation |
 
 `install.sh` / `agentcore init` create root `.env` from `.env.example` when missing. CLI `load_dotenv_files()` loads root `.env` automatically.

@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.0.1
+updated_at: '2026-07-26'
 ---
 
 # Product Scope and Feature Catalog
@@ -81,7 +81,7 @@ Auth story for the wedge: document scope env (`AGENTCORE_TENANT_ID` / workspace 
 
 Before any external release or marketing claim:
 
-- [ ] `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md` present and current
+- [x] `docs/07-code-knowledge-graph/THIRD_PARTY_NOTICES.md` present and current
 - [ ] Use “inspired by” wording for prior art; **no** false affiliation with CodeGraph / code-review-graph / graphify / CodeWiki
 - [ ] Follow `docs/07-code-knowledge-graph/21-code-intelligence-prior-art-ideas-and-license.md`
 
