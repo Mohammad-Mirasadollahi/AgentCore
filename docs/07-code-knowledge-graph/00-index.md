@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/services/code-graph-service/test_code_graph_service.py::check_password
-doc_version: 1.0.5
-updated_at: '2026-07-25'
+doc_version: 1.0.6
+updated_at: '2026-07-26'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -62,6 +62,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `52-codebase-memory-language-breadth-and-indexing-speed.md` explains how upstream CBM reaches ~158 languages and extreme index/query speed (ideas-only; AgentCore mapping).
 - `53-repomix-prior-art-ideas-and-license.md` catalogs Repomix pack/token/security ideas under MIT (ideas-only).
 - `54-headroom-native-context-compression.md` requires **AgentCore product** native context compression inspired by Headroom (Apache 2.0); IDE toolstack is not a substitute.
+- `55-structural-isolation-and-architecture-overview-residuals.md` defines honest post-repair isolation/hotspot residuals and Cursor MCP reload for overview heuristics.
 - `22-code-intelligence-enhancements-feature-specification.md` product requirements for explore, routes, TESTED_BY, change risk, Wave 2–3 analytics.
 - `23-code-intelligence-enhancements-high-level-design.md` runtime topology and module boundaries.
 - `24-code-intelligence-enhancements-low-level-design.md` algorithms (routes, flows, risk, explore, Leiden/RRF sketches).
@@ -170,6 +171,7 @@ Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session t
 - AST vs LSP hybrid (`48`–`49`) keeps durable knowledge↔code edges on AST ingest; LSP edit-session tools are IDE-semantic and reconcile via re-ingest.
 - RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
 - Client standards gate + watcher policy (`51`) defines mutable Skip vs Ingest for nonconforming docs when Client/watcher flush cannot ask a TTY prompt.
+- Structural isolation residuals (`55`) define honest post-repair knowledge-gap signals and the Cursor MCP reload step for `architecture_overview`.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
 - `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.
 - `../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md` defines dead-code cleanup KPIs.

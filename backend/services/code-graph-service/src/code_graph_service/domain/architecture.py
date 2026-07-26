@@ -123,19 +123,36 @@ def knowledge_gaps(
     *,
     tested_targets: set[str] | None = None,
 ) -> dict[str, list[dict]]:
-    """isolated / thin communities / untested hotspots."""
+    """isolated / thin communities / untested hotspots.
+
+    Isolation uses structural relationship types only (not CONTAINS/DOCUMENTED_BY),
+    so leaf helpers that are merely contained do not flood the gap list — truly
+    call-orphaned symbols (degree 0 on CALLS/IMPORTS/…) do.
+    """
     tested_targets = tested_targets or set()
+    structural_rels = {
+        "CALLS",
+        "IMPORTS",
+        "INHERITS_FROM",
+        "HTTP_CALLS",
+        "ASYNC_CALLS",
+        "ROUTES_TO",
+        "TESTED_BY",
+    }
+    structural_degree: Counter[str] = Counter()
     degree: Counter[str] = Counter()
     for src, tgt, rel in edges:
         degree[src] += 1
         degree[tgt] += 1
-    by_id = {n.id: n for n in nodes}
+        if rel in structural_rels:
+            structural_degree[src] += 1
+            structural_degree[tgt] += 1
     isolated = []
     for n in nodes:
         if n.kind in {"file", "unresolved", "external", "import", "documentation", "route"}:
             continue
-        d = degree.get(n.id, 0)
-        if d <= 1:
+        d = structural_degree.get(n.id, 0)
+        if d == 0:
             isolated.append(
                 {
                     "symbol_id": n.id,
@@ -160,8 +177,13 @@ def knowledge_gaps(
     for n in nodes:
         if n.kind not in {"function", "method", "class"}:
             continue
+        if n.name in {"__init__", "__new__"}:
+            continue
+        norm_path = (n.file_path or "").replace("\\", "/")
+        if norm_path.endswith("/testing.py") or "/testing/" in norm_path:
+            continue
         if degree.get(n.id, 0) >= 4 and n.id not in tested_targets:
-            # tested_targets = production ids that have TESTED_BY out-edges
+            # tested_targets = production ids covered by TESTED_BY or test CALLS
             hotspots.append(
                 {
                     "symbol_id": n.id,

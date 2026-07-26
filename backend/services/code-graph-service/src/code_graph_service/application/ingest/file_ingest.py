@@ -1,4 +1,12 @@
-"""Single-file ingest orchestration (symbols / edges / emissions / relink)."""
+"""Single-file ingest orchestration (symbols / edges / emissions / relink).
+
+Role: parse one source file into FILE/symbol nodes and structural edges.
+SoT: content hash + language on FILE; CONTAINS required for code children.
+Invariants: hash-stable skip only when language set and CONTAINS intact;
+edgeless FILE rows re-ingest (repair). Idempotency key short-circuits.
+Allowed failure: ValidationError on missing path/source; per-call store errors.
+Forbidden: treating edgeless hash-stable FILE rows as up-to-date.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +18,7 @@ from ...domain.hashing import content_hash, now_iso
 from ...domain.languages import assert_language_supported, detect_language_from_path
 from ...domain.models import IngestResult, Scope
 from ...domain.parsers import parse_source
+from ...domain.structural_integrity import file_needs_contains_repair
 from .file_edges import FileEdgesMixin
 from .file_emissions import FileEmissionsMixin
 from .file_relink import FileRelinkMixin
@@ -57,12 +66,15 @@ class FileIngestMixin(
         file_id = f"file:{scope.project_id}:{file_path}"
         previous_file = self._maybe_get(file_id, scope)
         module_contract = extract_module_contract_docstring(source, language) or ""
-        # Skip only when content is unchanged *and* language already persisted
-        # (older graphs may lack language and need one re-ingest to backfill).
+        # Skip only when content is unchanged, language is persisted, and CONTAINS
+        # edges still exist (edgeless FILE rows need repair after graph wipe/drift).
         if (
             previous_file is not None
             and previous_file.hash_value == file_hash
             and str(previous_file.language or "").strip()
+            and not file_needs_contains_repair(
+                self.store, scope, file_id=file_id, file_path=file_path
+            )
         ):
             clearer = getattr(self, "clear_pending_sync", None)
             if callable(clearer):

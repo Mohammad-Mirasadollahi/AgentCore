@@ -647,9 +647,16 @@ class IntelligenceUseCases(GraphServiceSupport):
             for s in useful
         ]
         undirected = [(e.source_id, e.target_id) for e in edges]
+        by_id = {s.id: s for s in symbols}
         tested = {
             e.source_id for e in edges if e.rel_type in {RelType.TESTED_BY.value, "TESTED_BY"}
         }
+        for e in edges:
+            if e.rel_type not in {RelType.CALLS.value, "CALLS"}:
+                continue
+            src = by_id.get(e.source_id)
+            if src is not None and is_test_path(src.file_path or ""):
+                tested.add(e.target_id)
         hubs = degree_hubs(arch_nodes, edge_triples, top_n=top_n)
         bridges = approximate_betweenness(arch_nodes, undirected, top_n=top_n)
         gaps = knowledge_gaps(arch_nodes, edge_triples, tested_targets=tested)

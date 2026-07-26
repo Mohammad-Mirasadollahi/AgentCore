@@ -2,11 +2,11 @@
 
 Role: discover sources, classify new/changed/stable, parallel ``ingest_file``.
 SoT: FILE ``hash_value`` + persisted ``language``; durable graph store.
-Invariants: prefer unindexed then changed; enqueue hash-stable only when
-``language`` is missing (legacy backfill). Hash-stable + language → count as
-skipped without worker visit (no re-parse / embed / LLM).
+Invariants: prefer unindexed then changed; enqueue hash-stable when
+``language`` is missing (legacy backfill) or FILE lacks CONTAINS children
+(edge repair). Hash-stable + language + intact CONTAINS → skip without worker.
 Allowed failure: per-file errors collected; walk continues.
-Forbidden: queueing language-stable hash matches as full ingest work.
+Forbidden: permanently skipping edgeless hash-stable FILE rows.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from ...domain.models import (
     Scope,
 )
 from ...domain.package_manifests import load_package_aliases
+from ...domain.structural_integrity import file_needs_contains_repair
 from ...domain.repo_discovery import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
@@ -98,8 +99,9 @@ class RepoIngestMixin:
             for item in known
             if item.relative_path.replace("\\", "/") not in changed_known_paths
         ]
-        # Hash-stable + language already set → skip workers (ingest_file would no-op).
-        # Hash-stable + empty language → enqueue for legacy language backfill only.
+        # Hash-stable + language already set → skip workers unless CONTAINS missing.
+        # Hash-stable + empty language → enqueue for legacy language backfill.
+        # Hash-stable + edgeless FILE → enqueue for structural edge repair.
         language_backfill = [
             item
             for item in unchanged_known
@@ -110,12 +112,33 @@ class RepoIngestMixin:
         backfill_paths = {
             item.relative_path.replace("\\", "/") for item in language_backfill
         }
+
+        def _needs_edge_repair(item: Any) -> bool:
+            rel = item.relative_path.replace("\\", "/")
+            previous = indexed_files[rel]
+            return file_needs_contains_repair(
+                self.store,
+                scope,
+                file_id=previous.id,
+                file_path=rel,
+            )
+
+        edge_repair = [
+            item
+            for item in unchanged_known
+            if item.relative_path.replace("\\", "/") not in backfill_paths
+            and _needs_edge_repair(item)
+        ]
+        repair_paths = {
+            item.relative_path.replace("\\", "/") for item in edge_repair
+        }
         hash_stable_skip = [
             item
             for item in unchanged_known
             if item.relative_path.replace("\\", "/") not in backfill_paths
+            and item.relative_path.replace("\\", "/") not in repair_paths
         ]
-        # Prefer never-indexed files so truncated sync continues; budget for lang backfill.
+        # Prefer never-indexed files; then changed; then lang backfill / edge repair.
         selected: list = []
         selected.extend(unindexed[:max_files])
         remaining = max_files - len(selected)
@@ -124,6 +147,9 @@ class RepoIngestMixin:
         remaining = max_files - len(selected)
         if remaining > 0:
             selected.extend(language_backfill[:remaining])
+        remaining = max_files - len(selected)
+        if remaining > 0:
+            selected.extend(edge_repair[:remaining])
         selected_paths = {item.relative_path.replace("\\", "/") for item in selected}
         pending_paths = {
             item.relative_path.replace("\\", "/") for item in [*unindexed, *changed_known]

@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-07-26'
 ---
 
 # Usage Profile and Cursor MCP Onboarding
@@ -141,6 +141,18 @@ Timed path (new machine):
 | 25–30 | Call **PRIMARY** tool `agentcore_code_graph_explore` (prefer before wide Read/Grep); confirm pack sections |
 
 **Exit:** explore returns sections for a known query (e.g. login) within 30 minutes of a clean checkout.
+
+### Reload After Host Or Heuristic Changes
+
+Restarting AgentCore services (`agentcore service restart`) updates the **host** stack (Neo4j, MCP HTTP, workers). Cursor’s **in-process** MCP session may still serve cached tool implementations or stale overview heuristics until you reload MCP in the IDE (MCP settings → Reload, or reload the window).
+
+Required after:
+
+- Deploying code-graph analytics / `architecture_overview` heuristic changes
+- Changing Usage Profile tool allow-lists that are already loaded in an open session
+- Materializing or rotating MCP connection env that Cursor already spawned
+
+See also `docs/07-code-knowledge-graph/55-structural-isolation-and-architecture-overview-residuals.md`.
 
 Example generated fragment (shape):
 
