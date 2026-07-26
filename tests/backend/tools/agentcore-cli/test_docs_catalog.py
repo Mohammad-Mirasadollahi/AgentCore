@@ -109,6 +109,21 @@ def test_filter_query_and_linked_only(tmp_path: Path):
     assert miss["match_count"] == 0
 
 
+def test_filter_query_matches_all_tokens(tmp_path: Path):
+    _write_doc(
+        tmp_path,
+        "docs/09-automated-followup-task-lifecycle-and-retention.md",
+        tags=["task", "followup"],
+        concern="standard",
+        title="Automated Follow-Up Task Lifecycle and Retention",
+    )
+    catalog = build_docs_catalog(tmp_path, roots=["docs"])
+    hit = filter_docs_catalog(catalog, query="followup task lifecycle retention")
+    assert hit["match_count"] == 1
+    miss = filter_docs_catalog(catalog, query="followup missingtoken")
+    assert miss["match_count"] == 0
+
+
 def test_env_roots_override(tmp_path: Path, monkeypatch):
     _write_doc(tmp_path, "handbook/h.md", tags=["hb"], concern="guide", title="H")
     monkeypatch.setenv("AGENTCORE_DOCS_CATALOG_ROOTS", "handbook")

@@ -7,6 +7,7 @@ from pathlib import Path
 from agentcore_cli.docs_link_suggest import (
     apply_suggested_links,
     extract_evidence_link_tokens,
+    primary_symbol_name,
     suggest_links_for_markdown,
     suggest_links_for_tree,
 )
@@ -19,6 +20,24 @@ def test_extract_evidence_from_path_citation(tmp_path: Path):
     body = "See `backend/pkg/mod.py` for login.\n"
     tokens = extract_evidence_link_tokens(body, repo=tmp_path)
     assert tokens == ["backend/pkg/mod.py::login"]
+
+
+def test_primary_symbol_prefers_test_fn_in_test_files(tmp_path: Path):
+    py = tmp_path / "tests" / "backend" / "test_hybrid.py"
+    py.parent.mkdir(parents=True)
+    py.write_text(
+        "def check_password():\n    return True\n\n"
+        "def test_build_coverage():\n    assert True\n",
+        encoding="utf-8",
+    )
+    assert primary_symbol_name(py) == "test_build_coverage"
+    # Path-only citations under tests/ are ignored (require path::Symbol).
+    body = "See `tests/backend/test_hybrid.py`.\n"
+    assert extract_evidence_link_tokens(body, repo=tmp_path) == []
+    explicit = "See `tests/backend/test_hybrid.py::test_build_coverage`.\n"
+    assert extract_evidence_link_tokens(explicit, repo=tmp_path) == [
+        "tests/backend/test_hybrid.py::test_build_coverage"
+    ]
 
 
 def test_extract_evidence_from_loose_path(tmp_path: Path):

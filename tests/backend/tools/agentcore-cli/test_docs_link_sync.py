@@ -64,6 +64,40 @@ def test_parse_and_provisional_frontmatter():
     assert filled["linked_symbols"] == []
 
 
+def test_resolve_docs_sync_database_url_falls_back_to_shared(monkeypatch):
+    from agentcore_cli.docs_link_sync import resolve_docs_sync_database_url
+
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_DATABASE_URL", "postgresql://u:p@localhost:5432/agentcore")
+    assert resolve_docs_sync_database_url().startswith("postgresql://")
+    monkeypatch.setenv(
+        "AGENTCORE_DOCS_SYNC_DATABASE_URL",
+        "postgresql://docs:x@localhost:5432/docs",
+    )
+    assert "docs" in resolve_docs_sync_database_url()
+
+
+def test_resolve_docs_sync_database_url_from_compose(monkeypatch, tmp_path: Path):
+    from agentcore_cli.docs_link_sync import resolve_docs_sync_database_url
+
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.delenv("AGENTCORE_DATABASE_URL", raising=False)
+    compose = tmp_path / "backend" / "deployments" / "compose"
+    compose.mkdir(parents=True)
+    (compose / ".env.local").write_text(
+        "AGENTCORE_POSTGRES_USER=agentcore\n"
+        "AGENTCORE_POSTGRES_PASSWORD=secret\n"
+        "AGENTCORE_POSTGRES_PORT=54329\n"
+        "AGENTCORE_POSTGRES_DATABASE=agentcore\n"
+        "AGENTCORE_NEO4J_BOLT_PORT=7687\n"
+        "AGENTCORE_NEO4J_PASSWORD=neo\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    url = resolve_docs_sync_database_url({})
+    assert url == "postgresql://agentcore:secret@127.0.0.1:54329/agentcore"
+
+
 def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
     (tmp_path / "src").mkdir()

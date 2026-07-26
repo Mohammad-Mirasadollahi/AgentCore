@@ -109,6 +109,50 @@ def test_stale_doc_drift_ci_gate_and_issue_task_refs():
     assert other == []
 
 
+def test_get_doc_coverage_empty_is_not_perfect():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    coverage = service.get_doc_coverage(SCOPE)
+    assert coverage["required_symbols"] == 0
+    assert coverage["documented_symbols"] == 0
+    assert coverage["coverage_ratio"] is None
+    assert coverage["empty_reason"] == "no_required_symbols_registered"
+
+
+def test_get_doc_coverage_counts_only_required_documented():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    required = service.index_symbol(
+        SCOPE, "agent", "corr", "sym-req", symbol_payload(path="auth.a", doc_required=True)
+    )
+    service.index_symbol(
+        SCOPE,
+        "agent",
+        "corr",
+        "sym-opt",
+        symbol_payload(path="auth.b", body="def b():\n    return 1\n", doc_required=False),
+    )
+    document = service.index_document(
+        SCOPE,
+        "agent",
+        "corr",
+        "doc-cov",
+        {"path": "docs/a.md", "frontmatter": frontmatter(symbols=["auth.a"]), "body": "A"},
+    )
+    service.register_anchor(
+        SCOPE,
+        "agent",
+        "corr",
+        "anchor-cov",
+        {"doc_id": document.id, "symbol_id": required.id, "recorded_hash": required.body_hash},
+    )
+    coverage = service.get_doc_coverage(SCOPE)
+    assert coverage["required_symbols"] == 1
+    assert coverage["documented_symbols"] == 1
+    assert coverage["coverage_ratio"] == 1.0
+    assert coverage.get("empty_reason") is None
+
+
 def test_missing_doc_bloom_frontmatter_and_draft_approval():
     store = InMemoryStore()
     service = DocsSyncService(store)

@@ -342,7 +342,12 @@ def filter_docs_catalog(
                     str(row.get("concern_lane") or ""),
                 ]
             ).casefold()
-            if q not in hay:
+            # Multi-word queries: every token must appear (AND), not the whole phrase.
+            tokens = [t for t in q.split() if t]
+            if tokens:
+                if not all(t in hay for t in tokens):
+                    continue
+            elif q not in hay:
                 continue
         matched.append(row)
         if len(matched) >= lim:

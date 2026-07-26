@@ -160,6 +160,21 @@ def test_tools_call_wired_backends():
     )
     assert validated["structuredContent"]["ok"] is True
 
+    from pathlib import Path
+
+    from agentcore_cli.util import repo_root
+
+    sample = Path(repo_root()) / "docs" / "07-code-knowledge-graph" / "41-hybrid-documentation-coverage.md"
+    if sample.is_file():
+        from_disk = gw.call_tool(
+            "agentcore_docs_write",
+            {"mode": "validate", "path": str(sample.relative_to(repo_root()))},
+        )
+        sc = from_disk["structuredContent"]
+        assert sc["ok"] is True
+        assert sc["frontmatter"]["doc_id"] == "ac.doc.ckg.hybrid-documentation-coverage"
+        assert sc.get("source") == "path"
+
     status = gw.call_tool("agentcore_docs_status", {})
     assert "coverage" in status["structuredContent"]
     assert "missing_count" in status["structuredContent"]

@@ -26,6 +26,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
+doc_version: 1.0.2
+updated_at: '2026-07-26'
 linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/domain/hybrid_doc_coverage.py::build_symbol_doc_coverage
 - backend/services/code-graph-service/src/code_graph_service/application/generation.py::GenerationUseCases
@@ -35,9 +37,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/docs_link_suggest.py::apply_suggested_links
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_suggest_links.py::cmd_docs_suggest_links
-- tests/backend/services/code-graph-service/test_hybrid_doc_coverage.py::check_password
 - tests/backend/tools/agentcore-cli/test_docs_suggest_links.py::test_extract_evidence_from_path_citation
-- tests/backend/tools/agentcore-cli/test_docs_link_sync.py::login
+- tests/backend/tools/agentcore-cli/test_docs_suggest_links.py::test_primary_symbol_prefers_test_fn_in_test_files
 related_docs:
 - ac.doc.ckg.ingestion-and-living-documentation-workflow
 - ac.doc.ckg.documentation-catalog-and-lane-cache
@@ -46,8 +47,6 @@ related_docs:
 - ac.doc.agents.team-handout-agentcore-documentation-complete
 language: en
 security_classification: internal
-doc_version: 1.0.0
-updated_at: '2026-07-24'
 ---
 
 # Hybrid Documentation Coverage

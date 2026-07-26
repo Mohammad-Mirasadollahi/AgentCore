@@ -297,8 +297,8 @@ class DocsSyncService:
             has_doc = bool(self.store.list_anchors(scope, symbol.id))
             if symbol.doc_required:
                 required += 1
-            if has_doc:
-                documented += 1
+                if has_doc:
+                    documented += 1
             entries.append(
                 {
                     "symbol_id": symbol.id,
@@ -308,10 +308,19 @@ class DocsSyncService:
                     "lookup_source": "graph",
                 }
             )
+        if required == 0:
+            return {
+                "required_symbols": 0,
+                "documented_symbols": 0,
+                "coverage_ratio": None,
+                "empty_reason": "no_required_symbols_registered",
+                "entries": entries,
+            }
         return {
             "required_symbols": required,
             "documented_symbols": documented,
-            "coverage_ratio": round(documented / required, 3) if required else 1.0,
+            "coverage_ratio": round(documented / required, 3),
+            "empty_reason": None,
             "entries": entries,
         }
 

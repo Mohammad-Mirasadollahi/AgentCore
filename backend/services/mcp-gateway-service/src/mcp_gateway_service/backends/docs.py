@@ -129,13 +129,42 @@ def docs_write(
     custom_fm = arguments.get("frontmatter") if isinstance(arguments.get("frontmatter"), dict) else None
 
     if mode == "validate":
-        frontmatter = custom_fm or build_frontmatter(
-            title=title or "Untitled",
-            owner=owner,
-            status=status,
-            doc_id=str(arguments.get("doc_id") or "").strip() or None,
-            linked_symbols=[symbol] if symbol else [],
-        )
+        source = "arguments"
+        frontmatter = custom_fm
+        if frontmatter is None and path:
+            from pathlib import Path
+
+            from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
+            from agentcore_cli.util import repo_root
+
+            candidate = Path(path)
+            if not candidate.is_absolute():
+                candidate = Path(repo_root()) / path
+            if candidate.is_file():
+                try:
+                    text = candidate.read_text(encoding="utf-8")
+                except OSError as exc:
+                    raise ValueError(f"unable to read path for validate: {exc}") from exc
+                loaded, _body = parse_markdown_frontmatter(text)
+                if not loaded:
+                    raise ValueError(f"no YAML frontmatter found at path: {path}")
+                # Full-tier product docs often omit empty list fields; Body-tier
+                # validate still requires list keys — normalize before checking.
+                frontmatter = dict(loaded)
+                if "linked_symbols" not in frontmatter:
+                    frontmatter["linked_symbols"] = []
+                if "decision_refs" not in frontmatter:
+                    frontmatter["decision_refs"] = []
+                source = "path"
+        if frontmatter is None:
+            frontmatter = build_frontmatter(
+                title=title or "Untitled",
+                owner=owner,
+                status=status,
+                doc_id=str(arguments.get("doc_id") or "").strip() or None,
+                linked_symbols=[symbol] if symbol else [],
+            )
+            source = "generated"
         errors = backends.docs.validate_frontmatter(frontmatter)
         return {
             **base,
@@ -143,6 +172,8 @@ def docs_write(
             "ok": not errors,
             "errors": errors,
             "frontmatter": frontmatter,
+            "source": source,
+            "path": path or None,
         }
 
     if mode == "draft":

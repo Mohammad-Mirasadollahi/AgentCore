@@ -14,6 +14,7 @@ Optional behaviors (all documented; none invent edges):
 - Already-linked evidence tokens — listed under ``existing``; not re-suggested.
 - Missing file on disk for a path citation — token omitted (not invented).
 - Loose (non-backtick) path citations — accepted as evidence (procedure §6.2).
+- Path-only citations under ``tests/`` — ignored; require explicit ``path::Symbol``.
 - Sync env: ``AGENTCORE_SYNC_DOCS_EVIDENCE`` / ``AGENTCORE_SYNC_DOCS_EVIDENCE_APPLY``.
 """
 
@@ -40,19 +41,42 @@ _PY_TOP_SYMBOL_RE = re.compile(
 )
 
 
+def _looks_like_test_path(path: Path) -> bool:
+    parts = {p.casefold() for p in path.parts}
+    name = path.name.casefold()
+    return (
+        "tests" in parts
+        or name.startswith("test_")
+        or name.endswith("_test.py")
+        or name == "conftest.py"
+    )
+
+
 def primary_symbol_name(path: Path) -> str | None:
-    """First public top-level ``def`` / ``async def`` / ``class`` in a Python file."""
+    """Best public top-level ``def`` / ``async def`` / ``class`` for evidence tokens.
+
+    For test paths, prefer the first ``test_*`` function so helpers/fixtures are
+    not mistaken for the documented symbol when a body only cites the file path.
+    """
     if path.suffix != ".py" or not path.is_file():
         return None
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return None
+    names: list[str] = []
     for match in _PY_TOP_SYMBOL_RE.finditer(text):
         name = match.group(1) or match.group(2)
         if name and not name.startswith("_"):
-            return name
-    return None
+            names.append(name)
+    if not names:
+        return None
+    if _looks_like_test_path(path):
+        for name in names:
+            if name.startswith("test_"):
+                return name
+        return None
+    return names[0]
 
 
 def extract_evidence_link_tokens(
@@ -81,6 +105,10 @@ def extract_evidence_link_tokens(
 
     def add_path(rel_path: str) -> None:
         rel = rel_path.strip().replace("\\", "/")
+        # Path-only citations under tests/ are ambiguous (helpers vs cases).
+        # Require explicit ``path::Symbol`` evidence for test trees.
+        if rel.startswith("tests/") or "/tests/" in f"/{rel}/":
+            return
         symbol = primary_symbol_name(repo / rel)
         if symbol:
             add(f"{rel}::{symbol}")

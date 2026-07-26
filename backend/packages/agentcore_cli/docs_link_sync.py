@@ -67,6 +67,31 @@ def _ensure_docs_sync_import() -> None:
         sys.path.insert(0, str(src))
 
 
+def resolve_docs_sync_database_url(environ: dict[str, str] | None = None) -> str:
+    """Resolve docs-sync Postgres URL the same way MCP companion stores do.
+
+    Prefer ``AGENTCORE_DOCS_SYNC_DATABASE_URL``, else ``AGENTCORE_DATABASE_URL``,
+    else derive the shared URL from compose ``.env.local`` (same path as
+    ``local_mcp`` / ``apply_compose_env_to_os``). This keeps Phase 2 sync and
+    ``agentcore_docs_status`` on one durable SoT instead of process-local memory.
+    """
+    env = dict(os.environ if environ is None else environ)
+    specific = str(env.get("AGENTCORE_DOCS_SYNC_DATABASE_URL") or "").strip()
+    if specific:
+        return specific
+    shared = str(env.get("AGENTCORE_DATABASE_URL") or "").strip()
+    if shared:
+        return shared
+    try:
+        from agentcore_cli.remote_client import apply_compose_env_to_os
+        from agentcore_cli.util import repo_root
+
+        apply_compose_env_to_os(env, repo_root())
+    except SystemExit:
+        return ""
+    return str(env.get("AGENTCORE_DATABASE_URL") or "").strip()
+
+
 def _docs_sync_service():
     """In-process docs-sync (Postgres when URL set; else memory).
 
@@ -77,7 +102,7 @@ def _docs_sync_service():
 
     load_dotenv_files()
     _ensure_docs_sync_import()
-    url = os.environ.get("AGENTCORE_DOCS_SYNC_DATABASE_URL", "").strip()
+    url = resolve_docs_sync_database_url()
     backend = (
         "postgres"
         if url.startswith(("postgresql://", "postgresql+psycopg://"))
