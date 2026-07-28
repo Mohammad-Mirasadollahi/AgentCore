@@ -20,7 +20,7 @@ def register_profile_and_project(sub: argparse._SubParsersAction) -> None:
     reg = project_sub.add_parser("register", help="Register a local project state file")
     add_scope_args(reg)
     reg.add_argument("--name", default="")
-    reg.add_argument("--usage-profile", default="default")
+    reg.add_argument("--usage-profile", default="programming-cursor-mcp")
     reg.add_argument("--domain-pack", default="")
     reg.add_argument("--feature-profile", default="")
     reg.add_argument("--force", action="store_true")

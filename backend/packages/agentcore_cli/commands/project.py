@@ -23,7 +23,7 @@ def cmd_project_register(args: argparse.Namespace) -> int:
             f"error: project already registered at "
             f"{project_path_msg(root, tenant, workspace, project_id)} (use --force)"
         )
-    usage_profile = str(args.usage_profile or "default").strip()
+    usage_profile = str(args.usage_profile or "programming-cursor-mcp").strip()
     catalog = load_usage_profile(usage_profile)
     project = {
         "tenant_id": tenant,
@@ -77,7 +77,7 @@ def cmd_project_effective(args: argparse.Namespace) -> int:
     if project is None:
         raise SystemExit("error: project not found")
     effective = resolve_effective_profile(
-        str(project.get("usage_profile") or "default"),
+        str(project.get("usage_profile") or "programming-cursor-mcp"),
         tenant_id=tenant,
         workspace_id=workspace,
         project_id=project_id,

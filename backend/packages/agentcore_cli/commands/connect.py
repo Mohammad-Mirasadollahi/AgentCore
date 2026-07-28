@@ -102,6 +102,11 @@ def _ensure_usage_profile(
         return replace(settings, usage_profile=override)
     if (settings.usage_profile or "").strip():
         return settings
+    from usage_profile import list_profile_ids
+
+    ids = list(list_profile_ids())
+    if len(ids) == 1:
+        return replace(settings, usage_profile=ids[0])
     if allow_prompt and sys.stdin.isatty() and sys.stdout.isatty():
         from agentcore_cli.connect_wizard import prompt_usage_profile
 
@@ -141,7 +146,7 @@ def _source_path_for_connect(*, local: bool, work: Path, configured: str = "") -
 
     ``source.server_path`` must exist on the AgentCore host (NFS/clone), not a blind
     copy of the laptop checkout path. Only dogfood ``--local`` may default to cwd.
-    Remote SSH fills this via ``_ensure_remote_source_path`` (probe + prompt).
+    Remote SSH fills this via ``_ensure_remote_source_path`` (SSH probe candidates).
     """
     text = (configured or "").strip()
     if text:
@@ -151,6 +156,40 @@ def _source_path_for_connect(*, local: bool, work: Path, configured: str = "") -
     return ""
 
 
+def _remote_source_candidates(
+    work: Path,
+    *,
+    remote_root: str = "",
+    project_name: str = "",
+) -> list[str]:
+    """Ordered absolute paths to probe on the AgentCore host for software ingest."""
+    from agentcore_cli.install_root_marker import looks_like_agentcore_root
+
+    name = (project_name or work.name or "").strip()
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(raw: str) -> None:
+        path = (raw or "").strip().rstrip("/\\")
+        if not path or path in seen:
+            return
+        seen.add(path)
+        out.append(path)
+
+    add(str(work.resolve()))
+    root = (remote_root or "").strip().rstrip("/\\")
+    if root:
+        if looks_like_agentcore_root(work) or (name and Path(root).name == name):
+            add(root)
+        if name:
+            add(str(Path(root).parent / name))
+    if name:
+        add(f"/opt/{name}")
+        add(f"/srv/repos/{name}")
+        add(f"/var/lib/agentcore/sources/{name}")
+    return out
+
+
 def _ensure_remote_source_path(
     settings: ConnectSettings,
     work: Path,
@@ -158,15 +197,16 @@ def _ensure_remote_source_path(
     allow_prompt: bool,
     input_fn=input,
 ) -> ConnectSettings:
-    """Set ``source.server_path`` for remote connect: configured → probe cwd → prompt.
+    """Set ``source.server_path`` for remote connect via SSH discovery (no operator prompt).
 
-    Connect used to leave source empty on purpose (client path ≠ server path), then
-    ``agentcore sync`` fell back to the AgentCore host identity pins and indexed the
-    wrong tree. After SSH works, probe whether *work* exists on the server; if not,
-    ask (TTY) for the real server-side path and persist it.
+    Order: configured path → probe candidates (client path, AgentCore remote_root when
+    dogfooding, ``/opt/<project>``, …). Prompting was removed: SSH access is enough to
+    decide. Fail closed with the probed list when nothing exists on the server.
     """
+    del allow_prompt, input_fn  # kept for call-site compatibility; never prompt
     from agentcore_cli import ui
     from agentcore_cli.connect_flow.ssh import missing_server_source_message, remote_is_dir
+    from agentcore_cli.install_root_marker import discover_remote_install_root
 
     if settings.local:
         path = (settings.source_server_path or "").strip() or str(work.resolve())
@@ -181,45 +221,35 @@ def _ensure_remote_source_path(
     if not settings.ssh:
         return settings
 
-    candidate = str(work.resolve())
-    if remote_is_dir(settings, candidate):
-        print(f"   {ui.ok('✔')} source.server_path on server: {candidate}")
-        return replace(settings, source_server_path=candidate)
-
-    if not allow_prompt or not (sys.stdin.isatty() and sys.stdout.isatty()):
-        raise SystemExit(
-            "error: remote connect needs source.server_path "
-            f"(client path {candidate} is not a directory on the AgentCore server)\n"
-            "  Set in .agentcore/connect.yaml:\n"
-            "    source:\n"
-            "      server_path: /opt/YourApp\n"
-            "  Or re-run `agentcore connect` in a TTY to be prompted."
+    resolved = settings
+    remote_root = (resolved.remote_root or "").strip().rstrip("/\\")
+    if not remote_root or remote_root == "/opt/AgentCore":
+        discovered = discover_remote_install_root(
+            resolved.ssh,
+            identity_file=resolved.ssh_identity or None,
         )
+        if discovered is not None:
+            remote_root = str(discovered)
+            resolved = replace(resolved, remote_root=remote_root)
 
-    from agentcore_cli.connect_wizard import _prompt_line
+    candidates = _remote_source_candidates(
+        work,
+        remote_root=remote_root,
+        project_name=(resolved.project or work.name or ""),
+    )
+    for candidate in candidates:
+        if remote_is_dir(resolved, candidate):
+            print(f"   {ui.ok('✔')} source.server_path on server: {candidate}")
+            return replace(resolved, source_server_path=candidate)
 
-    ui.blank()
-    ui.heading("Software path on AgentCore server", success=False)
-    ui.blank()
-    ui.bullet(f"This checkout is {candidate} on the client.")
-    ui.bullet("Sync runs on the AgentCore server — that host needs a copy (NFS/rsync/clone).")
-    ui.bullet("Enter the absolute path that exists on the server (not this laptop path unless shared).")
-    ui.blank()
-    while True:
-        raw = _prompt_line(
-            "source.server_path on server",
-            default="",
-            input_fn=input_fn,
-        ).strip()
-        if not raw:
-            print(f"   {ui.warn('!')} path is required for remote sync")
-            continue
-        path = str(Path(raw).expanduser())
-        if not remote_is_dir(settings, path):
-            print(f"   {ui.warn('!')} {missing_server_source_message(path)}")
-            continue
-        print(f"   {ui.ok('✔')} source.server_path on server: {path}")
-        return replace(settings, source_server_path=path)
+    tried = ", ".join(candidates) if candidates else "(none)"
+    raise SystemExit(
+        "error: could not auto-discover source.server_path on the AgentCore server "
+        f"(client checkout {work.resolve()}).\n"
+        f"  Probed via SSH: {tried}\n"
+        "  Put a copy of this software on the server (clone/rsync/NFS), then re-run "
+        "`agentcore connect`, or set source.server_path in .agentcore/connect.yaml."
+    )
 
 
 def _persist_and_run_connect(

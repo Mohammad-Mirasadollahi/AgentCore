@@ -38,7 +38,7 @@ def test_project_lifecycle_and_cursor_export(tmp_path, monkeypatch):
                 "--name",
                 "Demo",
                 "--usage-profile",
-                "default",
+                "programming-cursor-mcp",
             ]
         )
         == 0

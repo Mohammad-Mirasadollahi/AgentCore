@@ -109,10 +109,10 @@ def test_activate_programming_usage_profile_and_export_cursor_mcp():
     created = client.post(
         "/api/v1/projects/p/profile",
         headers=H,
-        json={"name": "Eng", "usage_profile": "default"},
+        json={"name": "Eng", "usage_profile": "programming-cursor-mcp"},
     )
     assert created.status_code == 200
-    assert created.json()["project"]["usage_profile"] == "default"
+    assert created.json()["project"]["usage_profile"] == "programming-cursor-mcp"
 
     activated = client.post(
         "/api/v1/projects/p/usage-profile:activate",

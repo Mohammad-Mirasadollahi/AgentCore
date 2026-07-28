@@ -63,12 +63,16 @@ def prompt_usage_profile(
     default: str = "",
     input_fn: PromptFn = input,
 ) -> str:
-    """Ask for a Usage Profile id (catalog). Empty default — chosen at connect, not install."""
+    """Resolve Usage Profile id from catalog. Single catalog entry is auto-selected."""
     from usage_profile import list_profile_ids, load_usage_profile
 
     ids = list(list_profile_ids())
     if not ids:
         raise SystemExit("error: no Usage Profiles installed (usage_profile catalog empty)")
+    if len(ids) == 1:
+        only = ids[0]
+        print(f"   {ui.ok('✔')} Usage Profile: {only}")
+        return only
     ui.blank()
     print("   Usage Profiles (choose at connect — not set during client install):")
     for index, profile_id in enumerate(ids, start=1):
@@ -119,7 +123,8 @@ def run_ssh_connect_wizard(
     ui.blank()
     ui.bullet("Password is used once to install an AgentCore SSH key; it is never saved.")
     ui.bullet("Remote AgentCore root is auto-discovered from install-root markers after SSH.")
-    ui.bullet("Usage Profile is chosen here at connect (not during client install).")
+    ui.bullet("Software source path on the server is auto-discovered over SSH (no prompt).")
+    ui.bullet("Usage Profile defaults to the sole shipped catalog entry when only one exists.")
     ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use connect edit to change SSH identity.")
     ui.blank()
 
@@ -134,7 +139,7 @@ def run_ssh_connect_wizard(
 
     tenant = _prompt_line("Tenant", default=base.tenant or "default", input_fn=input_fn)
     workspace = _prompt_line("Workspace", default=base.workspace or "default", input_fn=input_fn)
-    usage_profile = prompt_usage_profile(
+    usage_profile = (base.usage_profile or "").strip() or prompt_usage_profile(
         default=(base.usage_profile or "").strip(),
         input_fn=input_fn,
     )

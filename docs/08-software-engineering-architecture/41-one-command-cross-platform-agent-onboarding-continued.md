@@ -28,8 +28,10 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/connect.py::_ensure_usage_profile
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_cli/install_root_marker.py::discover_remote_install_root
-doc_version: 1.1.1
-updated_at: '2026-07-25'
+- backend/packages/agentcore_cli/commands/connect.py::_ensure_remote_source_path
+- backend/packages/agentcore_cli/commands/connect.py::_remote_source_candidates
+doc_version: 1.2.0
+updated_at: '2026-07-28'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding (Continued)
@@ -40,14 +42,14 @@ Continuation of [41-one-command-cross-platform-agent-onboarding.md](./41-one-com
 
 ## First connect when scope is missing
 
-When an operator runs `agentcore connect` from an application checkout on a **TTY** and scope is not already configured, connect **must** collect the missing values interactively, then register the project and wire MCP. It does **not** invent tenant/workspace/Usage Profile silently, and it does **not** author a new Usage Profile template on the client.
+When an operator runs `agentcore connect` from an application checkout on a **TTY** and scope is not already configured, connect **must** collect the missing values interactively, then register the project and wire MCP. It does **not** invent tenant/workspace silently, and it does **not** author a new Usage Profile template on the client. The shipped catalog currently has a **single** Usage Profile (`programming-cursor-mcp`), which connect auto-selects.
 
 ### When the wizard runs
 
 | Condition | Behavior |
 | --- | --- |
 | No `<checkout>/.agentcore/connect.yaml` (and no usable legacy home config) | Full SSH wizard + scope prompts |
-| `connect.yaml` exists but `usage_profile` empty | Prompt for Usage Profile id (TTY) or require `--usage-profile` |
+| `connect.yaml` exists but `usage_profile` empty | Auto-select sole catalog profile; otherwise prompt (TTY) or require `--usage-profile` |
 | `connect.yaml` already has `scope.*` + `usage_profile` + working SSH | Reuse; no re-prompt for tenant/workspace/profile |
 | Non-interactive / no TTY and profile missing | Fail closed: pass `--usage-profile` (and scope flags as needed) |
 
@@ -65,19 +67,20 @@ Typical interactive order:
 1. Server host and SSH username
 2. Tenant id (default `default` if the operator accepts the empty default)
 3. Workspace id (default `default`)
-4. Usage Profile — numbered list from the installed catalog; enter an id or list number
+4. Usage Profile — auto-selected when the catalog has one entry; otherwise numbered list
 5. SSH password **once** (pubkey install; never stored)
 6. Auto-discover AgentCore `remote_root` via `install-root` markers (not prompted)
-7. Write/merge `<checkout>/.agentcore/connect.yaml`, register/activate project on the server, write IDE MCP configs
+7. Auto-discover `source.server_path` over SSH (client path, dogfood `remote_root`, `/opt/<project>`, …) — not prompted
+8. Write/merge `<checkout>/.agentcore/connect.yaml`, register/activate project on the server, write IDE MCP configs
 
 | Field | Source when missing | Notes |
 | --- | --- | --- |
 | `scope.tenant` | Wizard prompt | Operator-chosen id string |
 | `scope.workspace` | Wizard prompt | Operator-chosen id string |
 | `scope.project` | Current directory name | Override with `--project` |
-| `usage_profile` | Catalog pick (`prompt_usage_profile`) | Select only — list with `agentcore profile list` |
+| `usage_profile` | Sole catalog entry, else `prompt_usage_profile` | Select only — list with `agentcore profile list` |
 | `server.remote_root` | `discover_remote_install_root` over SSH | Fail if no marker / common root found |
-| `source.server_path` | Optional; **not** the laptop cwd for remote SSH | Must exist on the AgentCore host for ingest |
+| `source.server_path` | SSH probe of candidate paths | Must exist on the AgentCore host for ingest; never ask on TTY |
 
 ### Flow
 
@@ -98,8 +101,8 @@ flowchart TD
 | --- | --- | --- | --- |
 | 1 | Operator | Runs `agentcore connect` under the app repo | Starts client onboarding |
 | 2 | CLI | Detects missing config / incomplete scope | Enters interactive wizard on TTY |
-| 3 | Operator | Enters host, user, tenant, workspace, Usage Profile | Scope ids chosen |
-| 4 | CLI | Password once → pubkey; discover `remote_root` | SSH BatchMode ready |
+| 3 | Operator | Enters host, user, tenant, workspace | Scope ids chosen; profile auto if sole |
+| 4 | CLI | Password once → pubkey; discover `remote_root` + `source.server_path` | SSH BatchMode ready; ingest path set |
 | 5 | CLI | Writes `connect.yaml`; `project register` / `activate` on server | Scope exists in AgentCore state |
 | 6 | CLI | Merges MCP client configs | IDE can talk to AgentCore after reload |
 
@@ -116,7 +119,7 @@ Or set `scope` + `usage_profile` in `.agentcore/connect.yaml` and re-run `agentc
 ### What is not created here
 
 - New Usage Profile **templates** (catalog ships with the CLI; choose an existing id)
-- An on-server copy of the laptop app tree (set `source.server_path` to a path visible on the AgentCore host, or sync later once that path exists)
+- An on-server copy of the laptop app tree (connect discovers an existing server path; clone/rsync/NFS separately if missing)
 - A second identity via `agentcore init` unless you are dogfooding on the AgentCore checkout itself
 
 ## APIs (when `server.url` is set)
@@ -138,8 +141,8 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | MCP hangs on connect | SSH password prompt | Install key; test `ssh -o BatchMode=yes … true` |
 | `HTTP smoke failed` | `serve-http` down or bad token | Start `agentcore mcp serve-http`; check `AGENTCORE_MCP_TOKEN_SECRET` |
 | Tools empty / wrong project | Wrong scope | Check `tenant` / `workspace` / project id (= cwd name unless set) |
-| Connect exits: Usage Profile required | No TTY / empty profile | Pass `--usage-profile ID` or run interactively; `agentcore profile list` |
-| Ingest skipped / failed | Path not on server | Set `source.server_path` to a path that exists on AgentCore host |
+| Connect exits: Usage Profile required | Empty catalog / multi-profile without flag | Pass `--usage-profile ID` or run interactively; `agentcore profile list` |
+| Ingest / connect fails: could not auto-discover `source.server_path` | No matching tree on server | Clone/rsync the app onto the host (`/opt/<name>` or dogfood AgentCore root), then re-run connect |
 | `agentcore: command not found` | PATH | New shell after install; `agentcore path install` |
 
 ## Implementation status

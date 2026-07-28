@@ -200,7 +200,7 @@ def test_run_ssh_connect_wizard_fails_when_discover_misses(tmp_path: Path, monke
     (home / ".ssh" / "id_ed25519_agentcore.pub").write_text(
         "ssh-ed25519 AAAA agentcore-connect\n", encoding="utf-8"
     )
-    answers = iter(["h.example", "ops", "t", "w", "default"])
+    answers = iter(["h.example", "ops", "t", "w"])
 
     def fake_input(prompt: str) -> str:
         return next(answers)
@@ -213,6 +213,10 @@ def test_run_ssh_connect_wizard_fails_when_discover_misses(tmp_path: Path, monke
     monkeypatch.setattr(
         "agentcore_cli.install_root_marker.discover_remote_install_root",
         lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        "usage_profile.list_profile_ids",
+        lambda: ["programming-cursor-mcp"],
     )
     app = tmp_path / "App"
     app.mkdir()
@@ -248,14 +252,26 @@ def test_prompt_usage_profile_accepts_number(monkeypatch):
 
     monkeypatch.setattr(
         "usage_profile.list_profile_ids",
-        lambda: ["default", "programming-cursor-mcp"],
+        lambda: ["alpha", "programming-cursor-mcp"],
     )
     monkeypatch.setattr(
         "usage_profile.load_usage_profile",
         lambda pid: {"title": pid},
     )
     assert prompt_usage_profile(input_fn=lambda _p: "2") == "programming-cursor-mcp"
-    assert prompt_usage_profile(default="default", input_fn=lambda _p: "") == "default"
+    assert prompt_usage_profile(default="alpha", input_fn=lambda _p: "") == "alpha"
+
+
+def test_prompt_usage_profile_auto_selects_sole_entry(monkeypatch):
+    from agentcore_cli.connect_wizard import prompt_usage_profile
+
+    monkeypatch.setattr(
+        "usage_profile.list_profile_ids",
+        lambda: ["programming-cursor-mcp"],
+    )
+    assert prompt_usage_profile(input_fn=lambda _p: (_ for _ in ()).throw(AssertionError("no prompt"))) == (
+        "programming-cursor-mcp"
+    )
 
 
 def test_ensure_ssh_ready_edit_rotates(tmp_path: Path, monkeypatch):

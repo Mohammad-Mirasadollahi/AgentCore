@@ -85,7 +85,7 @@ class ProjectProfileService:
         name = str(payload.get("name") or "").strip()
         domain_pack = str(payload.get("domain_pack") or "default").strip()
         feature_profile = str(payload.get("feature_profile") or "default").strip()
-        usage_profile = str(payload.get("usage_profile") or "default").strip()
+        usage_profile = str(payload.get("usage_profile") or "programming-cursor-mcp").strip()
         if not name:
             raise ValidationError("name is required")
         role_list = [str(r) for r in (payload.get("actor_roles") or [])]
@@ -249,7 +249,7 @@ class ProjectProfileService:
 
     def get_effective_usage_profile(self, scope: Scope) -> dict[str, Any]:
         project = self.store.get_project(scope.project_id, scope)
-        profile_id = str(project.get("usage_profile") or "default")
+        profile_id = str(project.get("usage_profile") or "programming-cursor-mcp")
         try:
             return resolve_effective_profile(
                 profile_id,

@@ -12,8 +12,8 @@ from usage_profile import (
 
 def test_catalog_includes_programming_profile():
     ids = list_profile_ids()
-    assert "default" in ids
-    assert "programming-cursor-mcp" in ids
+    assert ids == ["programming-cursor-mcp"]
+    assert "default" not in ids
 
 
 def test_programming_profile_validates_and_lists_mcp_tools():

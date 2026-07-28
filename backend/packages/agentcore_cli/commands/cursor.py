@@ -20,7 +20,7 @@ def cmd_cursor_export(args: argparse.Namespace) -> int:
     if project is None:
         raise SystemExit("error: project not found")
     effective = resolve_effective_profile(
-        str(project.get("usage_profile") or "default"),
+        str(project.get("usage_profile") or "programming-cursor-mcp"),
         tenant_id=tenant,
         workspace_id=workspace,
         project_id=project_id,

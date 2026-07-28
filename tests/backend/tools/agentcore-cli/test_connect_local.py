@@ -86,41 +86,68 @@ def test_ensure_remote_source_path_autodetects_when_on_server(tmp_path: Path, mo
     assert out.source_server_path == str(tmp_path.resolve())
 
 
-def test_ensure_remote_source_path_prompts_when_missing_on_server(tmp_path: Path, monkeypatch):
+def test_ensure_remote_source_path_discovers_opt_project(tmp_path: Path, monkeypatch):
     from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
 
-    seen: list[str] = []
+    app = tmp_path / "ThinkingSOC"
+    app.mkdir()
 
     def fake_remote_is_dir(_settings, path: str) -> bool:
-        seen.append(path)
-        return path == "/srv/repos/ThinkingSOC"
+        return path == "/opt/ThinkingSOC"
 
     monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", fake_remote_is_dir)
-    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdout.isatty", lambda: True)
-    settings = ConnectSettings(ssh="user@host", source_server_path="")
-    out = _ensure_remote_source_path(
-        settings,
-        tmp_path,
-        allow_prompt=True,
-        input_fn=lambda _p: "/srv/repos/ThinkingSOC",
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
     )
-    assert out.source_server_path == "/srv/repos/ThinkingSOC"
-    assert str(tmp_path.resolve()) in seen
+    settings = ConnectSettings(ssh="user@host", source_server_path="", remote_root="/opt/AgentCore")
+    out = _ensure_remote_source_path(settings, app, allow_prompt=False)
+    assert out.source_server_path == "/opt/ThinkingSOC"
 
 
-def test_ensure_remote_source_path_fails_closed_without_tty(tmp_path: Path, monkeypatch):
+def test_ensure_remote_source_path_uses_remote_root_for_agentcore_dogfood(
+    tmp_path: Path, monkeypatch
+):
+    from agentcore_cli.commands.connect import _ensure_remote_source_path
+    from agentcore_cli.connect_config import ConnectSettings
+
+    root = tmp_path / "AgentCore"
+    (root / "backend" / "packages" / "agentcore_cli").mkdir(parents=True)
+    (root / "pyproject.toml").write_text('name = "agentcore"\n', encoding="utf-8")
+
+    def fake_remote_is_dir(_settings, path: str) -> bool:
+        return path == "/opt/AgentCore"
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", fake_remote_is_dir)
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.looks_like_agentcore_root",
+        lambda p: Path(p).name == "AgentCore",
+    )
+    settings = ConnectSettings(ssh="user@host", source_server_path="", remote_root="/opt/AgentCore")
+    out = _ensure_remote_source_path(settings, root, allow_prompt=False)
+    assert out.source_server_path == "/opt/AgentCore"
+
+
+def test_ensure_remote_source_path_fails_closed_when_undiscoverable(tmp_path: Path, monkeypatch):
     from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
 
     monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", lambda *_a, **_k: False)
-    monkeypatch.setattr("agentcore_cli.commands.connect.sys.stdin.isatty", lambda: False)
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
     settings = ConnectSettings(ssh="user@host", source_server_path="")
     try:
         _ensure_remote_source_path(settings, tmp_path, allow_prompt=True)
         raised = False
     except SystemExit as exc:
         raised = True
-        assert "source.server_path" in str(exc)
+        assert "auto-discover source.server_path" in str(exc)
+        assert "Probed via SSH" in str(exc)
     assert raised
