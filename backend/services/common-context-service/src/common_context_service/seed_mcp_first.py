@@ -96,8 +96,9 @@ _SKILL_SPECS: list[dict[str, Any]] = [
     {
         "name": "agentcore-source-contracts",
         "description": (
-            "Selective hard-module contract docstrings (standard 49) and package/folder "
-            "README maps (standard 50) — apply on edit and fix-on-read of hard modules."
+            "Selective hard-module contract docstrings (standard 49; default-deny Hard Module Test) "
+            "and package/folder README maps (standard 50) — apply on edit and fix-on-read of hard "
+            "modules only."
         ),
         "when_to_use": [
             "module-contract",

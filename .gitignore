@@ -113,6 +113,7 @@ Thumbs.db
 .tmp-mem.txt
 .tmp-tv.txt
 pytest-audit.txt
+cs_pytest.txt
 
 # Agent / IDE local wiring (never sync)
 # Installed Cursor / Claude / Codex / other agent tooling — never commit

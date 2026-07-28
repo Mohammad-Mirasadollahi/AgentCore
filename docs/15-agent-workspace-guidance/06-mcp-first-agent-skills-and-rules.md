@@ -25,8 +25,8 @@ audience_lane:
 - product
 authority: normative
 visibility: internal
-doc_version: 1.1.0
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-07-28'
 linked_symbols: []
 ---
 
@@ -100,10 +100,10 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance.
 8. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
 9. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
-10. When editing **hard modules** (queues, dual-store durability, workers, state machines, trust boundaries, fail-open/fail-closed): read then keep/update a selective file-top **module contract docstring** (role + source of truth / invariants + allowed vs forbidden failures) per `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md`. Skip trivial helpers. Follow skill `agentcore-source-contracts`.
+10. When editing **hard modules** (must pass the Hard Module Test in `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md` — SoT vs wake, queues/workers, fail-open/fail-closed, state machines, trust boundaries, exclusivity): read then keep/update a selective file-top **module contract docstring** (role + source of truth / invariants + allowed vs forbidden failures). **Default: skip.** Unsure or helper/DTO/re-export/thin wiring → **MUST NOT** write a header. Follow skill `agentcore-source-contracts`.
 11. When working at a **package/folder seam** agents confuse: ensure a short **README map** (purpose + boundaries + 2–5 start-here files) per `docs/08-software-engineering-architecture/50-package-folder-readme-standard.md` — never a per-file encyclopedia. Follow skill `agentcore-source-contracts`.
 12. **Fix-on-read (docs):** After you Read product Markdown under `docs/` / `backend/docs/` / `frontend/docs/` / `ai-toolstack/docs/` / `deploy-toolkit` and it fails Full-tier authoring law: load `agentcore-documentation-authoring` + `agentcore_docs_authoring_standards`, then remediate **that file in the same turn** before continuing. Do not leave a known nonconforming doc you already opened.
-13. **Fix-on-read (module contracts):** After you Read a **hard module** (standard 49) that lacks an accurate file-top module contract docstring: load `agentcore-source-contracts` and add/fix the header **in the same turn**. Skip trivial helpers per 49.
+13. **Fix-on-read (module contracts):** After you Read a **hard module** (Hard Module Test = yes per standard 49) that lacks an accurate file-top module contract docstring: load `agentcore-source-contracts` and add/fix the header **in the same turn**. Do not stamp helpers/DTOs/re-exports or write “just in case.”
 14. **Fix-on-write (standards):** When you create or materially edit product docs or hard-module / package-seam code, load skill `agentcore-standards-on-edit` and remediate to project standards **in the same turn**. Sync may skip nonconforming docs; remediation on edit is how the corpus converges.
 ```
 ## Agents Entry Pointers

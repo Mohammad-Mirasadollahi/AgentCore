@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/port-profile-verification/run_gate.py::main
-doc_version: 1.0.1
-updated_at: '2026-07-26'
+doc_version: 1.0.2
+updated_at: '2026-07-28'
 ---
 
 # 08 - Software Engineering Architecture Index
@@ -85,7 +85,7 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 44-mcp-token-accounting.md is the feature spec for MCP connect-cost estimates, client/scope usage attribution, and `agentcore mcp tokens`.
 - 37-test-authoring-standard.md is the normative test-authoring playbook: concurrent code-and-tests law, family taxonomy (unit, contract, integration, e2e, live, fuzz, security, performance, regression), doubles, placement, markers, CI selection, and Definition of Done for humans and coding agents.
 - 38-fuzzing-and-property-based-testing.md defines property-based and fuzz suites: invariants, bounded generators, schema/API fuzz, corpus, shrinking, and when fuzz is mandatory with implementation.
-- 49-module-contract-docstrings-standard.md defines selective module-level contract docstrings (role, source of truth / invariants, allowed vs forbidden failures) for hard modules so agents do not invent the wrong durability or crash policy.
+- 49-module-contract-docstrings-standard.md defines selective, **default-deny** module-level contract docstrings (Hard Module Test; role, source of truth / invariants, allowed vs forbidden failures) for hard modules so agents do not invent the wrong durability or crash policy — and do not stamp helpers/DTOs.
 - 50-package-folder-readme-standard.md defines selective package/folder `README.md` maps (purpose, boundaries, 2–5 start-here files) and rejects per-file encyclopedias in those READMEs.
 
 ## Implementation Slice

@@ -5,8 +5,8 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-engineering
-summary: 'Normative AgentCore standard for selective module-level contract docstrings: when
-  required, three-axis template (role, source of truth / invariants, allowed vs forbidden
+summary: 'Normative AgentCore standard for selective module-level contract docstrings: default-skip
+  hard-module test, three-axis template (role, source of truth / invariants, allowed vs forbidden
   failures), anti-patterns, freshness, and how this layer relates to WHY/NOTE/HACK and Markdown.'
 tags:
 - documentation
@@ -34,12 +34,12 @@ related_docs:
 - ac.doc.sea.data-persistence
 language: en
 security_classification: internal
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - architect
 - agent
-updated_at: '2026-07-24'
+updated_at: '2026-07-28'
 ---
 
 # 49 - Module Contract Docstrings Standard
@@ -50,8 +50,9 @@ Define when and how AgentCore modules **must** carry a short **module-level cont
 so coding agents and humans learn non-obvious system contracts without reading the whole file
 or inventing the wrong source of truth.
 
-This standard is **selective**. It does **not** require a module docstring on every file.
-Signal density beats volume: stale or obvious headers lower agent quality.
+This standard is **selective** and **default-deny**. It does **not** require a module docstring on
+every file. **If the Hard Module Test fails, do not write a header.** Signal density beats volume:
+stale or obvious headers lower agent quality.
 
 In-source tagged rationale (`# WHY:` / `# NOTE:` / `# HACK:`) and Full-tier Markdown under
 `docs/` remain separate layers (see Related Documents). This document owns only the
@@ -66,13 +67,15 @@ In-source tagged rationale (`# WHY:` / `# NOTE:` / `# HACK:`) and Full-tier Mark
 - Give a fixed three-axis template so headers stay short and comparable.
 - Keep English-only committed source aligned with project language law.
 - Make freshness an explicit duty when contracts change.
+- Make **skip** the default so agents do not stamp low-importance files.
 
 ### Non-Goals
 
 - Replacing `# WHY:` / `# NOTE:` / `# HACK:` rationale comments (statement-level intent).
 - Replacing Full-tier design / LLD Markdown under `docs/`.
 - Mandating module docstrings on CRUD mappers, DTO-only modules, constants, thin re-exports,
-  or other files whose behavior is obvious from names and types.
+  parsers without trust policy, CLI arg wiring, or other files whose behavior is obvious from
+  names and types.
 - Long architecture essays in source (those belong in `docs/`).
 - Per-file encyclopedias in folder `README.md` files (those are rejected; see `50-package-folder-readme-standard.md`).
 
@@ -80,9 +83,9 @@ In-source tagged rationale (`# WHY:` / `# NOTE:` / `# HACK:`) and Full-tier Mark
 
 ```mermaid
 flowchart TD
-  start[Editing, adding, or reading a Python module] --> hard{Hard module?}
-  hard -->|no| skip[Skip module contract docstring]
-  hard -->|yes| has{Contract docstring present and accurate?}
+  start[Editing, adding, or reading a Python module] --> doubt{Hard Module Test: any YES?}
+  doubt -->|no or unsure| skip[MUST NOT add module contract docstring]
+  doubt -->|yes| has{Contract docstring present and accurate?}
   has -->|no| write[Write or fix 3-6 line contract docstring same turn]
   has -->|yes| keep[Keep; update only if this change alters contract]
   write --> axes[Cover role + SoT/invariants + failure policy]
@@ -93,16 +96,35 @@ flowchart TD
 
 | Step | Condition | Action |
 | --- | --- | --- |
-| 1 | Module is not “hard” (see When Required) | Do not add a module contract docstring |
-| 2 | Hard module, missing or wrong header (on edit **or** on Read) | Write/fix 3–6 lines using the three-axis template in the **same turn** |
+| 1 | Hard Module Test = **no** or **unsure** | **MUST NOT** add a module contract docstring |
+| 2 | Hard Module Test = **yes**, missing or wrong header (on edit **or** on Read) | Write/fix 3–6 lines using the three-axis template in the **same turn** |
 | 3 | Hard module, header still true after the change | Leave it; do not expand for style |
 | 4 | Change alters SoT, wake path, or fail policy | Update the docstring in the **same** change |
 
-## When Required
+## Hard Module Test (required gate)
 
-A module **must** have a module-level contract docstring when **any** of the following is true:
+**Default answer: no → skip.**
 
-| Trigger | Examples |
+A module is **hard** only when **at least one** question below is a clear **yes**. If you are
+unsure, treat the answer as **no** and **do not** invent a header.
+
+| # | Question (yes ⇒ hard) |
+| --- | --- |
+| 1 | Does this file own a **durable SoT** vs a **wake/cache** layer that agents often swap? |
+| 2 | Does it define **queue / worker / outbox / inbox / lease / poison** behavior? |
+| 3 | Does it encode an explicit **fail-open** or **fail-closed** policy that must not be “simplified”? |
+| 4 | Does it own a **state machine / ticket lifecycle** with durable states? |
+| 5 | Is it a **trust boundary** (authz, tenant isolation, approval, secret redaction entry)? |
+| 6 | Does it enforce **non-obvious exclusivity** (single-flight, fencing, sticky shard)? |
+
+A module **should** become hard (add a header) only when agents have **already** mis-edited it
+for the wrong SoT or crash policy — not because the file “feels important.”
+
+### When Required (after a yes)
+
+When the Hard Module Test passes, the file **must** have a module-level contract docstring.
+
+| Trigger (maps to test) | Examples |
 | --- | --- |
 | Dual durability / wake path | DB is SoT; Redis LIST is a wake signal rebuilt from DB |
 | Worker / queue / outbox / inbox | One-at-a-time analysis queue; lease reclaim; poison handling |
@@ -111,19 +133,26 @@ A module **must** have a module-level contract docstring when **any** of the fol
 | Trust boundary or security policy | Tenant isolation seam; approval gate; secret redaction entry |
 | Non-obvious ordering or exclusivity | Single-flight, fencing token, sticky shard |
 
-A module **should** get one when agents repeatedly mis-edit it (wrong SoT, treating wake-layer
-outages as crashes, “fixing” fail-open into fail-closed).
+### When To Skip (MUST NOT write)
 
-### When To Skip
+**MUST NOT** add a module contract docstring when **any** of the following is true (even if the
+file sits next to a hard module):
 
-Skip when the file is:
-
-- Pure helpers whose contracts are the type signatures.
-- Thin HTTP/MCP route wiring with no local durability policy.
-- Generated code, `__init__` re-exports, fixture-only modules.
-- Already covered by a neighboring hard module’s header **and** this file has no extra contract.
+| Skip class | Examples |
+| --- | --- |
+| Pure helpers / utils | Path join, string normalize, small pure transforms |
+| Schemas / DTOs / models | Pydantic models, TypedDicts, dataclass bags with no policy |
+| Thin re-exports | `__init__.py` that only imports/exports |
+| Thin HTTP/MCP/CLI wiring | Route registration, argparse, request/response mapping with no local durability policy |
+| Fixtures / tests / generated | `conftest.py`, generated clients, protobuf stubs |
+| Obvious from names/types | CRUD mapper whose SoT is the function name alone |
+| Already covered neighbor | Sibling file has the SoT header **and** this file adds no extra failure/trust contract |
+| Restating README or docs | Copying architecture from `docs/` into every leaf file |
 
 Do **not** paste the same essay into every related file. One SoT header at the ownership seam.
+
+**Doubt rule:** Prefer **skip** over a weak header. A missing header on a non-hard file is correct;
+a decorative header is debt.
 
 ## Three-Axis Template
 
@@ -164,10 +193,12 @@ Why this works for agents:
 | Bad | Why |
 | --- | --- |
 | `"""Queue helpers."""` | No contract; agents invent SoT |
+| Header on a helper/DTO/`__init__` that failed the Hard Module Test | Decorative noise; delete it |
 | Restating `def enqueue(...):` in the module header | Noise; use function docstring or `# WHY:` |
 | Multi-page architecture in the module string | Belongs in `docs/`; will go stale |
 | Persian or mixed-language committed docstring | Violates English-only source law |
 | Header that contradicts the code | Worse than none — delete or fix in the same change |
+| Writing a header “just in case” when unsure | Violates default-deny; prefer skip |
 
 ## Relation To Other In-Source Layers
 
@@ -205,6 +236,7 @@ so explore / generation-context / hybrid coverage can retrieve SoT and fail poli
 
 ## Verification
 
+- [ ] Hard Module Test applied first; non-hard / unsure files have **no** new decorative header.
 - [ ] Hard modules touched by the change have an accurate three-axis header (or an explicit skip reason that matches When To Skip).
 - [ ] English only; no `ponytail:` markers; stopgaps use `tsoc-defer` only when user-approved.
 - [ ] No duplicate architecture essay that should live only under `docs/`.
