@@ -10,6 +10,12 @@ stage_01_prerequisites_check() {
     errors=1
   else
     ok "Python: $(${py} --version 2>&1)"
+    if ! python_ensurepip_ok "${py}"; then
+      warn "Python venv support missing (ensurepip) — install python3.12-venv"
+      errors=1
+    else
+      ok "Python ensurepip/venv available"
+    fi
   fi
 
   if ! have_cmd curl; then
@@ -84,7 +90,9 @@ _stage_01_install_node20() {
 }
 
 _stage_01_ensure_python312() {
-  if python_bin >/dev/null; then
+  local py=""
+  # Python may already be on PATH while ensurepip (python3.12-venv) is still missing.
+  if py="$(python_bin 2>/dev/null)" && python_ensurepip_ok "${py}"; then
     return 0
   fi
   info "Installing Python 3.12 + venv…"
@@ -97,7 +105,8 @@ _stage_01_ensure_python312() {
       as_root apt-get install -y python3.12 python3.12-venv python3.12-dev
     fi
   fi
-  python_bin >/dev/null || fail "Python 3.12+ still missing after apt install"
+  py="$(python_bin)" || fail "Python 3.12+ still missing after apt install"
+  python_ensurepip_ok "${py}" || fail "Python ensurepip still missing after apt install (need python3.12-venv)"
 }
 
 stage_01_prerequisites_run() {

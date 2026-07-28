@@ -92,6 +92,8 @@ stage_02_venv_run() {
 
     local py
     py="$(python_bin)" || fail "Python 3.12+ required before creating venv"
+    python_ensurepip_ok "${py}" \
+      || fail "Python ensurepip missing (Debian/Ubuntu: apt install python3.12-venv), then re-run install"
 
     info "Creating/refreshing ${venv_dir} with ${py}…"
     if [[ "${py}" == "python3.12" ]] && [[ ! -x "${venv_path}/bin/python" ]]; then

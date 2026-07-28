@@ -97,6 +97,78 @@ echo OK
     assert "OK" in proc.stdout
 
 
+def test_prerequisites_check_fails_without_ensurepip() -> None:
+    """Stage 01 must not treat Python-without-ensurepip as satisfied."""
+    script = f"""
+set -euo pipefail
+export AGENTCORE_ROOT={ROOT.as_posix()!r}
+export INSTALL_SKIP_INFRA=1
+export INSTALL_WITH_FRONTEND=0
+source {INSTALL_LIB.as_posix()!r}/common.sh
+source {INSTALL_LIB.as_posix()!r}/01_prerequisites.sh
+python_ensurepip_ok() {{ return 1; }}
+if stage_01_prerequisites_check; then
+  echo "expected check failure" >&2
+  exit 2
+fi
+echo OK
+"""
+    proc = subprocess.run(
+        ["bash", "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+    assert "ensurepip" in (proc.stderr + proc.stdout).lower()
+
+
+def test_ensure_python312_installs_venv_when_ensurepip_missing() -> None:
+    """Existing python3.12 must still apt-install python3.12-venv when ensurepip is gone."""
+    with tempfile.TemporaryDirectory() as tmp:
+        script = f"""
+set -euo pipefail
+export AGENTCORE_ROOT={tmp!r}
+source {INSTALL_LIB.as_posix()!r}/common.sh
+source {INSTALL_LIB.as_posix()!r}/01_prerequisites.sh
+python_bin() {{ printf '%s\\n' python3.12; }}
+python_ensurepip_ok() {{
+  # Fail until apt installs python3.12-venv (second call succeeds).
+  if [[ -f "${{AGENTCORE_ROOT}}/venv_pkg_installed" ]]; then
+    return 0
+  fi
+  return 1
+}}
+as_root() {{
+  printf '%s\\n' "$*" >>"${{AGENTCORE_ROOT}}/as_root.log"
+  if [[ "$*" == *python3.12-venv* ]]; then
+    touch "${{AGENTCORE_ROOT}}/venv_pkg_installed"
+  fi
+}}
+_stage_01_ensure_python312
+grep -q 'python3.12-venv' "${{AGENTCORE_ROOT}}/as_root.log"
+echo OK
+"""
+        proc = subprocess.run(
+            ["bash", "-c", script],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "OK" in proc.stdout
+
+
+def test_ensure_venv_script_mentions_ensurepip_on_failure() -> None:
+    text = (ROOT / "scripts" / "ensure-venv.sh").read_text(encoding="utf-8")
+    assert "|| true" not in text.split("pip install", 1)[0]
+    assert "python3.12-venv" in text
+    assert "ensurepip" in text
+
+
 def test_seed_repo_operator_files_copies_examples(tmp_path: Path) -> None:
     """Install seeds .env and agentcore.sync.yaml from examples when missing."""
     (tmp_path / ".env.example").write_text("AGENTCORE_TENANT_ID=demo\n", encoding="utf-8")

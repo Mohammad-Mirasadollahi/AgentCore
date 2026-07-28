@@ -44,14 +44,14 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.4.1
+doc_version: 1.4.2
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
+updated_at: '2026-07-28'
 ---
 
 # 39 - Local Install Runbook
@@ -237,6 +237,7 @@ backend/deployments/compose/wait-healthy.sh --timeout 300 \
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | Python 3.12 missing | Old OS / no deadsnakes | Re-run without `--skip-prerequisites`, or install Python 3.12 manually |
+| `ensurepip is not available` / venv create fails | `python3.12-venv` missing (Python binary present) | Re-run without `--skip-prerequisites` (stage 01 installs `python3.12-venv`), or `sudo apt install python3.12-venv` |
 | `docker daemon not reachable` | Docker stopped or user not in `docker` group | `sudo systemctl start docker`; log out/in after group add |
 | Compose env placeholder password | Example file copied without replace | Re-run `bash install.sh --stage 03_compose_env` |
 | Neo4j wait timeout | Slow first pull / plugins | Increase `--compose-timeout 300`; check `docker logs agentcore-neo4j-1` |

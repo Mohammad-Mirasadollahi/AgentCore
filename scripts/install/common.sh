@@ -139,6 +139,15 @@ python_bin() {
   return 1
 }
 
+# Debian/Ubuntu often ship python3.12 without ensurepip until python3.12-venv is installed.
+python_ensurepip_ok() {
+  local py="${1:-}"
+  if [[ -z "${py}" ]]; then
+    py="$(python_bin)" || return 1
+  fi
+  "${py}" -c 'import ensurepip' 2>/dev/null
+}
+
 linux_debian_family() {
   [[ -f /etc/os-release ]] || return 1
   grep -qE '^(ID=debian|ID=ubuntu|ID_LIKE=.*(debian|ubuntu))' /etc/os-release

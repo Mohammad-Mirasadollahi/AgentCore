@@ -11,7 +11,11 @@ cd "${ROOT}"
 VENV_DIR="${AGENTCORE_VENV_DIR:-.venv}"
 VENV_PATH="${ROOT}/${VENV_DIR}"
 
-python3 -m venv "${VENV_PATH}" || true
+if ! python3 -m venv "${VENV_PATH}"; then
+  echo "ERROR: failed to create ${VENV_PATH} (ensurepip / python3-venv missing?)" >&2
+  echo "On Debian/Ubuntu: sudo apt install python3.12-venv" >&2
+  exit 1
+fi
 "${VENV_PATH}/bin/python" -m pip install --upgrade pip
 "${VENV_PATH}/bin/pip" install -r requirements-dev.txt
 "${VENV_PATH}/bin/pip" install -e "${ROOT}"
