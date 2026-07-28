@@ -246,13 +246,6 @@ def test_remote_sync_from_args_rejects_missing_server_path(monkeypatch):
 
 
 def test_remote_ingest_skips_optional_when_path_missing_on_server(monkeypatch, capsys):
-    calls: list[list[str]] = []
-
-    def fake_run(settings, remote_command, *, connect_timeout=15):
-        calls.append(list(remote_command))
-        return 0
-
-    monkeypatch.setattr("agentcore_cli.connect_flow.ingest.run_ssh", fake_run)
     monkeypatch.setattr("agentcore_cli.connect_flow.ingest.remote_is_dir", lambda *_a, **_k: False)
     settings = ConnectSettings(
         ssh="user@host",
@@ -264,10 +257,38 @@ def test_remote_ingest_skips_optional_when_path_missing_on_server(monkeypatch, c
         ingest_mode="optional",
     )
     assert remote_ingest(settings) == 0
-    assert calls == []
     out = capsys.readouterr().out
     assert "skipping ingest" in out
     assert "/opt/ThinkingSOC" in out
+
+
+def test_remote_ingest_uses_client_consent_path(monkeypatch):
+    """Connect ingest must route through remote_sync (local TTY consent; SSH has no TTY)."""
+    seen: list[object] = []
+
+    def fake_remote_sync(settings, args):
+        seen.append(args)
+        return 7
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ingest.remote_is_dir", lambda *_a, **_k: True)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync.remote_sync_from_args",
+        fake_remote_sync,
+    )
+
+    settings = ConnectSettings(
+        ssh="user@host",
+        remote_root="/opt/AgentCore",
+        tenant="mir",
+        workspace="dev",
+        project="AgentCore",
+        source_server_path="/opt/AgentCore",
+        ingest_mode="optional",
+    )
+    assert remote_ingest(settings) == 7
+    assert len(seen) == 1
+    assert list(seen[0].path) == ["/opt/AgentCore"]
+    assert seen[0].allow_cloud_llm is False
 
 
 def test_remote_ingest_fails_always_when_path_missing_on_server(monkeypatch, capsys):

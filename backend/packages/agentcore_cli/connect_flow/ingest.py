@@ -7,7 +7,7 @@ import sys
 
 from agentcore_cli import ui
 from agentcore_cli.connect_config import ConnectSettings
-from agentcore_cli.connect_flow.ssh import missing_server_source_message, remote_is_dir, run_ssh
+from agentcore_cli.connect_flow.ssh import missing_server_source_message, remote_is_dir
 from agentcore_cli.util import repo_root
 
 
@@ -22,22 +22,29 @@ def remote_ingest(settings: ConnectSettings) -> int:
             return 1
         print(f"   {ui.warn('!')} skipping ingest: {msg}")
         return 0
-    root = settings.remote_root.rstrip("/\\")
-    agentcore = f"{root}/.venv/bin/agentcore"
-    remote_cmd = [
-        agentcore,
-        "sync",
-        "--tenant",
-        settings.tenant,
-        "--workspace",
-        settings.workspace,
-        "--project",
-        settings.project,
-        "--path",
-        path,
-    ]
-    print(f"   {ui.warn('…')} syncing {path} on server")
-    return run_ssh(settings, remote_cmd)
+    # SSH has no TTY — reuse the client-side consent path used by ``agentcore sync``.
+    from types import SimpleNamespace
+
+    from agentcore_cli.connect_flow.remote_sync import remote_sync_from_args
+
+    return remote_sync_from_args(
+        settings,
+        SimpleNamespace(
+            tenant=settings.tenant,
+            workspace=settings.workspace,
+            project=settings.project,
+            path=[path],
+            allow_cloud_llm=False,
+            max_files=None,
+            cpu_percent=None,
+            progress_interval=None,
+            skip_nonconforming=False,
+            sync_nonconforming=False,
+            exclude_dir=None,
+            include_path=None,
+            include_ext=None,
+        ),
+    )
 
 
 def local_ingest(settings: ConnectSettings, path: str) -> int:
