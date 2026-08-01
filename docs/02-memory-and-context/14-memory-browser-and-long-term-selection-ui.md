@@ -31,7 +31,7 @@ related_docs:
 - ac.doc.memory.index
 - ac.doc.memory.phase-2-api-contract
 language: en
-doc_version: 1.0.0
+doc_version: 1.1.0
 updated_at: '2026-08-01'
 ---
 
@@ -42,6 +42,33 @@ updated_at: '2026-08-01'
 Specify the operator/human UI for AgentCore memory so a user can **see what the system remembers**, understand why something appears in prompts, and **explicitly choose** what should stay in long-term memory versus what should be forgotten from default context.
 
 This document is UI/product guidance only. Backend remember/forget APIs are already owned by `memory-service` (see Implementation Anchors).
+
+## Document flow
+
+```mermaid
+flowchart TD
+  O[Open Memory Browser] --> L[List / filter memory items]
+  L --> D[Open item detail]
+  D --> A{Operator action}
+  A -->|Keep in long-term| P[POST promote]
+  A -->|Forget from prompts| F[POST deprecate]
+  A -->|Pin / edit / expiry| M[PATCH memory-item]
+  P --> C[Optional ContextBundle preview]
+  F --> C
+  M --> C
+  C --> R[Refresh list and chips]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Operator | Opens `/projects/{project_id}/memory` | Scoped Memory Browser loads |
+| 2 | Operator | Filters by kind / state / pinned / search | Matching rows listed |
+| 3 | Operator | Opens a non-restricted row | Detail drawer shows body and prompt explainer |
+| 4a | Operator | Chooses Keep in long-term | UI calls promote; item becomes durable semantic |
+| 4b | Operator | Chooses Forget from prompts | UI calls deprecate; item excluded from default prompts |
+| 4c | Operator | Pins, edits, or sets working expiry | UI calls PATCH; list chips update |
+| 5 | Operator | Runs optional context preview | Included vs excluded items shown with reasons |
+| 6 | Operator | Returns to list | Soft-forget history remains browsable under Forgotten |
 
 ## Product principle
 
@@ -187,7 +214,7 @@ GET    /api/v1/projects/{project_id}/stale-memory
 
 Contract: `backend/services/memory-service/docs/phase-2-api-contract.md`.
 
-## Related documents
+## Related Documents
 
 - [Memory index](00-index.md)
 - [Feature specification](01-feature-specification.md)
