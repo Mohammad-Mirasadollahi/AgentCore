@@ -84,6 +84,10 @@ def test_work_batch_ready_state_and_event_contract():
 def test_api_contract_routes_are_registered():
     routes = {route.path for route in app(MemoryService(InMemoryStore())).routes}
     assert "/api/v1/projects/{project_id}/memory-items" in routes
+    assert "/api/v1/projects/{project_id}/memory-items/{memory_item_id}" in routes
+    assert "/api/v1/projects/{project_id}/memory-items/{memory_item_id}:promote" in routes
+    assert "/api/v1/projects/{project_id}/memory-items/{memory_item_id}:deprecate" in routes
+    assert "/api/v1/projects/{project_id}/memory-promotions" in routes
     assert "/api/v1/projects/{project_id}/context-bundles" in routes
     assert "/api/v1/projects/{project_id}/question-memories/{question_id}:promote-faq" in routes
     assert "/api/v1/projects/{project_id}/memory-decays" in routes
@@ -158,3 +162,92 @@ def test_curiosity_and_missing_documentation_outcomes():
     task = service.resolve_missing_documentation(SCOPE, "agent", "corr", "doc-mid", task_q.id, 0.5, None)
     assert task["outcome"] == "task"
     assert task["question_memory"]["state"] == "searching"
+
+
+def test_promote_working_to_long_term_and_browse_filters():
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi.testclient import TestClient
+
+    store = InMemoryStore()
+    service = MemoryService(store)
+    working = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "work-1",
+        memory(
+            "working",
+            "Temp auth note",
+            "working memory dependency injection note",
+            state="active",
+            expires_at=(datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        ),
+    )
+    assert working.kind.value == "working"
+    promoted = service.promote_memory(SCOPE, "human", "corr", "promote-1", [working.id], "keep as project truth")
+    assert promoted[0].kind.value == "semantic"
+    assert promoted[0].state.value == "active"
+    assert promoted[0].expires_at is None
+    assert any(event["event_type"] == "MemoryPromotedToLongTerm" for event in store.outbox())
+
+    listed = service.list_memories(SCOPE, kind="semantic", q="dependency injection")
+    assert [item.id for item in listed] == [working.id]
+    pinned = service.update_memory(
+        SCOPE,
+        "human",
+        "corr",
+        "pin-1",
+        working.id,
+        {"pinned": True, "expected_version": promoted[0].version},
+    )
+    assert pinned.pinned is True
+    assert service.list_memories(SCOPE, pinned=True)[0].id == working.id
+
+    with TestClient(app(service)) as client:
+        response = client.get(
+            f"/api/v1/projects/p/memory-items/{working.id}",
+            headers={"X-Tenant-Id": "t", "X-Workspace-Id": "w"},
+        )
+    assert response.status_code == 200
+    assert response.json()["memory"]["kind"] == "semantic"
+    assert response.json()["memory"]["pinned"] is True
+
+
+def test_deprecate_excludes_from_default_retrieve():
+    store = InMemoryStore()
+    service = MemoryService(store)
+    item = service.create_memory(SCOPE, "agent", "corr", "sem-1", memory(state="active"))
+    forgotten = service.deprecate_memory(SCOPE, "human", "corr", "forget-1", [item.id], "no longer true")
+    assert forgotten[0].state.value == "deprecated"
+    bundle = service.retrieve_context(SCOPE, "agent", "corr", "memory dependency injection architecture").public()
+    assert bundle["items"] == []
+    assert any(entry["id"] == item.id and entry["reason"] == "inactive_memory_state" for entry in bundle["excluded"])
+    stale = service.list_stale_memory(SCOPE)
+    assert stale[0].id == item.id
+
+
+def test_working_memory_ttl_expires_lazily():
+    from datetime import UTC, datetime, timedelta
+
+    service = MemoryService(InMemoryStore())
+    past = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+    working = service.create_memory(
+        SCOPE,
+        "agent",
+        "corr",
+        "ttl-1",
+        memory(
+            "working",
+            "Session scratch",
+            "memory dependency injection scratchpad",
+            state="active",
+            expires_at=past,
+        ),
+    )
+    listed = service.list_memories(SCOPE, kind="working")
+    assert listed[0].id == working.id
+    assert listed[0].state.value == "stale"
+    bundle = service.retrieve_context(SCOPE, "agent", "corr", "memory dependency injection architecture").public()
+    assert all(entry["memory"]["id"] != working.id for entry in bundle["items"])
+    assert any(entry["id"] == working.id for entry in bundle["excluded"])

@@ -20,8 +20,8 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.0
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-08-01'
 ---
 
 # 02 - Memory and Context Index
@@ -52,6 +52,7 @@ Give agents the right context at the right time while keeping prompts fast, chea
 - 12-chat-quality-grounding-citations-refusal.md catalogs grounding, citations, empty/query refusal, relevance warnings, and contradiction-stage alignment.
 - 13-chat-quality-query-rewrite-memory-feedback.md catalogs query rewrite, keyword expansion, history fitting, chunk feedback, and branching.
 - 13-context-bundle-audit-and-verification.md closes GAP-T04: ContextBundle audit schema, fail-closed verifier, and prompt-safety tests.
+- 14-memory-browser-and-long-term-selection-ui.md specifies the human Memory Browser UI: list/filter memory, keep long-term, forget from prompts, pin, and preview ContextBundles (UI only; APIs in memory-service).
 
 ## Features Covered
 
@@ -59,6 +60,8 @@ Give agents the right context at the right time while keeping prompts fast, chea
 - Memory Consolidation.
 - State over Event Context.
 - Decay and Garbage Collection.
+- Human remember / forget (promote long-term, deprecate, working TTL, pin).
+- Memory Browser UI (documented; implementation pending).
 - Prompt Caching.
 - Dynamic Context Injection and RAG.
 - Configurable Memory Weighting.

@@ -4,7 +4,7 @@ Path: `backend/services/memory-service`
 
 ## Purpose
 
-Implements Phase 2: scoped working, episodic, semantic, restricted, and deprecated memory; consolidation; retrieval-ready ContextBundles; QuestionMemory and FAQ promotion; WorkBatch readiness; and versioned outbox events.
+Implements Phase 2: scoped working, episodic, semantic, restricted, and deprecated memory; consolidation; retrieval-ready ContextBundles; human remember/forget (promote long-term, deprecate, pin, working TTL); QuestionMemory and FAQ promotion; WorkBatch readiness; and versioned outbox events.
 
 ## Modular Boundary
 
@@ -20,7 +20,10 @@ The service owns MemoryItems, QuestionMemory, WorkBatches, ContextBundle constru
 
 Documented in `docs/phase-2-api-contract.md`.
 
-- `/api/v1/projects/{project_id}/memory-items`
+- `/api/v1/projects/{project_id}/memory-items` (list filters: `state`, `kind`, `pinned`, `q`)
+- `/api/v1/projects/{project_id}/memory-items/{id}` (GET/PATCH)
+- `/api/v1/projects/{project_id}/memory-items/{id}:promote` / `:deprecate`
+- `/api/v1/projects/{project_id}/memory-promotions`
 - `/api/v1/projects/{project_id}/memory-consolidations`
 - `/api/v1/projects/{project_id}/memory-decays`
 - `/api/v1/projects/{project_id}/context-bundles`

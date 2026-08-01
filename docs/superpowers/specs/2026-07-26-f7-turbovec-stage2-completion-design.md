@@ -29,8 +29,8 @@ linked_symbols:
 - backend/packages/vector_index/factory.py::try_build_accelerator
 - backend/packages/vector_index/metrics.py::InstrumentedVectorIndex
 - backend/packages/vector_index/metrics.py::AcceleratorMetrics
-- backend/services/memory-service/src/memory_service/core.py::index_memory_embedding
-- backend/services/memory-service/src/memory_service/core.py::delete_memory_embedding
+- backend/services/memory-service/src/memory_service/core/embeddings.py::EmbeddingCommands.index_memory_embedding
+- backend/services/memory-service/src/memory_service/core/embeddings.py::EmbeddingCommands.delete_memory_embedding
 - backend/services/code-graph-service/src/code_graph_service/application/queries.py::_maybe_turbovec_rerank
 related_docs:
 - docs/13-technology-stack-and-platform-decisions/08-turbovec-ann-acceleration-integration.md

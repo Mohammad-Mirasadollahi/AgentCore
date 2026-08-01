@@ -43,11 +43,25 @@ class PostgresStore:
 
     @staticmethod
     def _memory(row: dict[str, Any], scope: Scope) -> MemoryItem:
+        expires = row.get("expires_at")
         return MemoryItem(
-            row["id"], scope, row["actor_id"], row["correlation_id"], MemoryKind(row["kind"]),
-            MemoryState(row["state"]), row["title"], row["body"], row["tags"], row["evidence_refs"],
-            row["source_refs"], row["confidence"], _timestamp(row["created_at"]),
-            _timestamp(row["updated_at"]), row["version"],
+            row["id"],
+            scope,
+            row["actor_id"],
+            row["correlation_id"],
+            MemoryKind(row["kind"]),
+            MemoryState(row["state"]),
+            row["title"],
+            row["body"],
+            row["tags"],
+            row["evidence_refs"],
+            row["source_refs"],
+            row["confidence"],
+            _timestamp(row["created_at"]),
+            _timestamp(row["updated_at"]),
+            row["version"],
+            pinned=bool(row.get("pinned", False)),
+            expires_at=None if expires is None else _timestamp(expires),
         )
 
     @staticmethod
@@ -83,15 +97,34 @@ class PostgresStore:
             cursor.execute(
                 """INSERT INTO memory.memory_items
                    (id,tenant_id,workspace_id,project_id,project_group_id,actor_id,correlation_id,kind,state,title,body,
-                    tags,evidence_refs,source_refs,confidence,version,created_at,updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                   ON CONFLICT (id) DO UPDATE SET state=EXCLUDED.state,title=EXCLUDED.title,body=EXCLUDED.body,
+                    tags,evidence_refs,source_refs,confidence,version,created_at,updated_at,pinned,expires_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                   ON CONFLICT (id) DO UPDATE SET state=EXCLUDED.state,kind=EXCLUDED.kind,title=EXCLUDED.title,body=EXCLUDED.body,
                    tags=EXCLUDED.tags,evidence_refs=EXCLUDED.evidence_refs,source_refs=EXCLUDED.source_refs,
-                   confidence=EXCLUDED.confidence,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at""",
-                (item.id,item.scope.tenant_id,item.scope.workspace_id,item.scope.project_id,item.scope.project_group_id,
-                 item.actor_id,item.correlation_id,item.kind.value,item.state.value,item.title,item.body,
-                 self._json(item.tags),self._json(item.evidence_refs),self._json(item.source_refs),item.confidence,
-                 item.version,item.created_at,item.updated_at),
+                   confidence=EXCLUDED.confidence,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at,
+                   pinned=EXCLUDED.pinned,expires_at=EXCLUDED.expires_at""",
+                (
+                    item.id,
+                    item.scope.tenant_id,
+                    item.scope.workspace_id,
+                    item.scope.project_id,
+                    item.scope.project_group_id,
+                    item.actor_id,
+                    item.correlation_id,
+                    item.kind.value,
+                    item.state.value,
+                    item.title,
+                    item.body,
+                    self._json(item.tags),
+                    self._json(item.evidence_refs),
+                    self._json(item.source_refs),
+                    item.confidence,
+                    item.version,
+                    item.created_at,
+                    item.updated_at,
+                    item.pinned,
+                    item.expires_at,
+                ),
             )
 
     def list_memory(self, scope: Scope) -> list[MemoryItem]:

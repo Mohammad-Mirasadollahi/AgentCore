@@ -21,6 +21,20 @@ class MemoryRequest(BaseModel):
     source_refs: list[str] = Field(default_factory=list)
     confidence: float = 1.0
     state: str | None = None
+    pinned: bool = False
+    expires_at: str | None = None
+
+
+class MemoryPatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = None
+    body: str | None = None
+    tags: list[str] | None = None
+    confidence: float | None = None
+    pinned: bool | None = None
+    expires_at: str | None = None
+    expected_version: int | None = Field(default=None, ge=1)
 
 
 class ConsolidateRequest(BaseModel):
@@ -31,6 +45,20 @@ class ConsolidateRequest(BaseModel):
 class DecayRequest(BaseModel):
     memory_ids: list[str]
     reason: str
+
+
+class PromoteMemoryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str
+    memory_ids: list[str] | None = None
+
+
+class DeprecateMemoryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str
+    memory_ids: list[str] | None = None
 
 
 class ContextRequest(BaseModel):
@@ -168,14 +196,120 @@ def build_app(
     async def list_memory(
         project_id: str,
         state: str | None = None,
+        kind: str | None = None,
+        pinned: bool | None = None,
+        q: str | None = None,
         x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
         x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
     ):
         scope = read_scope(project_id, x_tenant_id, x_workspace_id)
-        items = service.store.list_memory(scope)
-        if state:
-            items = [item for item in items if item.state.value == state]
+        items = service.list_memories(scope, state=state, kind=kind, pinned=pinned, q=q)
         return {"items": [item.public() for item in items], "correlation_id": None}
+
+    @api.get("/api/v1/projects/{project_id}/memory-items/{memory_item_id}", operation_id="get_memory_item")
+    async def get_memory(
+        project_id: str,
+        memory_item_id: str,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+    ):
+        scope = read_scope(project_id, x_tenant_id, x_workspace_id)
+        return {"memory": service.get_memory(scope, memory_item_id).public(), "correlation_id": None}
+
+    @api.patch("/api/v1/projects/{project_id}/memory-items/{memory_item_id}", operation_id="update_memory_item")
+    async def update_memory(
+        project_id: str,
+        memory_item_id: str,
+        body: MemoryPatchRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        record = service.update_memory(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            memory_item_id,
+            body.model_dump(exclude_unset=True),
+        )
+        return {"memory": record.public(), "correlation_id": correlation_id}
+
+    @api.post(
+        "/api/v1/projects/{project_id}/memory-items/{memory_item_id}:promote",
+        operation_id="promote_memory_item",
+    )
+    async def promote_memory_item(
+        project_id: str,
+        memory_item_id: str,
+        body: PromoteMemoryRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        items = service.promote_memory(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            [memory_item_id],
+            body.reason,
+        )
+        return {"memory": items[0].public(), "correlation_id": correlation_id}
+
+    @api.post(
+        "/api/v1/projects/{project_id}/memory-items/{memory_item_id}:deprecate",
+        operation_id="deprecate_memory_item",
+    )
+    async def deprecate_memory_item(
+        project_id: str,
+        memory_item_id: str,
+        body: DeprecateMemoryRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        items = service.deprecate_memory(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            [memory_item_id],
+            body.reason,
+        )
+        return {"memory": items[0].public(), "correlation_id": correlation_id}
+
+    @api.post("/api/v1/projects/{project_id}/memory-promotions", operation_id="promote_memory_bulk")
+    async def promote_memory_bulk(
+        project_id: str,
+        body: PromoteMemoryRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        if not body.memory_ids:
+            raise ValidationError("memory_ids are required")
+        items = service.promote_memory(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            body.memory_ids,
+            body.reason,
+        )
+        return {"items": [item.public() for item in items], "correlation_id": correlation_id}
 
     @api.post("/api/v1/projects/{project_id}/context-bundles", operation_id="build_context_bundle")
     async def context_bundle(

@@ -1,8 +1,8 @@
 """Persistence ports for this service (Phase C DI hygiene).
 
-The ``Store`` protocol lives in ``core.py`` beside domain types for this flat
-service layout. Concrete adapters (``postgres_store.py``) must be constructed
-only from ``bootstrap.py`` — not from API handlers or domain helpers.
+The ``Store`` protocol lives in ``core/protocols.py`` beside domain types.
+Concrete adapters (``postgres_store.py``) must be constructed only from
+``bootstrap.py`` — not from API handlers or domain helpers.
 """
 
 from __future__ import annotations

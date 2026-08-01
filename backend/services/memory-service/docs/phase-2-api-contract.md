@@ -22,9 +22,11 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.0.0
-updated_at: '2026-07-24'
-linked_symbols: []
+doc_version: 1.1.0
+updated_at: '2026-08-01'
+linked_symbols:
+- backend/services/memory-service/src/memory_service/core/items.py::MemoryItemCommands.promote_memory
+- backend/services/memory-service/src/memory_service/core/items.py::MemoryItemCommands.deprecate_memory
 ---
 
 # Memory Service Phase 2 API Contract
@@ -33,7 +35,7 @@ Path: `backend/services/memory-service/docs/phase-2-api-contract.md`
 
 ## Purpose
 
-This contract documents the Phase 2 vertical slice for Memory and Context. The service owns scoped MemoryItems, QuestionMemory, ContextBundles, WorkBatches, and memory-service outbox events.
+This contract documents the Phase 2 vertical slice for Memory and Context. The service owns scoped MemoryItems, QuestionMemory, ContextBundles, WorkBatches, and memory-service outbox events. Human-like remember/forget is supported through promote (long-term), deprecate (soft forget), pin, and working-memory `expires_at`.
 
 ## Scope Headers
 
@@ -50,6 +52,10 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 ## Commands
 
 - `POST /api/v1/projects/{project_id}/memory-items`
+- `PATCH /api/v1/projects/{project_id}/memory-items/{memory_item_id}`
+- `POST /api/v1/projects/{project_id}/memory-items/{memory_item_id}:promote`
+- `POST /api/v1/projects/{project_id}/memory-items/{memory_item_id}:deprecate`
+- `POST /api/v1/projects/{project_id}/memory-promotions`
 - `POST /api/v1/projects/{project_id}/memory-consolidations`
 - `POST /api/v1/projects/{project_id}/memory-decays`
 - `POST /api/v1/projects/{project_id}/context-bundles`
@@ -61,18 +67,34 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 
 ## Queries
 
-- `GET /api/v1/projects/{project_id}/memory-items`
+- `GET /api/v1/projects/{project_id}/memory-items` (`state`, `kind`, `pinned`, `q`)
+- `GET /api/v1/projects/{project_id}/memory-items/{memory_item_id}`
 - `GET /api/v1/projects/{project_id}/context-bundles:explain`
 - `GET /api/v1/projects/{project_id}/repeated-questions`
 - `GET /api/v1/projects/{project_id}/curious-questions`
 - `GET /api/v1/projects/{project_id}/work-batches/{batch_id}`
 - `GET /api/v1/projects/{project_id}/stale-memory`
 
+## Remember / forget semantics
+
+| Action | Effect |
+|---|---|
+| Promote | `kind=semantic`, `state=active`, clears `expires_at` |
+| Deprecate | `state=deprecated`; excluded from default ContextBundles; still listable |
+| Decay | `state=stale`; temporary sidelining |
+| Working `expires_at` | Lazy mark-stale on list/get/retrieve when past |
+| Pin | Retrieval score boost; browser filter |
+
+Memory public fields include `pinned` and `expires_at`. Schema revision: migration `0005_memory_retention.sql`.
+
 ## Event Types
 
 The development outbox emits versioned memory-service events:
 
 - `MemoryItemCreated`
+- `MemoryItemUpdated`
+- `MemoryPromotedToLongTerm`
+- `MemoryItemDeprecated`
 - `MemoryConsolidationCompleted`
 - `MemoryDecayCompleted`
 - `ContextBundleBuilt`
@@ -92,4 +114,5 @@ This is an active Phase 2 contract. Breaking changes require a new contract note
 ## Related Documents
 
 - `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
+- Memory Browser UI (not implemented UI): `docs/02-memory-and-context/14-memory-browser-and-long-term-selection-ui.md`
 - Sibling service design docs under `docs/` for the owning phase vertical slice

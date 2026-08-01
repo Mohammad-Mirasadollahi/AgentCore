@@ -36,7 +36,7 @@ linked_symbols:
 - backend/packages/vector_index/promotion_gate.py::run_promotion_gate
 - backend/services/code-graph-service/src/code_graph_service/application/queries.py::QueryUseCases._maybe_turbovec_rerank
 - backend/services/memory-service/src/memory_service/domain/embeddings_store.py::stage1_retrieve
-- backend/services/memory-service/src/memory_service/core.py::MemoryService.explain_retrieval
+- backend/services/memory-service/src/memory_service/core/retrieval.py::RetrievalCommands.explain_retrieval
 - backend/services/memory-service/src/memory_service/postgres_embeddings.py::PostgresMemoryEmbeddingStore
 ---
 

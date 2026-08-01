@@ -20,7 +20,7 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols:
-- backend/services/memory-service/src/memory_service/core.py::ContextBundle
+- backend/services/memory-service/src/memory_service/core/models.py::ContextBundle
 - backend/services/memory-service/src/memory_service/domain/bundle_verifier.py::verify_context_bundle
 - backend/configs/schemas/context-bundle-audit.schema.json
 related_docs:

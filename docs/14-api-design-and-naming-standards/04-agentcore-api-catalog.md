@@ -21,7 +21,7 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.1
+doc_version: 1.1.2
 updated_at: '2026-08-01'
 ---
 
@@ -132,15 +132,24 @@ The isolated hackathon API uses `/managed-agents` instead of `/agents` to make t
 
 ## Memory And Context APIs
 
+Owned by `memory-service` (implemented Phase 2 slice). Browse + human remember/forget:
+
 ```text
 GET  /api/v1/projects/{project_id}/memory-items
 POST /api/v1/projects/{project_id}/memory-items
 GET  /api/v1/projects/{project_id}/memory-items/{memory_item_id}
 PATCH /api/v1/projects/{project_id}/memory-items/{memory_item_id}
+POST /api/v1/projects/{project_id}/memory-items/{memory_item_id}:promote
 POST /api/v1/projects/{project_id}/memory-items/{memory_item_id}:deprecate
-POST /api/v1/projects/{project_id}/context-bundles:resolve
-GET  /api/v1/projects/{project_id}/context-bundles/{context_bundle_id}
+POST /api/v1/projects/{project_id}/memory-promotions
+POST /api/v1/projects/{project_id}/memory-consolidations
+POST /api/v1/projects/{project_id}/memory-decays
+POST /api/v1/projects/{project_id}/context-bundles
+GET  /api/v1/projects/{project_id}/context-bundles:explain
+GET  /api/v1/projects/{project_id}/stale-memory
 ```
+
+Contract: `backend/services/memory-service/docs/phase-2-api-contract.md`. UI spec (browser only): `docs/02-memory-and-context/14-memory-browser-and-long-term-selection-ui.md`.
 
 ## Common Context APIs
 
