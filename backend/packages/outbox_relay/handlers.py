@@ -162,6 +162,40 @@ class BrokerForwardHandler:
         return HandlerResult(self.name, True, f"broker:{intent}")
 
 
+class TicketDispatchHandler:
+    """Dispatch ExternalTicketCreate outbox events through TrackerAdapter."""
+
+    name = "ticket_dispatch"
+
+    def __init__(self, adapter_service: Any) -> None:
+        self._adapter = adapter_service
+
+    def handle(self, event: dict[str, Any], *, source: str) -> HandlerResult:
+        if source != "adapter":
+            return HandlerResult(self.name, True, "skipped:not-adapter")
+        event_type = str(event.get("event_type") or "")
+        if event_type != "ExternalTicketDispatchRequested":
+            return HandlerResult(self.name, True, f"skipped:{event_type}")
+        scope_ids = _scope(event)
+        if scope_ids is None:
+            return HandlerResult(self.name, False, "missing scope")
+        from adapter_service.core import Scope
+
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        ticket_id = str(payload.get("ticket_id") or "").strip()
+        if not ticket_id:
+            return HandlerResult(self.name, False, "missing ticket_id")
+        event_id = str(event.get("event_id") or uuid4())
+        self._adapter.dispatch_external_ticket(
+            Scope(*scope_ids),
+            str(event.get("actor_ref") or "outbox-relay"),
+            str(event.get("correlation_id") or event_id),
+            f"outbox-ticket-dispatch:{event_id}",
+            ticket_id,
+        )
+        return HandlerResult(self.name, True, f"dispatched:{ticket_id}")
+
+
 def _scope(event: dict[str, Any]) -> tuple[str, str, str] | None:
     tenant = str(event.get("tenant_id") or "").strip()
     workspace = str(event.get("workspace_id") or "").strip()

@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+The runnable service package lives under `adapter_service/` (not the scaffold folders below). Domain logic is modularized in `adapter_service/core/` (`models`, `tickets`, `connectors`, `broker`, `context`, `helpers`, `service`, …). Scaffold directories (`domain/`, `application/`, `infrastructure/`, `interfaces/`, `contracts/`) remain design placeholders and do not hold the active implementation.

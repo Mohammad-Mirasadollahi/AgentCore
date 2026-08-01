@@ -4,26 +4,24 @@ Path: `backend/integrations/tickets`
 
 ## Purpose
 
-Ticketing integrations.
+Ticketing integrations for optional ExternalTicket remote projections (Jira, Linear, GitHub Issues).
 
 ## Modular Boundary
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+HTTP create adapters live in this tree. Adapter Service composes them through `adapter_service.trackers.build_tracker_registry` and must remain the system of record for ExternalTicket mirrors. Domain commands that call adapters live in `adapter_service.core.tickets` (`dispatch_external_ticket`, `push_external_ticket_status`).
 
-## Allowed Contents
+## Contents
 
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
+| Path | Adapter |
+|------|---------|
+| `jira/adapter.py` | Jira REST create |
+| `linear/adapter.py` | Linear GraphQL create |
+| `github-issues/adapter.py` | GitHub Issues REST create |
+| `_http.py` | Shared HTTP JSON helper |
 
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+Local deterministic adapter remains in `adapter_service.trackers.LocalTrackerAdapter`.
+Outbox consumer: `outbox_relay.handlers.TicketDispatchHandler`.
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Implemented; vendor adapters are env-gated and optional for CI.

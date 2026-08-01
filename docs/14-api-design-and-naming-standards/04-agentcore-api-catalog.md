@@ -21,8 +21,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.1
+updated_at: '2026-08-01'
 ---
 
 # 04 - AgentCore API Catalog
@@ -90,6 +90,8 @@ POST /api/v1/projects/{project_id}/work-logs
 
 ## Agent Control Plane Ticket APIs
 
+Owned by `orchestration-service` (implemented). Mutations require `expected_version`. Create without `agent_id` starts in `created`; with `agent_id` starts in `assigned`.
+
 ```text
 GET  /api/v1/projects/{project_id}/agent-tickets
 POST /api/v1/projects/{project_id}/agent-tickets
@@ -105,6 +107,26 @@ POST /api/v1/projects/{project_id}/agent-tickets/{agent_ticket_id}:reassign
 POST /api/v1/projects/{project_id}/agents/{agent_id}:heartbeat
 POST /api/v1/projects/{project_id}/agents/{agent_id}:set-state
 ```
+
+Contract: `backend/services/orchestration-service/docs/phase-orchestration-api-contract.md`.
+
+Do not treat ExternalTicket smoke tests as evidence that AgentTicket is ready; they are separate aggregates.
+
+## External Ticket Mirror APIs
+
+Owned by `adapter-service` (implemented). ExternalTicket is a local mirror of an optional tracker projection, not the AgentTicket control-plane aggregate. Domain commands live in modular `adapter_service.core.tickets` (composed by `AdapterService`).
+
+```text
+POST /api/v1/projects/{project_id}/external-tickets
+GET  /api/v1/projects/{project_id}/external-tickets
+GET  /api/v1/projects/{project_id}/external-tickets/{ticket_id}
+POST /api/v1/projects/{project_id}/external-tickets/{ticket_id}:sync-status
+POST /api/v1/projects/{project_id}/external-tickets/{ticket_id}:retry-dispatch
+POST /api/v1/projects/{project_id}/external-tickets/{ticket_id}:record-dispatch-result
+POST /api/v1/projects/{project_id}/external-tickets/{ticket_id}:push-status
+```
+
+Contract: `backend/services/adapter-service/docs/phase-5-api-contract.md` (includes `adapter_service/core/` module layout). Spec: `docs/05-interoperability-ecosystem/13-external-ticketing-improvement-specification.md`. Unit focus: `tests/backend/services/adapter-service/test_external_tickets.py`.
 
 The isolated hackathon API uses `/managed-agents` instead of `/agents` to make the external managed-resource boundary unmistakable in the judged demo. This is a documented temporary naming exception; product promotion should converge on the canonical `/agents` family with the same contracts.
 

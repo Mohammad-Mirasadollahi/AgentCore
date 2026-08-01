@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, Request
+from fastapi import FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,6 +21,11 @@ class ConnectorRequest(BaseModel):
     credential: str = "unset"
     vendor_schema_version: str = "1.0.0"
     field_map: dict[str, str] = Field(default_factory=dict)
+    status_map: dict[str, str] = Field(default_factory=dict)
+    reopen_policy: str = "allow_remote"
+    unknown_status_policy: str = "reject"
+    fallback_status: str = "open"
+    mapping_version: int = Field(default=1, ge=1)
 
 
 class CredentialRequest(BaseModel):
@@ -62,10 +67,48 @@ class TicketRequest(BaseModel):
     external_ref: str | None = None
     source_event_id: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    description_summary: str | None = Field(default=None, max_length=4000)
+    priority: str | None = Field(default=None, max_length=100)
+    severity: str | None = Field(default=None, max_length=100)
+    assignee_ref: str | None = Field(default=None, max_length=500)
+    due_at: str | None = None
+    labels: list[str] = Field(default_factory=list)
+    remote_url: str | None = Field(default=None, max_length=2048)
+    extension: dict[str, Any] = Field(default_factory=dict)
 
 
 class SyncStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     status: str
+    expected_version: int = Field(ge=1)
+    external_updated_at: str
+    source: str = "manual"
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class RetryDispatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class DispatchResultRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    dispatch_status: str
+    remote_url: str | None = Field(default=None, max_length=2048)
+    external_ref: str | None = Field(default=None, max_length=500)
+    error: str | None = Field(default=None, max_length=2000)
+
+
+class PushStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    status: str | None = Field(default=None, max_length=100)
 
 
 class ContextInjectRequest(BaseModel):
@@ -108,7 +151,7 @@ def build_app(
                     "message": exc.message,
                     "retryable": False,
                     "correlation_id": None,
-                    "details": {},
+                    "details": exc.details,
                     "documentation_ref": "docs/05-interoperability-ecosystem",
                 }
             },
@@ -253,6 +296,46 @@ def build_app(
         ticket = service.create_external_ticket(scope, actor, correlation_id, idempotency_key or "", body.model_dump(exclude_none=True))
         return {"ticket": ticket.public(), "correlation_id": correlation_id}
 
+    @api.get("/api/v1/projects/{project_id}/external-tickets", operation_id="list_external_tickets")
+    async def list_external_tickets(
+        project_id: str,
+        connector_id: str | None = None,
+        status: str | None = None,
+        external_ref: str | None = None,
+        department: str | None = None,
+        updated_after: str | None = None,
+        page_size: int = Query(default=50, ge=1, le=100),
+        page_token: str | None = None,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+    ):
+        scope = read_scope(project_id, x_tenant_id, x_workspace_id)
+        items, next_page_token = service.list_external_tickets(
+            scope,
+            connector_id=connector_id,
+            status=status,
+            external_ref=external_ref,
+            department=department,
+            updated_after=updated_after,
+            page_size=page_size,
+            page_token=page_token,
+        )
+        return {
+            "items": [item.public() for item in items],
+            "next_page_token": next_page_token,
+            "correlation_id": None,
+        }
+
+    @api.get("/api/v1/projects/{project_id}/external-tickets/{ticket_id}", operation_id="get_external_ticket")
+    async def get_external_ticket(
+        project_id: str,
+        ticket_id: str,
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+    ):
+        scope = read_scope(project_id, x_tenant_id, x_workspace_id)
+        return {"ticket": service.get_external_ticket(scope, ticket_id).public(), "correlation_id": None}
+
     @api.post("/api/v1/projects/{project_id}/external-tickets/{ticket_id}:sync-status", operation_id="sync_external_status")
     async def sync_status(
         project_id: str,
@@ -265,7 +348,99 @@ def build_app(
         x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     ):
         scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
-        ticket = service.sync_external_status(scope, actor, correlation_id, idempotency_key or "", ticket_id, body.status)
+        ticket = service.sync_external_status(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            ticket_id,
+            body.status,
+            body.expected_version,
+            body.external_updated_at,
+            body.source,
+            body.reason,
+        )
+        return {"ticket": ticket.public(), "correlation_id": correlation_id}
+
+    @api.post(
+        "/api/v1/projects/{project_id}/external-tickets/{ticket_id}:retry-dispatch",
+        operation_id="retry_external_ticket_dispatch",
+    )
+    async def retry_external_ticket_dispatch(
+        project_id: str,
+        ticket_id: str,
+        body: RetryDispatchRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        ticket = service.retry_external_ticket_dispatch(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            ticket_id,
+            body.expected_version,
+            body.reason,
+        )
+        return {"ticket": ticket.public(), "correlation_id": correlation_id}
+
+    @api.post(
+        "/api/v1/projects/{project_id}/external-tickets/{ticket_id}:record-dispatch-result",
+        operation_id="record_external_ticket_dispatch_result",
+    )
+    async def record_external_ticket_dispatch_result(
+        project_id: str,
+        ticket_id: str,
+        body: DispatchResultRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        ticket = service.record_external_ticket_dispatch_result(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            ticket_id,
+            body.expected_version,
+            body.dispatch_status,
+            body.remote_url,
+            body.external_ref,
+            body.error,
+        )
+        return {"ticket": ticket.public(), "correlation_id": correlation_id}
+
+    @api.post(
+        "/api/v1/projects/{project_id}/external-tickets/{ticket_id}:push-status",
+        operation_id="push_external_ticket_status",
+    )
+    async def push_external_ticket_status(
+        project_id: str,
+        ticket_id: str,
+        body: PushStatusRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+        x_workspace_id: str | None = Header(default=None, alias="X-Workspace-Id"),
+        x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
+        x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    ):
+        scope, actor, correlation_id = ctx(project_id, x_tenant_id, x_workspace_id, x_actor_id, x_correlation_id)
+        ticket = service.push_external_ticket_status(
+            scope,
+            actor,
+            correlation_id,
+            idempotency_key or "",
+            ticket_id,
+            body.expected_version,
+            body.status,
+        )
         return {"ticket": ticket.public(), "correlation_id": correlation_id}
 
     @api.post("/api/v1/projects/{project_id}/context:inject", operation_id="inject_context")

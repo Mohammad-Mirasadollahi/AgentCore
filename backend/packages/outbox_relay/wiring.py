@@ -32,6 +32,7 @@ def build_default_handlers(
     from adapter_service.core import AdapterService
     from adapter_service.postgres_store import PostgresStore as AdapterStore
     from adapter_service.testing import InMemoryStore as AdapterMemory
+    from adapter_service.trackers import build_tracker_registry
     from audit_service.core import AuditService
     from audit_service.postgres_store import PostgresStore as AuditStore
     from audit_service.testing import InMemoryStore as AuditMemory
@@ -39,17 +40,22 @@ def build_default_handlers(
     from memory_service.postgres_store import PostgresStore as MemoryStore
     from memory_service.testing import InMemoryStore as MemoryMemory
 
-    from .handlers import AuditMirrorHandler, BrokerForwardHandler, MemoryFromCoreDataHandler
+    from .handlers import (
+        AuditMirrorHandler,
+        BrokerForwardHandler,
+        MemoryFromCoreDataHandler,
+        TicketDispatchHandler,
+    )
 
     use_memory = str(env.get("AGENTCORE_OUTBOX_HANDLER_STORE") or "").strip().lower() == "memory"
     if use_memory:
         memory = MemoryService(MemoryMemory())
         audit = AuditService(AuditMemory())
-        adapter = AdapterService(AdapterMemory())
+        adapter = AdapterService(AdapterMemory(), tracker_adapters=build_tracker_registry(env))
     else:
         memory = MemoryService(MemoryStore(database_url))
         audit = AuditService(AuditStore(database_url))
-        adapter = AdapterService(AdapterStore(database_url))
+        adapter = AdapterService(AdapterStore(database_url), tracker_adapters=build_tracker_registry(env))
 
     handlers: list[Any] = []
     if config.enable_memory_handler:
@@ -58,4 +64,6 @@ def build_default_handlers(
         handlers.append(AuditMirrorHandler(audit))
     if config.enable_broker_handler:
         handlers.append(BrokerForwardHandler(adapter))
+    if getattr(config, "enable_ticket_dispatch_handler", True):
+        handlers.append(TicketDispatchHandler(adapter))
     return handlers

@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, Request
+from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
 from .bootstrap import ServiceContainer, build_container
@@ -36,7 +36,7 @@ def build_app(
                     "message": exc.message,
                     "retryable": False,
                     "correlation_id": None,
-                    "details": {},
+                    "details": getattr(exc, "details", {}) or {},
                     "documentation_ref": "backend/services/orchestration-service/docs/phase-orchestration-api-contract.md",
                 }
             },
@@ -119,6 +119,88 @@ def build_app(
         _ = x_actor_id
         items = service.list_assignments(Scope(x_tenant_id, x_workspace_id, project_id), batch_id=batch_id)
         return {"items": items}
+
+    @api.post("/api/v1/projects/{project_id}/agent-tickets")
+    async def create_agent_ticket(
+        project_id: str,
+        body: dict[str, Any],
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+        x_correlation_id: str | None = Header(default=None),
+        idempotency_key: str = Header(alias="Idempotency-Key"),
+    ) -> dict[str, Any]:
+        ticket = service.create_agent_ticket(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            x_actor_id,
+            x_correlation_id or str(uuid4()),
+            idempotency_key,
+            body,
+        )
+        return {"ticket": ticket}
+
+    @api.get("/api/v1/projects/{project_id}/agent-tickets")
+    async def list_agent_tickets(
+        project_id: str,
+        status: str | None = Query(default=None),
+        agent_id: str | None = Query(default=None),
+        task_id: str | None = Query(default=None),
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        items = service.list_agent_tickets(
+            Scope(x_tenant_id, x_workspace_id, project_id),
+            status=status,
+            agent_id=agent_id,
+            task_id=task_id,
+        )
+        return {"items": items}
+
+    @api.get("/api/v1/projects/{project_id}/agent-tickets/{agent_ticket_id}")
+    async def get_agent_ticket(
+        project_id: str,
+        agent_ticket_id: str,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        _ = x_actor_id
+        ticket = service.get_agent_ticket(Scope(x_tenant_id, x_workspace_id, project_id), agent_ticket_id)
+        return {"ticket": ticket}
+
+    def _transition(command: str):
+        async def handler(
+            project_id: str,
+            agent_ticket_id: str,
+            body: dict[str, Any],
+            x_tenant_id: str = Header(),
+            x_workspace_id: str = Header(),
+            x_actor_id: str = Header(),
+            x_correlation_id: str | None = Header(default=None),
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+        ) -> dict[str, Any]:
+            ticket = service.transition_agent_ticket(
+                Scope(x_tenant_id, x_workspace_id, project_id),
+                x_actor_id,
+                x_correlation_id or str(uuid4()),
+                idempotency_key,
+                agent_ticket_id,
+                command,
+                body,
+            )
+            return {"ticket": ticket}
+
+        return handler
+
+    for command in ("claim", "start", "block", "submit-review", "complete", "fail", "cancel", "reassign"):
+        api.add_api_route(
+            f"/api/v1/projects/{{project_id}}/agent-tickets/{{agent_ticket_id}}:{command}",
+            _transition(command),
+            methods=["POST"],
+            name=f"agent_ticket_{command.replace('-', '_')}",
+        )
 
     return api
 

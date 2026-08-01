@@ -165,5 +165,67 @@ class PostgresStore:
                 )
             return [dict(row["payload"]) for row in cursor.fetchall()]
 
+    def put_agent_ticket(self, ticket: dict[str, Any], expected_version: int | None = None) -> None:
+        with self._connection.cursor() as cursor:
+            if expected_version is not None:
+                cursor.execute(
+                    """SELECT payload FROM orchestration.documents
+                       WHERE id=%s AND kind='agent_ticket'""",
+                    (ticket["id"],),
+                )
+                row = cursor.fetchone()
+                if row is None or dict(row["payload"]).get("version") != expected_version:
+                    raise ConflictError("agent ticket version conflict", code="version_conflict")
+            cursor.execute(
+                """INSERT INTO orchestration.documents
+                   (id, kind, tenant_id, workspace_id, project_id, batch_id, payload, created_at)
+                   VALUES (%s,'agent_ticket',%s,%s,%s,NULL,%s,%s)
+                   ON CONFLICT (id) DO UPDATE SET payload=EXCLUDED.payload""",
+                (
+                    ticket["id"],
+                    ticket["tenant_id"],
+                    ticket["workspace_id"],
+                    ticket["project_id"],
+                    self._json(ticket),
+                    ticket["created_at"],
+                ),
+            )
+
+    def get_agent_ticket(self, ticket_id: str, scope: Scope) -> dict[str, Any]:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT payload FROM orchestration.documents
+                   WHERE id=%s AND kind='agent_ticket' AND tenant_id=%s AND workspace_id=%s AND project_id=%s""",
+                (ticket_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            row = cursor.fetchone()
+        if row is None:
+            raise NotFoundError("agent ticket not found")
+        return dict(row["payload"])
+
+    def list_agent_tickets(
+        self,
+        scope: Scope,
+        *,
+        status: str | None = None,
+        agent_id: str | None = None,
+        task_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT payload FROM orchestration.documents
+                   WHERE kind='agent_ticket' AND tenant_id=%s AND workspace_id=%s AND project_id=%s
+                   ORDER BY created_at, id""",
+                (scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            items = [dict(row["payload"]) for row in cursor.fetchall()]
+        if status:
+            items = [t for t in items if t.get("status") == status]
+        if agent_id:
+            items = [t for t in items if t.get("agent_id") == agent_id]
+        if task_id:
+            items = [t for t in items if t.get("task_id") == task_id]
+        return items
+
     def close(self) -> None:
         self._connection.close()

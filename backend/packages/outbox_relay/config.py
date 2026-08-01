@@ -44,6 +44,7 @@ class RelayConfig:
     enable_memory_handler: bool = True
     enable_audit_handler: bool = True
     enable_broker_handler: bool = True
+    enable_ticket_dispatch_handler: bool = True
 
 
 def load_relay_config(environ: dict[str, str] | None = None) -> RelayConfig:
@@ -64,6 +65,7 @@ def load_relay_config(environ: dict[str, str] | None = None) -> RelayConfig:
         enable_memory_handler=_flag(env, "AGENTCORE_OUTBOX_MEMORY_HANDLER", True),
         enable_audit_handler=_flag(env, "AGENTCORE_OUTBOX_AUDIT_HANDLER", True),
         enable_broker_handler=_flag(env, "AGENTCORE_OUTBOX_BROKER_HANDLER", True),
+        enable_ticket_dispatch_handler=_flag(env, "AGENTCORE_OUTBOX_TICKET_DISPATCH_HANDLER", True),
     )
 
 

@@ -15,7 +15,9 @@ from .core import (
     NotFoundError,
     Scope,
     Subscription,
+    decode_ticket_page_token,
     digest,
+    encode_ticket_page_token,
 )
 
 
@@ -112,12 +114,42 @@ class InMemoryStore:
             raise NotFoundError("external ticket not found in project scope")
         return deepcopy(item)
 
-    def put_ticket(self, ticket: ExternalTicket) -> None:
+    def put_ticket(self, ticket: ExternalTicket, expected_version: int | None = None) -> None:
+        current = self._tickets.get(ticket.id)
+        if expected_version is not None and (current is None or current.version != expected_version):
+            raise ConflictError("external ticket changed concurrently")
         self._tickets[ticket.id] = deepcopy(ticket)
 
-    def list_tickets(self, scope: Scope) -> list[ExternalTicket]:
+    def list_tickets(
+        self,
+        scope: Scope,
+        *,
+        connector_id: str | None = None,
+        status: str | None = None,
+        external_ref: str | None = None,
+        department: str | None = None,
+        updated_after: str | None = None,
+        page_size: int = 50,
+        page_token: str | None = None,
+    ) -> tuple[list[ExternalTicket], str | None]:
         items = [item for item in self._tickets.values() if self._same_project(item.scope, scope)]
-        return deepcopy(sorted(items, key=lambda item: (item.created_at, item.id)))
+        if connector_id is not None:
+            items = [item for item in items if item.connector_id == connector_id]
+        if status is not None:
+            items = [item for item in items if item.status.value == status]
+        if external_ref is not None:
+            items = [item for item in items if item.external_ref == external_ref]
+        if department is not None:
+            items = [item for item in items if item.department == department]
+        if updated_after is not None:
+            items = [item for item in items if item.updated_at > updated_after]
+        items = sorted(items, key=lambda item: (item.updated_at, item.id), reverse=True)
+        if page_token:
+            token_key = decode_ticket_page_token(page_token)
+            items = [item for item in items if (item.updated_at, item.id) < token_key]
+        page = items[:page_size]
+        next_token = encode_ticket_page_token(page[-1]) if len(items) > page_size and page else None
+        return deepcopy(page), next_token
 
     def put_department_task(self, task: DepartmentTask) -> None:
         self._department_tasks[task.id] = deepcopy(task)

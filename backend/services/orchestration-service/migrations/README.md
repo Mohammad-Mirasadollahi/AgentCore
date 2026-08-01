@@ -6,24 +6,14 @@ Path: `backend/services/orchestration-service/migrations`
 
 Service-owned persistence migrations. Parent service: `services/orchestration-service`.
 
-## Modular Boundary
+## Migration Order
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
+1. `0001_orchestration.sql` — schema, documents, idempotency, outbox.
+2. `0002_outbox_published.sql` — outbox publication tracking.
+3. `0003_agent_ticket.sql` — optional partial index for `kind = 'agent_ticket'`.
 
-## Allowed Contents
-
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
-
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+AgentTicket records are stored as `orchestration.documents` rows with `kind='agent_ticket'` (no separate table required for the MVP).
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Active. Apply numbered files in order before relying on AgentTicket list performance indexes.

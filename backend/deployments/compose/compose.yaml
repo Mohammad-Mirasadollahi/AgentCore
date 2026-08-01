@@ -27,6 +27,7 @@ services:
       - ../../services/rule-engine-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0051_rule_engine_outbox.sql:ro
       - ../../services/adapter-service/migrations/0001_adapter.sql:/docker-entrypoint-initdb.d/0060_adapter.sql:ro
       - ../../services/adapter-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0061_adapter_outbox.sql:ro
+      - ../../services/adapter-service/migrations/0003_external_ticket_hardening.sql:/docker-entrypoint-initdb.d/0062_adapter_external_ticket_hardening.sql:ro
       - ../../services/audit-service/migrations/0001_audit.sql:/docker-entrypoint-initdb.d/0070_audit.sql:ro
       - ../../services/audit-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0071_audit_outbox.sql:ro
       - ../../services/identity-access-service/migrations/0001_identity_access.sql:/docker-entrypoint-initdb.d/0080_identity_access.sql:ro

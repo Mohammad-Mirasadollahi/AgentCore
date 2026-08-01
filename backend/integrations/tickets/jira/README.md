@@ -4,26 +4,14 @@ Path: `backend/integrations/tickets/jira`
 
 ## Purpose
 
-Jira integration boundary.
+Jira tracker adapter boundary for ExternalTicket remote create/dispatch.
 
-## Modular Boundary
+## Implementation
 
-This directory is part of the AgentCore backend modular architecture. It must expose behavior through documented contracts, public interfaces, configuration, or events. It must not import private internals from sibling modules.
-
-## Allowed Contents
-
-- README and design notes for this boundary.
-- Source, configuration, fixtures, tests, or generated artifacts that belong to this boundary.
-- Subdirectories that follow the backend structure standard.
-
-## Rules
-
-- Keep ownership clear and local to this boundary.
-- Do not hard-code ports, credentials, tenant IDs, project IDs, model names, provider endpoints, or feature behavior.
-- Prefer dependency inversion: domain and application logic should not depend on infrastructure implementation details.
-- Use shared packages only for stable contracts or cross-cutting primitives.
-- Add or update tests and documentation when this boundary receives implementation code.
+- Module: `backend/integrations/tickets/jira/adapter.py` (`JiraTrackerAdapter`)
+- Registry: `adapter_service.trackers.build_tracker_registry` when `AGENTCORE_JIRA_BASE_URL`, `AGENTCORE_JIRA_EMAIL`, `AGENTCORE_JIRA_API_TOKEN`, and `AGENTCORE_JIRA_PROJECT_KEY` are set
+- Opt-in live: `tests/live/adapter-service/test_external_ticketing_vendor_sandbox.py`
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Implemented. Mandatory CI does not require Jira credentials.

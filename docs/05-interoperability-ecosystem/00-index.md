@@ -21,8 +21,8 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.3
+updated_at: '2026-08-01'
 ---
 
 # 05 - Interoperability and Enterprise Ecosystem Index
@@ -48,6 +48,10 @@ Connect different AI coding tools, models, IDEs, departments, humans, SDK client
 - `08-agent-communication-language-and-runtime-sdk.md` defines the agent lingua franca, translator boundary, and integrations for LangChain, LangGraph, Codex, IDE-based workers, MCP, and custom runtimes.
 - `09-multi-vendor-agent-network-ecosystem.md` defines the multi-vendor and federated-network ecosystem vision, topology layers, interaction patterns, and implementation map (demo vs roadmap).
 - `10-external-vcs-and-tracker-mapping.md` defines anti-corruption mapping from GitHub/GitLab/Jira/Linear into AgentCore Issue/Task/ChangeSet/Review aggregates (external systems are projections, not SoR).
+- `11-sdk-release-and-adapter-harness.md` defines SDK release ownership, generated clients, adapter capability declarations, secret references, and contract-test gates.
+- `12-external-ticketing-live-quality-assessment.md` records ExternalTicket live evidence and remediation through TQ-009 (mapping policy, dispatch worker, vendor adapters, outbound push).
+- `13-external-ticketing-improvement-specification.md` is the as-built ExternalTicket hardening contract (TKT-01…TKT-09), including tracker adapters and `:push-status`.
+- Adapter-service domain code for ExternalTicket lives in the modular package `backend/services/adapter-service/src/adapter_service/core/` (see phase-5 API contract module layout).
 
 ## Related Stack Integrations
 
@@ -66,6 +70,8 @@ Connect different AI coding tools, models, IDEs, departments, humans, SDK client
 - Admin SDK and Test SDK
 - Multi-vendor agent network and federation (vision; broker and peer gateway on roadmap)
 - External VCS and tracker projection mapping (GitHub/GitLab/Jira/Linear → native ChangeSet/Issue)
+- Current ExternalTicket hardening (queries, concurrency, mapping policy, dispatch, optional vendor sandbox and status push)
+- AgentTicket native lifecycle (orchestration-service; distinct from ExternalTicket)
 
 ## Related Technical Logic
 

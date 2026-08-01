@@ -26,4 +26,4 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Scaffold only. No implementation code has been added yet.
+Scaffold only. Active domain implementation for this service lives in `../adapter_service/core/` and is imported as `adapter_service.core`. Do not duplicate entities here until a deliberate migration from the flat package layout.

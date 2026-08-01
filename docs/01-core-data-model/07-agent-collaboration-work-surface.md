@@ -20,19 +20,20 @@ tags:
 - control-plane
 phase: 01-core-data-model
 canonical_path: docs/01-core-data-model/07-agent-collaboration-work-surface.md
-lifecycle_lane: future
+lifecycle_lane: current
 concern_lane: design
 audience_lane:
 - platform-engineering
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/services/orchestration-service/src/orchestration_service/core.py::OrchestrationService
 related_docs:
 - ac.doc.master.agent-control-plane-boundary
 - ac.doc.core.contracts
 - ac.doc.interop.external-vcs-tracker-mapping
-doc_version: 1.0.0
+doc_version: 1.1.1
 audience:
 - engineer
 - architect
@@ -61,7 +62,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-01'
 ---
 
 # 07 - Agent Collaboration Work Surface
@@ -186,9 +187,13 @@ States (existing): `proposed, ready, in_progress, blocked, review, done, cancele
 
 ### AgentTicket
 
-Control-plane durable assignment to a registered agent. Carries claim/progress/block/review/complete/fail/cancel/reassign. Links to Task (required when work is planned) and may link to ChangeSet when the ticket’s acceptance includes a reviewed change proposal.
+Control-plane durable assignment to a registered agent. Carries claim/progress/block/review/complete/fail/cancel/reassign. Links to Task (optional when work is planned) and may link to ChangeSet when the ticket’s acceptance includes a reviewed change proposal.
 
-States (existing normative boundary): `created, assigned, claimed, in_progress, blocked, review, completed, failed, canceled`.
+States (normative): `created, assigned, claimed, in_progress, blocked, review, completed, failed, canceled`.
+
+**Implementation status (2026-07-31):** HTTP lifecycle is implemented in `orchestration-service` (`docs/phase-orchestration-api-contract.md`). Create without `agent_id` → `created`; with `agent_id` → `assigned`. Soft ChangeSet link on `:submit-review` is supported; hard review-gate before `:complete` is not required in the current MVP. AgentTicket board UI remains a product surface gap.
+
+Do not confuse with **ExternalTicket** (adapter-service tracker mirror; domain package `adapter_service.core`, commands in `core/tickets.py`).
 
 ### ChangeSet (new — PR analog)
 
@@ -286,7 +291,7 @@ Metrics: `changeset.open`, `changeset.time_to_approve`, `review.comment_count`, 
 
 ## Engineering Acceptance Criteria
 
-- [ ] Issue / Task / AgentTicket / ChangeSet are separate types with documented links.
+- [x] Issue / Task / AgentTicket / ChangeSet are separate types with documented links. *(AgentTicket HTTP in orchestration-service; ExternalTicket remains a distinct adapter mirror.)*
 - [ ] Agents create ChangeSets through AgentCore APIs, not by requiring GitHub PR as SoR.
 - [ ] ReviewThread + ReviewComment exist and affect ChangeSet status.
 - [ ] DiscussionComment attaches to Issue/Task/ChangeSet/AgentTicket.
@@ -313,3 +318,5 @@ Metrics: `changeset.open`, `changeset.time_to_approve`, `review.comment_count`, 
 - Control-plane boundary: `../00-master-plan/07-agent-control-plane-product-boundary.md`
 - Existing Issue/Task design: `01`–`06` in this folder
 - AgentTicket API catalog: `../14-api-design-and-naming-standards/04-agentcore-api-catalog.md`
+- AgentTicket service contract: `../../backend/services/orchestration-service/docs/phase-orchestration-api-contract.md`
+- ExternalTicket (distinct mirror): `../05-interoperability-ecosystem/13-external-ticketing-improvement-specification.md`

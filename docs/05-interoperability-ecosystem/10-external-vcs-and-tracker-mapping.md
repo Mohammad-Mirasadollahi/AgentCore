@@ -49,7 +49,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-07-31'
 ---
 
 # 10 - External VCS And Tracker Mapping
@@ -135,7 +135,7 @@ This preserves the control-plane boundary: AgentCore does not mutate repositorie
 - [ ] With adapters `off`, agents complete Issue → ChangeSet → Review → Applied evidence without GitHub.
 - [ ] Enabling GitHub outbound writes `external_projections` without changing ChangeSet primary status authority.
 - [ ] Inbound PR review creates ReviewComment linked to ChangeSet revision when patch fingerprint matches; otherwise marks `unmatched_evidence`.
-- [ ] Documentation and scaffolds under `backend/integrations/tickets/` follow this map.
+- [x] Documentation and scaffolds under `backend/integrations/tickets/` follow this map.
 
 ## Related Documents
 

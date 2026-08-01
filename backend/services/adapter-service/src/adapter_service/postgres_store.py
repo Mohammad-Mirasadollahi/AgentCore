@@ -18,13 +18,21 @@ from .core import (
     Scope,
     Subscription,
     SubscriptionState,
+    TicketDispatchState,
     TicketState,
+    TicketSyncState,
+    decode_ticket_page_token,
     digest,
+    encode_ticket_page_token,
 )
 
 
 def _timestamp(value: Any) -> str:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _optional_timestamp(value: Any) -> str | None:
+    return None if value is None else _timestamp(value)
 
 
 class PostgresStore:
@@ -56,8 +64,20 @@ class PostgresStore:
 
     def _mapping(self, row: dict[str, Any], scope: Scope) -> AdapterMapping:
         return AdapterMapping(
-            row["id"], scope, row["connector_id"], row["vendor_schema_version"], row["field_map"],
-            MappingState(row["status"]), _timestamp(row["created_at"]), _timestamp(row["updated_at"]), row["version"],
+            row["id"],
+            scope,
+            row["connector_id"],
+            row["vendor_schema_version"],
+            row["field_map"],
+            MappingState(row["status"]),
+            _timestamp(row["created_at"]),
+            _timestamp(row["updated_at"]),
+            row["version"],
+            status_map=row.get("status_map") or {},
+            reopen_policy=str(row.get("reopen_policy") or "allow_remote"),
+            unknown_status_policy=str(row.get("unknown_status_policy") or "reject"),
+            fallback_status=str(row.get("fallback_status") or "open"),
+            mapping_version=int(row.get("mapping_version") or 1),
         )
 
     def _subscription(self, row: dict[str, Any], scope: Scope) -> Subscription:
@@ -84,9 +104,35 @@ class PostgresStore:
 
     def _ticket(self, row: dict[str, Any], scope: Scope) -> ExternalTicket:
         return ExternalTicket(
-            row["id"], scope, row["actor_id"], row["correlation_id"], row["connector_id"], row["external_ref"],
-            row["title"], TicketState(row["status"]), row["department"], row["source_event_id"], row["evidence_refs"],
-            _timestamp(row["created_at"]), _timestamp(row["updated_at"]), row["version"],
+            id=row["id"],
+            scope=scope,
+            actor_id=row["actor_id"],
+            correlation_id=row["correlation_id"],
+            connector_id=row["connector_id"],
+            external_ref=row["external_ref"],
+            title=row["title"],
+            status=TicketState(row["status"]),
+            department=row["department"],
+            source_event_id=row["source_event_id"],
+            evidence_refs=row["evidence_refs"],
+            created_at=_timestamp(row["created_at"]),
+            updated_at=_timestamp(row["updated_at"]),
+            version=row["version"],
+            description_summary=row.get("description_summary"),
+            priority=row.get("priority"),
+            severity=row.get("severity"),
+            assignee_ref=row.get("assignee_ref"),
+            due_at=_optional_timestamp(row.get("due_at")),
+            labels=row.get("labels") or [],
+            remote_url=row.get("remote_url"),
+            external_updated_at=_optional_timestamp(row.get("external_updated_at")),
+            sync_source=row.get("sync_source"),
+            sync_reason=row.get("sync_reason"),
+            last_sync_status=TicketSyncState(row.get("last_sync_status") or "pending"),
+            last_sync_error=row.get("last_sync_error"),
+            dispatch_status=TicketDispatchState(row.get("dispatch_status") or "pending"),
+            dispatch_attempts=int(row.get("dispatch_attempts") or 1),
+            extension=row.get("extension") or {},
         )
 
     def _department(self, row: dict[str, Any], scope: Scope) -> DepartmentTask:
@@ -136,13 +182,31 @@ class PostgresStore:
             cursor.execute(
                 """INSERT INTO adapter.mappings
                    (id,tenant_id,workspace_id,project_id,project_group_id,connector_id,vendor_schema_version,field_map,
-                    status,version,created_at,updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    status,version,created_at,updated_at,status_map,reopen_policy,unknown_status_policy,fallback_status,mapping_version)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                    ON CONFLICT (id) DO UPDATE SET field_map=EXCLUDED.field_map,status=EXCLUDED.status,
-                   version=EXCLUDED.version,updated_at=EXCLUDED.updated_at""",
-                (mapping.id, mapping.scope.tenant_id, mapping.scope.workspace_id, mapping.scope.project_id,
-                 mapping.scope.project_group_id, mapping.connector_id, mapping.vendor_schema_version,
-                 self._json(mapping.field_map), mapping.status.value, mapping.version, mapping.created_at, mapping.updated_at),
+                   version=EXCLUDED.version,updated_at=EXCLUDED.updated_at,status_map=EXCLUDED.status_map,
+                   reopen_policy=EXCLUDED.reopen_policy,unknown_status_policy=EXCLUDED.unknown_status_policy,
+                   fallback_status=EXCLUDED.fallback_status,mapping_version=EXCLUDED.mapping_version""",
+                (
+                    mapping.id,
+                    mapping.scope.tenant_id,
+                    mapping.scope.workspace_id,
+                    mapping.scope.project_id,
+                    mapping.scope.project_group_id,
+                    mapping.connector_id,
+                    mapping.vendor_schema_version,
+                    self._json(mapping.field_map),
+                    mapping.status.value,
+                    mapping.version,
+                    mapping.created_at,
+                    mapping.updated_at,
+                    self._json(mapping.status_map or {}),
+                    mapping.reopen_policy,
+                    mapping.unknown_status_policy,
+                    mapping.fallback_status,
+                    mapping.mapping_version,
+                ),
             )
 
     def list_mappings(self, scope: Scope, connector_id: str | None = None) -> list[AdapterMapping]:
@@ -290,28 +354,94 @@ class PostgresStore:
             raise NotFoundError("external ticket not found in project scope")
         return self._ticket(row, scope)
 
-    def put_ticket(self, ticket: ExternalTicket) -> None:
+    def put_ticket(self, ticket: ExternalTicket, expected_version: int | None = None) -> None:
+        values = (
+            ticket.id, ticket.scope.tenant_id, ticket.scope.workspace_id, ticket.scope.project_id,
+            ticket.scope.project_group_id, ticket.actor_id, ticket.correlation_id, ticket.connector_id,
+            ticket.external_ref, ticket.title, ticket.status.value, ticket.department, ticket.source_event_id,
+            self._json(ticket.evidence_refs), ticket.description_summary, ticket.priority, ticket.severity,
+            ticket.assignee_ref, ticket.due_at, self._json(ticket.labels or []), ticket.remote_url,
+            ticket.external_updated_at, ticket.sync_source, ticket.sync_reason, ticket.last_sync_status.value,
+            ticket.last_sync_error, ticket.dispatch_status.value, ticket.dispatch_attempts,
+            self._json(ticket.extension or {}), ticket.version, ticket.created_at, ticket.updated_at,
+        )
         with self._connection.cursor() as cursor:
-            cursor.execute(
-                """INSERT INTO adapter.external_tickets
-                   (id,tenant_id,workspace_id,project_id,project_group_id,actor_id,correlation_id,connector_id,external_ref,
-                    title,status,department,source_event_id,evidence_refs,version,created_at,updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                   ON CONFLICT (id) DO UPDATE SET status=EXCLUDED.status,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at""",
-                (ticket.id, ticket.scope.tenant_id, ticket.scope.workspace_id, ticket.scope.project_id,
-                 ticket.scope.project_group_id, ticket.actor_id, ticket.correlation_id, ticket.connector_id,
-                 ticket.external_ref, ticket.title, ticket.status.value, ticket.department, ticket.source_event_id,
-                 self._json(ticket.evidence_refs), ticket.version, ticket.created_at, ticket.updated_at),
-            )
+            if expected_version is None:
+                cursor.execute(
+                    """INSERT INTO adapter.external_tickets
+                       (id,tenant_id,workspace_id,project_id,project_group_id,actor_id,correlation_id,connector_id,
+                        external_ref,title,status,department,source_event_id,evidence_refs,description_summary,priority,
+                        severity,assignee_ref,due_at,labels,remote_url,external_updated_at,sync_source,sync_reason,
+                        last_sync_status,last_sync_error,dispatch_status,dispatch_attempts,extension,version,created_at,updated_at)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                               %s,%s,%s,%s,%s,%s,%s,%s)
+                       ON CONFLICT (id) DO NOTHING""",
+                    values,
+                )
+            else:
+                cursor.execute(
+                    """UPDATE adapter.external_tickets SET
+                       actor_id=%s,correlation_id=%s,external_ref=%s,title=%s,status=%s,department=%s,
+                       source_event_id=%s,evidence_refs=%s,description_summary=%s,priority=%s,severity=%s,
+                       assignee_ref=%s,due_at=%s,labels=%s,remote_url=%s,external_updated_at=%s,sync_source=%s,
+                       sync_reason=%s,last_sync_status=%s,last_sync_error=%s,dispatch_status=%s,
+                       dispatch_attempts=%s,extension=%s,version=%s,updated_at=%s
+                       WHERE id=%s AND tenant_id=%s AND workspace_id=%s AND project_id=%s AND version=%s""",
+                    (
+                        ticket.actor_id, ticket.correlation_id, ticket.external_ref, ticket.title,
+                        ticket.status.value, ticket.department, ticket.source_event_id, self._json(ticket.evidence_refs),
+                        ticket.description_summary, ticket.priority, ticket.severity, ticket.assignee_ref, ticket.due_at,
+                        self._json(ticket.labels or []), ticket.remote_url, ticket.external_updated_at, ticket.sync_source,
+                        ticket.sync_reason, ticket.last_sync_status.value, ticket.last_sync_error,
+                        ticket.dispatch_status.value, ticket.dispatch_attempts, self._json(ticket.extension or {}),
+                        ticket.version, ticket.updated_at, ticket.id, ticket.scope.tenant_id, ticket.scope.workspace_id,
+                        ticket.scope.project_id, expected_version,
+                    ),
+                )
+            if cursor.rowcount != 1:
+                raise ConflictError("external ticket changed concurrently")
 
-    def list_tickets(self, scope: Scope) -> list[ExternalTicket]:
+    def list_tickets(
+        self,
+        scope: Scope,
+        *,
+        connector_id: str | None = None,
+        status: str | None = None,
+        external_ref: str | None = None,
+        department: str | None = None,
+        updated_after: str | None = None,
+        page_size: int = 50,
+        page_token: str | None = None,
+    ) -> tuple[list[ExternalTicket], str | None]:
+        clauses = ["tenant_id=%s", "workspace_id=%s", "project_id=%s"]
+        params: list[Any] = [scope.tenant_id, scope.workspace_id, scope.project_id]
+        for column, value in (
+            ("connector_id", connector_id),
+            ("status", status),
+            ("external_ref", external_ref),
+            ("department", department),
+        ):
+            if value is not None:
+                clauses.append(f"{column}=%s")
+                params.append(value)
+        if updated_after is not None:
+            clauses.append("updated_at>%s")
+            params.append(updated_after)
+        if page_token:
+            token_updated_at, token_id = decode_ticket_page_token(page_token)
+            clauses.append("(updated_at<%s OR (updated_at=%s AND id<%s))")
+            params.extend((token_updated_at, token_updated_at, token_id))
+        params.append(page_size + 1)
         with self._connection.cursor() as cursor:
             cursor.execute(
-                """SELECT * FROM adapter.external_tickets WHERE tenant_id=%s AND workspace_id=%s AND project_id=%s
-                   ORDER BY created_at,id""",
-                (scope.tenant_id, scope.workspace_id, scope.project_id),
+                f"SELECT * FROM adapter.external_tickets WHERE {' AND '.join(clauses)} "
+                "ORDER BY updated_at DESC,id DESC LIMIT %s",
+                params,
             )
-            return [self._ticket(row, scope) for row in cursor.fetchall()]
+            rows = cursor.fetchall()
+        items = [self._ticket(row, scope) for row in rows[:page_size]]
+        next_token = encode_ticket_page_token(items[-1]) if len(rows) > page_size and items else None
+        return items, next_token
 
     def put_department_task(self, task: DepartmentTask) -> None:
         with self._connection.cursor() as cursor:

@@ -5,6 +5,7 @@ import os
 
 from .core import AdapterService
 from .postgres_store import PostgresStore
+from .trackers import build_tracker_registry
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,11 @@ class ServiceContainer:
 def build_container(settings: Settings | None = None) -> ServiceContainer:
     """Composition root: bind adapters and return a frozen service container."""
     resolved = settings or Settings.from_environment()
-    return ServiceContainer(service=AdapterService(PostgresStore(resolved.database_url)), settings=resolved)
+    service = AdapterService(
+        PostgresStore(resolved.database_url),
+        tracker_adapters=build_tracker_registry(),
+    )
+    return ServiceContainer(service=service, settings=resolved)
 
 
 def build_service(settings: Settings | None = None) -> AdapterService:
