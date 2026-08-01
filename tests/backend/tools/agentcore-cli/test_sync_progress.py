@@ -54,6 +54,33 @@ def test_progress_log_has_blank_lines_and_timestamp(tmp_path: Path, monkeypatch,
     tracker.finish()
 
 
+def test_preparing_status_prints_before_queue_known(tmp_path: Path, monkeypatch, capsys):
+    """Regression: Neo4j warmup had no console line, so sync looked hung after the banner."""
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 0,
+            "total": 0,
+            "status": "preparing",
+            "file": "loading graph symbols",
+        }
+    )
+    out = capsys.readouterr().out
+    assert "preparing" in out.lower() or "loading graph" in out.lower()
+    assert "0/0" not in out  # no fake percent theater
+    data = json.loads((tmp_path / "sync-progress.json").read_text(encoding="utf-8"))
+    assert data["status"] == "preparing"
+    assert data["active"] is True
+    tracker.finish()
+
+
 def test_progress_explains_this_run_vs_prior(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
     tracker = SyncProgressTracker(
@@ -533,7 +560,8 @@ def test_ingest_calls_on_progress(tmp_path: Path):
         },
     )
     assert events
-    assert events[0]["status"] == "started"
+    assert events[0]["status"] == "discovering"
+    assert any(e.get("status") == "started" for e in events)
     assert events[-1]["status"] == "finished"
     assert events[-1]["total"] >= 2
     assert events[-1]["done"] == events[-1]["total"]

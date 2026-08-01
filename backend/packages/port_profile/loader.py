@@ -172,6 +172,32 @@ def owner_looks_ours(owner: dict[str, Any] | None) -> bool:
     return any(hint in blob for hint in _OWN_PROCESS_HINTS)
 
 
+def pid_started_from_root(pid: int, root: Path) -> bool:
+    """True when ``pid`` was launched via a command under ``root`` (e.g. ``.venv/bin/python``).
+
+    ``ss``/``lsof`` report native services only by comm name (``python``), so
+    hint matching alone cannot recognize this checkout's own listeners such as
+    ``.venv/bin/python -m adapter_service``. Best-effort: unreadable ``/proc``
+    entries count as foreign.
+    """
+    if pid <= 0:
+        return False
+    proc = Path("/proc") / str(pid)
+    try:
+        argv0 = (
+            (proc / "cmdline").read_bytes().split(b"\0", 1)[0].decode("utf-8", errors="replace")
+        )
+        if not argv0:
+            return False
+        command = Path(argv0)
+        if not command.is_absolute():
+            command = (proc / "cwd").readlink() / command
+    except OSError:
+        return False
+    command = Path(os.path.normpath(command))
+    return any(command.is_relative_to(base) for base in {root.absolute(), root.resolve()})
+
+
 def suggest_alternate_port(
     occupied: int,
     *,
@@ -215,9 +241,14 @@ def run_preflight(
     host: str = "127.0.0.1",
     allow_ours: bool = False,
     allowed_pids: set[int] | None = None,
+    repo_root: Path | None = None,
     profile_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Check all resolved ports; suggest alternates; optionally tolerate our listeners."""
+    """Check all resolved ports; suggest alternates; optionally tolerate our listeners.
+
+    ``repo_root`` extends ours-detection to processes launched from that
+    checkout (venv services survive an MCP gateway crash as orphans).
+    """
     resolved = resolve_ports(profile, environ=environ)
     reserved = set(resolved.values())
     ports: dict[str, dict[str, Any]] = {}
@@ -240,6 +271,7 @@ def run_preflight(
             ours = bool(
                 owner_looks_ours(owner)
                 or (owner_pid and owner_pid in (allowed_pids or set()))
+                or (owner_pid and repo_root is not None and pid_started_from_root(owner_pid, repo_root))
             )
             entry["ours"] = ours
             blocking = not (allow_ours and ours)

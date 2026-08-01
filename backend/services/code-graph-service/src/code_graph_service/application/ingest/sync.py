@@ -47,7 +47,29 @@ class SyncMixin:
         if not resolved_root.is_dir():
             raise ValidationError(f"root_path is not a directory: {resolved_root}")
 
+        on_progress = payload.get("on_progress")
+
+        def _emit_prep(detail: str, *, status: str = "preparing") -> None:
+            if not callable(on_progress):
+                return
+            try:
+                on_progress(
+                    {
+                        "phase": "ingest",
+                        "done": 0,
+                        "total": 0,
+                        "status": status,
+                        "file": detail,
+                    }
+                )
+            except Exception:  # noqa: BLE001 — progress must never break sync
+                return
+
+        # list_symbols / freshness can take minutes on a large Neo4j graph with no
+        # file-queue progress yet — emit a heartbeat so the CLI is not silent.
+        _emit_prep("loading graph symbols")
         symbols = list(self.store.list_symbols(scope))
+        _emit_prep("checking freshness / pending files")
         freshness = (
             self.freshness_status(scope) if hasattr(self, "freshness_status") else {"pending_files": []}
         )
@@ -155,6 +177,19 @@ class SyncMixin:
             "by_qualified": {},
             "short_names": {},
         }
+        if callable(on_progress):
+            try:
+                on_progress(
+                    {
+                        "phase": "incremental",
+                        "done": 0,
+                        "total": 0,
+                        "status": "preparing",
+                        "file": "building resolution indexes",
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                pass
         try:
             indexes, by_qualified, short_names = self._resolution_indexes(scope)
             shared_resolution = {

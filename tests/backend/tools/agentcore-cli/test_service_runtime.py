@@ -198,6 +198,24 @@ def test_start_all_calls_compose_and_mcp(tmp_path: Path, monkeypatch, capsys):
     assert "AgentCore is up" in out
 
 
+def test_run_port_preflight_passes_repo_root(tmp_path: Path, monkeypatch):
+    """Start preflight must hand the checkout root down so our own venv services are adopted."""
+    import port_profile
+    from agentcore_cli.service_runtime import lifecycle
+
+    captured: dict = {}
+
+    def fake_run_preflight(_profile, **kwargs):
+        captured.update(kwargs)
+        return {"ok": True, "ports": {}, "resolved": {}, "conflicts": []}
+
+    monkeypatch.setattr(port_profile, "run_preflight", fake_run_preflight)
+    lifecycle._run_port_preflight(tmp_path)
+
+    assert captured.get("repo_root") == tmp_path
+    assert captured.get("allow_ours") is True
+
+
 def test_restart_all_stop_then_start(tmp_path: Path, monkeypatch, capsys):
     order: list[str] = []
 

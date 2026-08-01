@@ -64,6 +64,25 @@ class RepoIngestMixin:
         max_files = int(payload.get("max_files") or DEFAULT_MAX_FILES)
         max_file_bytes = int(payload.get("max_file_bytes") or DEFAULT_MAX_FILE_BYTES)
         include_outcomes = bool(payload.get("include_outcomes", True))
+        on_progress_early = payload.get("on_progress")
+
+        def _emit_prep(detail: str, *, status: str = "preparing") -> None:
+            if not callable(on_progress_early):
+                return
+            try:
+                on_progress_early(
+                    {
+                        "phase": "ingest",
+                        "done": 0,
+                        "total": 0,
+                        "status": status,
+                        "file": detail,
+                    }
+                )
+            except Exception:  # noqa: BLE001 — progress must never break ingest
+                return
+
+        _emit_prep("discovering source files", status="discovering")
         discovered = discover_source_files(
             root_path,
             include_extensions=include_extensions,
@@ -78,6 +97,7 @@ class RepoIngestMixin:
         discovered_paths = {
             item.relative_path.replace("\\", "/") for item in discovered
         }
+        _emit_prep("loading indexed symbols for change detection")
         stored_symbols = list(self.store.list_symbols(scope))
         if discovered_paths and not include_path_prefixes:
             stored_symbols = self._prune_removed_source_symbols(
@@ -138,6 +158,7 @@ class RepoIngestMixin:
                 file_path=rel,
             )
 
+        _emit_prep("checking structural edge repair queue")
         edge_repair = [
             item
             for item in unchanged_known
@@ -217,6 +238,19 @@ class RepoIngestMixin:
             "by_qualified": {},
             "short_names": {},
         }
+        if callable(on_progress):
+            try:
+                on_progress(
+                    {
+                        "phase": "ingest",
+                        "done": 0,
+                        "total": 0,
+                        "status": "preparing",
+                        "file": "building resolution indexes",
+                    }
+                )
+            except Exception:  # noqa: BLE001 — progress must never break ingest
+                pass
         try:
             indexes, by_qualified, short_names = self._resolution_indexes(scope)
             shared_resolution = {

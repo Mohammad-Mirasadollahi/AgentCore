@@ -43,6 +43,7 @@ def cmd_ports_check(args: argparse.Namespace) -> int:
             profile,
             profile_path=path or DEFAULT_PROFILE_PATH,
             allow_ours=allow_ours,
+            repo_root=repo_root(),
         )
     except PortProfileError as exc:
         raise SystemExit(f"error: {exc}") from exc

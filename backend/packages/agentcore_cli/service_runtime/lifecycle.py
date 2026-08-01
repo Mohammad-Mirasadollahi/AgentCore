@@ -97,6 +97,7 @@ def _run_port_preflight(root: Path) -> None:
         profile,
         allow_ours=True,
         allowed_pids={mcp_pid} if mcp_pid is not None else set(),
+        repo_root=root,
     )
     map_path = write_port_map(root / DEFAULT_PORT_MAP_REL, report)
     if report["ok"]:

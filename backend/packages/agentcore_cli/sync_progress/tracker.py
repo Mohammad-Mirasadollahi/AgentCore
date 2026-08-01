@@ -193,13 +193,22 @@ class SyncProgressTracker:
         if status in {"finished", "cancelled"}:
             self._finished = True
 
-        # Empty queue (noop): keep snapshot for live readers, no 0/0 theater.
-        if total == 0:
+        # Empty queue (noop): keep snapshot for live readers, no 0/0 theater —
+        # except pre-queue warmup statuses so the console is not silent for minutes.
+        pre_queue = status in {"preparing", "discovering", "loading"}
+        if total == 0 and not pre_queue:
             return
 
-        # Force only on status *transition* into start/finish/cancel — not every
+        # Force only on status *transition* into start/finish/cancel/prep — not every
         # RPM session poll while status remains "started"/"finished".
-        milestone = status in {"started", "finished", "cancelled"}
+        milestone = status in {
+            "started",
+            "finished",
+            "cancelled",
+            "preparing",
+            "discovering",
+            "loading",
+        }
         force = (milestone and status != previous_status) or (
             pct >= 100.0 and self._last_pct_printed < 100.0
         )

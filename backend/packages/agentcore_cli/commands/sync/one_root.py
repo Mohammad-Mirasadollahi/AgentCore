@@ -47,6 +47,17 @@ def sync_one_root(
         standards_gate=standards_gate,
         svc=svc,
     )
+    # Neo4j symbol load + queue planning can take minutes before percent lines.
+    print(
+        f"   {ui.dim('note')} Loading graph + planning queue "
+        f"(first percent line after Neo4j warmup)…"
+    )
+    try:
+        import sys
+
+        sys.stdout.flush()
+    except Exception:  # noqa: BLE001
+        pass
 
     scope_txt = f"{scope.tenant_id}/{scope.workspace_id}/{scope.project_id}"
     tracker = SyncProgressTracker(

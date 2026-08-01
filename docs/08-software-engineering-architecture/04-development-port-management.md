@@ -25,9 +25,10 @@ visibility: internal
 linked_symbols:
 - backend/packages/port_profile/loader.py::run_preflight
 - backend/packages/port_profile/loader.py::find_port_owner
+- backend/packages/port_profile/loader.py::pid_started_from_root
 - backend/packages/agentcore_cli/commands/ports.py::cmd_ports_check
-doc_version: 1.1.0
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-08-01'
 ---
 
 # Development Port Management
@@ -104,7 +105,7 @@ Suggested alternate: AGENTCORE_<SERVICE>_PORT=32yyy
 See .agentcore/run/port-map.json
 ```
 
-Owning-process detection on Linux uses `ss -lptn` first, then `lsof` (best-effort when tools are missing).
+Owning-process detection on Linux uses `ss -lptn` first, then `lsof` (best-effort when tools are missing). Because `ss` reports native services only by comm name (`python`), preflight additionally checks `/proc/<pid>` cmdline and cwd: a listener launched from this checkout (for example `.venv/bin/python -m adapter_service`, including orphans that survived a gateway crash) counts as ours and does not block `--allow-ours` bring-up.
 
 ### 4. Resolved Port-Map Artifact
 
@@ -172,6 +173,7 @@ for each service:
         report owning process when possible (ss / lsof)
         suggest next available project-scoped port
         fail startup unless allow-ours matches AgentCore/docker-proxy
+        or the owning pid was launched from this checkout (/proc cmdline+cwd)
 write resolved port map to .agentcore/run/port-map.json
 start services with resolved ports
 ```

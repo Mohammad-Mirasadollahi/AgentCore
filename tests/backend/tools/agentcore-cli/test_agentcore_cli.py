@@ -463,6 +463,80 @@ def test_preflight_allows_explicit_owned_pid(monkeypatch):
     assert report["ports"]["AGENTCORE_API_PORT"]["blocking"] is False
 
 
+def _preflight_python_owner(monkeypatch, *, pid: int = 4242) -> dict:
+    """Occupied profile port owned by a bare ``python`` process (ss comm name)."""
+    profile = {
+        "ports": {"AGENTCORE_ADAPTER_PORT": 32170},
+        "service_owners": {"adapter": "AGENTCORE_ADAPTER_PORT"},
+    }
+    monkeypatch.setattr("port_profile.loader.check_port_available", lambda *_a, **_k: False)
+    monkeypatch.setattr(
+        "port_profile.loader.find_port_owner",
+        lambda _port: {"pid": pid, "name": "python", "source": "test"},
+    )
+    monkeypatch.setattr("port_profile.loader.suggest_alternate_port", lambda *_a, **_k: None)
+    return profile
+
+
+def test_preflight_adopts_listener_started_from_repo_root(monkeypatch, tmp_path):
+    """Regression: our own venv service (ss reports only `python`) must not block start."""
+    from port_profile import run_preflight
+
+    profile = _preflight_python_owner(monkeypatch)
+    monkeypatch.setattr(
+        "port_profile.loader.pid_started_from_root",
+        lambda pid, root: pid == 4242 and root == tmp_path,
+    )
+
+    report = run_preflight(profile, allow_ours=True, repo_root=tmp_path)
+
+    assert report["ok"] is True
+    assert report["ports"]["AGENTCORE_ADAPTER_PORT"]["ours"] is True
+    assert report["ports"]["AGENTCORE_ADAPTER_PORT"]["blocking"] is False
+
+
+def test_preflight_foreign_python_listener_still_blocks(monkeypatch, tmp_path):
+    from port_profile import run_preflight
+
+    profile = _preflight_python_owner(monkeypatch)
+    monkeypatch.setattr("port_profile.loader.pid_started_from_root", lambda _pid, _root: False)
+
+    report = run_preflight(profile, allow_ours=True, repo_root=tmp_path)
+
+    assert report["ok"] is False
+    assert report["ports"]["AGENTCORE_ADAPTER_PORT"]["ours"] is False
+    assert report["ports"]["AGENTCORE_ADAPTER_PORT"]["blocking"] is True
+    assert "AGENTCORE_ADAPTER_PORT" in report["conflicts"]
+
+
+def test_pid_started_from_root_reads_proc(tmp_path):
+    """Real /proc probe: relative and absolute argv0 under the root are ours; others are not."""
+    import subprocess
+    import sys
+
+    from port_profile.loader import pid_started_from_root
+
+    # Incident shape: `.venv/bin/python -m adapter_service` with cwd at the checkout.
+    relative = subprocess.Popen(
+        [".venv/bin/python", "-c", "import time; time.sleep(30)"],
+        executable=sys.executable,
+        cwd=str(tmp_path),
+    )
+    absolute = subprocess.Popen(
+        [str(tmp_path / ".venv" / "bin" / "python"), "-c", "import time; time.sleep(30)"],
+        executable=sys.executable,
+    )
+    try:
+        assert pid_started_from_root(relative.pid, tmp_path) is True
+        assert pid_started_from_root(absolute.pid, tmp_path) is True
+        assert pid_started_from_root(absolute.pid, tmp_path / "elsewhere") is False
+    finally:
+        for proc in (relative, absolute):
+            proc.kill()
+            proc.wait(timeout=10)
+    assert pid_started_from_root(2**22 + 1, tmp_path) is False
+
+
 def test_graph_smoke_ingest_explore(capsys, monkeypatch):
     monkeypatch.setenv("AGENTCORE_ROOT", "/opt/AgentCore")
     monkeypatch.setenv("AGENTCORE_GRAPH_CLI_BACKEND", "memory")

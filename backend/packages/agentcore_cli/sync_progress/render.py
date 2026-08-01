@@ -9,6 +9,23 @@ from agentcore_cli.sync_progress.formatters import format_bar, format_duration, 
 
 
 def print_progress_line(snap: dict[str, Any]) -> None:
+    status = str(snap.get("status") or "")
+    file_name = str(snap.get("file") or "")
+    if len(file_name) > 48:
+        file_name = "…" + file_name[-47:]
+    logged_at = str(snap.get("logged_at") or wall_clock_now())
+    elapsed_txt = format_duration(float(snap["elapsed_sec"]))
+    print()
+    print(
+        f"   {ui.dim('at')} {logged_at}  "
+        f"{ui.dim('elapsed')} {elapsed_txt}"
+    )
+    # Pre-queue Neo4j/discovery warmup: heartbeat only (no fake 0/0 percent).
+    if status in {"preparing", "discovering", "loading"} and int(snap.get("total") or 0) == 0:
+        detail = file_name or status
+        print(f"   {ui.accent('…')}  {ui.bold(status)}  {ui.dim(detail)}")
+        print()
+        return
     pct = float(snap["percent"])
     bar = format_bar(pct)
     eta = snap.get("eta_sec")
@@ -25,16 +42,6 @@ def print_progress_line(snap: dict[str, Any]) -> None:
             rate_txt += f" ({basis})"
     else:
         rate_txt = "…"
-    file_name = str(snap.get("file") or "")
-    if len(file_name) > 48:
-        file_name = "…" + file_name[-47:]
-    logged_at = str(snap.get("logged_at") or wall_clock_now())
-    elapsed_txt = format_duration(float(snap["elapsed_sec"]))
-    print()
-    print(
-        f"   {ui.dim('at')} {logged_at}  "
-        f"{ui.dim('elapsed')} {elapsed_txt}"
-    )
     phase = str(snap.get("phase") or "ingest")
     run_label = "docs" if phase == "docs" else "code"
     line = (
