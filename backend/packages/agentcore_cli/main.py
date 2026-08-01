@@ -97,6 +97,13 @@ from agentcore_cli.commands.upgrade import (
     cmd_upgrade_status,
     cmd_upgrade_versions,
 )
+from agentcore_cli.commands.backup_cmd import (
+    cmd_backup_dry_run,
+    cmd_backup_export,
+    cmd_backup_restore,
+    cmd_backup_status,
+    cmd_backup_validate,
+)
 from agentcore_cli.parser import build_parser
 
 __all__ = ["build_parser", "main", "repo_root"]
@@ -308,6 +315,17 @@ def _dispatch(argv: list[str] | None = None) -> int:
             return cmd_upgrade_finalize(args)
         if args.upgrade_command == "client":
             return cmd_upgrade_client(args)
+    if args.command == "backup":
+        if args.backup_command == "export":
+            return cmd_backup_export(args)
+        if args.backup_command == "validate":
+            return cmd_backup_validate(args)
+        if args.backup_command == "restore":
+            return cmd_backup_restore(args)
+        if args.backup_command == "dry-run":
+            return cmd_backup_dry_run(args)
+        if args.backup_command == "status":
+            return cmd_backup_status(args)
     parser.print_help()
     return 2
 

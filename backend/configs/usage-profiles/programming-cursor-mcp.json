@@ -724,6 +724,47 @@
         }
       },
       {
+        "name": "agentcore_backup_status",
+        "description": "Return the last local project backup/restore job summary (no bundle transfer).",
+        "maps_to": "backup.status",
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_backup_dry_run",
+        "description": "Validate a server-local .acbak path and report conflict/remap outcome without writing. Large bundles stay on disk — use CLI for export/restore.",
+        "maps_to": "backup.dry_run",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "bundle_path": {
+              "type": "string",
+              "description": "Absolute path to a .acbak file on the AgentCore server host"
+            },
+            "replace": {
+              "type": "boolean",
+              "description": "If true, dry-run assumes --replace wipe policy"
+            },
+            "remap_tenant": {
+              "type": "string"
+            },
+            "remap_workspace": {
+              "type": "string"
+            },
+            "remap_project": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bundle_path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "name": "agentcore_code_graph_language_profile",
         "description": "Return polyglot language/profile stats for symbols currently in the project graph.",
         "maps_to": "code_graph.language_profile",

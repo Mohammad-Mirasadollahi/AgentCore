@@ -37,13 +37,13 @@ related_docs:
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.1.1
+doc_version: 1.2.0
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
+updated_at: '2026-08-01'
 ---
 
 # 36 - AgentCore CLI
@@ -146,6 +146,7 @@ Full CLI (`server` / `both`). On **client-only**, only the rows marked **client*
 | `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood | **yes** |
 | `agentcore sync` / `purge` | Load or wipe project graph data (client: remote SSH, scope locked to connect.yaml) | **yes** |
 | `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations | no |
+| `agentcore backup *` | Export/validate/dry-run/restore project `.acbak` bundles | no |
 | `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope | no |
 | `agentcore doctor` / `version` | Health / version | **yes** |
 | `agentcore profile *` | Usage Profile catalog | **yes** |
@@ -184,6 +185,7 @@ agentcore ports check
 ## Related Documents
 
 - [42-agentcore-cli-command-reference.md](./42-agentcore-cli-command-reference.md) — **full command reference**
+- [Project-scoped backup and restore](../09-platform-governance-operations/13-project-scoped-backup-and-restore.md) — `.acbak` operator runbook
 - [51-software-upgrade-server-and-client.md](./51-software-upgrade-server-and-client.md) — server/client upgrade + `agentcore upgrade` catalog
 - [44-mcp-token-accounting.md](./44-mcp-token-accounting.md) — MCP connect cost and usage history
 - [39-local-install-runbook.md](./39-local-install-runbook.md)

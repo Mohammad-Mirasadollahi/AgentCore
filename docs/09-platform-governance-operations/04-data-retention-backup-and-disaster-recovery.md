@@ -21,8 +21,12 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.0
-updated_at: '2026-07-25'
+doc_version: 1.3.0
+updated_at: '2026-08-01'
+related_docs:
+- docs/superpowers/specs/2026-08-01-project-backup-restore-design.md
+- docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md
+- backend/runbooks/backup-restore/README.md
 ---
 
 # Data Retention, Backup, and Disaster Recovery
@@ -68,6 +72,23 @@ Backups should include:
 - configuration profiles,
 - schema versions,
 - encryption metadata.
+
+### Project-scoped portable backup
+
+Operators can export one project scope to a `.acbak` bundle and restore it on
+another AgentCore server
+(`agentcore backup export|validate|dry-run|restore|status`).
+The bundle covers analytical stores (core data, memory + embeddings, code graph,
+docs-sync, guidance/common-context, profiles, rules, adapter metadata,
+orchestration, audit, reporting) with fail-closed conflict handling, schema
+fingerprint gates, post-restore count verification, and optional scope remap.
+MCP exposes `agentcore_backup_status` and `agentcore_backup_dry_run` only.
+Connector secrets and full-server broker replay remain out of scope for `.acbak`.
+
+Normative operator runbook:
+`docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md`.
+Design: `docs/superpowers/specs/2026-08-01-project-backup-restore-design.md`.
+Package boundary: `backend/runbooks/backup-restore/README.md`.
 
 ## Restore Requirements
 

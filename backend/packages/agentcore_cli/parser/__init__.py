@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 
 from agentcore_cli.parser import (
+    backup,
     governance,
     graph,
     identity,
@@ -45,5 +46,6 @@ def build_parser() -> argparse.ArgumentParser:
     graph.register(sub)
     governance.register(sub)
     upgrade.register(sub)
+    backup.register(sub)
 
     return parser

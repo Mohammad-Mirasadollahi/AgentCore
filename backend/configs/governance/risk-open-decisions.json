@@ -23,7 +23,7 @@
       "title": "Incomplete backup/restore of graph and memory",
       "severity": "high",
       "owner": "platform-ops",
-      "mitigation": "Documented restore drills covering Postgres, Neo4j projection, and audit evidence.",
+      "mitigation": "Project-scoped .acbak export/restore (agentcore backup) covers Postgres analytical stores + Neo4j graph with checksum/schema/count gates; schedule restore drills and keep full-server DR for broker/volumes. See docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md.",
       "review_date": "2026-09-01"
     }
   ],

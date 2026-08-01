@@ -58,6 +58,7 @@ package-dir = {"" = "backend/packages"}
 packages = [
   "agentcore_cli",
   "agentcore_client",
+  "agentcore_backup",
   "usage_profile",
   "outbox_relay",
   "llm_gateway",

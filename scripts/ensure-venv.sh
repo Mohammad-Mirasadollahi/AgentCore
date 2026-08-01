@@ -21,7 +21,7 @@ fi
 "${VENV_PATH}/bin/pip" install -e "${ROOT}"
 
 echo "OK: ${VENV_PATH} ready"
-"${VENV_PATH}/bin/python" -c "import fastapi,httpx,pytest,psycopg,agentcore_cli,usage_profile; print('imports ok')"
+"${VENV_PATH}/bin/python" -c "import fastapi,httpx,pytest,psycopg,agentcore_cli,agentcore_backup,usage_profile; print('imports ok')"
 
 # Install CLI onto ~/.local/bin and optionally update shell rc for PATH.
 SHELL_RC=""

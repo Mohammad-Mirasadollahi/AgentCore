@@ -72,9 +72,12 @@ echo "[wheelhouse] building local agentcore wheel from ${ROOT}…"
 "${PIP}" wheel --no-deps --wheel-dir "${WHEELHOUSE}" "${ROOT}"
 
 # requirements for image install: frozen third-party + agentcore (no VCS).
+AC_VER="$(
+  "${PYTHON}" -c "import tomllib; print(tomllib.load(open('${ROOT}/pyproject.toml','rb'))['project']['version'])"
+)"
 {
   grep -vE '^-e |@ git\+|@ file:|^agentcore==' "${REQS}.raw" || true
-  echo "agentcore==0.1.0"
+  echo "agentcore==${AC_VER}"
 } > "${REQS}"
 
 {

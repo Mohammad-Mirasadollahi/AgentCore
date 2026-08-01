@@ -36,8 +36,11 @@ linked_symbols:
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
 - backend/packages/agentcore_cli/docs_audit_scope.py::is_docs_audit_path
 - backend/packages/agentcore_cli/sync_config.py::resolve_sync_filters
-doc_version: 1.1.0
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-08-01'
+related_docs:
+- docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md
+- docs/superpowers/specs/2026-08-01-project-backup-restore-design.md
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued) (Continued) (Continued) (Part 4)
@@ -317,6 +320,58 @@ AGENTCORE_SYNC_DOC_EXCLUDE='**/CHANGELOG.md' agentcore sync
 
 ---
 
+### `agentcore backup export`
+
+| | |
+| --- | --- |
+| **Why** | Export one project scope to a portable `.acbak` for migrate/DR drills |
+| **Required** | `--output` / `-o`; scope from flags/env/identity/connect |
+| **Optional** | `--tenant` `--workspace` `--project` |
+| **Example** | `agentcore backup export -o ./project.acbak` |
+| **What changes** | Writes `.acbak`; updates `.agentcore/backup/last-job.json` |
+| **Client-only** | No (server / both) |
+
+### `agentcore backup validate`
+
+| | |
+| --- | --- |
+| **Why** | Check checksums, contract, and schema fingerprint before restore |
+| **Required** | `--input` / `-i` |
+| **Optional** | `--skip-contract` |
+| **Example** | `agentcore backup validate -i ./project.acbak` |
+| **What changes** | Nothing (read-only; may read DB for schema gate) |
+
+### `agentcore backup dry-run`
+
+| | |
+| --- | --- |
+| **Why** | Preview conflict/remap without writing stores |
+| **Required** | `--input` / `-i` |
+| **Optional** | `--replace`, remap flags, `--skip-contract` |
+| **Example** | `agentcore backup dry-run -i ./project.acbak` |
+| **What changes** | Updates last-job JSON only |
+
+### `agentcore backup restore`
+
+| | |
+| --- | --- |
+| **Why** | Import a `.acbak` into this server’s stores for a scope |
+| **Required** | `--input` / `-i`; empty target **or** `--replace --yes` |
+| **Optional** | `--remap-tenant` `--remap-workspace` `--remap-project` `--skip-contract` |
+| **Example** | `agentcore backup restore -i ./project.acbak --replace --yes` |
+| **What changes** | Writes Postgres/Neo4j/local project pin; may wipe scope first |
+
+### `agentcore backup status`
+
+| | |
+| --- | --- |
+| **Why** | Show last backup/restore/dry-run job summary |
+| **Required** | None |
+| **Example** | `agentcore backup status` |
+| **What changes** | Nothing (read-only) |
+
+Normative operator detail: [13-project-scoped-backup-and-restore.md](../09-platform-governance-operations/13-project-scoped-backup-and-restore.md).
+
 ## Destructive and safety notes
 
 | Action | Safety |
@@ -324,6 +379,7 @@ AGENTCORE_SYNC_DOC_EXCLUDE='**/CHANGELOG.md' agentcore sync
 | `purge` | Requires `--yes`; scopes wipe only (graph data) |
 | `paths remove` | Warns that graph data for removed trees **remains** until `purge`; cannot remove the last path |
 | `destroy-profile` | Two different typed confirmations in a TTY; deletes profile/platform data for one scope; **never** source code |
+| `backup restore --replace` | Requires `--yes`; wipes target scope stores then imports bundle |
 | `init --force` | Overwrites identity pin; does not auto-purge old graph |
 | Changing tenant/workspace/project | Isolates new data; old scope stays until purged or destroyed |
 | `connect` | Overwrites/merges MCP config files for selected clients |
@@ -337,6 +393,7 @@ Do not put secrets in docs or chat examples. MCP bearer secrets belong in env / 
 | Parser | `backend/packages/agentcore_cli/parser/` |
 | Dispatch | `backend/packages/agentcore_cli/main.py` |
 | Commands | `backend/packages/agentcore_cli/commands/` |
+| Project backup | `backend/packages/agentcore_backup/` + `commands/backup_cmd.py` |
 | Sync filter merge | `backend/packages/agentcore_cli/sync_config.py` |
 | Software paths | `backend/packages/agentcore_cli/software_paths.py` |
 | Docs link Phase 2 | `backend/packages/agentcore_cli/docs_link_sync.py` |

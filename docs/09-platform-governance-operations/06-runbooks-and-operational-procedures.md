@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.0
+updated_at: '2026-08-01'
 ---
 
 # Runbooks and Operational Procedures
@@ -79,6 +79,16 @@ Runbooks define repeatable operational procedures. They reduce confusion during 
 3. Pause high-risk automation if judgment is unavailable.
 4. Record incident and affected Tasks.
 5. Resume normal routing after provider health recovers.
+
+### Project Scope Migrate (`.acbak`)
+
+1. On source: `agentcore backup export -o ./project.acbak`.
+2. Copy the archive to the target AgentCore server.
+3. On target: `agentcore backup validate -i ./project.acbak` then `dry-run`.
+4. Restore into an empty scope, or use `--replace --yes` after explicit approval.
+5. Confirm `agentcore backup status` and spot-check memory/graph/docs counts.
+
+Normative detail: `docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md`.
 
 ## Runbook Requirements
 

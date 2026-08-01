@@ -23,8 +23,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/governance-catalog-verification/run_gate.py::main
-doc_version: 1.1.0
-updated_at: '2026-07-25'
+doc_version: 1.2.0
+updated_at: '2026-08-01'
 ---
 
 # 09 - Platform Governance and Operations Index
@@ -39,6 +39,7 @@ This section completes the AgentCore plan from an operational and governance per
 - 02-observability-slo-and-incident-response.md defines logs, metrics, traces, SLOs, alerting, and incident handling.
 - 03-ci-cd-release-and-environment-strategy.md defines CI gates, release workflow, environment separation, migrations, and rollback strategy.
 - 04-data-retention-backup-and-disaster-recovery.md defines retention, backup, restore, audit evidence preservation, and disaster recovery expectations (cross-links automated follow-up Task retention in core-data model doc 09).
+- 13-project-scoped-backup-and-restore.md is the operator runbook for portable `.acbak` project migrate (CLI export/validate/dry-run/restore + MCP status/dry-run).
 - 05-api-versioning-and-contract-governance.md defines API contracts, schema versioning, backward compatibility, and deprecation policy.
 - 12-schema-registry-architecture.md decides v1 schema registry shape (repository-directory catalog) and closes GAP-008.
 - 06-runbooks-and-operational-procedures.md defines standard operating procedures for common platform workflows.

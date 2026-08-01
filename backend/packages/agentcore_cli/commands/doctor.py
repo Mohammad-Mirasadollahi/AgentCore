@@ -47,7 +47,13 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "install_versions": read_install_versions(root),
         "server_advertisement": server_version_payload(),
     }
-    for name in ("fastapi", "usage_profile", "agentcore_cli", "mcp_gateway_service"):
+    for name in (
+        "fastapi",
+        "usage_profile",
+        "agentcore_cli",
+        "agentcore_backup",
+        "mcp_gateway_service",
+    ):
         try:
             if name == "mcp_gateway_service":
                 sys.path.insert(0, str(root / "backend" / "services" / "mcp-gateway-service" / "src"))
