@@ -74,7 +74,7 @@ class Neo4jCrudMixin:
             doc_status=self._parse_doc_status(node.get("doc_status"), symbol_id=symbol_id or "?"),
             embedding=list(embedding),
             visibility=node["visibility"],
-            version=int(node["version"]),
+            version=int(node.get("version") or 1),
             created_at=str(node["created_at"]),
             updated_at=str(node["updated_at"]),
             language=str(node.get("language") or ""),
@@ -141,6 +141,19 @@ class Neo4jCrudMixin:
             session.run(
                 cypher.DELETE_SYMBOL,
                 id=symbol_id,
+                tenant_id=scope.tenant_id,
+                workspace_id=scope.workspace_id,
+                project_id=scope.project_id,
+            )
+
+    def delete_symbols(self, symbol_ids: list[str], scope: Scope) -> None:
+        ids = [str(symbol_id) for symbol_id in symbol_ids if str(symbol_id)]
+        if not ids:
+            return
+        with self._driver.session(database=self._database) as session:
+            session.run(
+                cypher.DELETE_SYMBOLS,
+                symbol_ids=ids,
                 tenant_id=scope.tenant_id,
                 workspace_id=scope.workspace_id,
                 project_id=scope.project_id,
@@ -224,6 +237,31 @@ class Neo4jCrudMixin:
                 file_path=file_path,
                 metadata_json=json.dumps(metadata, sort_keys=True),
             )
+
+    def put_edges(self, edges: list[GraphEdge]) -> None:
+        if not edges:
+            return
+        rows: list[dict[str, Any]] = []
+        for edge in edges:
+            scope = edge.scope
+            metadata = dict(edge.metadata or {})
+            rows.append(
+                {
+                    "id": edge.id,
+                    "source_id": edge.source_id,
+                    "target_id": edge.target_id,
+                    "tenant_id": scope.tenant_id,
+                    "workspace_id": scope.workspace_id,
+                    "project_id": scope.project_id,
+                    "project_group_id": scope.project_group_id,
+                    "rel_type": edge.rel_type,
+                    "confidence": parse_call_confidence(edge.confidence).value,
+                    "file_path": str(metadata.get("file_path") or ""),
+                    "metadata_json": json.dumps(metadata, sort_keys=True),
+                }
+            )
+        with self._driver.session(database=self._database) as session:
+            session.run(cypher.PUT_EDGES, edges=rows)
 
     def list_edges(
         self,

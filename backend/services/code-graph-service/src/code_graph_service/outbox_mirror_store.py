@@ -21,6 +21,13 @@ class OutboxMirrorStore:
             close()
         self._mirror.close()
 
+    def reset_connections(self) -> None:
+        """Release PostgreSQL worker connections without closing the graph driver."""
+        reset = getattr(self._store, "reset_connections", None)
+        if callable(reset):
+            reset()
+        self._mirror.reset_connections()
+
     def append_event(self, event: dict[str, Any]) -> None:
         self._store.append_event(event)
         self._mirror.append_event(event)

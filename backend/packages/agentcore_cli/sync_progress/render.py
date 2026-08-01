@@ -74,7 +74,7 @@ def print_progress_line(snap: dict[str, Any]) -> None:
         detail = (
             f"   {ui.dim('symbols')} {snap.get('symbols_indexed')}  "
             f"{ui.dim('edges')} {snap.get('edges_written')}  "
-            f"{ui.dim('≈tokens')} {snap.get('approx_tokens')}"
+            f"{ui.dim('≈tokens (local chars÷4 estimate)')} {snap.get('approx_tokens')}"
         )
     if file_name:
         detail += f"  {ui.dim('file')} {file_name}"

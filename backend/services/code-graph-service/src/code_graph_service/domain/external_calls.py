@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .confidence_policy import impact_eligible
+from .enums import CallConfidence
 from .parsing import builtin_names
 
 # Only well-known stdlib module roots. Conservative on purpose: prefer
@@ -117,7 +119,12 @@ def classify_external_call(
     return None
 
 
-def is_blast_call_edge(*, target_id: str, metadata: dict | None = None) -> bool:
+def is_blast_call_edge(
+    *,
+    target_id: str,
+    metadata: dict | None = None,
+    confidence: CallConfidence | str | None = None,
+) -> bool:
     """Whether a CALLS edge should participate in blast / flow / explore expansion.
 
     Only edges to project ``sym:`` targets count. Tagged externals, import stubs,
@@ -125,4 +132,6 @@ def is_blast_call_edge(*, target_id: str, metadata: dict | None = None) -> bool:
     """
     if metadata and metadata.get("is_external"):
         return False
-    return is_project_symbol_id(target_id)
+    if not is_project_symbol_id(target_id):
+        return False
+    return confidence is None or impact_eligible(confidence)

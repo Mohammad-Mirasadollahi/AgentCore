@@ -8,7 +8,9 @@ Forbidden: treating ANN as SoR; cross-tenant refresh; silent incomplete without 
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -118,6 +120,7 @@ class EmbeddingRefreshMixin:
                     )
 
             skip_when_unchanged = bool(policy.get("skip_when_model_unchanged", True)) and not force
+            pending: list[tuple[Any, str, str, str]] = []
             for symbol in symbols:
                 kind = str(getattr(symbol.kind, "value", symbol.kind) or "unknown")
                 if kind not in SEARCHABLE_SYMBOL_KINDS:
@@ -157,16 +160,59 @@ class EmbeddingRefreshMixin:
                     if reason:
                         report.reasons[reason] = report.reasons.get(reason, 0) + 1
                     continue
-                result = self.embeddings.embed(text)
-                self._index_embedding(
-                    scope,
-                    symbol.id,
-                    list(result.vector),
-                    kind=kind,
+                pending.append((symbol, kind, text, reason))
+            batch = getattr(self.embeddings, "embed_many", None)
+            chunks = [
+                pending[offset : offset + 128]
+                for offset in range(0, len(pending), 128)
+            ]
+
+            def _embed_chunk(chunk: list[tuple[Any, str, str, str]]):
+                texts = [item[2] for item in chunk]
+                results = (
+                    list(batch(texts))
+                    if callable(batch)
+                    else [self.embeddings.embed(text) for text in texts]
                 )
-                report.refreshed += 1
-                if reason:
-                    report.reasons[reason] = report.reasons.get(reason, 0) + 1
+                if len(results) != len(chunk):
+                    raise RuntimeError(
+                        "embedding batch returned "
+                        f"{len(results)} results for {len(chunk)} symbols"
+                    )
+                return chunk, results
+
+            try:
+                configured_workers = int(
+                    os.environ.get("AGENTCORE_EMBEDDING_REFRESH_WORKERS", "4")
+                )
+            except ValueError:
+                configured_workers = 4
+            workers = min(
+                max(1, configured_workers),
+                16,
+                max(1, len(chunks)),
+            )
+            with ThreadPoolExecutor(
+                max_workers=workers,
+                thread_name_prefix="embedding-refresh",
+            ) as executor:
+                futures = [executor.submit(_embed_chunk, chunk) for chunk in chunks]
+                completed = (future.result() for future in as_completed(futures))
+                for chunk, results in completed:
+                    for (symbol, kind, _text, reason), result in zip(
+                        chunk,
+                        results,
+                        strict=True,
+                    ):
+                        self._index_embedding(
+                            scope,
+                            symbol.id,
+                            list(result.vector),
+                            kind=kind,
+                        )
+                        report.refreshed += 1
+                        if reason:
+                            report.reasons[reason] = report.reasons.get(reason, 0) + 1
             report.state = "complete"
             return report
         except Exception as exc:  # noqa: BLE001 — job state must surface failure

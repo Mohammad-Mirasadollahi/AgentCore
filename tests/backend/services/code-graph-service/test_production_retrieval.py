@@ -21,6 +21,17 @@ def test_bm25_ranks_relevant_symbol_first():
     assert scored[0][1] > 0
 
 
+def test_bm25_supports_persian_tokens_and_script_variants():
+    corpus = [
+        ("auth", "قوانین ورود کاربر و رمز عبور امن"),
+        ("ui", "راهنمای نمایش داشبورد و نمودار"),
+    ]
+    ranked = lexical_rank_scored("قوانين ورود و رمز عبور", corpus, top_k=2)
+    assert ranked
+    assert ranked[0][0] == "auth"
+    assert ranked[0][1] > 0
+
+
 def test_lucene_query_ors_tokens():
     q = _lucene_query('hash_password("x") path/auth')
     assert "OR" in q

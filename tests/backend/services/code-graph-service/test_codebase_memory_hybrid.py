@@ -209,6 +209,31 @@ def test_call_path_pack() -> None:
     assert pack["escalate_hint"]["prefer_before_raw_read"] is True
 
 
+def test_call_path_pack_excludes_ambiguous_calls() -> None:
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    seed = _sym("sym:p:seed", "seed")
+    exact = _sym("sym:p:exact", "exact")
+    ambiguous = _sym("sym:p:ambiguous", "ambiguous")
+    for symbol in (seed, exact, ambiguous):
+        store.put_symbol(symbol)
+    store.put_edge(_edge("e-exact", "CALLS", seed.id, exact.id))
+    store.put_edge(
+        _edge(
+            "e-ambiguous",
+            "CALLS",
+            seed.id,
+            ambiguous.id,
+            CallConfidence.AMBIGUOUS,
+        )
+    )
+
+    pack = svc.call_path_pack(SCOPE, seed.id, max_depth=2)
+
+    assert exact.id in pack["call_path_ids"]
+    assert ambiguous.id not in pack["call_path_ids"]
+
+
 def test_getattr_call_extracted() -> None:
     src = '''
 def helper():

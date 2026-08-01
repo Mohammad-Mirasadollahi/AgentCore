@@ -46,6 +46,15 @@ WHERE n.tenant_id = $tenant_id
 DETACH DELETE n
 """
 
+DELETE_SYMBOLS = """
+UNWIND $symbol_ids AS symbol_id
+MATCH (n:CodeSymbol {id: symbol_id})
+WHERE n.tenant_id = $tenant_id
+  AND n.workspace_id = $workspace_id
+  AND n.project_id = $project_id
+DETACH DELETE n
+"""
+
 LIST_SYMBOLS = """
 MATCH (n:CodeSymbol)
 WHERE n.tenant_id = $tenant_id
@@ -115,6 +124,21 @@ SET r.tenant_id = $tenant_id,
     r.confidence = coalesce($confidence, 'exact'),
     r.file_path = $file_path,
     r.metadata_json = $metadata_json
+"""
+
+PUT_EDGES = f"""
+UNWIND $edges AS edge
+MATCH (source:CodeSymbol {{id: edge.source_id}})
+MATCH (target:CodeSymbol {{id: edge.target_id}})
+MERGE (source)-[r:{REL} {{id: edge.id}}]->(target)
+SET r.tenant_id = edge.tenant_id,
+    r.workspace_id = edge.workspace_id,
+    r.project_id = edge.project_id,
+    r.project_group_id = edge.project_group_id,
+    r.rel_type = edge.rel_type,
+    r.confidence = coalesce(edge.confidence, 'exact'),
+    r.file_path = edge.file_path,
+    r.metadata_json = edge.metadata_json
 """
 
 LIST_EDGES = f"""

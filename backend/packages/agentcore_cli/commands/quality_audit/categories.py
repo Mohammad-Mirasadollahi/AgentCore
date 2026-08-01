@@ -14,6 +14,7 @@ CATEGORY_DOCS_REVISION_INVALID = "docs.revision_invalid"
 CATEGORY_CODE_NEVER_INGESTED = "code.never_ingested"
 CATEGORY_CODE_STALE_EDITED = "code.stale_edited"
 CATEGORY_CODE_LOW_SYMBOL_DOCS = "code.low_symbol_docs"
+CATEGORY_CODE_MISSING_EMBEDDINGS = "code.missing_embeddings"
 
 CATEGORY_META: dict[str, dict[str, str]] = {
     CATEGORY_DOCS_STANDARDS: {
@@ -87,6 +88,12 @@ CATEGORY_META: dict[str, dict[str, str]] = {
         "severity": "medium",
         "meaning": "Ingested files have little or no LLM/living documentation on symbols.",
         "fix_hint": "Re-sync with LLM docs enabled; check RPM/cloud consent and sync progress.",
+    },
+    CATEGORY_CODE_MISSING_EMBEDDINGS: {
+        "title": "Missing semantic index rows",
+        "severity": "high",
+        "meaning": "Searchable graph symbols exist without a persisted embedding row.",
+        "fix_hint": "Run agentcore sync to self-heal embeddings; inspect embedding_refresh on failure.",
     },
 }
 

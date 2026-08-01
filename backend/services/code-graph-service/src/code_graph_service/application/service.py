@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from ..domain.documentation import HeuristicDocGenerator
@@ -46,6 +47,7 @@ class CodeGraphService(
         self.embedding_index = embedding_index
         self.llm = llm
         self.freshness = FreshnessState()
+        self._edge_batches = threading.local()
         self.edit_session_factory = edit_session_factory
         # Optional Stage-2 ANN replica (VectorIndexPort); None → pgvector-only path.
         self.vector_index = vector_index
@@ -65,6 +67,15 @@ class CodeGraphService(
             closer = getattr(resource, "close", None)
             if callable(closer):
                 closer()
+
+    def reset_database_connections(self) -> None:
+        """Release completed worker pools while keeping the service reusable."""
+        for resource in (self.store, self.embedding_index):
+            if resource is None:
+                continue
+            reset = getattr(resource, "reset_connections", None)
+            if callable(reset):
+                reset()
 
     def llm_providers(self) -> list[dict[str, Any]]:
         if self.llm is None:

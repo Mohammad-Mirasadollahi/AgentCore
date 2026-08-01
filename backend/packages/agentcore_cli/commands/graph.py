@@ -210,8 +210,10 @@ def cmd_graph_ingest(args: argparse.Namespace) -> int:
         },
     )
     payload = result.to_dict() if hasattr(result, "to_dict") else result
-    print_json({"ok": True, "path": str(root_path), "result": payload})
-    return 0
+    refresh = payload.get("embedding_refresh") or {}
+    ok = int(payload.get("files_failed") or 0) == 0 and refresh.get("state") != "failed"
+    print_json({"ok": ok, "path": str(root_path), "result": payload})
+    return 0 if ok else 1
 
 
 def cmd_graph_freshness(args: argparse.Namespace) -> int:
@@ -260,6 +262,19 @@ def cmd_graph_generation_context(args: argparse.Namespace) -> int:
     qn = str(getattr(args, "qualified_name", "") or "").strip()
     if not symbol_id and qn:
         hit = svc.store.get_symbol_by_qualified_name(scope, qn)
+        if hit is None:
+            matches = [
+                symbol
+                for symbol in svc.store.list_symbols(scope)
+                if symbol.name == qn or symbol.qualified_name.endswith(f".{qn}")
+            ]
+            if len(matches) == 1:
+                hit = matches[0]
+            elif len(matches) > 1:
+                options = ", ".join(sorted(symbol.qualified_name for symbol in matches[:8]))
+                raise SystemExit(
+                    f"error: qualified_name is ambiguous: {qn}; use one of: {options}"
+                )
         if hit is None:
             raise SystemExit(f"error: qualified_name not found: {qn}")
         symbol_id = hit.id

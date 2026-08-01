@@ -120,10 +120,16 @@ def test_live_drift_unknown_symbol_still_reports_missing(
 ) -> None:
     """Challenge 4: truly unknown symbol still takes docs-sync path → missing_doc."""
     unique = f"never_linked_symbol_{uuid.uuid4().hex[:10]}"
+    isolated_scope = {
+        **live_scope,
+        "project_id": f"{live_scope['project_id']}-drift-{uuid.uuid4().hex[:8]}",
+    }
+    main_docs_scope = live_backends.docs_scope(live_scope)
+    main_symbol_count = len(live_backends.docs.store.list_symbols(main_docs_scope))
     result = docs_backend.docs_drift_check(
         live_backends,
         {"symbol": unique, "file_path": f"src/{unique}.py"},
-        scope=live_scope,
+        scope=isolated_scope,
         correlation_id=f"live-drift-missing-{uuid.uuid4().hex[:8]}",
         base={"backend": "in_process"},
     )
@@ -131,6 +137,7 @@ def test_live_drift_unknown_symbol_still_reports_missing(
     assert result["findings"]
     assert result.get("lookup_source") == "docs_sync"
     assert result["findings"][0]["drift_type"] == "missing_doc"
+    assert len(live_backends.docs.store.list_symbols(main_docs_scope)) == main_symbol_count
 
 
 @pytest.mark.live

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -84,3 +85,48 @@ def test_http_mcp_initialize(monkeypatch):
 
     asyncio.run(run())
     assert backends.close_count == 2
+
+
+def test_http_health_remains_responsive_during_blocking_tool(monkeypatch):
+    class Backends:
+        def close(self) -> None:
+            pass
+
+    def blocking_handle_message(_gateway, message):
+        if message.get("method") == "tools/call":
+            time.sleep(0.25)
+        return {"jsonrpc": "2.0", "id": message.get("id"), "result": {}}
+
+    monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
+    monkeypatch.setattr(
+        "mcp_gateway_service.http_app.handle_message",
+        blocking_handle_message,
+    )
+    from mcp_gateway_service.http_app import create_http_app
+
+    token = mint_connect_token(tenant_id="t", workspace_id="w", project_id="p")
+    app = create_http_app(backends=Backends())
+
+    async def run() -> None:
+        async with (
+            AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as tool_client,
+            AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as health_client,
+        ):
+            request = asyncio.create_task(
+                tool_client.post(
+                    "/mcp",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {}},
+                )
+            )
+            started_at = time.perf_counter()
+            health_request = asyncio.create_task(health_client.get("/health"))
+            health = await health_request
+            health_elapsed = time.perf_counter() - started_at
+            await asyncio.sleep(0.3)
+            await request
+
+            assert health.status_code == 200
+            assert health_elapsed < 0.1
+
+    asyncio.run(run())

@@ -39,7 +39,6 @@ def inventory_one_root(
     filters = resolve_sync_filters(root=root_path)
     processing = processing or processing_context(svc)
     embed_by_symbol = embed_models_by_symbol(svc, scope)
-    fallback_embed = str(processing.get("active_embed_model") or "unknown")
     docs_model_label = str(processing.get("docs_model_label") or "heuristic")
 
     discovered_code, discovered_docs = discover_code_and_docs(
@@ -57,7 +56,6 @@ def inventory_one_root(
         code_discovered=code_discovered,
         docs_discovered=docs_discovered,
         embed_by_symbol=embed_by_symbol,
-        fallback_embed=fallback_embed,
         docs_model_label=docs_model_label,
     )
     indexed_code = scanned["indexed_code"]
@@ -65,6 +63,7 @@ def inventory_one_root(
     llm_done = scanned["llm_done"]
     llm_remaining = scanned["llm_remaining"]
     file_meta = scanned["file_meta"]
+    docs_hashes = scanned["docs_hashes"]
     code_stats = scanned["code_stats"]
     docs_stats = scanned["docs_stats"]
 
@@ -81,8 +80,24 @@ def inventory_one_root(
         pending_rels=pending_rels,
         file_meta=file_meta,
     )
-    # Docs: pending-only (body hash is post-frontmatter; disk compare is best-effort via pending).
     docs_edited_map = {rel: "pending" for rel in sorted(indexed_docs & pending_rels)}
+    if indexed_docs:
+        from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter
+        from code_graph_service.domain.hashing import digest
+
+        for rel in sorted(indexed_docs - pending_rels):
+            known_hashes = docs_hashes.get(rel) or set()
+            if not known_hashes:
+                continue
+            try:
+                _frontmatter, body = parse_markdown_frontmatter(
+                    (root_path / rel).read_text(encoding="utf-8")
+                )
+            except (OSError, UnicodeDecodeError):
+                docs_edited_map[rel] = "unreadable"
+                continue
+            if digest(body) not in known_hashes:
+                docs_edited_map[rel] = "content_changed"
 
     code_edited = set(code_edited_map)
     docs_edited = set(docs_edited_map)
@@ -94,11 +109,6 @@ def inventory_one_root(
     docs_remaining = sorted(docs_discovered - indexed_docs) if docs_discovered else []
 
     llm_done, llm_remaining = demote_edited_llm(llm_done, llm_remaining, code_edited)
-
-    for rel in code_done + code_edited_list:
-        stats = code_stats[rel]
-        if not stats["embed_models"]:
-            stats["embed_models"].add(fallback_embed)
 
     code_done_files = _code_rows(code_done, "done", code_stats, code_edited_map)
     code_edited_files = _code_rows(code_edited_list, "edited", code_stats, code_edited_map)
@@ -126,6 +136,15 @@ def inventory_one_root(
     )
     code_bytes = sum(int(getattr(item, "size_bytes", 0) or 0) for item in discovered_code)
     docs_bytes = sum(int(getattr(item, "size_bytes", 0) or 0) for item in discovered_docs)
+    eligible_embeddings = sum(
+        int(stats.get("embedding_eligible") or 0) for stats in code_stats.values()
+    )
+    indexed_embeddings = sum(
+        int(stats.get("embedding_indexed") or 0) for stats in code_stats.values()
+    )
+    missing_embeddings = sum(
+        int(stats.get("embedding_missing") or 0) for stats in code_stats.values()
+    )
 
     return {
         "path": str(root_path),
@@ -145,6 +164,16 @@ def inventory_one_root(
         "languages": languages,
         "code": {
             **code_bucket,
+            "embeddings": {
+                "eligible_symbols": eligible_embeddings,
+                "indexed_symbols": indexed_embeddings,
+                "missing_symbols": missing_embeddings,
+                "coverage_percent": (
+                    round(100.0 * indexed_embeddings / eligible_embeddings, 1)
+                    if eligible_embeddings
+                    else 100.0
+                ),
+            },
             "pending_count": len(pending_rels & code_discovered),
             "pending": sorted(pending_rels & code_discovered),
             "llm": bucket(llm_done, llm_remaining),
@@ -180,6 +209,9 @@ def _code_rows(
             status=status,
             symbols=int(code_stats[rel]["symbols"]),
             documented=int(code_stats[rel]["documented"]),
+            embedding_eligible=int(code_stats[rel]["embedding_eligible"]),
+            embedding_indexed=int(code_stats[rel]["embedding_indexed"]),
+            embedding_missing=int(code_stats[rel]["embedding_missing"]),
             embed_models=list(code_stats[rel]["embed_models"]),
             docs_models=list(code_stats[rel]["docs_models"]),
             category="code",

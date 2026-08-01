@@ -3,12 +3,12 @@
 Role: discover Markdown, index into docs-sync, project ``DOCUMENTED_BY`` for
 resolved ``linked_symbols`` (catalog orders the queue; evidence may merge tokens).
 Source of truth: docs-sync Document/DocAnchor; Neo4j human ``doc:human:…`` nodes.
-Parallelism: same ``sync_max_file_workers`` pool as code ingest; docs-sync stores
-are thread-safe (Postgres per-thread connections; in-memory ``RLock``).
+Parallelism: bounded by the database store-slot budget; docs-sync stores are
+thread-safe (Postgres per-thread connections; in-memory ``RLock``).
 Allowed: soft-fail per doc; skip unchanged bodies on re-sync (optional link
 refresh after code ingest); concurrent docs-sync writes under workers.
-Forbidden: invent edges for unresolved tokens; treat stale duplicate
-``doc:human`` hashes for the same path as content changes.
+Forbidden: invent edges for unresolved tokens; store graph FILE hashes as
+docs-sync body hashes; treat duplicate ``doc:human`` rows as content changes.
 """
 
 from __future__ import annotations
@@ -394,9 +394,13 @@ def sync_human_docs(
     active_files: set[str] = set()
 
     from code_graph_service.application.ingest.parallel_files import run_parallel_file_jobs
-    from code_graph_service.locked_store import sync_max_file_workers
+    from code_graph_service.locked_store import resolve_sync_cpu_plan, sync_max_file_workers
 
-    workers = min(sync_max_file_workers(), max(1, progress_total or 1))
+    workers = min(
+        sync_max_file_workers(),
+        resolve_sync_cpu_plan().store_concurrency,
+        max(1, progress_total or 1),
+    )
 
     def _emit(done: int, *, file: str = "", status: str = "") -> None:
         if not callable(on_progress):
@@ -554,11 +558,11 @@ def sync_human_docs(
                     docs_scope,
                     actor,
                     corr,
-                    f"docs-anchor:{doc_id}:{ds_symbol.id}:{graph_sym.hash_value[:16]}",
+                    f"docs-anchor:{doc_id}:{ds_symbol.id}:{ds_symbol.body_hash[:16]}",
                     {
                         "doc_id": document.id,
                         "symbol_id": ds_symbol.id,
-                        "recorded_hash": graph_sym.hash_value,
+                        "recorded_hash": ds_symbol.body_hash,
                     },
                 )
                 with state_lock:
@@ -574,7 +578,16 @@ def sync_human_docs(
         _emit(done, file=rel, status=status)
 
     _emit(0, status="started")
-    if prepared:
-        run_parallel_file_jobs(workers=workers, items=prepared, fn=_process_one)
-    _emit(progress_total, status="finished")
-    return result
+    try:
+        if prepared:
+            run_parallel_file_jobs(workers=workers, items=prepared, fn=_process_one)
+        _emit(progress_total, status="finished")
+        return result
+    finally:
+        store = getattr(docs_svc, "store", None)
+        close = getattr(store, "close", None)
+        if callable(close):
+            close()
+        reset_connections = getattr(graph_service, "reset_database_connections", None)
+        if callable(reset_connections):
+            reset_connections()

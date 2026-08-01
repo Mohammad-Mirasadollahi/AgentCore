@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from code_graph_service.core import CodeGraphService, Scope
+import pytest
+
+from code_graph_service.core import CodeGraphService, NotFoundError, Scope
 from code_graph_service.domain.architecture import ArchNode, knowledge_gaps
 from code_graph_service.domain.enums import RelType
+from code_graph_service.domain.hashing import HASH_VERSION
 from code_graph_service.domain.structural_integrity import file_needs_contains_repair
+from code_graph_service.postgres_side import InMemoryEmbeddingIndex
 from code_graph_service.testing import InMemoryStore
 
 
@@ -94,6 +98,117 @@ def test_sync_repo_repairs_edgeless_hash_stable_tree(tmp_path: Path):
     assert again.mode != "noop"
     file_id = f"file:{scope.project_id}:src/a.py"
     assert store.list_edges(scope, rel_type=RelType.CONTAINS.value, source_id=file_id)
+
+
+def test_sync_repo_reingests_when_hash_policy_version_changes(
+    tmp_path: Path,
+    monkeypatch,
+):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_text(
+        "def helper():\n    return 1\n",
+        encoding="utf-8",
+    )
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    scope = Scope("t", "w", "repair-hash-version")
+    import code_graph_service.domain.hashing as hashing
+
+    monkeypatch.setattr(hashing, "HASH_VERSION", "legacy")
+    svc.sync_repo(
+        scope,
+        "tester",
+        "corr-1",
+        "key-1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    file_id = f"file:{scope.project_id}:src/a.py"
+    assert store.get_symbol(file_id, scope).hash_version == "legacy"
+    monkeypatch.setattr(hashing, "HASH_VERSION", HASH_VERSION)
+
+    again = svc.sync_repo(
+        scope,
+        "tester",
+        "corr-2",
+        "key-1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+
+    assert again.files_ingested == 1
+    assert store.get_symbol(file_id, scope).hash_version == HASH_VERSION
+
+
+def test_sync_repo_prunes_symbols_and_embeddings_for_removed_source(tmp_path: Path):
+    (tmp_path / "src").mkdir()
+    active = tmp_path / "src" / "active.py"
+    removed = tmp_path / "src" / "removed.py"
+    active.write_text("def active():\n    return 1\n", encoding="utf-8")
+    removed.write_text("def removed():\n    return 2\n", encoding="utf-8")
+    store = InMemoryStore()
+    embeddings = InMemoryEmbeddingIndex()
+    svc = CodeGraphService(store, embedding_index=embeddings)
+    scope = Scope("t", "w", "repair-deleted-file")
+
+    svc.sync_repo(
+        scope,
+        "tester",
+        "corr-1",
+        "key-1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    removed_file_id = f"file:{scope.project_id}:src/removed.py"
+    removed_symbol_id = f"sym:{scope.project_id}:src.removed.removed"
+    assert store.get_symbol(removed_file_id, scope)
+    assert removed_symbol_id in embeddings.list_symbol_models(scope)
+
+    removed.unlink()
+    svc.sync_repo(
+        scope,
+        "tester",
+        "corr-2",
+        "key-2",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+
+    with pytest.raises(NotFoundError):
+        store.get_symbol(removed_file_id, scope)
+    with pytest.raises(NotFoundError):
+        store.get_symbol(removed_symbol_id, scope)
+    assert removed_symbol_id not in embeddings.list_symbol_models(scope)
+    assert store.get_symbol(f"file:{scope.project_id}:src/active.py", scope)
+
+
+def test_sync_repo_backfills_language_without_rebuilding_edges(tmp_path: Path):
+    source = tmp_path / "module.py"
+    source.write_text("def helper():\n    return 1\n", encoding="utf-8")
+    store = InMemoryStore()
+    svc = CodeGraphService(store)
+    scope = Scope("t", "w", "repair-language")
+    svc.sync_repo(
+        scope,
+        "tester",
+        "corr-1",
+        "key-1",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+    for symbol in store.list_symbols_for_file(scope, "module.py"):
+        symbol.language = ""
+        store.put_symbol(symbol)
+
+    result = svc.sync_repo(
+        scope,
+        "tester",
+        "corr-2",
+        "key-2",
+        {"root_path": str(tmp_path), "include_outcomes": True},
+    )
+
+    assert result.files_ingested == 1
+    assert result.edges_written == 0
+    assert all(
+        symbol.language == "python"
+        for symbol in store.list_symbols_for_file(scope, "module.py")
+    )
 
 
 def test_knowledge_gaps_isolation_uses_structural_degree_zero():

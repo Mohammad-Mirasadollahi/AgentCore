@@ -18,7 +18,7 @@ import re
 from typing import Any
 
 
-HASH_VERSION = "3"
+HASH_VERSION = "4"
 _AGENTCORE_FLAG = re.compile(r"agentcore\s*:", re.IGNORECASE)
 _AGENTCORE_BODY = re.compile(r"agentcore\s*:\s*(.*)$", re.IGNORECASE)
 

@@ -119,6 +119,56 @@ def test_get_doc_coverage_empty_is_not_perfect():
     assert coverage["empty_reason"] == "no_required_symbols_registered"
 
 
+def test_document_update_increments_version_and_anchor_update_is_unique():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    symbol = service.index_symbol(SCOPE, "agent", "corr", "sym-v1", symbol_payload())
+    first = service.index_document(
+        SCOPE,
+        "agent",
+        "corr",
+        "doc-v1",
+        {"path": "docs/login.md", "frontmatter": frontmatter(), "body": "Version one"},
+    )
+    second = service.index_document(
+        SCOPE,
+        "agent",
+        "corr-2",
+        "doc-v2",
+        {"path": "docs/login.md", "frontmatter": frontmatter(), "body": "Version two"},
+    )
+    assert second.id == first.id
+    assert second.version == 2
+    assert second.body == "Version two"
+
+    initial = service.register_anchor(
+        SCOPE,
+        "agent",
+        "corr",
+        "anchor-v1",
+        {"doc_id": second.id, "symbol_id": symbol.id, "recorded_hash": symbol.body_hash},
+    )
+    changed = service.index_symbol(
+        SCOPE,
+        "agent",
+        "corr-3",
+        "sym-v2",
+        symbol_payload(body="def login():\n    return mfa()\n"),
+    )
+    current = service.register_anchor(
+        SCOPE,
+        "agent",
+        "corr-3",
+        "anchor-v2",
+        {"doc_id": second.id, "symbol_id": changed.id, "recorded_hash": changed.body_hash},
+    )
+    anchors = store.list_anchors(SCOPE, changed.id)
+    assert current.id == initial.id
+    assert current.version == 2
+    assert current.status == "synced"
+    assert len(anchors) == 1
+
+
 def test_get_doc_coverage_counts_only_required_documented():
     store = InMemoryStore()
     service = DocsSyncService(store)

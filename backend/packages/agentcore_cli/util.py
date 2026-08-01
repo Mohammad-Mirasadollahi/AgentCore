@@ -22,15 +22,17 @@ def ensure_service_import_paths() -> None:
     """Put in-repo service packages on sys.path for the CLI process."""
     import sys
 
-    root = repo_root()
-    for rel in (
-        ("backend", "services", "code-graph-service", "src"),
-        ("backend", "services", "docs-sync-service", "src"),
-    ):
-        path = root.joinpath(*rel)
-        text = str(path)
-        if path.is_dir() and text not in sys.path:
-            sys.path.insert(0, text)
+    package_root = Path(__file__).resolve().parents[3]
+    roots = dict.fromkeys((repo_root(), package_root))
+    for root in roots:
+        for rel in (
+            ("backend", "services", "code-graph-service", "src"),
+            ("backend", "services", "docs-sync-service", "src"),
+        ):
+            path = root.joinpath(*rel)
+            text = str(path)
+            if path.is_dir() and text not in sys.path:
+                sys.path.insert(0, text)
 
 
 def now_iso() -> str:

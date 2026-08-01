@@ -92,6 +92,7 @@ class RepoIngestResult:
     edges_written: int
     truncated: bool
     outcomes: list[RepoIngestFileOutcome]
+    embedding_refresh: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -105,6 +106,7 @@ class RepoIngestResult:
             "symbols_documented": self.symbols_documented,
             "edges_written": self.edges_written,
             "truncated": self.truncated,
+            "embedding_refresh": dict(self.embedding_refresh),
             "outcomes": [
                 {
                     "relative_path": item.relative_path,
@@ -140,6 +142,7 @@ class SyncRepoResult:
     truncated: bool
     freshness: dict[str, Any]
     outcomes: list[RepoIngestFileOutcome] = field(default_factory=list)
+    embedding_refresh: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_ingest(
@@ -165,6 +168,7 @@ class SyncRepoResult:
             truncated=ingest.truncated,
             freshness=freshness,
             outcomes=list(ingest.outcomes),
+            embedding_refresh=dict(ingest.embedding_refresh),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -182,6 +186,7 @@ class SyncRepoResult:
             "edges_written": self.edges_written,
             "truncated": self.truncated,
             "freshness": self.freshness,
+            "embedding_refresh": dict(self.embedding_refresh),
             "outcomes": [
                 {
                     "relative_path": item.relative_path,

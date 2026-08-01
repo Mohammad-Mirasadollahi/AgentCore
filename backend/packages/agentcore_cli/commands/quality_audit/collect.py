@@ -16,6 +16,7 @@ from agentcore_cli.commands.docs_standards.collect import (
 )
 from agentcore_cli.commands.quality_audit.categories import (
     CATEGORY_CODE_LOW_SYMBOL_DOCS,
+    CATEGORY_CODE_MISSING_EMBEDDINGS,
     CATEGORY_CODE_NEVER_INGESTED,
     CATEGORY_CODE_STALE_EDITED,
     CATEGORY_DOCS_FLOW_TABLE,
@@ -216,6 +217,7 @@ def _audit_code(args: Any | None) -> tuple[list[dict[str, Any]], dict[str, Any]]
     remaining_paths: list[str] = []
     edited_paths: list[str] = []
     low_doc_paths: list[tuple[str, str]] = []
+    missing_embedding_paths: list[tuple[str, str]] = []
     for root_row in report.get("results") or []:
         if not isinstance(root_row, dict):
             continue
@@ -238,6 +240,15 @@ def _audit_code(args: Any | None) -> tuple[list[dict[str, Any]], dict[str, Any]]
                 low_doc_paths.append(
                     (path, f"documented {sym_docs}/{sym_total} symbols")
                 )
+            embedding_missing = int(item.get("embedding_missing") or 0)
+            if path and embedding_missing:
+                missing_embedding_paths.append(
+                    (
+                        path,
+                        f"{embedding_missing}/{int(item.get('embedding_eligible') or 0)} "
+                        "searchable symbols lack embedding rows",
+                    )
+                )
 
     for path in remaining_paths[:200]:
         findings.append(
@@ -259,6 +270,14 @@ def _audit_code(args: Any | None) -> tuple[list[dict[str, Any]], dict[str, Any]]
         findings.append(
             _finding(
                 category=CATEGORY_CODE_LOW_SYMBOL_DOCS,
+                path=path,
+                detail=detail,
+            )
+        )
+    for path, detail in missing_embedding_paths[:200]:
+        findings.append(
+            _finding(
+                category=CATEGORY_CODE_MISSING_EMBEDDINGS,
                 path=path,
                 detail=detail,
             )

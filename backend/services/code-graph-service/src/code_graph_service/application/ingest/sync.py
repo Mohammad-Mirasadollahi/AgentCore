@@ -250,8 +250,11 @@ class SyncMixin:
                         )
                 _emit(done, file=rel, status="failed")
                 return
-            file_hash = content_hash(text_body, language)["hash"]
-            file_key = f"{idempotency_key}:pending:{rel}:{file_hash}"
+            hashed = content_hash(text_body, language)
+            file_key = (
+                f"{idempotency_key}:pending:{rel}:{hashed['hash']}:"
+                f"{hashed['hash_version']}:{hashed['parser_version']}"
+            )
             try:
                 result = self.ingest_file(
                     scope,
@@ -329,6 +332,7 @@ class SyncMixin:
         except Exception:  # noqa: BLE001
             pass
         _emit(total_files, status="finished")
+        embedding_refresh = self.refresh_embeddings(scope).public()
         return RepoIngestResult(
             root_path=str(root),
             files_discovered=len(pending_paths),
@@ -341,6 +345,7 @@ class SyncMixin:
             edges_written=totals["edges_written"],
             truncated=False,
             outcomes=outcomes,
+            embedding_refresh=embedding_refresh,
         )
 
     @staticmethod

@@ -92,10 +92,14 @@ def ingest_repo(
         )
     except CodeGraphError as exc:
         raise ValueError(str(exc.message)) from exc
+    payload = result.to_dict()
+    refresh = payload.get("embedding_refresh") or {}
+    ok = int(payload.get("files_failed") or 0) == 0 and refresh.get("state") != "failed"
     return {
         **base,
+        "ok": ok,
         "graph_mode": backends.graph_mode,
-        "ingest_repo": result.to_dict(),
+        "ingest_repo": payload,
     }
 
 
@@ -292,4 +296,3 @@ def reconcile_after_edit(
     except CodeGraphError as exc:
         raise ValueError(str(exc.message)) from exc
     return {**base, "graph_mode": backends.graph_mode, **payload}
-

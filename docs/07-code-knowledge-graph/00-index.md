@@ -21,9 +21,9 @@ audience_lane:
 authority: informative
 visibility: internal
 linked_symbols:
-- tests/backend/services/code-graph-service/test_code_graph_service.py::check_password
-doc_version: 1.0.6
-updated_at: '2026-07-26'
+- backend/services/code-graph-service/src/code_graph_service/application/service.py::CodeGraphService
+doc_version: 1.1.2
+updated_at: '2026-07-28'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -78,6 +78,17 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `35-wedge-operator-connect-runbook.md` operator connect → ingest → explore/hybrid smoke.
 - `36-dead-code-candidates-and-cleanup-loop.md` unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
 - `37-rpm-session-parallel-sync-feature-specification.md` requirements for RPM-session-gated parallel `agentcore sync` (**implemented**).
+- `72-live-ingest-remediation-verification-index.md` is the entry point for the current live-ingest remediation evidence.
+- `73-live-audit-defect-remediation-record.md` maps seven reproduced defects to root causes, fixes, and live proof.
+- `74-verification-test-matrix-and-results.md` records focused, aggregate, CLI, live, and operational test results.
+- `75-sync-semantic-integrity-and-recovery-evidence.md` records graph counts, semantic completeness, failed runs, and recovery evidence.
+- `76-post-restart-operations-verification-runbook.md` defines the repeatable restart and acceptance procedure.
+
+## Live remediation verification (current)
+
+The as-built evidence for the 2026-07-28 ingest remediation is modular. Reading order: `72` → `73` → `74` → `75` → `76`.
+
+Code evidence anchor: `backend/services/code-graph-service/src/code_graph_service/application/service.py::CodeGraphService`.
 - `38-rpm-session-parallel-sync-high-level-design.md` topology: file workers, LLM queue, session registry, LockedStore, CLI/HTTP observe.
 - `39-rpm-session-parallel-sync-low-level-design.md` session lifecycle, dual capacity gate, fairness, store concurrency, status API.
 - `40-rpm-session-parallel-sync-risks-challenges-and-acceptance.md` challenges, known limits, acceptance gates.
@@ -95,9 +106,27 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `52-codebase-memory-language-breadth-and-indexing-speed.md` Codebase-Memory prior art: language breadth (~158 via vendored tree-sitter + Hybrid LSP) and indexing/query speed stack; AgentCore adopt/adapt/avoid.
 - `53-repomix-prior-art-ideas-and-license.md` Repomix (MIT) prior art; **shipped** layered ignore + `agentcore pack review` (secret scan / token budget).
 - `54-headroom-native-context-compression.md` Headroom (Apache 2.0): **shipped** native compress/retrieve/stats on LiteLLM + MCP + CLI.
+- `55-structural-isolation-and-architecture-overview-residuals.md` honest post-repair isolation/hotspot residuals and Cursor MCP reload for overview heuristics.
+- `56-imperfect-graph-agent-decision-roadmap.md` future modular roadmap for coding-agent decisions over an imperfect Neo4j code graph (`lifecycle_lane: future`; supersedes retired `docs/1.txt`).
+- `57-imperfect-graph-failure-modes.md` FM1–FM8 taxonomy + operational implications for incomplete/stale/sparse graphs.
+- `58-imperfect-graph-research-evidence-map.md` transferability table, dossiers S1–S25, integrity checklist, search audit (eval corpus inputs).
+- `59-imperfect-graph-policy-challenges.md` policy deltas vs shipped escalate / confidence floors / gaps / freshness / never-invent-edges.
+- `60-imperfect-graph-deferred-capabilities.md` promising but not-ready tracks (KGE auto-edges, GraphRAG-as-impact, auto-prune, always-on entropy, self-verify).
+- `61-decision-evidence-gate.md` claim-level sufficiency gate (`DecisionEvidenceGate`, rank 1).
+- `62-structural-result-status.md` typed absence / sparse-result MCP contract (`StructuralResultStatus`, rank 2).
+- `63-evidence-hop-planner.md` atomic-hop planner with unsupported-hop recovery (`EvidenceHopPlanner`, rank 3).
+- `64-edge-evidence-envelope.md` operation-conditioned edge eligibility (`EdgeEvidenceEnvelope`, rank 4).
+- `65-freshness-eligibility-policy.md` high-risk freshness + targeted re-sync (`FreshnessEligibilityPolicy`, rank 5).
+- `66-code-graph-fault-bench.md` incompleteness/corruption eval harness (`CodeGraphFaultBench`, rank 6).
+- `67-uncertainty-aware-code-plan.md` incremental impact-and-edit plan with re-query (`UncertaintyAwareCodePlan`, rank 7).
+- `68-evidence-route-policy.md` outcome-trained retrieval/tool router (`EvidenceRoutePolicy`, rank 8).
+- `69-gap-diagnosis-pipeline.md` missing-edge root-cause lane (`GapDiagnosisPipeline`, rank 9).
+- `70-grounded-edit-packet.md` provenance-bound edit packet + independent verification (`GroundedEditPacket`, rank 10).
+- `71-gap-value-queue.md` active knowledge-gap triage without auto truth repair (`GapValueQueue`, rank 11).
 
 ## History
 
+- 2026-07-28: Added imperfect-graph agent decision pack `56`–`71` (`lifecycle_lane: future`); retired research dump `docs/1.txt` after transfer.
 - 2026-07-25: Verified/wired `context_compression` + `repo_pack` in `pyproject.toml`; docs/operator surfaces for pack review + context measure/stats.
 - 2026-07-25: Added `54-headroom-native-context-compression.md` (native AgentCore compression; Apache 2.0 notices).
 - 2026-07-25: Added `53-repomix-prior-art-ideas-and-license.md` (Repomix MIT ideas + notices).
@@ -158,6 +187,10 @@ Phase 7 vertical slice service:
 
 Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session tools (`49`) are IDE-semantic and must re-ingest via `reconcile_after_edit`. Reading order: `10` → `48` → `49`.
 
+## Imperfect-graph agent decisions (future)
+
+Claim-level sufficiency, typed sparse results, hop recovery, freshness eligibility, fault-bench eval, and deferred unsafe tracks for later implementation. Reading order: `56` → `57` → `58` → `59` → `60` → `61`–`71` (Wave 1 first: `62`, `61`, `65`). Status: draft / `lifecycle_lane: future` (docs only until implementation). Supersedes retired `docs/1.txt`.
+
 ## Relationship to Other Sections
 
 - `../03-docs-as-code-sync/` covers documentation synchronization and drift detection.
@@ -172,6 +205,7 @@ Durable Code-Knowledge Graph edges come from AST ingest only. LSP edit-session t
 - RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
 - Client standards gate + watcher policy (`51`) defines mutable Skip vs Ingest for nonconforming docs when Client/watcher flush cannot ask a TTY prompt.
 - Structural isolation residuals (`55`) define honest post-repair knowledge-gap signals and the Cursor MCP reload step for `architecture_overview`.
+- Imperfect-graph agent decision pack (`56`–`71`, `lifecycle_lane: future`) defines claim-level sufficiency, typed absence, hop recovery, freshness eligibility, fault-bench eval, and deferred unsafe capabilities for later implementation.
 - `../12-common-context-reuse/` can contribute reusable project guidance to metadata retrieval and context-pack construction.
 - `../15-agent-workspace-guidance/` seeds always-on cleanup rule and `agentcore-remove-dead-code` skill for connected coding agents.
 - `../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md` defines dead-code cleanup KPIs.

@@ -74,6 +74,21 @@ def test_shortest_path_and_rationale():
     assert banner["banner"] and "Pending sync" in banner["banner"]
 
 
+def test_freshness_is_unknown_after_process_restart_without_watcher():
+    store = InMemoryStore()
+    scope = Scope("t", "w", "freshness")
+    first_process = CodeGraphService(store)
+    first_process.record_sync_stamp(scope)
+    assert first_process.freshness_status(scope)["status"] == "ok"
+
+    restarted_process = CodeGraphService(store)
+    status = restarted_process.freshness_status(scope)
+
+    assert status["status"] == "unknown"
+    assert status["is_stale"] is True
+    assert "not monitored" in status["banner"]
+
+
 def test_dispatch_synth_subclass_method():
     symbols = [
         ("base", "Handler", "pkg.Handler", "class"),

@@ -131,8 +131,9 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
         total_sec += float(usage.get("duration_sec") or 0.0)
     wall_sec = overall.stop()
 
+    ok = all(bool(item.get("ok")) for item in results)
     report: dict[str, Any] = {
-        "ok": True,
+        "ok": ok,
         "paths": [r["path"] for r in results],
         "results": results,
         # Backward-compatible single-root fields when only one path synced
@@ -154,7 +155,7 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
     ui.kv("Usage log", str(log_path))
     ui.blank()
     print_json(report)
-    return 0
+    return 0 if ok else 1
 
 
 def cmd_purge(args: argparse.Namespace) -> int:

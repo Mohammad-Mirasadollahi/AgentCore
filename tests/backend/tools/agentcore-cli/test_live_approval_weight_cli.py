@@ -16,7 +16,7 @@ AGENTCORE = ROOT / ".venv" / "bin" / "agentcore"
 
 def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["AGENTCORE_ROOT"] = str(ROOT)
+    env["AGENTCORE_ROOT"] = os.environ.get("AGENTCORE_LIVE_TEST_ROOT", str(ROOT))
     return subprocess.run(
         [str(AGENTCORE), *args],
         cwd=str(ROOT),
@@ -34,15 +34,16 @@ def _must_json(label: str, args: list[str]) -> dict:
 
 
 @pytest.mark.live
-def test_live_approval_and_weight_profile_cli() -> None:
+def test_live_approval_and_weight_profile_cli(tmp_path: Path, monkeypatch) -> None:
     if not AGENTCORE.is_file():
         pytest.skip("agentcore CLI not installed in .venv")
 
+    monkeypatch.setenv("AGENTCORE_LIVE_TEST_ROOT", str(tmp_path))
     tenant = "live-qa"
     workspace = "approval"
     project = f"p-{int(time.time())}"
     scope = ["--tenant", tenant, "--workspace", workspace, "--project", project]
-    gov_path = ROOT / ".agentcore" / "weight-profile-governance.json"
+    gov_path = tmp_path / ".agentcore" / "weight-profile-governance.json"
     # Known baseline so rollback assertions are stable on a shared host.
     if gov_path.is_file():
         gov_path.unlink()
@@ -134,7 +135,7 @@ def test_live_approval_and_weight_profile_cli() -> None:
         assert rolled["active_profile_id"] == "default-memory-profile"
     finally:
         for name in (f"{project}.json", f"{project}.approvals.json"):
-            path = ROOT / ".agentcore" / "projects" / tenant / workspace / name
+            path = tmp_path / ".agentcore" / "projects" / tenant / workspace / name
             if path.is_file():
                 path.unlink()
         if gov_path.is_file():

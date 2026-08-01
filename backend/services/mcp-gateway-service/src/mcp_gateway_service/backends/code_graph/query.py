@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from code_graph_service.domain.confidence_policy import DEFAULT_IMPACT_MIN_CONFIDENCE
 from code_graph_service.domain.errors import CodeGraphError, NotFoundError
 
 from ..platform import PlatformBackends
@@ -91,7 +92,10 @@ def impact(
     max_depth = int(arguments.get("max_depth") or 3)
     max_depth = max(1, min(max_depth, 8))
     direction = str(arguments.get("direction") or "both").strip() or "both"
-    min_confidence = str(arguments.get("min_confidence") or "").strip() or None
+    min_confidence = (
+        str(arguments.get("min_confidence") or "").strip()
+        or DEFAULT_IMPACT_MIN_CONFIDENCE
+    )
     top_k = int(arguments.get("top_k") or 50)
     try:
         payload = backends.graph.impact_analysis(
@@ -109,6 +113,7 @@ def impact(
         **base,
         "graph_mode": backends.graph_mode,
         "impact_of": symbol_id,
+        "min_confidence": min_confidence,
         **payload,
     }
 
@@ -125,7 +130,10 @@ def callers(
     symbol_id = resolve_symbol_id(backends, scope, arguments)
     top_k = int(arguments.get("top_k") or 20)
     max_depth = max(1, min(int(arguments.get("max_depth") or 1), 8))
-    min_confidence = str(arguments.get("min_confidence") or "").strip() or None
+    min_confidence = (
+        str(arguments.get("min_confidence") or "").strip()
+        or DEFAULT_IMPACT_MIN_CONFIDENCE
+    )
     rel_types = arguments.get("rel_types")
     if rel_types is not None and not isinstance(rel_types, list):
         raise ValueError("rel_types must be an array of strings")
@@ -140,7 +148,13 @@ def callers(
         )
     except NotFoundError as exc:
         raise ValueError(str(exc.message)) from exc
-    return {**base, "graph_mode": backends.graph_mode, "callers_of": symbol_id, **payload}
+    return {
+        **base,
+        "graph_mode": backends.graph_mode,
+        "callers_of": symbol_id,
+        "min_confidence": min_confidence,
+        **payload,
+    }
 
 
 def community(
@@ -395,4 +409,3 @@ def language_profile(
     profile = backends.graph.get_polyglot_profile(backends.graph_scope(scope))
     payload = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile)
     return {**base, "graph_mode": backends.graph_mode, "language_profile": payload}
-

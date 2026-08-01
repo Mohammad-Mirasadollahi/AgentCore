@@ -7,7 +7,7 @@ import uuid
 
 import pytest
 
-from code_graph_service.core import CodeGraphService, Scope
+from code_graph_service.core import CodeGraphService, LocalEmbeddingStub, Scope
 from code_graph_service.outbox_mirror_store import OutboxMirrorStore
 from code_graph_service.postgres_side import InMemoryEmbeddingIndex, PostgresEmbeddingIndex, PostgresOutboxMirror
 from code_graph_service.testing import InMemoryStore
@@ -95,11 +95,15 @@ def _require_tcp(host: str, port: int) -> None:
 def test_postgres_embedding_index_live():
     _require_tcp("127.0.0.1", POSTGRES_PORT)
     url = f"postgresql://agentcore:{POSTGRES_PASSWORD}@127.0.0.1:{POSTGRES_PORT}/agentcore"
-    index = PostgresEmbeddingIndex(url, dims=16, ensure_schema=True)
+    index = PostgresEmbeddingIndex(url, dims=1024, ensure_schema=True)
+    scope = Scope("tenant-emb", "ws-emb", f"proj-{uuid.uuid4().hex[:8]}")
     try:
         store = InMemoryStore()
-        service = CodeGraphService(store, embedding_index=index)
-        scope = Scope("tenant-emb", "ws-emb", f"proj-{uuid.uuid4().hex[:8]}")
+        service = CodeGraphService(
+            store,
+            embeddings=LocalEmbeddingStub(dims=1024),
+            embedding_index=index,
+        )
         service.ingest_file(
             scope,
             "agent",
@@ -113,7 +117,29 @@ def test_postgres_embedding_index_live():
         assert hits[0]["retrieval"] == "pgvector"
         assert all(hit["symbol"]["kind"] != "file" for hit in hits)
     finally:
+        index.wipe_scope(scope)
         index.close()
+
+
+def test_postgres_embedding_dimension_mismatch_preserves_existing_rows():
+    _require_tcp("127.0.0.1", POSTGRES_PORT)
+    url = f"postgresql://agentcore:{POSTGRES_PASSWORD}@127.0.0.1:{POSTGRES_PORT}/agentcore"
+    canonical = PostgresEmbeddingIndex(url, dims=1024, ensure_schema=True)
+    scope = Scope("tenant-emb", "ws-emb", f"guard-{uuid.uuid4().hex[:8]}")
+    try:
+        canonical.upsert(
+            scope,
+            "sentinel",
+            [0.01] * 1024,
+            model="dimension-guard",
+            kind="function",
+        )
+        with pytest.raises(RuntimeError, match="dimension mismatch"):
+            PostgresEmbeddingIndex(url, dims=16, ensure_schema=True)
+        assert canonical.list_symbol_models(scope) == {"sentinel": "dimension-guard"}
+    finally:
+        canonical.wipe_scope(scope)
+        canonical.close()
 
 
 def test_hybrid_pgvector_and_inmemory_graph_neighbors():

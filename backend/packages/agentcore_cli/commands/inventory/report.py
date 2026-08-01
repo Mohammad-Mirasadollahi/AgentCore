@@ -62,6 +62,7 @@ def build_inventory_report(
             "code": _sum_status(results, "code"),
             "docs": _sum_status(results, "docs"),
             "llm": _sum_llm(results),
+            "embeddings": _sum_embeddings(results),
         },
         "results": results,
     }
@@ -110,4 +111,25 @@ def _sum_totals(results: list[dict[str, Any]]) -> dict[str, int]:
         "code_bytes": sum(int((r.get("totals") or {}).get("code_bytes") or 0) for r in results),
         "docs_files": sum(int((r.get("totals") or {}).get("docs_files") or 0) for r in results),
         "docs_bytes": sum(int((r.get("totals") or {}).get("docs_bytes") or 0) for r in results),
+    }
+
+
+def _sum_embeddings(results: list[dict[str, Any]]) -> dict[str, int | float]:
+    eligible = sum(
+        int(((row.get("code") or {}).get("embeddings") or {}).get("eligible_symbols") or 0)
+        for row in results
+    )
+    indexed = sum(
+        int(((row.get("code") or {}).get("embeddings") or {}).get("indexed_symbols") or 0)
+        for row in results
+    )
+    missing = sum(
+        int(((row.get("code") or {}).get("embeddings") or {}).get("missing_symbols") or 0)
+        for row in results
+    )
+    return {
+        "eligible_symbols": eligible,
+        "indexed_symbols": indexed,
+        "missing_symbols": missing,
+        "coverage_percent": round(100.0 * indexed / eligible, 1) if eligible else 100.0,
     }

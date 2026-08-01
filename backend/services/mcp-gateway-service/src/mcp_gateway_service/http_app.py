@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -91,7 +92,7 @@ def create_http_app(*, backends: Any | None = None) -> FastAPI:
                 for message in body:
                     if not isinstance(message, dict):
                         continue
-                    resp = handle_message(gateway, message)
+                    resp = await asyncio.to_thread(handle_message, gateway, message)
                     if resp is not None:
                         responses.append(resp)
                 return JSONResponse(responses)
@@ -105,7 +106,7 @@ def create_http_app(*, backends: Any | None = None) -> FastAPI:
                     },
                     status_code=400,
                 )
-            response = handle_message(gateway, body)
+            response = await asyncio.to_thread(handle_message, gateway, body)
             if response is None:
                 return JSONResponse({})
             return JSONResponse(response)

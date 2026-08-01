@@ -186,7 +186,10 @@ def resolve_call_target_polyglot(
         short_names=indexes.short_names,
         import_aliases=import_aliases,
         module_prefix=module_prefix,
+        source_language=source_language,
     )
+    if confidence == CallConfidence.EXTERNAL:
+        return [], confidence, {}
     if targets and confidence != CallConfidence.UNRESOLVED:
         meta: dict[str, object] = {}
         if len(targets) == 1:

@@ -56,6 +56,10 @@ class PostgresStore:
     def close(self) -> None:
         self._pool.close_all()
 
+    def reset_connections(self) -> None:
+        """Close worker connections; later calls reopen them lazily."""
+        self._pool.close_all()
+
     def ensure_schema(self) -> None:
         """Apply idempotent symbol-store migrations when present."""
         from pathlib import Path

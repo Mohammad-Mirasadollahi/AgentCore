@@ -101,6 +101,9 @@ def sync_one_root(
             tokens_in = approx_tokens_from_chars(int(latest.get("chars_read") or 0))
 
         if filters.get("docs_enabled") and filters.get("doc_match_globs"):
+            reset_connections = getattr(svc, "reset_database_connections", None)
+            if callable(reset_connections):
+                reset_connections()
             ui.blank()
             print(f"{ui.accent('→')}  Linking human documentation")
             tracker.begin_phase()
@@ -194,7 +197,14 @@ def sync_one_root(
     except Exception as exc:  # noqa: BLE001 — never fail sync on follow-up
         followup = {"ok": False, "error": str(exc)}
 
+    refresh = payload.get("embedding_refresh") or {}
+    root_ok = (
+        int(payload.get("files_failed") or 0) == 0
+        and refresh.get("state") != "failed"
+        and not docs_payload.get("errors")
+    )
     return {
+        "ok": root_ok,
         "path": str(root_path),
         "filters": {
             "sources": filters["sources"],

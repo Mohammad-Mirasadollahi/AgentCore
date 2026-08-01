@@ -65,12 +65,38 @@ class FileIngestMixin(
         parser_ver = hashed["parser_version"]
         file_id = f"file:{scope.project_id}:{file_path}"
         previous_file = self._maybe_get(file_id, scope)
+        reuse_unchanged_embeddings = bool(payload.get("reuse_unchanged_embeddings"))
         module_contract = extract_module_contract_docstring(source, language) or ""
+        if (
+            bool(payload.get("language_backfill_only"))
+            and previous_file is not None
+            and previous_file.hash_value == file_hash
+            and previous_file.hash_version == hash_version
+            and previous_file.parser_version == parser_ver
+        ):
+            updated = self._backfill_file_language(
+                scope,
+                file_path=file_path,
+                language=language,
+                stamp=stamp,
+            )
+            clearer = getattr(self, "clear_pending_sync", None)
+            if callable(clearer):
+                clearer(file_path)
+            self.store.complete_idempotency(
+                scope,
+                idempotency_key,
+                "ingest_file",
+                file_id,
+            )
+            return IngestResult(file_id, updated, 0, 0, 0, [])
         # Skip only when content is unchanged, language is persisted, and CONTAINS
         # edges still exist (edgeless FILE rows need repair after graph wipe/drift).
         if (
             previous_file is not None
             and previous_file.hash_value == file_hash
+            and previous_file.hash_version == hash_version
+            and previous_file.parser_version == parser_ver
             and str(previous_file.language or "").strip()
             and not file_needs_contains_repair(
                 self.store, scope, file_id=file_id, file_path=file_path
@@ -94,6 +120,7 @@ class FileIngestMixin(
             ai_documentation=module_contract,
             hash_version=hash_version,
             parser_version=parser_ver,
+            reuse_unchanged_embedding=reuse_unchanged_embeddings,
         )
 
         parsed = parse_source(language, file_path, source)
@@ -105,6 +132,7 @@ class FileIngestMixin(
             language=language,
             stamp=stamp,
             prefer_heuristic_docs=defer_cross_file,
+            reuse_unchanged_embeddings=reuse_unchanged_embeddings,
         )
         self._prune_stale_file_embeddings(
             scope,
@@ -114,6 +142,11 @@ class FileIngestMixin(
             documented_pairs=documented_pairs,
         )
 
+        batch_edges = defer_cross_file and callable(
+            getattr(self.store, "put_edges", None)
+        )
+        if batch_edges:
+            self._begin_edge_batch()
         self.store.delete_file_edges(scope, file_path)
         edges_written = 0
         edges_written += self._emit_containment_and_doc_edges(
@@ -186,6 +219,8 @@ class FileIngestMixin(
         )
         if not defer_cross_file:
             edges_written += self._emit_dynamic_dispatch(scope)
+        if batch_edges:
+            self._flush_edge_batch()
 
         clearer = getattr(self, "clear_pending_sync", None)
         if callable(clearer):

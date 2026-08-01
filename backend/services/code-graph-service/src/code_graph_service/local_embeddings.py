@@ -145,22 +145,39 @@ class LocalBgeEmbeddings:
         self._ensure_loaded()
 
     def embed(self, text: str, *, is_query: bool = False) -> EmbeddingResult:
+        return self.embed_many([text], is_query=is_query)[0]
+
+    def embed_many(
+        self,
+        texts: list[str],
+        *,
+        is_query: bool = False,
+    ) -> list[EmbeddingResult]:
         with _MODEL_SLOTS:
             encoder = self._ensure_loaded()
-            # BGE retrieval: prefix queries; passages (ingest) stay raw.
-            payload = text or ""
+            payloads = [text or "" for text in texts]
             if is_query and "bge" in self.model_name.lower():
-                payload = f"Represent this sentence for searching relevant passages: {payload}"
-            vector = encoder.encode(
-                payload,
+                payloads = [
+                    f"Represent this sentence for searching relevant passages: {text}"
+                    for text in payloads
+                ]
+            vectors = encoder.encode(
+                payloads,
+                batch_size=32,
                 normalize_embeddings=True,
                 show_progress_bar=False,
             )
-        values = [float(v) for v in list(vector)]
-        if len(values) != self.dims:
-            # Keep pgvector contract strict; pad/truncate only as last resort.
+        rows = list(vectors)
+        if len(payloads) == 1 and rows and isinstance(rows[0], (int, float)):
+            rows = [rows]
+        results: list[EmbeddingResult] = []
+        for vector in rows:
+            values = [float(value) for value in list(vector)]
             if len(values) < self.dims:
-                values = values + [0.0] * (self.dims - len(values))
-            else:
+                values.extend([0.0] * (self.dims - len(values)))
+            elif len(values) > self.dims:
                 values = values[: self.dims]
-        return EmbeddingResult(values, "ready", self.model_name, self.dims)
+            results.append(
+                EmbeddingResult(values, "ready", self.model_name, self.dims)
+            )
+        return results

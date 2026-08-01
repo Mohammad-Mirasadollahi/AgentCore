@@ -180,7 +180,10 @@ def _print_service_status(report: dict, *, detail: dict | None = None) -> None:
     ui.blank()
     ui.section("MCP HTTP")
     if mcp.get("running"):
-        ui.kv("Process", ui.ok(f"pid {mcp.get('pid')}"))
+        if mcp.get("managed", mcp.get("pid") is not None):
+            ui.kv("Process", ui.ok(f"pid {mcp.get('pid')}"))
+        else:
+            ui.kv("Process", ui.warn("reachable (pid unavailable)"))
     else:
         ui.kv("Process", ui.err("stopped"))
     ui.kv("Listen", f"{mcp.get('host')}:{mcp.get('port')}")

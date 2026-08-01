@@ -63,6 +63,10 @@ class InMemoryStore:
 
         self._with_lock(_run)
 
+    def delete_symbols(self, symbol_ids: list[str], scope: Scope) -> None:
+        for symbol_id in symbol_ids:
+            self.delete_symbol(symbol_id, scope)
+
     def list_symbols(self, scope: Scope) -> list[GraphSymbol]:
         def _run() -> list[GraphSymbol]:
             items = [item for item in self._symbols.values() if self._same_project(item.scope, scope)]
@@ -115,6 +119,13 @@ class InMemoryStore:
 
     def put_edge(self, edge: GraphEdge) -> None:
         self._with_lock(lambda: self._edges.__setitem__(edge.id, deepcopy(edge)))
+
+    def put_edges(self, edges: list[GraphEdge]) -> None:
+        def _run() -> None:
+            for edge in edges:
+                self._edges[edge.id] = deepcopy(edge)
+
+        self._with_lock(_run)
 
     def list_edges(
         self,

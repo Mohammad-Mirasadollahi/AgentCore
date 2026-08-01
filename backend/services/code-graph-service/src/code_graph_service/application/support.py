@@ -188,8 +188,29 @@ class GraphServiceSupport:
             confidence=confidence,
             metadata=meta,
         )
-        self.store.put_edge(edge)
+        batch = getattr(self._edge_batches, "edges", None)
+        if isinstance(batch, list):
+            batch.append(edge)
+        else:
+            self.store.put_edge(edge)
         return 1
+
+    def _begin_edge_batch(self) -> None:
+        self._edge_batches.edges = []
+
+    def _flush_edge_batch(self) -> None:
+        edges = list(getattr(self._edge_batches, "edges", []) or [])
+        try:
+            if not edges:
+                return
+            bulk_put = getattr(self.store, "put_edges", None)
+            if callable(bulk_put):
+                bulk_put(edges)
+            else:
+                for edge in edges:
+                    self.store.put_edge(edge)
+        finally:
+            self._edge_batches.edges = None
 
     def _maybe_get(self, symbol_id: str, scope: Scope) -> GraphSymbol | None:
         try:

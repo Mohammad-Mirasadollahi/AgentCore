@@ -31,6 +31,13 @@ def test_classify_external_call_strict_only():
 
 def test_blast_excludes_external_and_unresolved_targets():
     assert is_blast_call_edge(target_id="sym:p:mod.fn") is True
+    assert (
+        is_blast_call_edge(
+            target_id="sym:p:mod.fn",
+            confidence=CallConfidence.AMBIGUOUS,
+        )
+        is False
+    )
     assert is_blast_call_edge(target_id="ext:call:p:len", metadata={"is_external": True}) is False
     assert is_blast_call_edge(target_id="unresolved:p:len") is False
 

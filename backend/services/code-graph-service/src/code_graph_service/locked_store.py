@@ -29,9 +29,11 @@ _STORE_MUTATIONS = frozenset(
     {
         "put_symbol",
         "delete_symbol",
+        "delete_symbols",
         "delete_file_edges",
         "delete_edge",
         "put_edge",
+        "put_edges",
         "begin_idempotency",
         "complete_idempotency",
         "append_event",
@@ -296,3 +298,10 @@ class LockedEmbeddings:
                 return embed_fn(text, is_query=is_query)
             except TypeError:
                 return embed_fn(text)
+
+    def embed_many(self, texts: list[str], *, is_query: bool = False) -> list[Any]:
+        with self._slots:
+            batch = getattr(self._inner, "embed_many", None)
+            if callable(batch):
+                return list(batch(texts, is_query=is_query))
+            return [self._inner.embed(text, is_query=is_query) for text in texts]

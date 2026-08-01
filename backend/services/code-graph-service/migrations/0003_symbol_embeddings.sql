@@ -1,8 +1,8 @@
 -- Semantic embedding index for Code-Knowledge Graph (pgvector).
 -- Structural graph may live in Neo4j; embeddings remain in PostgreSQL.
 -- Kind filter for Stage-1 hybrid RAG is added in 0004_symbol_embeddings_kind.sql.
--- NOTE: Phase-7 bootstrap used vector(16). Production width is vector(1024)
--- (BGE-large); migration 0005_symbol_embeddings_dims_1024.sql rebuilds the table.
+-- NOTE: Production width is vector(1024) (BGE-large). Migration 0005 guards
+-- legacy widths and requires an explicit backed-up operator migration.
 
 CREATE TABLE IF NOT EXISTS code_graph.symbol_embeddings (
     symbol_id text PRIMARY KEY,

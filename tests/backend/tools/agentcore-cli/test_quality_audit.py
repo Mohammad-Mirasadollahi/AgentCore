@@ -13,6 +13,7 @@ from agentcore_cli.commands.quality_audit import (
     parse_quality_audit_words,
 )
 from agentcore_cli.commands.quality_audit.categories import (
+    CATEGORY_CODE_MISSING_EMBEDDINGS,
     CATEGORY_DOCS_LINKING_GAP,
     CATEGORY_DOCS_REVISION_INVALID,
     CATEGORY_DOCS_REVISION_MISSING,
@@ -161,3 +162,48 @@ def test_cmd_quality_audit_save(tmp_path: Path, monkeypatch, capsys):
     captured = capsys.readouterr().out
     assert "Quality audit" in captured
     assert "Saved" in captured
+
+
+def test_code_audit_reports_missing_embedding_rows(monkeypatch):
+    from agentcore_cli.commands.quality_audit.collect import _audit_code
+
+    monkeypatch.setattr(
+        "agentcore_cli.commands.inventory.collect.build_inventory_report",
+        lambda _args: {
+            "paths": ["/repo"],
+            "summary": {},
+            "results": [
+                {
+                    "code": {
+                        "remaining_files": [],
+                        "edited_files": [],
+                        "done_files": [
+                            {
+                                "file": "src/auth.py",
+                                "symbols": 3,
+                                "documented": 3,
+                                "embedding_eligible": 3,
+                                "embedding_missing": 2,
+                            }
+                        ],
+                    }
+                }
+            ],
+        },
+    )
+    findings, meta = _audit_code(argparse.Namespace())
+    assert meta["available"] is True
+    assert findings == [
+        {
+            "category": CATEGORY_CODE_MISSING_EMBEDDINGS,
+            "severity": "high",
+            "title": "Missing semantic index rows",
+            "path": "src/auth.py",
+            "detail": "2/3 searchable symbols lack embedding rows",
+            "evidence": [],
+            "fix_hint": (
+                "Run agentcore sync to self-heal embeddings; "
+                "inspect embedding_refresh on failure."
+            ),
+        }
+    ]

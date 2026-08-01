@@ -156,6 +156,7 @@ class IntelligenceUseCases(GraphServiceSupport):
         )
         state = self._ensure_freshness()
         state.last_sync_at = __import__("time").time()
+        state.verified = True
         return stamp
 
     def _durable_last_sync_at(self, scope: Scope) -> str | None:
@@ -172,7 +173,16 @@ class IntelligenceUseCases(GraphServiceSupport):
             for s in self.store.list_symbols(scope)
             if s.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS}
         ]
-        edges = [(e.source_id, e.target_id, e.rel_type) for e in self.store.list_edges(scope)]
+        edges = [
+            (e.source_id, e.target_id, e.rel_type)
+            for e in self.store.list_edges(scope)
+            if e.rel_type not in {RelType.CALLS.value, "CALLS"}
+            or is_blast_call_edge(
+                target_id=e.target_id,
+                metadata=e.metadata,
+                confidence=e.confidence,
+            )
+        ]
         labels = {s.id: s.name for s in symbols}
         communities = detect_communities([s.id for s in symbols], edges, labels_by_id=labels)
         return {mid: c.id for c in communities for mid in c.member_ids}
@@ -195,7 +205,16 @@ class IntelligenceUseCases(GraphServiceSupport):
             if s.kind in {SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS, SymbolKind.ROUTE}
         ]
         by_id = {s.id: s for s in symbols}
-        edges = [(e.source_id, e.target_id, e.rel_type) for e in self.store.list_edges(scope)]
+        edges = [
+            (e.source_id, e.target_id, e.rel_type)
+            for e in self.store.list_edges(scope)
+            if e.rel_type not in {RelType.CALLS.value, "CALLS"}
+            or is_blast_call_edge(
+                target_id=e.target_id,
+                metadata=e.metadata,
+                confidence=e.confidence,
+            )
+        ]
         labels = {s.id: s.name for s in symbols}
         communities = detect_communities([s.id for s in symbols], edges, labels_by_id=labels)
         community_map = {mid: c for c in communities for mid in c.member_ids}
@@ -203,7 +222,16 @@ class IntelligenceUseCases(GraphServiceSupport):
         if community is None:
             # Seed may be file/import — try any symbol id in full map
             all_ids = [s.id for s in self.store.list_symbols(scope)]
-            all_edges = [(e.source_id, e.target_id, e.rel_type) for e in self.store.list_edges(scope)]
+            all_edges = [
+                (e.source_id, e.target_id, e.rel_type)
+                for e in self.store.list_edges(scope)
+                if e.rel_type not in {RelType.CALLS.value, "CALLS"}
+                or is_blast_call_edge(
+                    target_id=e.target_id,
+                    metadata=e.metadata,
+                    confidence=e.confidence,
+                )
+            ]
             all_labels = {s.id: s.name for s in self.store.list_symbols(scope)}
             communities = detect_communities(all_ids, all_edges, labels_by_id=all_labels)
             community_map = {mid: c for c in communities for mid in c.member_ids}
@@ -303,7 +331,9 @@ class IntelligenceUseCases(GraphServiceSupport):
             if edge.rel_type not in structural_rels:
                 continue
             if edge.rel_type in {RelType.CALLS.value, "CALLS"} and not is_blast_call_edge(
-                target_id=edge.target_id, metadata=edge.metadata
+                target_id=edge.target_id,
+                metadata=edge.metadata,
+                confidence=edge.confidence,
             ):
                 continue
             # HTTP/ASYNC to unresolved targets still expand for agent awareness
@@ -459,7 +489,9 @@ class IntelligenceUseCases(GraphServiceSupport):
             if edge.rel_type not in structural_rels:
                 continue
             if edge.rel_type == RelType.CALLS.value and not is_blast_call_edge(
-                target_id=edge.target_id, metadata=edge.metadata
+                target_id=edge.target_id,
+                metadata=edge.metadata,
+                confidence=edge.confidence,
             ):
                 continue
             calls_out[edge.source_id].append(edge.target_id)
@@ -625,7 +657,16 @@ class IntelligenceUseCases(GraphServiceSupport):
 
     def architecture_overview(self, scope: Scope, *, top_n: int = 10) -> dict[str, Any]:
         symbols = list(self.store.list_symbols(scope))
-        edges = list(self.store.list_edges(scope))
+        edges = [
+            edge
+            for edge in self.store.list_edges(scope)
+            if edge.rel_type not in {RelType.CALLS.value, "CALLS"}
+            or is_blast_call_edge(
+                target_id=edge.target_id,
+                metadata=edge.metadata,
+                confidence=edge.confidence,
+            )
+        ]
         useful = [
             s
             for s in symbols
@@ -753,7 +794,9 @@ class IntelligenceUseCases(GraphServiceSupport):
         route_handlers: set[str] = set()
         for edge in edges:
             if edge.rel_type in {RelType.CALLS.value, "CALLS"} and is_blast_call_edge(
-                target_id=edge.target_id, metadata=edge.metadata
+                target_id=edge.target_id,
+                metadata=edge.metadata,
+                confidence=edge.confidence,
             ):
                 calls_out[edge.source_id].append(edge.target_id)
                 callers_of[edge.target_id].append(edge.source_id)
@@ -785,7 +828,11 @@ class IntelligenceUseCases(GraphServiceSupport):
             (e.source_id, e.target_id)
             for e in edges
             if e.rel_type in {RelType.CALLS.value, "CALLS"}
-            and is_blast_call_edge(target_id=e.target_id, metadata=e.metadata)
+            and is_blast_call_edge(
+                target_id=e.target_id,
+                metadata=e.metadata,
+                confidence=e.confidence,
+            )
         ]
         entries = detect_entry_points(
             flow_nodes.values(), call_pairs, route_handler_ids=route_handlers

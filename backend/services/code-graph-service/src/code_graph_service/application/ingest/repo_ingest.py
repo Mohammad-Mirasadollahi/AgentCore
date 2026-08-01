@@ -4,9 +4,9 @@ Role: discover sources, classify new/changed/stable, parallel ``ingest_file``.
 SoT: FILE ``hash_value`` + persisted ``language``; durable graph store.
 Invariants: prefer unindexed then changed; enqueue hash-stable when
 ``language`` is missing (legacy backfill) or FILE lacks CONTAINS children
-(edge repair). Hash-stable + language + intact CONTAINS → skip without worker.
+(edge repair). Hash-stable files still participate in embedding self-healing.
 Allowed failure: per-file errors collected; walk continues.
-Forbidden: permanently skipping edgeless hash-stable FILE rows.
+Forbidden: permanently skipping edgeless files or missing embedding rows.
 """
 
 from __future__ import annotations
@@ -75,9 +75,19 @@ class RepoIngestMixin:
             max_file_bytes=max_file_bytes,
         )
 
+        discovered_paths = {
+            item.relative_path.replace("\\", "/") for item in discovered
+        }
+        stored_symbols = list(self.store.list_symbols(scope))
+        if discovered_paths and not include_path_prefixes:
+            stored_symbols = self._prune_removed_source_symbols(
+                scope,
+                stored_symbols=stored_symbols,
+                discovered_paths=discovered_paths,
+            )
         indexed_files = {
             s.file_path.replace("\\", "/"): s
-            for s in self.store.list_symbols(scope)
+            for s in stored_symbols
             if s.kind == SymbolKind.FILE and s.file_path and not s.file_path.startswith("__agentcore__/")
         }
         indexed_paths = set(indexed_files)
@@ -90,7 +100,12 @@ class RepoIngestMixin:
                 source = Path(item.absolute_path).read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 return True
-            return content_hash(source, item.language)["hash"] != previous.hash_value
+            current = content_hash(source, item.language)
+            return (
+                current["hash"] != previous.hash_value
+                or current["hash_version"] != previous.hash_version
+                or current["parser_version"] != previous.parser_version
+            )
 
         changed_known = [item for item in known if _known_changed(item)]
         changed_known_paths = {item.relative_path.replace("\\", "/") for item in changed_known}
@@ -309,8 +324,11 @@ class RepoIngestMixin:
                 _emit(done, file=rel, status="failed")
                 return
 
-            file_hash = content_hash(text, item.language)["hash"]
-            file_key = f"{idempotency_key}:{rel}:{file_hash}"
+            hashed = content_hash(text, item.language)
+            file_key = (
+                f"{idempotency_key}:{rel}:{hashed['hash']}:"
+                f"{hashed['hash_version']}:{hashed['parser_version']}"
+            )
             try:
                 result = self.ingest_file(
                     scope,
@@ -323,6 +341,8 @@ class RepoIngestMixin:
                         "language": item.language,
                         "package_aliases": package_aliases,
                         "defer_cross_file_pass": True,
+                        "language_backfill_only": rel in backfill_paths,
+                        "reuse_unchanged_embeddings": True,
                         "shared_resolution": shared_resolution,
                     },
                 )
@@ -399,6 +419,7 @@ class RepoIngestMixin:
                 totals["edges_written"] += readme_edges
             except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
                 pass
+        embedding_refresh = self.refresh_embeddings(scope).public()
 
         return RepoIngestResult(
             root_path=resolved_root,
@@ -412,7 +433,70 @@ class RepoIngestMixin:
             edges_written=totals["edges_written"],
             truncated=truncated,
             outcomes=outcomes,
+            embedding_refresh=embedding_refresh,
         )
+
+    def _prune_removed_source_symbols(
+        self,
+        scope: Scope,
+        *,
+        stored_symbols: list[Any],
+        discovered_paths: set[str],
+    ) -> list[Any]:
+        indexed_paths = {
+            str(symbol.file_path or "").replace("\\", "/")
+            for symbol in stored_symbols
+            if symbol.kind == SymbolKind.FILE and symbol.file_path
+        }
+        stale_paths = indexed_paths - discovered_paths
+        live_ids = {symbol.id for symbol in stored_symbols}
+        owned_kinds = {
+            SymbolKind.FILE,
+            SymbolKind.CLASS,
+            SymbolKind.FUNCTION,
+            SymbolKind.METHOD,
+            SymbolKind.DOCUMENTATION,
+            SymbolKind.ROUTE,
+            SymbolKind.RATIONALE,
+        }
+        stale_ids = {
+            symbol.id
+            for symbol in stored_symbols
+            if symbol.kind in owned_kinds
+            and str(symbol.file_path or "").replace("\\", "/") in stale_paths
+        }
+        generated_prefix = f"doc:{scope.project_id}:"
+        human_prefix = f"doc:human:{scope.project_id}:"
+        for symbol in stored_symbols:
+            if symbol.kind != SymbolKind.DOCUMENTATION:
+                continue
+            if not symbol.id.startswith(generated_prefix) or symbol.id.startswith(
+                human_prefix
+            ):
+                continue
+            code_id = f"sym:{scope.project_id}:{symbol.id.removeprefix(generated_prefix)}"
+            if code_id not in live_ids:
+                stale_ids.add(symbol.id)
+        if not stale_ids:
+            return stored_symbols
+
+        ids = sorted(stale_ids)
+        if self.embedding_index is not None:
+            delete_many = getattr(self.embedding_index, "delete_many", None)
+            if callable(delete_many):
+                delete_many(scope, ids)
+                for symbol_id in ids:
+                    self._sync_vector_replica_delete(symbol_id)
+            else:
+                for symbol_id in ids:
+                    self._delete_embedding(scope, symbol_id)
+        delete_symbols = getattr(self.store, "delete_symbols", None)
+        if callable(delete_symbols):
+            delete_symbols(ids, scope)
+        else:
+            for symbol_id in ids:
+                self.store.delete_symbol(symbol_id, scope)
+        return [symbol for symbol in stored_symbols if symbol.id not in stale_ids]
 
     def _ingest_package_readme_maps(self, scope: Scope, root_path: str) -> int:
         """Index near-code package README maps as human DOCUMENTATION + DOCUMENTED_BY from FILEs."""

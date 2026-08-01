@@ -207,6 +207,22 @@ class HybridEmbeddings:
             return self.stub.embed(text)
         raise RuntimeError(f"LiteLLM embedding failed: {last_error}")
 
+    def embed_many(
+        self,
+        texts: list[str],
+        *,
+        is_query: bool = False,
+    ) -> list[EmbeddingResult]:
+        if self.local is not None:
+            batch = getattr(self.local, "embed_many", None)
+            if callable(batch):
+                results = list(batch(texts, is_query=is_query))
+                if results:
+                    self.model = results[0].model
+                    self._backend = "local_bge"
+                return results
+        return [self.embed(text, is_query=is_query) for text in texts]
+
 def build_embeddings(
     gateway: Any | None = None,
     *,

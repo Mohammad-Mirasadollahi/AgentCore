@@ -4,7 +4,7 @@ Role: ANN embeddings and Neo4j→Postgres outbox mirror for hybrid retrieval.
 Source of truth: ``code_graph.symbol_embeddings`` / ``code_graph.outbox``; SQL text
 lives in ``postgres.sql``; each worker thread owns one ``psycopg`` connection.
 Allowed: concurrent upsert/search under ``LockedStore`` slot budget.
-Forbidden: sharing one connection across threads; inlining large SQL here.
+Forbidden: sharing one connection across threads; destructive dimension migration.
 """
 
 from __future__ import annotations
@@ -69,6 +69,23 @@ class InMemoryEmbeddingIndex:
         with self._lock:
             self._rows.pop(key, None)
 
+    def delete_many(self, scope: Scope, symbol_ids: list[str]) -> int:
+        with self._lock:
+            drop = [
+                (scope.tenant_id, scope.workspace_id, scope.project_id, symbol_id)
+                for symbol_id in symbol_ids
+                if (
+                    scope.tenant_id,
+                    scope.workspace_id,
+                    scope.project_id,
+                    symbol_id,
+                )
+                in self._rows
+            ]
+            for key in drop:
+                del self._rows[key]
+            return len(drop)
+
     def wipe_scope(self, scope: Scope) -> int:
         with self._lock:
             drop = [
@@ -132,13 +149,21 @@ class PostgresEmbeddingIndex:
             lambda: psycopg.connect(normalized, autocommit=True, row_factory=dict_row)
         )
         if ensure_schema:
-            self.ensure_schema()
+            try:
+                self.ensure_schema()
+            except Exception:
+                self._pool.close_all()
+                raise
 
     @property
     def _connection(self) -> Any:
         return self._pool.get()
 
     def close(self) -> None:
+        self._pool.close_all()
+
+    def reset_connections(self) -> None:
+        """Close worker connections; later calls reopen them lazily."""
         self._pool.close_all()
 
     def ensure_schema(self) -> None:
@@ -148,16 +173,16 @@ class PostgresEmbeddingIndex:
                 path = migrations_dir / name
                 if path.is_file():
                     cur.execute(path.read_text(encoding="utf-8"))
-            # If an older vector(16) table still exists, rebuild to match configured dims.
             cur.execute(pg_sql.SELECT_EMBEDDING_COLUMN_TYPE)
             row = cur.fetchone()
             expected = pg_sql.expected_vector_type(self._dims)
             if row and str(row.get("typ") or "") != expected:
-                cur.execute(pg_sql.DROP_SYMBOL_EMBEDDINGS)
-                cur.execute(pg_sql.create_symbol_embeddings_table(self._dims))
-                cur.execute(pg_sql.CREATE_SCOPE_IDX)
-                cur.execute(pg_sql.CREATE_SCOPE_KIND_IDX)
-                cur.execute(pg_sql.CREATE_HNSW_IDX)
+                actual = str(row.get("typ") or "unknown")
+                raise RuntimeError(
+                    "embedding schema dimension mismatch: "
+                    f"database has {actual}, configured provider requires {expected}; "
+                    "run an explicit backed-up embedding migration or use the canonical dimension"
+                )
 
     @staticmethod
     def _vector_literal(vector: list[float]) -> str:
@@ -197,6 +222,17 @@ class PostgresEmbeddingIndex:
                 pg_sql.DELETE_EMBEDDING,
                 (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
             )
+
+    def delete_many(self, scope: Scope, symbol_ids: list[str]) -> int:
+        ids = [str(symbol_id) for symbol_id in symbol_ids if str(symbol_id)]
+        if not ids:
+            return 0
+        with self._connection.cursor() as cur:
+            cur.execute(
+                pg_sql.DELETE_EMBEDDINGS,
+                (ids, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            return int(cur.rowcount or 0)
 
     def wipe_scope(self, scope: Scope) -> int:
         with self._connection.cursor() as cur:
@@ -274,6 +310,10 @@ class PostgresOutboxMirror:
         return self._pool.get()
 
     def close(self) -> None:
+        self._pool.close_all()
+
+    def reset_connections(self) -> None:
+        """Close worker connections; later calls reopen them lazily."""
         self._pool.close_all()
 
     def append_event(self, event: dict[str, Any]) -> None:

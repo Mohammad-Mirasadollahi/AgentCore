@@ -106,7 +106,10 @@ def search_catalog(
     limit: int = 5,
 ) -> dict[str, Any]:
     query_lower = str(query or "").strip().lower()
-    tokens = [t for t in re.split(r"\s+", query_lower) if t]
+    tokens = [t for t in re.findall(r"[a-z0-9]+", query_lower) if t]
+    destructive_intent = bool(
+        set(tokens) & {"purge", "delete", "wipe", "destroy", "remove"}
+    )
     capped = max(1, min(int(limit or 5), 50))
     scored: list[tuple[float, dict[str, Any]]] = []
     for tool in tools:
@@ -114,18 +117,29 @@ def search_catalog(
         desc = str(tool.get("description") or "")
         name_lower = name.lower()
         desc_lower = desc.lower()
+        name_tokens = set(re.findall(r"[a-z0-9]+", name_lower))
         score = 0.0
         if not query_lower:
             score = 0.1
         elif name_lower == query_lower:
             score += 1.0
-        elif name_lower.find(query_lower) >= 0 or any(t in name_lower for t in tokens):
-            score += 0.8
+        elif query_lower.replace(" ", "_") in name_lower:
+            score += 2.0
+        if tokens:
+            name_matches = sum(1 for token in tokens if token in name_tokens)
+            desc_matches = sum(1 for token in tokens if token in desc_lower)
+            score += 1.5 * name_matches / len(tokens)
+            score += 0.4 * desc_matches / len(tokens)
         for token in tokens:
-            if token in desc_lower:
-                score += 0.6
             if token in name_lower:
-                score += 0.3
+                score += 0.2
+        if not destructive_intent and name_tokens & {
+            "purge",
+            "delete",
+            "wipe",
+            "destroy",
+        }:
+            score -= 3.0
         if score <= 0:
             continue
         scored.append(

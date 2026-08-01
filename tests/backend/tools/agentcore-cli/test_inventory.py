@@ -238,7 +238,7 @@ def test_classify_edited_pending_and_hash(tmp_path: Path):
 
 def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     from agentcore_cli.commands import inventory as inv
-    from code_graph_service.domain.hashing import content_hash
+    from code_graph_service.domain.hashing import content_hash, digest
 
     app = tmp_path / "app"
     (app / "src").mkdir(parents=True)
@@ -305,7 +305,7 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
             name="guide.md",
             doc_status=SimpleNamespace(value="human"),
             ai_documentation="Guide",
-            hash_value="g",
+            hash_value=digest("# Guide\n"),
             language="",
         ),
     ]
@@ -362,6 +362,25 @@ def test_inventory_one_root_classifies_with_models(tmp_path: Path, monkeypatch):
     assert "local_bge:test-model" in top["embed_models"]
     assert "heuristic" in top["docs_models"]
     assert "local_bge:test-model" in row["models_used"]
+    assert row["code"]["embeddings"] == {
+        "eligible_symbols": 2,
+        "indexed_symbols": 2,
+        "missing_symbols": 0,
+        "coverage_percent": 100.0,
+    }
+
+    index.list_symbol_models = lambda _scope: {"fn:ok": "local_bge:test-model"}
+    (app / "docs" / "guide.md").write_text("# Guide changed\n", encoding="utf-8")
+    degraded = inv._inventory_one_root(
+        svc=svc,
+        scope=scope,
+        root_path=app,
+        max_files=2000,
+    )
+    assert degraded["code"]["embeddings"]["missing_symbols"] == 1
+    assert degraded["code"]["edited_files"][0]["embed_models"] == []
+    assert degraded["docs"]["edited"] == ["docs/guide.md"]
+    assert degraded["docs"]["edited_files"][0]["edit_reason"] == "content_changed"
 
 
 def test_cmd_inventory_save(tmp_path: Path, monkeypatch, capsys):

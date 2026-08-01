@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from agentcore_cli.docs_link_sync import sync_human_docs
 from agentcore_cli.markdown_frontmatter import parse_markdown_frontmatter, provisional_frontmatter
 from code_graph_service.core import CodeGraphService, Scope
@@ -52,6 +54,20 @@ decision_refs: []
 
 No symbol links.
 '''
+
+
+@pytest.fixture(autouse=True)
+def _isolated_docs_store(monkeypatch):
+    """Keep unit docs-sync state local even when repository dotenv points at Postgres."""
+    from docs_sync_service.core import DocsSyncService
+    from docs_sync_service.testing import InMemoryStore as DocsStore
+
+    service = DocsSyncService(DocsStore())
+    monkeypatch.setattr(
+        "agentcore_cli.docs_link_sync._docs_sync_service",
+        lambda: service,
+    )
+    return service
 
 
 def test_parse_and_provisional_frontmatter():
@@ -116,6 +132,11 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
         {"file_path": "src/auth.py", "source": AUTH_SOURCE, "language": "python"},
     )
 
+    from docs_sync_service.core import DocsSyncService, Scope as DocsScope
+    from docs_sync_service.testing import InMemoryStore as DocsStore
+
+    docs_service = DocsSyncService(DocsStore())
+    monkeypatch.setattr("agentcore_cli.docs_link_sync._docs_sync_service", lambda: docs_service)
     result = sync_human_docs(
         graph_service=graph,
         graph_scope=SCOPE,
@@ -137,6 +158,9 @@ def test_sync_human_docs_creates_anchor_and_edge(tmp_path: Path, monkeypatch):
     assert result.links_created == 1
     assert result.anchors_registered == 1
     assert result.unresolved_tokens == []
+    anchors = docs_service.store.list_anchors(DocsScope("t", "w", "docs-link"))
+    assert len(anchors) == 1
+    assert anchors[0].status == "synced"
 
     human_id = "doc:human:docs-link:doc-login-rules"
     human = store.get_symbol(human_id, SCOPE)
@@ -278,6 +302,7 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
         def __init__(self) -> None:
             super().__init__()
             self.max_overlap = 0
+            self.close_calls = 0
             self._inflight = 0
             self._probe = threading.Lock()
 
@@ -292,6 +317,17 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
                 with self._probe:
                     self._inflight -= 1
 
+        def close(self) -> None:
+            self.close_calls += 1
+
+    class ResetProbeStore(InMemoryStore):
+        def __init__(self) -> None:
+            super().__init__()
+            self.reset_calls = 0
+
+        def reset_connections(self) -> None:
+            self.reset_calls += 1
+
     clear_process_containers()
     probe = OverlapProbeStore()
     monkeypatch.setattr(
@@ -299,7 +335,7 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
         lambda: DocsSyncService(probe),
     )
 
-    store = InMemoryStore()
+    store = ResetProbeStore()
     graph = CodeGraphService(LockedStore(store, lock_reads=True))
     graph.ingest_file(
         SCOPE,
@@ -334,7 +370,50 @@ def test_sync_human_docs_runs_with_parallel_workers(tmp_path: Path, monkeypatch)
     assert any(int(e.get("files_in_flight") or 0) >= 1 for e in events if e.get("status") == "active")
     # Docs-sync writes must overlap across workers (not CLI single-flight).
     assert probe.max_overlap >= 2
+    assert probe.close_calls == 1
+    assert store.reset_calls == 1
     clear_process_containers()
+
+
+def test_sync_human_docs_caps_workers_to_database_slots(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_SYNC_DOCS_EVIDENCE", "0")
+    monkeypatch.setenv("AGENTCORE_SYNC_MAX_FILE_WORKERS", "29")
+    (tmp_path / "docs").mkdir()
+    for i in range(12):
+        body = UNLINKED_DOC.replace("doc-overview", f"doc-{i}").replace("Overview", f"Doc {i}")
+        (tmp_path / "docs" / f"d{i}.md").write_text(body, encoding="utf-8")
+
+    from docs_sync_service.core import DocsSyncService
+    from docs_sync_service.testing import InMemoryStore as DocsInMemoryStore
+
+    monkeypatch.setattr(
+        "agentcore_cli.docs_link_sync._docs_sync_service",
+        lambda: DocsSyncService(DocsInMemoryStore()),
+    )
+    events: list[dict] = []
+    result = sync_human_docs(
+        graph_service=CodeGraphService(InMemoryStore()),
+        graph_scope=SCOPE,
+        root_path=tmp_path,
+        filters={
+            "docs_enabled": True,
+            "doc_match_globs": ["**/*.md"],
+            "doc_exclude_dirs": [],
+            "doc_exclude_globs": [],
+            "doc_paths": [],
+            "max_files": 50,
+        },
+        actor="test",
+        correlation_id="corr-db-slots",
+        repo_name="fixture",
+        on_progress=events.append,
+    )
+
+    started = next(e for e in events if e.get("status") == "started")
+    assert started["file_workers"] == 8
+    assert result.docs_indexed == 12
+
 
 def test_sync_human_docs_skips_unchanged_unlinked(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_DOCS_SYNC_DATABASE_URL", raising=False)

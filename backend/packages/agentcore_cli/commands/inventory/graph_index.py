@@ -10,7 +10,15 @@ from agentcore_cli.commands.inventory.util import CODE_KINDS, DOCUMENTED, norm_r
 
 
 def empty_file_stats() -> dict[str, Any]:
-    return {"symbols": 0, "documented": 0, "embed_models": set(), "docs_models": set()}
+    return {
+        "symbols": 0,
+        "documented": 0,
+        "embedding_eligible": 0,
+        "embedding_indexed": 0,
+        "embedding_missing": 0,
+        "embed_models": set(),
+        "docs_models": set(),
+    }
 
 
 def scan_root_symbols(
@@ -20,7 +28,6 @@ def scan_root_symbols(
     code_discovered: set[str],
     docs_discovered: set[str],
     embed_by_symbol: dict[str, str],
-    fallback_embed: str,
     docs_model_label: str,
 ) -> dict[str, Any]:
     """Classify graph symbols into indexed paths, per-file stats, and LLM labels."""
@@ -31,6 +38,7 @@ def scan_root_symbols(
     llm_done: list[str] = []
     llm_remaining: list[str] = []
     file_meta: dict[str, dict[str, str]] = {}
+    docs_hashes: dict[str, set[str]] = defaultdict(set)
     code_stats: dict[str, dict[str, Any]] = defaultdict(empty_file_stats)
     docs_stats: dict[str, dict[str, Any]] = defaultdict(empty_file_stats)
 
@@ -56,6 +64,9 @@ def scan_root_symbols(
 
         if kind == SymbolKind.DOCUMENTATION.value and rel in docs_discovered:
             indexed_docs.add(rel)
+            hash_value = str(getattr(sym, "hash_value", "") or "")
+            if len(hash_value) == 64:
+                docs_hashes[rel].add(hash_value)
             docs_stats[rel]["symbols"] += 1
             docs_stats[rel]["documented"] += 1
             docs_stats[rel]["docs_models"].add("human")
@@ -66,7 +77,12 @@ def scan_root_symbols(
             status = sym.doc_status.value if hasattr(sym.doc_status, "value") else str(sym.doc_status or "")
             label = f"{rel}::{sym.qualified_name or sym.name}"
             code_stats[rel]["symbols"] += 1
-            code_stats[rel]["embed_models"].add(embed_model or fallback_embed)
+            code_stats[rel]["embedding_eligible"] += 1
+            if embed_model:
+                code_stats[rel]["embedding_indexed"] += 1
+                code_stats[rel]["embed_models"].add(embed_model)
+            else:
+                code_stats[rel]["embedding_missing"] += 1
             if status in DOCUMENTED or (sym.ai_documentation or "").strip():
                 llm_done.append(label)
                 code_stats[rel]["documented"] += 1
@@ -83,6 +99,7 @@ def scan_root_symbols(
         "llm_done": llm_done,
         "llm_remaining": llm_remaining,
         "file_meta": file_meta,
+        "docs_hashes": docs_hashes,
         "code_stats": code_stats,
         "docs_stats": docs_stats,
     }

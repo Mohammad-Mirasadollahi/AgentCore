@@ -31,6 +31,17 @@ function run(value) {
 }
 """
 
+PYTHON_BUILTIN_CALLER = """
+def normalize(symbol_ids):
+    return set(symbol_ids)
+"""
+
+PYTHON_UNRELATED_SET_METHOD = """
+class FakeClock:
+    def set(self, value):
+        return value
+"""
+
 
 def test_python_calls_unique_rust_symbol_cross_language():
     store = InMemoryStore()
@@ -115,4 +126,43 @@ def test_js_import_resolves_python_helper_file_stem():
         and edge["metadata"].get("cross_language") is True
         and edge["metadata"].get("resolved_via") == "file_stem"
         for edge in imports["edges"]
+    )
+
+
+def test_python_builtin_does_not_resolve_to_unrelated_project_method():
+    store = InMemoryStore()
+    service = CodeGraphService(store)
+    service.ingest_file(
+        SCOPE,
+        "agent",
+        "c-clock",
+        "idem-clock",
+        {
+            "file_path": "src/clock.py",
+            "source": PYTHON_UNRELATED_SET_METHOD,
+            "language": "python",
+        },
+    )
+    service.ingest_file(
+        SCOPE,
+        "agent",
+        "c-caller",
+        "idem-caller",
+        {
+            "file_path": "src/normalize.py",
+            "source": PYTHON_BUILTIN_CALLER,
+            "language": "python",
+        },
+    )
+
+    caller_id = f"sym:{SCOPE.project_id}:src.normalize.normalize"
+    unrelated_id = f"sym:{SCOPE.project_id}:src.clock.FakeClock.set"
+    calls = service.structural_query(SCOPE, caller_id, "CALLS")["edges"]
+
+    assert not any(edge["target_id"] == unrelated_id for edge in calls)
+    assert any(
+        edge["target_id"] == f"ext:call:{SCOPE.project_id}:set"
+        and edge["confidence"] == "external"
+        and edge["metadata"].get("external_kind") == "builtin"
+        for edge in calls
     )

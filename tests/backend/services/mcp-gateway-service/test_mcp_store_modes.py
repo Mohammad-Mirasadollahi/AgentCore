@@ -167,6 +167,7 @@ def test_code_graph_tools_neighbors_and_ingest():
     assert impact["impact_of"] == symbol["id"]
     assert "blast" in impact
     assert impact.get("direction") == "both"
+    assert impact["min_confidence"] == "probable"
     assert "escalate_hint" in impact
 
     callers = dispatch_capability(
@@ -178,6 +179,7 @@ def test_code_graph_tools_neighbors_and_ingest():
         correlation_id=str(uuid4()),
     )
     assert callers.get("callers_of") == symbol["id"]
+    assert callers["min_confidence"] == "probable"
     assert "callers" in callers
     assert "escalate_hint" in callers
 
@@ -246,6 +248,7 @@ def test_code_graph_ingest_repo_via_mcp(tmp_path):
     )
     assert result["ingest_repo"]["files_ingested"] == 1
     assert result["ingest_repo"]["files_failed"] == 0
+    assert result["ok"] is True
     got = dispatch_capability(
         backends,
         "code_graph.get_symbol",

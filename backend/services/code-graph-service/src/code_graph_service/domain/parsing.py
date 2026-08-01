@@ -191,6 +191,7 @@ def resolve_call_target(
     short_names: dict[str, list[str]],
     import_aliases: dict[str, str],
     module_prefix: str,
+    source_language: str = "python",
 ) -> tuple[list[str], CallConfidence]:
     """Resolve call name to symbol id(s) with confidence."""
     if call in by_qualified:
@@ -222,6 +223,13 @@ def resolve_call_target(
                 return short, CallConfidence.PROBABLE
             if len(short) > 1:
                 return short, CallConfidence.AMBIGUOUS
+
+    if (
+        source_language.strip().lower() == "python"
+        and "." not in call
+        and call in builtin_names()
+    ):
+        return [], CallConfidence.EXTERNAL
 
     short = call.split(".")[-1]
     matches = list(short_names.get(short, []))

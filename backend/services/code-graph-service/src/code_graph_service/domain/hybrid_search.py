@@ -8,14 +8,19 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from typing import Iterable
 
 
-_TOKEN_RE = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]{1,63}")
+_TOKEN_RE = re.compile(r"(?u)[^\W\d][\w\u200c\u200d]{1,63}")
+_SCRIPT_NORMALIZATION = str.maketrans({"ي": "ی", "ك": "ک"})
 
 
 def tokenize(text: str) -> list[str]:
-    return [t.lower() for t in _TOKEN_RE.findall(text or "") if len(t) >= 2]
+    normalized = unicodedata.normalize("NFKC", text or "").translate(
+        _SCRIPT_NORMALIZATION
+    )
+    return [t.lower() for t in _TOKEN_RE.findall(normalized) if len(t) >= 2]
 
 
 def rrf_merge(

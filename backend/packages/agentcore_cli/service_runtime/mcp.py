@@ -48,7 +48,7 @@ def prepare_mcp_env(root: Path) -> dict[str, str]:
             token = secrets.token_urlsafe(32)
             secret_file.parent.mkdir(parents=True, exist_ok=True)
             secret_file.write_text(token + "\n", encoding="utf-8")
-            secret_file.chmod(0o600)
+        secret_file.chmod(0o600)
         env["AGENTCORE_MCP_TOKEN_SECRET"] = token
         os.environ["AGENTCORE_MCP_TOKEN_SECRET"] = token
 
@@ -105,6 +105,35 @@ def read_mcp_pid(root: Path) -> int | None:
     return pid
 
 
+def _discover_managed_mcp_pid(root: Path, port: int) -> int | None:
+    """Recover a missing pid file only for an MCP process rooted in this checkout."""
+    try:
+        from port_profile import find_port_owner
+
+        owner = find_port_owner(port)
+    except Exception:  # noqa: BLE001 — owner detection is best-effort
+        return None
+    pid = int((owner or {}).get("pid") or 0)
+    if not pid_alive(pid):
+        return None
+    proc = Path("/proc") / str(pid)
+    try:
+        command = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode(
+            "utf-8",
+            errors="replace",
+        )
+        cwd = (proc / "cwd").resolve()
+    except OSError:
+        return None
+    if "mcp_gateway_service" not in command or cwd != root.resolve():
+        return None
+    pid_path = mcp_pid_path(root)
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text(f"{pid}\n", encoding="utf-8")
+    pid_path.chmod(0o600)
+    return pid
+
+
 def tcp_ok(host: str, port: int, *, timeout: float = 1.0) -> bool:
     probe_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
     try:
@@ -119,14 +148,18 @@ def mcp_status(root: Path) -> dict[str, Any]:
     env_port = int(os.environ.get("AGENTCORE_MCP_HTTP_PORT") or DEFAULT_MCP_PORT)
     pid = read_mcp_pid(root)
     reachable = tcp_ok(env_host, env_port)
+    if pid is None and reachable:
+        pid = _discover_managed_mcp_pid(root, env_port)
+    managed = pid is not None
     out: dict[str, Any] = {
-        "running": pid is not None,
+        "running": managed or reachable,
+        "managed": managed,
         "pid": pid,
         "host": env_host,
         "port": env_port,
         "reachable": reachable,
         "log": str(mcp_log_path(root)),
-        "ok": pid is not None and reachable,
+        "ok": reachable,
     }
     if pid is not None:
         started = format_process_started_at(pid)
@@ -206,9 +239,10 @@ def _raise_mcp_start_error(
 
 
 def start_mcp_http(root: Path) -> dict[str, Any]:
-    existing = read_mcp_pid(root)
+    current = mcp_status(root)
+    existing = current.get("pid")
     if existing is not None:
-        status = mcp_status(root)
+        status = current
         where = f"{status.get('host')}:{status.get('port')}"
         progress(f"MCP HTTP: already up (pid {existing} on {where})")
         return {
@@ -218,7 +252,6 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
             "started_at": wall_clock_now(),
             **status,
         }
-
     env = prepare_mcp_env(root)
     host = env["AGENTCORE_MCP_HTTP_HOST"]
     port = int(env["AGENTCORE_MCP_HTTP_PORT"])
@@ -337,6 +370,17 @@ def stop_mcp_http(root: Path) -> dict[str, Any]:
 
     pid = read_mcp_pid(root)
     if pid is None:
+        status = mcp_status(root)
+        pid = status.get("pid")
+    if pid is None:
+        if status.get("reachable"):
+            progress("MCP HTTP: reachable listener is not managed by this checkout")
+            return {
+                "ok": False,
+                "action": "unmanaged_listener",
+                "host": status.get("host"),
+                "port": status.get("port"),
+            }
         progress("MCP HTTP: already stopped")
         return {"ok": True, "action": "already_stopped"}
     progress(f"MCP HTTP: stopping (pid {pid})")

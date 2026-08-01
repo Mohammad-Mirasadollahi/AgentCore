@@ -124,6 +124,14 @@ class InMemoryStore:
     def put_anchor(self, anchor: DocAnchor) -> None:
         self._with_lock(lambda: self._anchors.__setitem__(anchor.id, deepcopy(anchor)))
 
+    def delete_anchor(self, anchor_id: str, scope: Scope) -> None:
+        def _run() -> None:
+            item = self._anchors.get(anchor_id)
+            if item is not None and self._same_project(item.scope, scope):
+                del self._anchors[anchor_id]
+
+        self._with_lock(_run)
+
     def list_anchors(self, scope: Scope, symbol_id: str | None = None) -> list[DocAnchor]:
         def _run() -> list[DocAnchor]:
             items = [item for item in self._anchors.values() if self._same_project(item.scope, scope)]

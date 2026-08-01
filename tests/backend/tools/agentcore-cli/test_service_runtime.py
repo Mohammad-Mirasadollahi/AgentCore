@@ -406,6 +406,22 @@ def test_service_state_names_what_is_wrong():
     }
 
 
+def test_mcp_status_reachable_without_pid_is_operational(tmp_path: Path, monkeypatch):
+    from agentcore_cli.service_runtime import mcp as mcp_mod
+
+    monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _root: None)
+    monkeypatch.setattr(mcp_mod, "tcp_ok", lambda _host, _port: True)
+    monkeypatch.setattr(mcp_mod, "_discover_managed_mcp_pid", lambda _root, _port: None)
+    status = mcp_mod.mcp_status(tmp_path)
+    assert status["ok"] is True
+    assert status["running"] is True
+    assert status["managed"] is False
+    assert runtime.service_state(
+        {"ok": True},
+        status,
+    ) == "all running"
+
+
 def test_format_docker_started_at_to_local_seconds():
     stamp = runtime._format_docker_started_at("2026-07-22T05:40:15.123456789Z")
     assert len(stamp) == 19
@@ -671,6 +687,16 @@ def test_start_mcp_http_refuses_when_port_still_busy(tmp_path: Path, monkeypatch
     (tmp_path / ".venv" / "bin" / "python").write_text("#!/bin/sh\n", encoding="utf-8")
 
     monkeypatch.setattr(mcp_mod, "read_mcp_pid", lambda _r: None)
+    monkeypatch.setattr(
+        mcp_mod,
+        "mcp_status",
+        lambda _r: {
+            "running": False,
+            "managed": False,
+            "pid": None,
+            "reachable": False,
+        },
+    )
     monkeypatch.setattr(
         mcp_mod,
         "prepare_mcp_env",

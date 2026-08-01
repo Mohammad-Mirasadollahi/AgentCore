@@ -35,6 +35,14 @@ class LocalEmbeddingStub:
             return EmbeddingResult([0.0] * self.dims, "empty", self.model, self.dims)
         return EmbeddingResult(embed_text(text, self.dims), "ready", self.model, self.dims)
 
+    def embed_many(
+        self,
+        texts: list[str],
+        *,
+        is_query: bool = False,
+    ) -> list[EmbeddingResult]:
+        return [self.embed(text, is_query=is_query) for text in texts]
+
 
 def cosine(left: list[float], right: list[float]) -> float:
     return sum(a * b for a, b in zip(left, right, strict=False))

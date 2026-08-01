@@ -6,7 +6,7 @@ connection (connections are not shareable across threads).
 Allowed: concurrent Phase-2 writers via thread-local connections; idempotent
 schema ensure on construct; close all tracked connections on ``close()``.
 Forbidden: sharing one cursor/connection across threads; global document IDs
-that can overwrite another project; inventing rows outside scoped SQL.
+that can overwrite another project; duplicate document-symbol anchors.
 """
 
 from __future__ import annotations
@@ -64,6 +64,7 @@ class PostgresStore:
                 "0001_docs_sync.sql",
                 "0002_outbox_published.sql",
                 "0003_document_scope_primary_key.sql",
+                "0004_anchor_natural_key.sql",
             ):
                 path = migrations_dir / name
                 if path.is_file():
@@ -232,6 +233,14 @@ class PostgresStore:
                 (anchor.id, anchor.scope.tenant_id, anchor.scope.workspace_id, anchor.scope.project_id,
                  anchor.scope.project_group_id, anchor.doc_id, anchor.symbol_id, anchor.recorded_hash,
                  anchor.status, anchor.version, anchor.created_at, anchor.updated_at),
+            )
+
+    def delete_anchor(self, anchor_id: str, scope: Scope) -> None:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """DELETE FROM docs_sync.anchors WHERE id=%s AND tenant_id=%s
+                   AND workspace_id=%s AND project_id=%s""",
+                (anchor_id, scope.tenant_id, scope.workspace_id, scope.project_id),
             )
 
     def list_anchors(self, scope: Scope, symbol_id: str | None = None) -> list[DocAnchor]:

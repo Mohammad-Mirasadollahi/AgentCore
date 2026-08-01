@@ -30,3 +30,32 @@ def test_server_aliases_include_canonical_casefold():
     aliases = server_name_aliases("AgentCore-Programming")
     assert "AgentCore-Programming" in aliases
     assert "agentcore-programming" in aliases  # lower() of canonical
+
+
+def test_search_prefers_explicit_hybrid_and_suppresses_unrequested_purge():
+    tools = [
+        {
+            "name": "agentcore_code_graph_search",
+            "description": "Search code graph symbols",
+            "input_schema": {},
+        },
+        {
+            "name": "agentcore_code_graph_hybrid_search",
+            "description": "Hybrid lexical and semantic code graph search",
+            "input_schema": {},
+        },
+        {
+            "name": "agentcore_code_graph_purge",
+            "description": "Purge code graph search data",
+            "input_schema": {},
+        },
+    ]
+    out = search_catalog(
+        tools,
+        server_name="AgentCore-Programming",
+        query="code graph hybrid search",
+        limit=3,
+    )
+    names = [row["tool_name"] for row in out["results"]]
+    assert names[0] == "agentcore_code_graph_hybrid_search"
+    assert "agentcore_code_graph_purge" not in names

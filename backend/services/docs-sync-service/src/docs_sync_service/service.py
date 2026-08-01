@@ -3,8 +3,8 @@
 Role: orchestrate Store mutations and outbox events for symbols/docs/anchors.
 Source of truth: Store + outbox events; bloom cache is derived coverage hint.
 Allowed: soft per-command idempotency; thread-safe bloom rebuild.
-Forbidden: inventing edges/anchors without Store rows; failing closed on one
-soft command when callers expect soft-fail (API maps errors).
+Forbidden: inventing edges/anchors without Store rows; duplicate natural-key
+anchors; resetting entity versions during an update.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from .bloom import BloomFilter
 from .enums import DocumentState, DraftState, DriftState, DriftType, Severity
-from .errors import ConflictError, ValidationError
+from .errors import ConflictError, NotFoundError, ValidationError
 from .models import (
     REQUIRED_FRONTMATTER,
     CodeSymbol,
@@ -128,23 +128,41 @@ class DocsSyncService:
         if prior:
             return self.store.get_document(prior, scope)
         timestamp = now()
-        document = Document(
-            str(frontmatter.get("doc_id") or uuid4()),
-            scope,
-            actor,
-            correlation_id,
-            command_payload["path"],
-            str(frontmatter["title"]),
-            str(frontmatter["owner"]),
-            DocumentState.VALID,
-            str(frontmatter["schema_version"]),
-            list(frontmatter.get("linked_symbols") or []),
-            list(frontmatter.get("decision_refs") or []),
-            dict(frontmatter),
-            command_payload["body"],
-            timestamp,
-            timestamp,
-        )
+        document_id = str(frontmatter.get("doc_id") or uuid4())
+        try:
+            document = self.store.get_document(document_id, scope)
+        except NotFoundError:
+            document = Document(
+                document_id,
+                scope,
+                actor,
+                correlation_id,
+                command_payload["path"],
+                str(frontmatter["title"]),
+                str(frontmatter["owner"]),
+                DocumentState.VALID,
+                str(frontmatter["schema_version"]),
+                list(frontmatter.get("linked_symbols") or []),
+                list(frontmatter.get("decision_refs") or []),
+                dict(frontmatter),
+                command_payload["body"],
+                timestamp,
+                timestamp,
+            )
+        else:
+            document.actor_id = actor
+            document.correlation_id = correlation_id
+            document.path = command_payload["path"]
+            document.title = str(frontmatter["title"])
+            document.owner = str(frontmatter["owner"])
+            document.state = DocumentState.VALID
+            document.schema_version = str(frontmatter["schema_version"])
+            document.linked_symbols = list(frontmatter.get("linked_symbols") or [])
+            document.decision_refs = list(frontmatter.get("decision_refs") or [])
+            document.frontmatter = dict(frontmatter)
+            document.body = command_payload["body"]
+            document.updated_at = timestamp
+            document.version += 1
         self.store.put_document(document)
         self.store.remember(scope, "index_document", key, command_payload, document.id)
         self.emit("DocumentIndexed", document.public(), scope, actor, correlation_id, key, document.id, [])
@@ -170,16 +188,39 @@ class DocsSyncService:
             return self.store.get_anchor(prior, scope)
         timestamp = now()
         status = "synced" if payload["recorded_hash"] == symbol.body_hash else "stale"
-        anchor = DocAnchor(
-            str(uuid4()),
-            scope,
-            payload["doc_id"],
-            payload["symbol_id"],
-            payload["recorded_hash"],
-            status,
-            timestamp,
-            timestamp,
-        )
+        natural = [
+            item
+            for item in self.store.list_anchors(scope, payload["symbol_id"])
+            if item.doc_id == payload["doc_id"]
+        ]
+        if natural:
+            anchor = natural[-1]
+            anchor.recorded_hash = payload["recorded_hash"]
+            anchor.status = status
+            anchor.updated_at = timestamp
+            anchor.version += 1
+            for duplicate in natural[:-1]:
+                self.store.delete_anchor(duplicate.id, scope)
+        else:
+            anchor_id = "anchor:" + digest(
+                {
+                    "tenant_id": scope.tenant_id,
+                    "workspace_id": scope.workspace_id,
+                    "project_id": scope.project_id,
+                    "doc_id": payload["doc_id"],
+                    "symbol_id": payload["symbol_id"],
+                }
+            )
+            anchor = DocAnchor(
+                anchor_id,
+                scope,
+                payload["doc_id"],
+                payload["symbol_id"],
+                payload["recorded_hash"],
+                status,
+                timestamp,
+                timestamp,
+            )
         self.store.put_anchor(anchor)
         self.store.remember(scope, "register_anchor", key, command_payload, anchor.id)
         self._rebuild_bloom(scope)

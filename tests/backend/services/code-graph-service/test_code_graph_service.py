@@ -15,6 +15,7 @@ from code_graph_service.core import (
     GraphEdge,
     GraphSymbol,
     LocalEmbeddingStub,
+    NotFoundError,
     Scope,
     SymbolKind,
     ValidationError,
@@ -189,6 +190,20 @@ class _FakeSession:
             return _FakeResult([])
         if "DELETE r" in q and "{id: $id}" in q:
             self.store.edges.pop(params["id"], None)
+            return _FakeResult([])
+        if q.startswith("UNWIND $symbol_ids AS symbol_id"):
+            for symbol_id in params["symbol_ids"]:
+                self.store.symbols.pop(symbol_id, None)
+                self.store.edges = {
+                    edge_id: edge
+                    for edge_id, edge in self.store.edges.items()
+                    if edge["source_id"] != symbol_id
+                    and edge["target_id"] != symbol_id
+                }
+            return _FakeResult([])
+        if q.startswith("UNWIND $edges AS edge"):
+            for edge in params["edges"]:
+                self.store.edges[edge["id"]] = dict(edge)
             return _FakeResult([])
         if "MERGE (source)-[r:CODE_REL {id: $id}]->(target)" in q or "MERGE (source)-[r:CODE_REL" in q:
             conf = params.get("confidence")
@@ -490,6 +505,99 @@ def test_embedding_stub_ready_and_resolve_ambiguous():
     assert set(targets) == {"id-a", "id-other"}
 
 
+def test_file_ingest_batches_symbol_embeddings():
+    class RecordingEmbeddings(LocalEmbeddingStub):
+        def __init__(self) -> None:
+            super().__init__(dims=8)
+            self.batch_calls: list[list[str]] = []
+            self.single_calls: list[str] = []
+
+        def embed(self, text: str, *, is_query: bool = False):
+            self.single_calls.append(text)
+            return super().embed(text, is_query=is_query)
+
+        def embed_many(self, texts: list[str], *, is_query: bool = False):
+            self.batch_calls.append(list(texts))
+            return [
+                LocalEmbeddingStub.embed(self, text, is_query=is_query)
+                for text in texts
+            ]
+
+    embeddings = RecordingEmbeddings()
+    store = InMemoryStore()
+    service = CodeGraphService(store, embeddings=embeddings)
+    source = "def first():\n    return 1\n\ndef second():\n    return first()\n"
+
+    result = service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-batch",
+        "ingest-batch",
+        {
+            "file_path": "src/batch.py",
+            "source": source,
+            "language": "python",
+            "reuse_unchanged_embeddings": True,
+        },
+    )
+
+    assert result.symbols_indexed == 3
+    assert len(embeddings.batch_calls) == 1
+    assert len(embeddings.batch_calls[0]) == 4
+    assert embeddings.single_calls == ["src/batch.py"]
+
+    file_symbol = store.get_symbol(f"file:{SCOPE.project_id}:src/batch.py", SCOPE)
+    file_symbol.hash_version = "legacy"
+    store.put_symbol(file_symbol)
+    service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-batch-version",
+        "ingest-batch-version",
+        {
+            "file_path": "src/batch.py",
+            "source": source,
+            "language": "python",
+            "reuse_unchanged_embeddings": True,
+        },
+    )
+
+    assert len(embeddings.batch_calls) == 1
+    assert embeddings.single_calls == ["src/batch.py"]
+
+
+def test_bulk_file_ingest_writes_edges_in_one_store_batch():
+    class RecordingStore(InMemoryStore):
+        def __init__(self) -> None:
+            super().__init__()
+            self.edge_batches: list[list[GraphEdge]] = []
+
+        def put_edges(self, edges: list[GraphEdge]) -> None:
+            self.edge_batches.append(list(edges))
+            super().put_edges(edges)
+
+    store = RecordingStore()
+    service = CodeGraphService(store)
+
+    result = service.ingest_file(
+        SCOPE,
+        "agent",
+        "corr-edge-batch",
+        "ingest-edge-batch",
+        {
+            "file_path": "src/edge_batch.py",
+            "source": "def first():\n    return 1\n\ndef second():\n    return first()\n",
+            "language": "python",
+            "defer_cross_file_pass": True,
+        },
+    )
+
+    assert result.edges_written >= 3
+    assert len(store.edge_batches) == 1
+    assert len(store.edge_batches[0]) == result.edges_written
+    assert len(store.list_edges(SCOPE)) == result.edges_written
+
+
 def test_neo4j_store_round_trip_with_fake_driver():
     driver = _FakeNeo4jDriver()
     store = Neo4jStore(
@@ -540,6 +648,9 @@ def test_neo4j_store_round_trip_with_fake_driver():
     assert store.begin_idempotency(SCOPE, "k1", "ingest") is None
     store.complete_idempotency(SCOPE, "k1", "ingest", "res-1")
     assert store.begin_idempotency(SCOPE, "k1", "ingest") == "res-1"
+    store.delete_symbols([symbol.id], SCOPE)
+    with pytest.raises(NotFoundError):
+        store.get_symbol(symbol.id, SCOPE)
 
 
 def test_neo4j_store_closes_owned_driver_when_schema_setup_fails(monkeypatch):

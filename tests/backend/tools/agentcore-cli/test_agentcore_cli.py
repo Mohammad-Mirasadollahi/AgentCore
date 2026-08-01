@@ -1,8 +1,27 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 from agentcore_cli.main import main
+from agentcore_cli.util import ensure_service_import_paths
+
+
+def test_service_import_paths_use_install_checkout_when_state_root_is_isolated(
+    tmp_path: Path,
+    monkeypatch,
+):
+    checkout = Path(__file__).resolve().parents[4]
+    expected = {
+        str(checkout / "backend" / "services" / "code-graph-service" / "src"),
+        str(checkout / "backend" / "services" / "docs-sync-service" / "src"),
+    }
+    monkeypatch.setenv("AGENTCORE_ROOT", str(tmp_path))
+    monkeypatch.setattr(sys, "path", [item for item in sys.path if item not in expected])
+
+    ensure_service_import_paths()
+
+    assert expected.issubset(set(sys.path))
 
 
 def test_profile_list_and_show(capsys):

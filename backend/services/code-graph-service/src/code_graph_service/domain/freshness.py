@@ -27,6 +27,7 @@ class FreshnessState:
 
     pending: dict[str, float] = field(default_factory=dict)  # path -> unix mtime noted
     last_sync_at: float = 0.0
+    verified: bool = False
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def mark_pending(self, file_path: str, *, now: float | None = None) -> None:
@@ -48,12 +49,14 @@ class FreshnessState:
             else:
                 self.pending.pop(file_path.replace("\\", "/"), None)
             self.last_sync_at = time()
+            self.verified = True
 
     def stale_banner(self, referenced_paths: list[str] | None = None) -> dict:
         referenced = {p.replace("\\", "/") for p in (referenced_paths or [])}
         with self._lock:
             pending_snapshot = dict(self.pending)
             last_sync = self.last_sync_at
+            verified = self.verified
         pending_refs = sorted(p for p in pending_snapshot if p in referenced) if referenced else []
         other = (
             sorted(p for p in pending_snapshot if p not in referenced)
@@ -70,7 +73,15 @@ class FreshnessState:
             )
         elif other:
             footer = f"Pending sync (not in this result): {', '.join(other[:5])}"
+        status = "pending" if pending_snapshot else ("ok" if verified else "unknown")
+        if status == "unknown":
+            banner = (
+                "⚠️ Freshness unknown: filesystem edits are not monitored in this "
+                "process; run agentcore sync before relying on graph absence."
+            )
         return {
+            "status": status,
+            "is_stale": status != "ok",
             "pending_count": len(pending_snapshot),
             "pending_files": sorted(pending_snapshot)[:50],
             "banner": banner,

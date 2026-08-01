@@ -58,6 +58,12 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
         ),
         f"Docs model: {processing.get('docs_model_label') or '-'}",
         f"Embed model: {processing.get('active_embed_model') or '-'}",
+        (
+            f"Embeddings: {summary.get('embeddings', {}).get('indexed_symbols', 0)} of "
+            f"{summary.get('embeddings', {}).get('eligible_symbols', 0)} indexed "
+            f"({summary.get('embeddings', {}).get('coverage_percent', 100.0)}%); "
+            f"missing={summary.get('embeddings', {}).get('missing_symbols', 0)}"
+        ),
         f"Models used: {', '.join(report.get('models_used') or []) or '-'}",
     ]
     if int(code.get("edited_count") or 0) or int(docs.get("edited_count") or 0):
@@ -194,6 +200,16 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
         (
             f"{llm['done_count']} of {llm['total']} symbols documented  "
             f"({llm['percent_done']}%)"
+        ),
+    )
+    embeddings = summary.get("embeddings") or {}
+    ui.kv(
+        "Embeddings",
+        (
+            f"{embeddings.get('indexed_symbols', 0)} of "
+            f"{embeddings.get('eligible_symbols', 0)} indexed  "
+            f"({embeddings.get('coverage_percent', 100.0)}%)  "
+            f"missing={embeddings.get('missing_symbols', 0)}"
         ),
     )
 

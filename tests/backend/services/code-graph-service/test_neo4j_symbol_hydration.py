@@ -48,6 +48,16 @@ def test_symbol_from_node_rejects_null_doc_status():
         Neo4jCrudMixin._symbol_from_node(Neo4jCrudMixin(), _good_node(doc_status=None), SCOPE)
 
 
+def test_symbol_from_node_defaults_legacy_null_version():
+    symbol = Neo4jCrudMixin._symbol_from_node(
+        Neo4jCrudMixin(),
+        _good_node(version=None),
+        SCOPE,
+    )
+
+    assert symbol.version == 1
+
+
 def test_symbols_from_rows_skips_corrupt_keeps_good():
     mixin = Neo4jCrudMixin()
     rows = [

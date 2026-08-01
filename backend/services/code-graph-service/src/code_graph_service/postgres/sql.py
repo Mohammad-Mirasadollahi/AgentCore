@@ -27,8 +27,6 @@ WHERE n.nspname = 'code_graph'
   AND NOT a.attisdropped
 """
 
-DROP_SYMBOL_EMBEDDINGS = "DROP TABLE IF EXISTS code_graph.symbol_embeddings CASCADE"
-
 CREATE_SCOPE_IDX = """
 CREATE INDEX code_graph_symbol_embeddings_scope_idx
     ON code_graph.symbol_embeddings (tenant_id, workspace_id, project_id)
@@ -65,6 +63,14 @@ ON CONFLICT (symbol_id) DO UPDATE SET
 DELETE_EMBEDDING = """
 DELETE FROM code_graph.symbol_embeddings
 WHERE symbol_id = %s
+  AND tenant_id = %s
+  AND workspace_id = %s
+  AND project_id = %s
+"""
+
+DELETE_EMBEDDINGS = """
+DELETE FROM code_graph.symbol_embeddings
+WHERE symbol_id = ANY(%s)
   AND tenant_id = %s
   AND workspace_id = %s
   AND project_id = %s
