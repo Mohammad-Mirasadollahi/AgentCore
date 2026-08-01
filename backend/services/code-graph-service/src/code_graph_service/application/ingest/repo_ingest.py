@@ -443,8 +443,6 @@ class RepoIngestMixin:
             except Exception:  # noqa: BLE001 — finalize must not fail the ingest walk
                 pass
 
-        _emit(progress_total, status="finished")
-
         resolved_root = str(Path(root_path).expanduser().resolve())
         # Package README maps only when this run visited files (avoid noop graph walks).
         if total_files:
@@ -453,7 +451,12 @@ class RepoIngestMixin:
                 totals["edges_written"] += readme_edges
             except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
                 pass
-        embedding_refresh = self.refresh_embeddings(scope).public()
+        # File walk can hit 100% long before local BGE embedding self-heal finishes.
+        # refresh_embeddings emits phase=embeddings progress; do not mark ingest
+        # "finished" first (that freezes the UI at code 100% for many minutes).
+        embedding_refresh = self.refresh_embeddings(
+            scope, on_progress=on_progress if callable(on_progress) else None
+        ).public()
 
         return RepoIngestResult(
             root_path=resolved_root,

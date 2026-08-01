@@ -98,6 +98,7 @@ class SyncProgressTracker:
         event = dict(event)
         previous_sessions = self._latest.get("llm_sessions")
         previous_status = str(self._latest.get("status") or "")
+        previous_phase = str(self._latest.get("phase") or "")
         if "llm_sessions" not in event and isinstance(previous_sessions, dict):
             event["llm_sessions"] = dict(previous_sessions)
             event.setdefault("rpm", int(previous_sessions.get("rpm") or 0))
@@ -118,6 +119,18 @@ class SyncProgressTracker:
         total = max(int(event.get("total") or 0), 0)
         in_flight = int(event.get("files_in_flight") or 0)
         status = str(event.get("status") or "")
+        phase = str(event.get("phase") or "")
+        # New phase (code → embeddings/docs): reset ETA samples so percent/rate
+        # are not blended with the previous phase's counters.
+        if phase and previous_phase and phase != previous_phase:
+            self._t0 = now
+            self._last_print = 0.0
+            self._last_pct_printed = -1.0
+            self._samples.clear()
+            self._ewma_rate = None
+            self._rate_basis = ""
+            self._had_rate = False
+            self._finished = False
         self._latest = event
         self._samples.append((now, done))
         cutoff = now - SAMPLE_KEEP_SEC
@@ -179,6 +192,7 @@ class SyncProgressTracker:
             "queue_new": int(event.get("queue_new") or 0),
             "queue_changed": int(event.get("queue_changed") or 0),
             "queue_unchanged": int(event.get("queue_unchanged") or 0),
+            "embeddings_refreshed": int(event.get("embeddings_refreshed") or 0),
             "rpm": int(event.get("rpm") or 0),
             "rpm_inflight_cap": int(event.get("rpm_inflight_cap") or 0),
             "rpm_inflight": int(event.get("rpm_inflight") or 0),
@@ -212,6 +226,11 @@ class SyncProgressTracker:
         force = (milestone and status != previous_status) or (
             pct >= 100.0 and self._last_pct_printed < 100.0
         )
+        # Terminal statuses: keep the snapshot file fresh, but do not reprint the same
+        # finished/cancelled block every progress_interval (looks hung while later phases
+        # like embedding_refresh still run).
+        if status in {"finished", "cancelled"} and status == previous_status and not force:
+            return
         due = (now - self._last_print) >= self.interval_sec
         rate_became_available = bool(self._ewma_rate) and not self._had_rate
         if self._ewma_rate:

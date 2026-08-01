@@ -43,7 +43,12 @@ def print_progress_line(snap: dict[str, Any]) -> None:
     else:
         rate_txt = "…"
     phase = str(snap.get("phase") or "ingest")
-    run_label = "docs" if phase == "docs" else "code"
+    if phase == "docs":
+        run_label = "docs"
+    elif phase == "embeddings":
+        run_label = "embeddings"
+    else:
+        run_label = "code"
     line = (
         f"   {ui.accent(bar)} {ui.bold(f'{pct:5.1f}%')}  "
         f"{run_label} {snap['done']}/{snap['total']}  "
@@ -64,7 +69,7 @@ def print_progress_line(snap: dict[str, Any]) -> None:
         parts.append(f"changed={q_changed}")
     if q_unchanged:
         parts.append(f"{recheck_label}={q_unchanged}")
-    if parts:
+    if parts and phase != "embeddings":
         print(f"   {ui.dim('queue')} {'  '.join(parts)}")
         if int(snap["done"]) == 0 and int(snap.get("files_in_flight") or 0) > 0:
             print(
@@ -76,6 +81,12 @@ def print_progress_line(snap: dict[str, Any]) -> None:
             f"   {ui.dim('docs')} indexed={snap.get('docs_indexed', snap.get('done'))}  "
             f"{ui.dim('links')} {snap.get('links_created', 0)}  "
             f"{ui.dim('anchors')} {snap.get('anchors_registered', 0)}"
+        )
+    elif phase == "embeddings":
+        detail = (
+            f"   {ui.dim('embedding_refresh')} "
+            f"refreshed={snap.get('embeddings_refreshed', snap.get('done'))}  "
+            f"{ui.dim('model')} {snap.get('file') or '…'}"
         )
     else:
         detail = (

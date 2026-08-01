@@ -462,6 +462,87 @@ def test_eta_blend_uses_lifetime_and_recent(tmp_path: Path, monkeypatch):
     tracker.finish()
 
 
+def test_finished_status_not_reprinted_on_interval(tmp_path: Path, monkeypatch, capsys):
+    """Regression: after code 100%, session monitor kept reprinting the same block
+    while embedding_refresh still ran — looked hung for tens of minutes."""
+    clock = {"t": 0.0}
+
+    def mono():
+        return clock["t"]
+
+    monkeypatch.setattr("agentcore_cli.sync_progress.tracker.time.monotonic", mono)
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=10.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 17,
+            "total": 17,
+            "status": "finished",
+            "queue_new": 14,
+            "queue_changed": 3,
+            "file_workers": 17,
+        }
+    )
+    first = capsys.readouterr().out
+    assert "100.0%" in first
+    clock["t"] = 30.0
+    tracker.update_sessions(
+        {
+            "rpm": 30,
+            "inflight_cap": 30,
+            "starts_in_window": 0,
+            "inflight_count": 0,
+            "inflight": [],
+            "history": [],
+        }
+    )
+    second = capsys.readouterr().out
+    assert second == ""
+    tracker.finish()
+
+
+def test_embeddings_phase_resets_percent_and_label(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr("agentcore_cli.ui._use_color", lambda: False)
+    tracker = SyncProgressTracker(
+        scope="t/w/p",
+        path=str(tmp_path),
+        interval_sec=30.0,
+        progress_file=tmp_path / "sync-progress.json",
+    )
+    tracker(
+        {
+            "phase": "ingest",
+            "done": 17,
+            "total": 17,
+            "status": "finalizing",
+        }
+    )
+    capsys.readouterr()
+    tracker(
+        {
+            "phase": "embeddings",
+            "done": 128,
+            "total": 1000,
+            "status": "running",
+            "embeddings_refreshed": 128,
+            "file": "BAAI/bge-large-en-v1.5",
+            "file_workers": 4,
+            "files_in_flight": 4,
+        }
+    )
+    out = capsys.readouterr().out
+    assert "embeddings" in out
+    assert "128/1000" in out
+    assert "embedding_refresh" in out
+    tracker.finish()
+
+
 def test_session_heartbeat_refreshes_eta_when_unchanged(tmp_path: Path, monkeypatch):
     clock = {"t": 0.0}
 
@@ -563,8 +644,9 @@ def test_ingest_calls_on_progress(tmp_path: Path):
     assert events[0]["status"] == "discovering"
     assert any(e.get("status") == "started" for e in events)
     assert events[-1]["status"] == "finished"
-    assert events[-1]["total"] >= 2
-    assert events[-1]["done"] == events[-1]["total"]
+    # Terminal event is embedding_refresh (may be 0/0 when no embedding index).
+    assert events[-1].get("phase") in {"embeddings", "ingest"}
+    assert any(e.get("total", 0) >= 2 for e in events)
 
 
 def test_session_updates_do_not_reprint_while_status_started(

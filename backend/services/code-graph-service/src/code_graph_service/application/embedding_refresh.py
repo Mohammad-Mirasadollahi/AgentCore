@@ -85,6 +85,7 @@ class EmbeddingRefreshMixin:
         force: bool = False,
         dry_run: bool = False,
         policy_path: Path | None = None,
+        on_progress: Any = None,
     ) -> RefreshReport:
         policy = load_refresh_policy(policy_path)
         target_model = str(
@@ -96,11 +97,39 @@ class EmbeddingRefreshMixin:
             state="pending",
             dry_run=bool(dry_run),
         )
+
+        def _progress(
+            *,
+            done: int,
+            total: int,
+            status: str,
+            workers: int = 0,
+            in_flight: int = 0,
+        ) -> None:
+            if not callable(on_progress):
+                return
+            try:
+                on_progress(
+                    {
+                        "phase": "embeddings",
+                        "status": status,
+                        "done": done,
+                        "total": total,
+                        "embeddings_refreshed": done,
+                        "file": target_model or "embedding",
+                        "file_workers": workers,
+                        "files_in_flight": in_flight,
+                    }
+                )
+            except Exception:  # noqa: BLE001 — progress must not fail refresh
+                pass
+
         try:
             _require_tenant_scope(scope, policy)
             report.state = "running"
             if self.embedding_index is None:
                 report.state = "complete"
+                _progress(done=0, total=0, status="finished", workers=0)
                 return report
 
             symbols = list(self.store.list_symbols(scope))
@@ -192,6 +221,18 @@ class EmbeddingRefreshMixin:
                 16,
                 max(1, len(chunks)),
             )
+            total_pending = len(pending)
+            _progress(
+                done=0,
+                total=total_pending,
+                status="started",
+                workers=workers,
+                in_flight=min(workers, max(1, len(chunks))) if chunks else 0,
+            )
+            if not chunks:
+                report.state = "complete"
+                _progress(done=0, total=0, status="finished", workers=0)
+                return report
             with ThreadPoolExecutor(
                 max_workers=workers,
                 thread_name_prefix="embedding-refresh",
@@ -213,7 +254,20 @@ class EmbeddingRefreshMixin:
                         report.refreshed += 1
                         if reason:
                             report.reasons[reason] = report.reasons.get(reason, 0) + 1
+                    _progress(
+                        done=report.refreshed,
+                        total=total_pending,
+                        status="running",
+                        workers=workers,
+                        in_flight=max(0, len(futures) - sum(1 for f in futures if f.done())),
+                    )
             report.state = "complete"
+            _progress(
+                done=report.refreshed,
+                total=total_pending,
+                status="finished",
+                workers=workers,
+            )
             return report
         except Exception as exc:  # noqa: BLE001 — job state must surface failure
             report.state = "failed"

@@ -366,8 +366,11 @@ class SyncMixin:
                 totals["edges_written"] += int(finals or 0)
         except Exception:  # noqa: BLE001
             pass
-        _emit(total_files, status="finished")
-        embedding_refresh = self.refresh_embeddings(scope).public()
+        # refresh_embeddings emits phase=embeddings progress; avoid a premature
+        # ingest "finished" snapshot that freezes the console at code 100%.
+        embedding_refresh = self.refresh_embeddings(
+            scope, on_progress=on_progress if callable(on_progress) else None
+        ).public()
         return RepoIngestResult(
             root_path=str(root),
             files_discovered=len(pending_paths),

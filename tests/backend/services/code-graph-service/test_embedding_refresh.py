@@ -50,12 +50,20 @@ def test_refresh_embeddings_indexes_missing_rows():
     _ingest(service)
     assert index.list_symbol_models(SCOPE)  # ingest already indexed
     index.wipe_scope(SCOPE)
-    report = service.refresh_embeddings(SCOPE, policy_path=POLICY)
+    events: list[dict] = []
+    report = service.refresh_embeddings(
+        SCOPE, policy_path=POLICY, on_progress=events.append
+    )
     assert report.state == "complete"
     assert report.scanned >= 2
     assert report.refreshed >= 1
     assert index.list_symbol_models(SCOPE)
     assert report.policy_id == "default-embedding-refresh"
+    assert events
+    assert events[0]["phase"] == "embeddings"
+    assert events[0]["status"] == "started"
+    assert events[-1]["status"] == "finished"
+    assert events[-1]["done"] == report.refreshed
 
 
 def test_refresh_embeddings_skips_when_model_unchanged():
