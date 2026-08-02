@@ -30,9 +30,10 @@ related_docs:
 - ac.doc.ckg.live-ingest-remediation-index
 - ac.doc.ckg.live-audit-remediation-record
 - ac.doc.ckg.post-restart-verification-runbook
+- ac.doc.ckg.sync-embedding-heal-runbook
 language: en
-doc_version: 1.0.2
-updated_at: '2026-07-28'
+doc_version: 1.0.4
+updated_at: '2026-08-01'
 ---
 
 # 75 - Sync Semantic Integrity and Recovery Evidence
@@ -154,6 +155,7 @@ The final implementation enforces these invariants:
 7. Semantic refresh worker count is configurable through `AGENTCORE_EMBEDDING_REFRESH_WORKERS` and capped at `16`.
 8. Language-only semantic backfill does not rewrite unrelated graph edges.
 9. A successful final state requires zero failed files and exact semantic set equality.
+10. Everyday `agentcore sync` heals embeddings only for touched files (noop: capped backlog). Full-project missing/mismatch + orphan cleanup uses `agentcore sync heal` (or `embedding_refresh_mode=full` / `AGENTCORE_EMBEDDING_REFRESH_FULL=1`) without force-reparsing healthy hash-stable sources. Operator contract: [77 - Sync Embedding Heal Operator Runbook](./77-sync-embedding-heal-operator-runbook.md).
 
 ## Integrity Queries
 

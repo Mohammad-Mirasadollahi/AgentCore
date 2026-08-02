@@ -80,9 +80,28 @@ def print_sync_complete(
     ui.heading("Sync complete")
     ui.blank()
     ui.kv("Mode", str(payload.get("mode")))
+    refresh_mode = str(payload.get("embedding_refresh_mode") or "").strip()
+    if refresh_mode:
+        ui.kv("Embedding mode", refresh_mode)
     ui.kv("Truncated", str(payload.get("truncated")))
     ui.kv("Files", f"ingested={payload.get('files_ingested')}  discovered={payload.get('files_discovered')}")
     ui.kv("Symbols", f"indexed={payload.get('symbols_indexed')}  changed={payload.get('symbols_changed')}")
+    refresh = payload.get("embedding_refresh") or {}
+    if refresh:
+        reasons = refresh.get("reasons") or {}
+        deferred = int(reasons.get("deferred_over_max_pending") or 0)
+        ui.kv(
+            "Embeddings",
+            (
+                f"state={refresh.get('state')}  "
+                f"refreshed={refresh.get('refreshed')}  "
+                f"scanned={refresh.get('scanned')}  "
+                f"orphans={refresh.get('deleted_orphans')}  "
+                f"deferred={deferred}"
+            ),
+        )
+        if refresh.get("error"):
+            ui.kv("Embedding error", str(refresh.get("error"))[:200])
     try:
         final_rpm = svc.llm_sessions_snapshot() if hasattr(svc, "llm_sessions_snapshot") else {}
     except Exception:  # noqa: BLE001

@@ -680,7 +680,7 @@
       },
       {
         "name": "agentcore_code_graph_sync",
-        "description": "Sync a repository into the code graph. Chooses full vs incremental automatically; do not pick a mode.",
+        "description": "Sync a repository into the code graph. File mode is chosen automatically (full vs incremental). Optional embedding_refresh_mode=full matches CLI `agentcore sync heal` (whole-scope missing/mismatch + orphans); default touched scopes embeddings to this run.",
         "maps_to": "code_graph.sync",
         "input_schema": {
           "type": "object",
@@ -694,6 +694,12 @@
               "minimum": 1,
               "maximum": 20000,
               "default": 2000
+            },
+            "embedding_refresh_mode": {
+              "type": "string",
+              "enum": ["touched", "full"],
+              "default": "touched",
+              "description": "touched = embeddings for files this run (noop capped backlog). full = uncapped project heal (CLI: agentcore sync heal)."
             },
             "idempotency_key": {
               "type": "string"

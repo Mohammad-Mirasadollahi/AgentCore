@@ -21,6 +21,48 @@ from agentcore_cli.commands.inventory import (
 from agentcore_cli.parser import build_parser
 
 
+def test_inventory_summary_hints_sync_heal_when_embeddings_missing(capsys):
+    from agentcore_cli.commands.inventory.render import print_human
+
+    print_human(
+        {
+            "scope": {"tenant": "t", "workspace": "w", "project": "p"},
+            "paths": ["/tmp/app"],
+            "summary": {
+                "code": {
+                    "done_count": 0,
+                    "edited_count": 0,
+                    "remaining_count": 0,
+                    "total": 0,
+                    "percent_done": 0.0,
+                },
+                "docs": {
+                    "done_count": 0,
+                    "edited_count": 0,
+                    "remaining_count": 0,
+                    "total": 0,
+                    "percent_done": 0.0,
+                },
+                "llm": {"done_count": 0, "total": 0, "percent_done": 0.0},
+                "embeddings": {
+                    "indexed_symbols": 1,
+                    "eligible_symbols": 5,
+                    "coverage_percent": 20.0,
+                    "missing_symbols": 4,
+                },
+            },
+            "processing": {},
+            "results": [],
+            "models_used": [],
+        },
+        detail=False,
+    )
+    out = capsys.readouterr().out
+    assert "Need embedding heal" in out
+    assert "agentcore sync heal" in out
+    assert "missing=4" in out
+
+
 def test_pending_work_line_is_count_only():
     from agentcore_cli.commands.inventory.render import _edited_percent_line
 

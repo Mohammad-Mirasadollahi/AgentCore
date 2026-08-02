@@ -37,7 +37,8 @@ related_docs:
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.2.0
+- docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
+doc_version: 1.2.3
 audience:
 - engineer
 - operator
@@ -125,11 +126,14 @@ agentcore sync
 Everyday:
 
 ```bash
-agentcore sync
-agentcore purge --yes   # graph only
+agentcore sync              # incremental files; embeddings for touched paths only
+agentcore sync heal         # same file pass + full-project embedding heal (missing/mismatch)
+agentcore purge --yes       # graph only
 ## agentcore destroy-profile --tenant acme --workspace eng --project agentcore
 ## (interactive: type two different confirmation phrases; does not delete source code)
 ```
+
+`sync` never force-reparses healthy hash-stable files. Use `sync heal` when semantic search is missing rows project-wide; it does not re-ingest unchanged sources. `agentcore stats`, `inventory`, and the plain-`sync` preflight show a **Need embedding heal** section with the missing count and the `agentcore sync heal` command when a backlog exists. Full contract: [77 - Sync Embedding Heal Operator Runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
 
 ## Command index (quick)
 
@@ -144,7 +148,7 @@ Full CLI (`server` / `both`). On **client-only**, only the rows marked **client*
 | `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent | no |
 | `agentcore stats` | Code/docs counts, language mix %, processed vs remaining | no |
 | `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood | **yes** |
-| `agentcore sync` / `purge` | Load or wipe project graph data (client: remote SSH, scope locked to connect.yaml) | **yes** |
+| `agentcore sync` [`heal`] / `purge` | Load or wipe project graph data; `heal` adds full-project embedding refresh (client: remote SSH, scope locked to connect.yaml) | **yes** |
 | `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations | no |
 | `agentcore backup *` | Export/validate/dry-run/restore project `.acbak` bundles | no |
 | `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope | no |

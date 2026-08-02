@@ -75,8 +75,64 @@ def _require_tenant_scope(scope: Any, policy: dict[str, Any]) -> None:
         raise ValueError("refresh-policy tenant_isolation.cross_tenant_forbidden must be true")
 
 
+def _env_truthy(name: str) -> bool:
+    return str(os.environ.get(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = str(os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 class EmbeddingRefreshMixin:
     """Mixin for CodeGraphService — refresh embeddings under configured policy."""
+
+    def refresh_embeddings_after_ingest(
+        self,
+        scope: Any,
+        *,
+        file_paths: list[str] | None = None,
+        mode: str = "touched",
+        on_progress: Any = None,
+        policy_path: Path | None = None,
+    ) -> RefreshReport:
+        """Post-ingest heal: prefer touched files; otherwise drain a capped backlog.
+
+        ``mode``: ``touched`` (default) or ``full`` (whole-scope missing/mismatch + orphans).
+        Env override: ``AGENTCORE_EMBEDDING_REFRESH_FULL=1`` forces ``full``.
+        Noop backlog cap: ``AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING`` (default 256).
+        """
+        paths = [
+            str(p or "").strip().replace("\\", "/")
+            for p in (file_paths or [])
+            if str(p or "").strip()
+        ]
+        mode_norm = str(mode or "touched").strip().lower()
+        if mode_norm == "full" or _env_truthy("AGENTCORE_EMBEDDING_REFRESH_FULL"):
+            return self.refresh_embeddings(
+                scope,
+                force=False,
+                on_progress=on_progress,
+                policy_path=policy_path,
+            )
+        if paths:
+            return self.refresh_embeddings(
+                scope,
+                file_paths=paths,
+                on_progress=on_progress,
+                policy_path=policy_path,
+            )
+        return self.refresh_embeddings(
+            scope,
+            max_pending=max(0, _env_int("AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING", 256)),
+            on_progress=on_progress,
+            policy_path=policy_path,
+        )
 
     def refresh_embeddings(
         self,
@@ -86,7 +142,15 @@ class EmbeddingRefreshMixin:
         dry_run: bool = False,
         policy_path: Path | None = None,
         on_progress: Any = None,
+        file_paths: list[str] | None = None,
+        max_pending: int | None = None,
     ) -> RefreshReport:
+        """Refresh missing/mismatched embeddings.
+
+        ``file_paths``: limit to symbols under those relative paths (incremental sync).
+        ``max_pending``: after selection, process at most N (stable by symbol id).
+        Full-project heal: omit ``file_paths`` and set ``max_pending=None`` (or force).
+        """
         policy = load_refresh_policy(policy_path)
         target_model = str(
             getattr(self.embeddings, "model", None) or policy.get("default_model") or ""
@@ -128,25 +192,48 @@ class EmbeddingRefreshMixin:
             _require_tenant_scope(scope, policy)
             report.state = "running"
             if self.embedding_index is None:
+                # Do not pretend a full heal ran — MCP often has Neo4j without
+                # pgvector when only AGENTCORE_DATABASE_URL was missing from Settings.
                 report.state = "complete"
+                report.error = (
+                    "embedding_index_unavailable: set AGENTCORE_CODE_GRAPH_DATABASE_URL "
+                    "or AGENTCORE_DATABASE_URL (pgvector SoT)"
+                )
+                report.reasons["embedding_index_unavailable"] = 1
                 _progress(done=0, total=0, status="finished", workers=0)
                 return report
 
-            symbols = list(self.store.list_symbols(scope))
+            scoped_paths = [
+                str(p or "").strip().replace("\\", "/")
+                for p in (file_paths or [])
+                if str(p or "").strip()
+            ]
+            if scoped_paths:
+                by_id: dict[str, Any] = {}
+                for path in scoped_paths:
+                    for symbol in self.store.list_symbols_for_file(scope, path):
+                        by_id[str(symbol.id)] = symbol
+                symbols = list(by_id.values())
+            else:
+                symbols = list(self.store.list_symbols(scope))
+
             models: dict[str, str] = {}
             list_models = getattr(self.embedding_index, "list_symbol_models", None)
             if callable(list_models):
                 models = dict(list_models(scope))
 
-            live_ids = {s.id for s in symbols}
-            for symbol_id in list(models):
-                if symbol_id not in live_ids:
-                    if not dry_run:
-                        self._delete_embedding(scope, symbol_id)
-                    report.deleted_orphans += 1
-                    report.reasons["orphan_cleanup_after_delete"] = (
-                        report.reasons.get("orphan_cleanup_after_delete", 0) + 1
-                    )
+            # Orphan cleanup is whole-scope only (file-scoped refresh must not
+            # delete embeddings for untouched files).
+            if not scoped_paths:
+                live_ids = {s.id for s in symbols}
+                for symbol_id in list(models):
+                    if symbol_id not in live_ids:
+                        if not dry_run:
+                            self._delete_embedding(scope, symbol_id)
+                        report.deleted_orphans += 1
+                        report.reasons["orphan_cleanup_after_delete"] = (
+                            report.reasons.get("orphan_cleanup_after_delete", 0) + 1
+                        )
 
             skip_when_unchanged = bool(policy.get("skip_when_model_unchanged", True)) and not force
             pending: list[tuple[Any, str, str, str]] = []
@@ -190,10 +277,24 @@ class EmbeddingRefreshMixin:
                         report.reasons[reason] = report.reasons.get(reason, 0) + 1
                     continue
                 pending.append((symbol, kind, text, reason))
+
+            if max_pending is not None and max_pending >= 0 and len(pending) > max_pending:
+                pending.sort(key=lambda item: str(item[0].id))
+                deferred = len(pending) - max_pending
+                pending = pending[:max_pending]
+                report.reasons["deferred_over_max_pending"] = (
+                    report.reasons.get("deferred_over_max_pending", 0) + deferred
+                )
+
             batch = getattr(self.embeddings, "embed_many", None)
+            try:
+                chunk_size = int(policy.get("batch_size") or 32)
+            except (TypeError, ValueError):
+                chunk_size = 32
+            chunk_size = max(1, min(chunk_size, 64))
             chunks = [
-                pending[offset : offset + 128]
-                for offset in range(0, len(pending), 128)
+                pending[offset : offset + chunk_size]
+                for offset in range(0, len(pending), chunk_size)
             ]
 
             def _embed_chunk(chunk: list[tuple[Any, str, str, str]]):

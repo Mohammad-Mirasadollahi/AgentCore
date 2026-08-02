@@ -34,7 +34,11 @@ class Settings:
         if store_backend not in {"postgres", "neo4j"}:
             raise RuntimeError("AGENTCORE_CODE_GRAPH_STORE must be 'postgres' or 'neo4j'")
 
+        # Prefer graph-specific URL; fall back to shared MCP/CLI DATABASE_URL so
+        # Neo4j + pgvector works when only AGENTCORE_DATABASE_URL is in mcp.json.
         database_url = str(env.get("AGENTCORE_CODE_GRAPH_DATABASE_URL", "")).strip()
+        if not database_url:
+            database_url = str(env.get("AGENTCORE_DATABASE_URL", "")).strip()
         neo4j_uri = str(env.get("AGENTCORE_NEO4J_URI", "bolt://127.0.0.1:32287")).strip() or "bolt://127.0.0.1:32287"
         neo4j_user = str(env.get("AGENTCORE_NEO4J_USER", "neo4j")).strip() or "neo4j"
         neo4j_password = str(env.get("AGENTCORE_NEO4J_PASSWORD", "")).strip()

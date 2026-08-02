@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/application/service.py::CodeGraphService
-doc_version: 1.1.2
-updated_at: '2026-07-28'
+doc_version: 1.1.3
+updated_at: '2026-08-01'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -83,6 +83,7 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `74-verification-test-matrix-and-results.md` records focused, aggregate, CLI, live, and operational test results.
 - `75-sync-semantic-integrity-and-recovery-evidence.md` records graph counts, semantic completeness, failed runs, and recovery evidence.
 - `76-post-restart-operations-verification-runbook.md` defines the repeatable restart and acceptance procedure.
+- `77-sync-embedding-heal-operator-runbook.md` defines scoped everyday sync vs `agentcore sync heal`, operator guidance surfaces (`stats` / `inventory` / preflight), MCP/env parity, and verification.
 
 ## Live remediation verification (current)
 
@@ -126,6 +127,7 @@ Code evidence anchor: `backend/services/code-graph-service/src/code_graph_servic
 
 ## History
 
+- 2026-08-01: Added `77-sync-embedding-heal-operator-runbook.md` (scoped sync vs `sync heal`, stats/inventory/preflight guidance).
 - 2026-07-28: Added imperfect-graph agent decision pack `56`–`71` (`lifecycle_lane: future`); retired research dump `docs/1.txt` after transfer.
 - 2026-07-25: Verified/wired `context_compression` + `repo_pack` in `pyproject.toml`; docs/operator surfaces for pack review + context measure/stats.
 - 2026-07-25: Added `54-headroom-native-context-compression.md` (native AgentCore compression; Apache 2.0 notices).

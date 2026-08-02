@@ -29,6 +29,7 @@ visibility: internal
 linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin
 - backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::RefreshReport
+- backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
 - backend/services/memory-service/src/memory_service/domain/embeddings_store.py::stage1_retrieve
 - backend/configs/embeddings/refresh-policy.json
 related_docs:
@@ -36,14 +37,15 @@ related_docs:
 - ac.doc.stack.turbovec-for-rag
 - ac.doc.stack.storage-ownership-matrix
 - ac.doc.gap.technical-implementation-gaps
-doc_version: 1.1.0
+- ac.doc.ckg.sync-embedding-heal-runbook
+doc_version: 1.2.0
 audience:
 - engineer
 - architect
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
+updated_at: '2026-08-01'
 ---
 
 # 14 - Embedding Lifecycle And Refresh
@@ -96,6 +98,17 @@ Machine policy: `backend/configs/embeddings/refresh-policy.json`.
 Default policy sets `skip_when_model_unchanged: true` and `model_change_policy: scoped_reembed`
 (re-embed only the scoped project, not the whole cluster).
 
+## Operator sync modes (code-graph)
+
+After ingest, code-graph calls `refresh_embeddings_after_ingest`:
+
+| Mode | How operators select it | Behavior |
+| --- | --- | --- |
+| `touched` | Everyday `agentcore sync` (default) | Refresh embeddings for files visited this run; noop drains a capped backlog |
+| `full` | `agentcore sync heal`, MCP `embedding_refresh_mode=full`, or `AGENTCORE_EMBEDDING_REFRESH_FULL=1` | Whole-scope missing/mismatch + orphan cleanup, uncapped |
+
+Normative operator runbook: [`../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md`](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
+
 ## Refresh job states
 
 Jobs report one of `pending` → `running` → `complete` | `failed` (see `states` in
@@ -122,3 +135,4 @@ forbidden.
 | `11-turbovec-for-rag.md` | RAG usage notes |
 | `13-storage-ownership-matrix.md` | Store ownership |
 | `../10-gap-analysis/03-technical-implementation-gaps.md` | GAP-T03 register |
+| `../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md` | Sync vs sync heal operator contract |

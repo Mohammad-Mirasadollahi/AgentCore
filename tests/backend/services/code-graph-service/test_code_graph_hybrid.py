@@ -61,6 +61,30 @@ def test_embedding_index_skips_file_kind_and_deletes_stale():
     assert index.search(scope, [0.2] * 16, top_k=5) == []
 
 
+def test_hybrid_search_flags_missing_embedding_index():
+    store = InMemoryStore()
+    service = CodeGraphService(
+        store,
+        embeddings=LocalEmbeddingStub(dims=16),
+        embedding_index=None,
+    )
+    scope = Scope("t", "w", "hyb-no-idx")
+    service.ingest_file(
+        scope,
+        "agent",
+        "c",
+        "idem-hyb",
+        {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
+    )
+    # Neo4j-backed MCP often has no per-symbol vectors when pgvector is unwired;
+    # simulate empty semantic channel with an embedder still present.
+    service.semantic_search = lambda *_a, **_k: []  # type: ignore[method-assign]
+    payload = service.hybrid_search(scope, "login password")
+    assert payload["channels"]["bm25"] >= 1
+    assert payload["channels"]["semantic"] == 0
+    assert "embedding_index_unavailable" in str(payload.get("semantic_error") or "")
+
+
 def test_generation_context_includes_expansion_field():
     store = InMemoryStore()
     service = CodeGraphService(store)

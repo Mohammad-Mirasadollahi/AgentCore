@@ -81,6 +81,17 @@ class InMemoryStore:
     def put_symbol(self, symbol: CodeSymbol) -> None:
         self._with_lock(lambda: self._symbols.__setitem__(symbol.id, deepcopy(symbol)))
 
+    def delete_symbol(self, symbol_id: str, scope: Scope) -> None:
+        def _run() -> None:
+            item = self._symbols.get(symbol_id)
+            if item is not None and self._same_project(item.scope, scope):
+                del self._symbols[symbol_id]
+            for aid, anchor in list(self._anchors.items()):
+                if anchor.symbol_id == symbol_id and self._same_project(anchor.scope, scope):
+                    del self._anchors[aid]
+
+        self._with_lock(_run)
+
     def list_symbols(self, scope: Scope) -> list[CodeSymbol]:
         def _run() -> list[CodeSymbol]:
             items = [item for item in self._symbols.values() if self._same_project(item.scope, scope)]

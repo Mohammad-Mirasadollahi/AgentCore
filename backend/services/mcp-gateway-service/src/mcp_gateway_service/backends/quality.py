@@ -37,6 +37,25 @@ def quality_audit(
     elif isinstance(severities_raw, str) and severities_raw.strip():
         severities = [p.strip().lower() for p in severities_raw.split(",") if p.strip()]
 
+    docs_registry_hygiene: dict[str, Any] = {
+        "deleted_count": 0,
+        "deleted": [],
+        "errors": [],
+    }
+    try:
+        from agentcore_cli.docs_registry_hygiene import purge_docs_registry_fixture_noise
+
+        docs_registry_hygiene = purge_docs_registry_fixture_noise(
+            backends.docs,
+            backends.docs_scope(scope),
+        )
+    except Exception as exc:  # noqa: BLE001 — audit must still return
+        docs_registry_hygiene = {
+            "deleted_count": 0,
+            "deleted": [],
+            "errors": [f"{type(exc).__name__}: {exc}"],
+        }
+
     report = build_quality_audit_report()
     payload = compact_quality_audit_payload(
         report,
@@ -99,6 +118,7 @@ def quality_audit(
         **base,
         "ok": True,
         **payload,
+        "docs_registry_hygiene": docs_registry_hygiene,
         "tasks_created": created,
         "tasks_created_count": len(created),
         "tasks_canceled": tasks_canceled,

@@ -6,7 +6,11 @@ from agentcore_cli.commands.sync.client_remote import (
     cmd_sync_client_remote,
 )
 from agentcore_cli.commands.sync.cmd import _cmd_sync_body, cmd_purge, cmd_sync
-from agentcore_cli.commands.sync.one_root import _sync_one_root, sync_one_root
+from agentcore_cli.commands.sync.one_root import (
+    _sync_one_root,
+    embedding_refresh_mode_from_args,
+    sync_one_root,
+)
 
 __all__ = [
     "_cmd_sync_body",
@@ -15,6 +19,7 @@ __all__ = [
     "cmd_purge",
     "cmd_sync",
     "cmd_sync_client_remote",
+    "embedding_refresh_mode_from_args",
     "sync_one_root",
     "ui",
 ]

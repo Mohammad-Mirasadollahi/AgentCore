@@ -320,6 +320,30 @@ def test_api_drift_ci_gate_and_coverage_smoke():
     assert client.post("/api/v1/projects/p/symbols", json=symbol_payload()).status_code == 400
 
 
+def test_unregister_symbol_removes_registry_row_and_anchors():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    symbol = service.index_symbol(SCOPE, "agent", "corr", "sym-del", symbol_payload())
+    document = service.index_document(
+        SCOPE,
+        "agent",
+        "corr",
+        "doc-del",
+        {"path": "docs/login.md", "frontmatter": frontmatter(), "body": "Login flow."},
+    )
+    service.register_anchor(
+        SCOPE,
+        "agent",
+        "corr",
+        "anchor-del",
+        {"doc_id": document.id, "symbol_id": symbol.id, "recorded_hash": symbol.body_hash},
+    )
+    assert store.list_anchors(SCOPE, symbol.id)
+    service.unregister_symbol(SCOPE, symbol.id)
+    assert store.list_symbols(SCOPE) == []
+    assert store.list_anchors(SCOPE, symbol.id) == []
+
+
 def test_api_contract_routes_are_registered():
     routes = {route.path for route in app(DocsSyncService(InMemoryStore())).routes}
     assert "/api/v1/projects/{project_id}/symbols" in routes

@@ -93,6 +93,13 @@ class DocsSyncService:
         self.emit("SymbolIndexed", symbol.public(), scope, actor, correlation_id, key, symbol.id, [])
         return symbol
 
+    def unregister_symbol(self, scope: Scope, symbol_id: str) -> None:
+        """Remove a docs-sync symbol registry row (and its anchors) from this scope."""
+        sid = str(symbol_id or "").strip()
+        if not sid:
+            raise ValidationError("symbol_id is required")
+        self.store.delete_symbol(sid, scope)
+
     def validate_frontmatter(self, frontmatter: dict[str, Any]) -> list[str]:
         errors: list[str] = []
         if not isinstance(frontmatter, dict):

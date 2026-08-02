@@ -39,7 +39,11 @@ class SyncMixin:
         idempotency_key: str,
         payload: dict[str, Any],
     ) -> SyncRepoResult:
-        """Auto-choose full vs incremental sync; callers never pick a mode."""
+        """Auto-choose full vs incremental file sync; callers never pick file mode.
+
+        Optional payload ``embedding_refresh_mode``: ``touched`` (default) or ``full``
+        (``agentcore sync heal`` — whole-scope missing/mismatch + orphans, uncapped).
+        """
         root_path = str(payload.get("root_path") or "").strip()
         if not root_path:
             raise ValidationError("root_path is required")
@@ -102,6 +106,7 @@ class SyncMixin:
                 pending_paths=pending,
                 include_outcomes=bool(payload.get("include_outcomes", True)),
                 on_progress=payload.get("on_progress"),
+                embedding_refresh_mode=str(payload.get("embedding_refresh_mode") or "touched"),
             )
             hint = ""
             if hasattr(self, "record_sync_stamp"):
@@ -156,6 +161,7 @@ class SyncMixin:
         pending_paths: list[str],
         include_outcomes: bool,
         on_progress: Any = None,
+        embedding_refresh_mode: str = "touched",
     ) -> RepoIngestResult:
         package_aliases = load_package_aliases(root)
         outcomes: list[RepoIngestFileOutcome] = []
@@ -366,10 +372,14 @@ class SyncMixin:
                 totals["edges_written"] += int(finals or 0)
         except Exception:  # noqa: BLE001
             pass
-        # refresh_embeddings emits phase=embeddings progress; avoid a premature
-        # ingest "finished" snapshot that freezes the console at code 100%.
-        embedding_refresh = self.refresh_embeddings(
-            scope, on_progress=on_progress if callable(on_progress) else None
+        # Embeddings are keyed by normalized relative paths (same as ingest_file).
+        # Raw pending entries may be absolute or ./prefixed — never pass those through.
+        embed_paths = self._normalized_pending_rel_paths(root, pending_paths)
+        embedding_refresh = self.refresh_embeddings_after_ingest(
+            scope,
+            file_paths=embed_paths,
+            mode=str(embedding_refresh_mode or "touched"),
+            on_progress=on_progress if callable(on_progress) else None,
         ).public()
         return RepoIngestResult(
             root_path=str(root),
@@ -400,6 +410,20 @@ class SyncMixin:
             return rel, (root / rel)
         rel = cleaned.lstrip("./")
         return rel, (root / rel)
+
+    @classmethod
+    def _normalized_pending_rel_paths(cls, root: Path, pending_paths: list[str]) -> list[str]:
+        """Relative paths for embedding scope — matches ingest_file ``file_path`` keys."""
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in pending_paths:
+            rel, _abs = cls._resolve_pending_path(root, raw)
+            key = str(rel or "").strip().replace("\\", "/")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(key)
+        return out
 
     def purge_scope(self, scope: Scope) -> dict[str, Any]:
         """Wipe all graph data for the project scope (embeddings + store + pending)."""

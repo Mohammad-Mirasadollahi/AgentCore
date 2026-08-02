@@ -161,6 +161,19 @@ class PostgresStore:
                  self._json(symbol.tags), symbol.version, symbol.created_at, symbol.updated_at),
             )
 
+    def delete_symbol(self, symbol_id: str, scope: Scope) -> None:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """DELETE FROM docs_sync.anchors WHERE symbol_id=%s AND tenant_id=%s
+                   AND workspace_id=%s AND project_id=%s""",
+                (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+            cursor.execute(
+                """DELETE FROM docs_sync.symbols WHERE id=%s AND tenant_id=%s
+                   AND workspace_id=%s AND project_id=%s""",
+                (symbol_id, scope.tenant_id, scope.workspace_id, scope.project_id),
+            )
+
     def list_symbols(self, scope: Scope) -> list[CodeSymbol]:
         with self._connection.cursor() as cursor:
             cursor.execute(

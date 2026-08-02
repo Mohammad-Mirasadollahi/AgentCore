@@ -37,8 +37,11 @@ linked_symbols:
 - scripts/stamp_docs_revision.py::main
 - backend/packages/agentcore_cli/commands/followup_tasks.py::cmd_followup_tasks_list
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
-doc_version: 1.2.0
-updated_at: '2026-07-24'
+- backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
+doc_version: 1.2.2
+updated_at: '2026-08-01'
+related_docs:
+- docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued) (Continued) (Continued)
@@ -109,7 +112,7 @@ Continuation of `docs/08-software-engineering-architecture/42-agentcore-cli-comm
 | **Required** | Sync filter file at each root (same as `sync`). At least one software path. Scope from identity/env/connect (no dashed scope flags on this command) |
 | **Modes** | **Normal** (default): percents + **top 10** files with models. **Detail**: same top 10 with embed/docs models, status, and per-file symbol coverage. **Save**: write full file↔model lists to a path |
 | **Example** | `agentcore inventory` · `agentcore inventory detail` · `agentcore inventory save /tmp/inventory-details.txt` · `agentcore inventory detail save /tmp/inventory-details.txt` |
-| **What you see** | Code/Docs split into **done** (up to date), **edited** (was ingested, then changed / pending — needs `agentcore sync`), and **remaining** (never ingested); percents for each; **top 10** lists with `models=` and `reason=` (`content_changed` or `pending`). `save` writes the **full** lists |
+| **What you see** | Code/Docs split into **done** (up to date), **edited** (was ingested, then changed / pending — needs `agentcore sync`), and **remaining** (never ingested); percents for each; Embeddings coverage; **top 10** lists with `models=` and `reason=` (`content_changed` or `pending`). When embeddings are missing, **Need embedding heal** + `agentcore sync heal`. `save` writes the **full** lists |
 | **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
 
 ### `agentcore docs-standards`
@@ -195,12 +198,13 @@ Operator surface for automated follow-up Tasks created by `sync` / `agentcore_qu
 
 | | |
 | --- | --- |
-| **Why** | Count **code + docs** on pinned software roots, show **language mix** (files, bytes, % of code), and **processed vs remaining** percents (done / edited / remaining + LLM symbols) |
+| **Why** | Count **code + docs** on pinned software roots, show **language mix** (files, bytes, % of code), and **processed vs remaining** percents (done / edited / remaining + LLM symbols + embedding coverage) |
 | **Required** | Sync filter file at each root (same as `sync` / `inventory`). At least one software path. Scope from identity/env/connect |
 | **Modes** | **Normal**: totals + processing percents + per-language summary. **Detail**: same with per-language done/edited/remaining counts. **Save**: full report including per-root language tables |
 | **Example** | `agentcore stats` · `agentcore stats detail` · `agentcore stats save /tmp/stats.txt` · `agentcore stats detail save /tmp/stats.txt` |
-| **What you see** | Code/docs file counts and sizes; done/edited/remaining percents; each language’s share of code files (and bytes in detail/save) |
+| **What you see** | Code/docs file counts and sizes; done/edited/remaining percents; Embeddings indexed/eligible/missing; each language’s share of code files (and bytes in detail/save). When `missing > 0`, section **Need embedding heal** with `Do this: agentcore sync heal` |
 | **What changes** | Nothing on the graph (read-only). `save` only writes the report file you named |
+| **Embeddings heal** | Guidance only — run `agentcore sync heal` to drain the backlog; see [77 sync embedding heal runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md) |
 
 ### `agentcore connect`
 
@@ -222,14 +226,15 @@ Operator surface for automated follow-up Tasks created by `sync` / `agentcore_qu
 | --- | --- |
 | **Why** | Load or refresh the code graph for a repo root (auto chooses full vs incremental vs noop) |
 | **Required** | Sync filter file at each sync root (see [Sync filters](#sync-filters)). At least one software path from `init` / `paths` (or override with `--path`). Scope defaults if identity/env already set |
-| **Optional** | `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--skip-nonconforming`, `--sync-nonconforming`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
-| **Example** | `agentcore sync` or `agentcore sync --path /opt/MyApp` |
+| **Optional** | Word `heal` (full-project embedding heal after the same incremental file pass), `--path` (repeatable override; default = pinned paths), bare `max-file <n>`, `--progress-interval`, `--allow-cloud-llm`, `--skip-nonconforming`, `--sync-nonconforming`, `--exclude-dir`, `--include-path`, `--include-ext`, scope flags |
+| **Example** | `agentcore sync`, `agentcore sync heal`, or `agentcore sync --path /opt/MyApp` |
+| **Embeddings** | Normal `sync` heals embeddings for touched files only (noop: capped backlog). `sync heal` runs full-project missing/mismatch + orphan cleanup without re-parsing healthy hash-stable files — see [Sync vs sync heal](./42-agentcore-cli-command-reference-part-4.md#sync-vs-sync-heal) and [77 sync embedding heal runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md) |
 | **What changes** | Phase 1: upserts code symbols/edges/embeddings. Phase 2 (when `docs.match` is non-empty): indexes human Markdown in docs-sync and projects `DOCUMENTED_BY` for resolved `linked_symbols`. After standards gate: best-effort automated follow-up Tasks (`create_sync_followup_tasks`) + local mirror `.agentcore/quality-followup-tasks.json` (reconcile/purge per lifecycle doc 09) |
 | **If you change `--path` or scope** | You sync a different tree or different isolation bucket; previous scope data remains |
 | **Software preflight** | If Compose/MCP are not fully running, an interactive TTY asks `Start software now? [y/N]`. `y`/`yes` runs `agentcore service start` first, then sync. Decline or non-TTY → exit with a hint to start services manually. After start, prints each component’s **start time to the second** (`postgres`, `neo4j`, `MCP HTTP`) |
 | **Cloud LLM consent** | Non-private LLM routes (non-loopback host or non-local model prefix) fail closed until the operator consents. Interactive TTY shows **tenant**, **workspace**, **project**, **software path(s)**, API host, and models, then requires **two** yes answers: (1) allow cloud LLM for this run, (2) confirm the scope IDs in use. Sync starts only after both. `--allow-cloud-llm` skips both prompts (scripts). Non-TTY without the flag → exit with a hint |
 | **Standards gate** | Before Phase 1/2 ingest, runs Full-tier `docs-standards` on Phase-2-discovered Markdown that is audit-eligible: not README/AGENTS basename; not matching built-in or `docs.audit.exclude` globs from `agentcore.sync.yaml`. Package README maps still sync (Phase 1 package-readme / Phase 2 discovery) but are not `docs_bad`. Precedence: CLI `--skip-nonconforming` / `--sync-nonconforming` → (planned) AgentCore Client project preference Skip/Ingest → interactive TTY ask (default **N** = include / do not skip) → non-TTY include (CI-safe). Report field `standards_gate` records counts. Skill `agentcore-standards-on-edit` remediates on edit so skipped paths can sync later. Normative Client + watcher policy: [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
-| **Before sync** | Prints a **work-only** preview: scope/paths, **Need sync** (code/docs pending), and remaining undocumented LLM symbols when any — not already-synced totals or language inventory (use `agentcore stats` for full snapshot) |
+| **Before sync** | Prints a **work-only** preview: scope/paths, **Need sync** (code/docs pending), remaining undocumented LLM symbols when any, and **Need embedding heal** when searchable symbols lack rows (plain sync → `Do this: agentcore sync heal`; already `heal` → this-run full heal note). Not already-synced totals or language inventory (use `agentcore stats` for full snapshot) |
 | **Cold start** | Default local BGE embeddings may download/load a HuggingFace model on first sync (can take minutes). For a fast operator check: `AGENTCORE_EMBEDDING_PROVIDER=stub agentcore sync max-file 50` |
 | **Progress** | While syncing, prints `%` / **code** or **docs** done/total / ETA / rate about every **30s** (override with `--progress-interval`). Phase 1 (code ingest) and Phase 2 (human docs link) each get their own progress block; the tracker resets rate/ETA between phases. Both phases use ``sync_max_file_workers`` (see ``AGENTCORE_SYNC_MAX_FILE_WORKERS`` / CPU percent); Phase 2 docs-sync writes run concurrently (Postgres per-thread connections; in-memory store ``RLock``). **done/total** and the queue line show **only work this run processes** (`new` / `changed` / code `lang_backfill` / docs `link_refresh`). Already-synced hash-stable paths are omitted from the queue and progress denominator. Docs body-stable without `linked_symbols` are not enqueued; body-stable linked docs may still refresh edges/anchors (`link_refresh`) but skip re-embed when the body hash matches. Full inventory stays on `agentcore stats`. Each block is blank-line separated and includes wall-clock `at YYYY-MM-DD HH:MM:SS` plus `elapsed`. **ETA** uses a blend of **lifetime average** (`done/elapsed`, weight 0.65) and **recent-window average** (~60s, weight 0.35), lightly EWMA-smoothed — resists one slow file, still tracks sustained slowdowns; before any completion, rate is marked `provisional`. `agentcore status` shows a Live sync section if another sync is running |
 | **Usage log** | Each sync writes one JSON file named by **execution time** (`YYYY-MM-DD_HH-MM-SS.json`) under `AGENTCORE_SYNC_USAGE_LOG_DIR` (default `.agentcore/sync-usage`). Record field `execution_at` is date+time to the second. Folder cap: `AGENTCORE_SYNC_USAGE_LOG_DIR_MAX_BYTES` (default **5 GiB**, FIFO deletes oldest files). Gitignored |

@@ -1,0 +1,188 @@
+---
+doc_id: ac.doc.ckg.sync-embedding-heal-runbook
+title: 77 - Sync Embedding Heal Operator Runbook
+doc_type: runbook
+status: active
+schema_version: '1.0'
+owner: code-graph-service
+summary: 'Operator contract for scoped embedding refresh on everyday agentcore sync versus
+  full-project agentcore sync heal, including stats/inventory/preflight guidance, service
+  payload, MCP parity, env overrides, and verification.'
+tags:
+- sync
+- embeddings
+- heal
+- ops
+- cli
+- runbook
+- ckg
+phase: 07-code-knowledge-graph
+canonical_path: docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
+lifecycle_lane: current
+concern_lane: ops
+audience_lane:
+- operators
+- platform-engineering
+- agents
+authority: normative
+visibility: internal
+linked_symbols:
+- backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
+- backend/packages/agentcore_cli/commands/sync/one_root.py::embedding_refresh_mode_from_args
+- backend/packages/agentcore_cli/parser/_core.py::peel_sync_words
+- backend/packages/agentcore_cli/commands/stats/render.py::print_sync_preflight
+- backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
+- backend/services/mcp-gateway-service/src/mcp_gateway_service/backends/code_graph/write.py::sync_repo
+related_docs:
+- docs/08-software-engineering-architecture/36-agentcore-cli.md
+- docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-part-4.md
+- docs/13-technology-stack-and-platform-decisions/14-embedding-lifecycle-and-refresh.md
+- docs/07-code-knowledge-graph/75-sync-semantic-integrity-and-recovery-evidence.md
+- docs/07-code-knowledge-graph/76-post-restart-operations-verification-runbook.md
+doc_version: 1.0.1
+updated_at: '2026-08-01'
+language: en
+security_classification: internal
+---
+
+# 77 - Sync Embedding Heal Operator Runbook
+
+## Purpose
+
+Define how AgentCore keeps the semantic index healthy after code sync: everyday `agentcore sync` must stay cheap for hash-stable trees, while `agentcore sync heal` drains the full-project missing/mismatch embedding backlog without force-reparsing healthy sources.
+
+## Product contract
+
+| Command / API | File ingest | Embedding refresh |
+| --- | --- | --- |
+| `agentcore sync` | Incremental: new / changed / lang-backfill / structural edge-repair only. Hash-stable healthy files are skipped. | **Touched** files from this run. On noop (no file work), drains a **capped** backlog (`AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING`, default **256**). |
+| `agentcore sync heal` | Same incremental file pass as `sync` (never force-reparses healthy hash-stable files). | **Full** project: missing rows, model mismatch, orphan cleanup; **uncapped**. |
+| MCP `agentcore_code_graph_sync` | Same as service `sync_repo`. | Optional `embedding_refresh_mode`: `"touched"` (default) or `"full"` (heal parity). |
+
+**Out of scope for heal:** force re-ingest / re-parse of content-hash-stable healthy files. That remains a future force-rebuild command.
+
+### Heal flow
+
+```mermaid
+flowchart TD
+  syncHeal[agentcore_sync_heal]
+  syncHeal --> discover[Discover_files]
+  discover --> work[new_changed_edgeRepair_langBackfill]
+  discover --> skip[hash_stable_healthy_skip]
+  work --> ingest[Parse_and_upsert]
+  ingest --> finalize[finalize_cross_file]
+  finalize --> fullEmbed[Full_embedding_refresh_all_missing]
+  skip --> fullEmbed
+  fullEmbed --> done[Done]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | CLI / MCP | Start sync with `heal` or `embedding_refresh_mode=full` | Payload carries full refresh mode |
+| 2 | Discovery | Queue only new/changed/edge-repair/lang-backfill | Healthy hash-stable files skipped |
+| 3 | Ingest | Parse and upsert queued files | Graph symbols/edges updated |
+| 4 | Finalize | Cross-file resolution | Edges repaired |
+| 5 | Embedding refresh | Whole-scope missing/mismatch + orphan cleanup | Semantic index converges; may take hours on large backlogs |
+
+## When operators should heal
+
+Run `agentcore sync heal` when any of these is true:
+
+1. `agentcore stats` / `inventory` / sync **Before sync** preflight shows **Need embedding heal** with `missing > 0`.
+2. `agentcore quality-audit` reports `code.missing_embeddings`.
+3. Hybrid / semantic search returns empty or thin results while the graph already has searchable symbols.
+4. After a model change that should re-embed the project (also covered by refresh-policy model mismatch).
+
+Do **not** use heal for ordinary day-to-day code edits — plain `agentcore sync` is enough for touched files.
+
+## Operator guidance surfaces
+
+Shared helper: `embedding_heal_guidance` (CLI package). When `summary.embeddings.missing_symbols > 0`:
+
+| Surface | Behavior |
+| --- | --- |
+| `agentcore stats` | Totals include Embeddings coverage; section **Need embedding heal** with missing count and `Do this: agentcore sync heal`. Saved text reports include the same lines. |
+| `agentcore inventory` | Same section after Embeddings totals. |
+| Plain `agentcore sync` | **Before sync** preflight prints **Need embedding heal** and tells the operator that plain sync only heals touched files. |
+| `agentcore sync heal` | Preflight still shows the backlog, but **This run** states full-project heal (no redundant “Do this”). |
+| Client remote SSH sync | No local graph inventory; prints **Embeddings (server)** note (plain → suggest `sync heal`; heal → this-run full heal) before SSH. |
+| Sync banner / complete | Banner states embeddings mode; complete report prints `embedding_refresh` stats (`refreshed`, `scanned`, `orphans`, `deferred`). |
+| Quality audit | `code.missing_embeddings` fix hint points at `agentcore sync heal`. |
+
+Example preflight (plain sync, backlog present):
+
+```text
+Need embedding heal
+  Missing   90 of 100 searchable symbols  (indexed=10)
+  Note      Plain sync only refreshes embeddings for files touched this run …
+  Do this   agentcore sync heal
+```
+
+## CLI and remote client
+
+```bash
+agentcore sync
+agentcore sync heal
+agentcore sync heal max-file 200
+```
+
+- Word `heal` is peeled like `max-file` (`peel_sync_words` → `args.sync_mode=heal` → `embedding_refresh_mode=full`).
+- Thin client over SSH forwards `heal` on the remote argv (`remote_sync`).
+- Filter file still required at each sync root (`agentcore.sync.yaml`); heal does not bypass filters.
+
+## Service payload
+
+`sync_repo` / `ingest_repo` accept:
+
+| Field | Values | Default |
+| --- | --- | --- |
+| `embedding_refresh_mode` | `touched` \| `full` | `touched` |
+
+Implementation: `refresh_embeddings_after_ingest(..., mode=...)`.
+
+- `touched` + non-empty `file_paths` → scoped refresh (no whole-project orphan wipe).
+- `touched` + empty paths → capped backlog.
+- `full` → `refresh_embeddings` without `file_paths` / `max_pending` (orphan cleanup allowed).
+
+Env overrides:
+
+| Env | Effect |
+| --- | --- |
+| `AGENTCORE_EMBEDDING_REFRESH_FULL=1` | Forces full heal regardless of mode |
+| `AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING` | Cap for noop/touched backlog (default 256) |
+| `AGENTCORE_EMBEDDING_REFRESH_WORKERS` | Parallel embed chunk workers (capped at 16) |
+
+## MCP
+
+Usage Profile tool `agentcore_code_graph_sync`:
+
+- `embedding_refresh_mode`: `"touched"` \| `"full"` (default touched).
+- Gateway `write.sync_repo` forwards the field into the graph service payload and echoes it on the result.
+
+Prefer CLI `agentcore sync heal` for interactive operators; MCP `full` for automation.
+
+## Failure and progress
+
+| Concern | Behavior |
+| --- | --- |
+| Progress | Embeddings phase uses `phase=embeddings` on the sync progress tracker |
+| Partial heal | Interrupted heal is safe to re-run; already-written rows stay; missing set shrinks |
+| Report | `embedding_refresh.state` is `complete` or `failed`; inspect `error` / `reasons` |
+| Tenant scope | Incomplete tenant/workspace/project fails closed |
+
+## Verification
+
+1. `agentcore stats` — Embeddings `missing=0` (or backlog dropping after heal).
+2. Sync result JSON — `embedding_refresh.state=complete`, `embedding_refresh_mode` matches the command.
+3. `agentcore quality-audit` — `code.missing_embeddings` cleared for healed scope.
+4. Optional integrity evidence — see [75 - Sync Semantic Integrity](./75-sync-semantic-integrity-and-recovery-evidence.md).
+
+## Related Documents
+
+| Document | Role |
+| --- | --- |
+| [36 - AgentCore CLI](../08-software-engineering-architecture/36-agentcore-cli.md) | Everyday operator entry |
+| [42 CLI reference — Sync vs sync heal](../08-software-engineering-architecture/42-agentcore-cli-command-reference-part-4.md#sync-vs-sync-heal) | Catalog summary |
+| [14 - Embedding lifecycle](../13-technology-stack-and-platform-decisions/14-embedding-lifecycle-and-refresh.md) | SoR / refresh-policy law |
+| [75 - Semantic integrity evidence](./75-sync-semantic-integrity-and-recovery-evidence.md) | Quantitative acceptance evidence |
+| [76 - Post-restart verification](./76-post-restart-operations-verification-runbook.md) | Restart / interrupt recovery |

@@ -58,6 +58,7 @@ def materialize_local_stdio_fragment(
             apply_compose_env_to_os(merged, checkout)
             for key in (
                 "AGENTCORE_DATABASE_URL",
+                "AGENTCORE_CODE_GRAPH_DATABASE_URL",
                 "AGENTCORE_MCP_STORE_MODE",
                 "AGENTCORE_NEO4J_URI",
                 "AGENTCORE_NEO4J_USER",
@@ -67,6 +68,11 @@ def materialize_local_stdio_fragment(
             ):
                 if merged.get(key):
                     env[key] = merged[key]
+            # Belt: if compose only produced the shared URL, mirror it for pgvector.
+            if env.get("AGENTCORE_DATABASE_URL") and not env.get(
+                "AGENTCORE_CODE_GRAPH_DATABASE_URL"
+            ):
+                env["AGENTCORE_CODE_GRAPH_DATABASE_URL"] = env["AGENTCORE_DATABASE_URL"]
         except SystemExit:
             values = parse_env_file(compose_env)
             if values.get("AGENTCORE_NEO4J_PASSWORD"):

@@ -303,3 +303,83 @@ def test_parser_sync_max_file_forms():
     # Dashed forms are aliases (remote clients historically sent --max-files).
     for alias in ("-max-file", "--max-file", "--max-files"):
         assert parser.parse_args(["sync", alias, "50"]).max_files == 50
+
+
+def test_parser_sync_heal_word():
+    parser = build_parser()
+    assert parser.parse_args(["sync"]).sync_mode == ""
+    healed = parser.parse_args(["sync", "heal"])
+    assert healed.sync_mode == "heal"
+    assert healed.command == "sync"
+    both = parser.parse_args(["sync", "heal", "max-file", "25"])
+    assert both.sync_mode == "heal"
+    assert both.max_files == 25
+
+
+def test_embedding_refresh_mode_from_sync_args():
+    from argparse import Namespace
+
+    from agentcore_cli.commands.sync.one_root import embedding_refresh_mode_from_args
+
+    assert embedding_refresh_mode_from_args(Namespace(sync_mode="")) == "touched"
+    assert embedding_refresh_mode_from_args(Namespace()) == "touched"
+    assert embedding_refresh_mode_from_args(Namespace(sync_mode="heal")) == "full"
+    assert embedding_refresh_mode_from_args(Namespace(sync_mode="HEAL")) == "full"
+
+
+def test_peel_sync_words_heal_and_max_file():
+    from agentcore_cli.parser._core import peel_sync_words
+
+    errors: list[str] = []
+
+    def _error(msg: str) -> None:
+        errors.append(msg)
+        raise SystemExit(msg)
+
+    peeled, max_files, mode = peel_sync_words(
+        ["sync", "heal", "--path", ".", "max-file", "7"],
+        _error,
+    )
+    assert mode == "heal"
+    assert max_files == 7
+    assert peeled == ["sync", "--path", "."]
+    assert errors == []
+
+
+def test_print_sync_complete_shows_embedding_refresh(capsys):
+    from agentcore_cli.commands.sync.report import print_sync_complete
+
+    class _Svc:
+        def llm_sessions_snapshot(self):
+            return {}
+
+    print_sync_complete(
+        svc=_Svc(),
+        payload={
+            "mode": "noop",
+            "embedding_refresh_mode": "full",
+            "truncated": False,
+            "files_ingested": 0,
+            "files_discovered": 0,
+            "symbols_indexed": 0,
+            "symbols_changed": 0,
+            "embedding_refresh": {
+                "state": "complete",
+                "refreshed": 12,
+                "scanned": 20,
+                "deleted_orphans": 1,
+                "reasons": {"deferred_over_max_pending": 0},
+            },
+        },
+        docs_payload={},
+        tokens_in=0,
+        docs_tokens_in=0,
+        tokens_out=0,
+        ingest_sec=1.0,
+        docs_sec=0.0,
+    )
+    out = capsys.readouterr().out
+    assert "Embedding mode" in out
+    assert "full" in out
+    assert "refreshed=12" in out
+    assert "orphans=1" in out

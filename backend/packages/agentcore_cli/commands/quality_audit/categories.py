@@ -93,7 +93,12 @@ CATEGORY_META: dict[str, dict[str, str]] = {
         "title": "Missing semantic index rows",
         "severity": "high",
         "meaning": "Searchable graph symbols exist without a persisted embedding row.",
-        "fix_hint": "Run agentcore sync to self-heal embeddings; inspect embedding_refresh on failure.",
+        "fix_hint": (
+            "Run agentcore sync (heals embeddings for touched files; noop drains a "
+            "capped backlog). For full-project missing/mismatch heal: "
+            "agentcore sync heal (or AGENTCORE_EMBEDDING_REFRESH_FULL=1 once); "
+            "inspect embedding_refresh on failure."
+        ),
     },
 }
 

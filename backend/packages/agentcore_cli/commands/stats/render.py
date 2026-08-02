@@ -9,6 +9,10 @@ from agentcore_cli.commands.inventory.util import (
     format_pending_work_line,
     format_synced_beside_total,
 )
+from agentcore_cli.embedding_heal_guidance import (
+    format_embedding_heal_lines,
+    print_embedding_heal_guidance,
+)
 
 
 def format_bytes(n: int) -> str:
@@ -60,7 +64,7 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
         f"{totals.get('docs_files', docs.get('total', 0))} files "
         f"({format_bytes(int(totals.get('docs_bytes') or 0))})"
     )
-    return [
+    lines = [
         "AgentCore stats",
         f"Scope: {scope['tenant']}/{scope['workspace']}/{scope['project']}",
         f"Paths: {len(report.get('paths') or [])}",
@@ -73,6 +77,8 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
             f"({llm['percent_done']}%)"
         ),
     ]
+    lines.extend(format_embedding_heal_lines(summary))
+    return lines
 
 
 def format_detail_text(report: dict[str, Any]) -> str:
@@ -151,11 +157,23 @@ def print_human(
             f"({llm['percent_done']}%)"
         ),
     )
+    embeddings = summary.get("embeddings") or {}
+    if embeddings:
+        ui.kv(
+            "Embeddings",
+            (
+                f"{embeddings.get('indexed_symbols', 0)} of "
+                f"{embeddings.get('eligible_symbols', 0)} indexed  "
+                f"({embeddings.get('coverage_percent', 100.0)}%)  "
+                f"missing={embeddings.get('missing_symbols', 0)}"
+            ),
+        )
 
     ui.blank()
     ui.section("Need sync")
     ui.kv("Code", format_pending_work_line(code))
     ui.kv("Docs", format_pending_work_line(docs))
+    print_embedding_heal_guidance(summary)
 
     ui.blank()
     ui.section("By language")
@@ -171,8 +189,8 @@ def print_human(
         ui.blank()
 
 
-def print_sync_preflight(report: dict[str, Any]) -> None:
-    """Work-only preview before sync — pending code/docs/LLM, not already-synced totals."""
+def print_sync_preflight(report: dict[str, Any], *, sync_mode: str = "") -> None:
+    """Work-only preview before sync — pending code/docs/LLM/embeddings heal."""
     summary = report["summary"]
     code = summary["code"]
     docs = summary["docs"]
@@ -194,4 +212,5 @@ def print_sync_preflight(report: dict[str, Any]) -> None:
             "LLM",
             f"{remaining_llm} symbols still need documentation",
         )
+    print_embedding_heal_guidance(summary, sync_mode=sync_mode)
     ui.blank()

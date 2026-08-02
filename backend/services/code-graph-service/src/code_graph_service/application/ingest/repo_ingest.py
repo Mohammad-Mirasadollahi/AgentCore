@@ -451,11 +451,14 @@ class RepoIngestMixin:
                 totals["edges_written"] += readme_edges
             except Exception:  # noqa: BLE001 — package README ingest must not fail the repo walk
                 pass
-        # File walk can hit 100% long before local BGE embedding self-heal finishes.
-        # refresh_embeddings emits phase=embeddings progress; do not mark ingest
-        # "finished" first (that freezes the UI at code 100% for many minutes).
-        embedding_refresh = self.refresh_embeddings(
-            scope, on_progress=on_progress if callable(on_progress) else None
+        # Heal embeddings for files this run visited — not the whole project backlog
+        # unless embedding_refresh_mode=full (agentcore sync heal).
+        touched_paths = [item.relative_path for item in discovered]
+        embedding_refresh = self.refresh_embeddings_after_ingest(
+            scope,
+            file_paths=touched_paths,
+            mode=str(payload.get("embedding_refresh_mode") or "touched"),
+            on_progress=on_progress if callable(on_progress) else None,
         ).public()
 
         return RepoIngestResult(

@@ -57,7 +57,10 @@ def register_connect(sub: argparse._SubParsersAction) -> None:
 def register_sync(sub: argparse._SubParsersAction) -> None:
     sync = sub.add_parser(
         "sync",
-        help="Sync code into the project graph (auto full vs incremental)",
+        help=(
+            "Sync code into the project graph (auto full vs incremental); "
+            "word heal = full-project embedding refresh"
+        ),
     )
     add_scope_args(sync, required=False)
     sync.add_argument(
@@ -66,10 +69,11 @@ def register_sync(sub: argparse._SubParsersAction) -> None:
         default=None,
         help="Override: sync only these roots (repeatable). Default: paths from init / paths list",
     )
-    sync.set_defaults(max_files=DEFAULT_SYNC_MAX_FILES)
+    sync.set_defaults(max_files=DEFAULT_SYNC_MAX_FILES, sync_mode="")
     sync.epilog = (
-        "Limit file count with: max-file <n>  "
-        "(aliases: --max-files / --max-file; example: agentcore sync max-file 50)"
+        "Words: heal (full-project embedding heal after incremental file pass); "
+        "max-file <n> (aliases: --max-files / --max-file). "
+        "Examples: agentcore sync heal | agentcore sync max-file 50"
     )
     sync.add_argument(
         "--cpu-percent",

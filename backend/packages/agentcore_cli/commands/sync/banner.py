@@ -21,6 +21,16 @@ def print_filters_banner(
     ui.blank()
     print(f"{ui.accent('→')}  Syncing {ui.scope_line(scope.tenant_id, scope.workspace_id, scope.project_id)}")
     ui.kv("Path", str(root_path))
+    if str(getattr(args, "sync_mode", "") or "").strip().lower() == "heal":
+        ui.kv(
+            "Embeddings",
+            "full-project heal after incremental file pass (missing/mismatch + orphans)",
+        )
+    else:
+        ui.kv(
+            "Embeddings",
+            "touched files only (noop: capped backlog; use sync heal for full project)",
+        )
     ui.kv("Progress", f"updates about every {int(args.progress_interval)}s (adapts ETA from observed rate)")
     if standards_gate.docs_nonconforming or standards_gate.code_nonconforming:
         ui.kv(

@@ -19,6 +19,13 @@ from agentcore_cli.sync_usage_log import TimedPhase, approx_tokens_from_chars, e
 from agentcore_cli.util import now_iso
 
 
+def embedding_refresh_mode_from_args(args: argparse.Namespace) -> str:
+    """Map CLI ``sync_mode`` to service ``embedding_refresh_mode`` (docs: sync vs sync heal)."""
+    if str(getattr(args, "sync_mode", "") or "").strip().lower() == "heal":
+        return "full"
+    return "touched"
+
+
 def sync_one_root(
     *,
     svc: Any,
@@ -85,6 +92,7 @@ def sync_one_root(
     docs_payload: dict[str, Any] = {}
     docs_sec = 0.0
     docs_tokens_in = 0
+    refresh_mode = embedding_refresh_mode_from_args(args)
     try:
         result = svc.sync_repo(
             scope,
@@ -101,11 +109,14 @@ def sync_one_root(
                 "max_files": int(args.max_files),
                 "include_outcomes": True,
                 "on_progress": tracker,
+                "embedding_refresh_mode": refresh_mode,
             },
         )
         ingest_sec = ingest_timer.stop()
 
         payload = result.to_dict() if hasattr(result, "to_dict") else result
+        if isinstance(payload, dict):
+            payload = {**payload, "embedding_refresh_mode": refresh_mode}
         latest = getattr(tracker, "_latest", {}) or {}
         tokens_in = int(latest.get("approx_tokens") or 0)
         if not tokens_in:
@@ -217,6 +228,8 @@ def sync_one_root(
     return {
         "ok": root_ok,
         "path": str(root_path),
+        "sync_mode": str(getattr(args, "sync_mode", "") or ""),
+        "embedding_refresh_mode": refresh_mode,
         "filters": {
             "sources": filters["sources"],
             "exclude_dirs_count": len(filters["exclude_dirs"]),

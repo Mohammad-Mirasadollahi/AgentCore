@@ -1,4 +1,6 @@
 # AgentCore sync filters template (`agentcore sync`).
+# Embeddings: everyday `agentcore sync` heals touched files only; use `agentcore sync heal`
+# for full-project missing/mismatch rows (does not re-parse healthy hash-stable sources).
 #   cp agentcore.sync.yaml.example agentcore.sync.yaml
 # The local agentcore.sync.yaml is gitignored (like .env); only this example is tracked.
 # Wildcards: *, ?, [], **

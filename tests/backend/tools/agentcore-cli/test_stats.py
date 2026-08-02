@@ -179,6 +179,12 @@ def test_print_sync_preflight(capsys, monkeypatch):
                 "percent_remaining": 85.0,
             },
             "llm": {"done_count": 3, "remaining_count": 7, "total": 10, "percent_done": 30.0},
+            "embeddings": {
+                "indexed_symbols": 10,
+                "eligible_symbols": 100,
+                "missing_symbols": 90,
+                "coverage_percent": 10.0,
+            },
         },
     }
     print_sync_preflight(report)
@@ -192,6 +198,15 @@ def test_print_sync_preflight(capsys, monkeypatch):
     assert "By language" not in out
     assert "7 symbols still need documentation" in out
     assert "agentcore stats detail" not in out
+    assert "Need embedding heal" in out
+    assert "90 of 100" in out
+    assert "agentcore sync heal" in out
+
+    print_sync_preflight(report, sync_mode="heal")
+    healed = capsys.readouterr().out
+    assert "Need embedding heal" in healed
+    assert "full-project embedding heal" in healed
+    assert "Do this" not in healed
 
 
 def test_pending_work_line_is_count_only():
@@ -233,6 +248,12 @@ def test_print_human_omits_needs_sync_for_zero_edited(capsys, monkeypatch):
                 "percent_remaining": 0.0,
             },
             "llm": {"done_count": 3, "remaining_count": 1, "total": 4, "percent_done": 75.0},
+            "embeddings": {
+                "indexed_symbols": 2,
+                "eligible_symbols": 8,
+                "missing_symbols": 6,
+                "coverage_percent": 25.0,
+            },
         },
     }
     print_human(report, detail=False, show_hint=False)
@@ -243,3 +264,7 @@ def test_print_human_omits_needs_sync_for_zero_edited(capsys, monkeypatch):
     assert "edited" not in out.split("Need sync", 1)[1].split("By language", 1)[0]
     assert "symbols documented" in out
     assert "3 of 4" in out
+    assert "Embeddings" in out
+    assert "missing=6" in out
+    assert "Need embedding heal" in out
+    assert "agentcore sync heal" in out

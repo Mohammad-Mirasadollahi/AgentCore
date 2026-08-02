@@ -12,6 +12,10 @@ from agentcore_cli.commands.inventory.util import (
     sort_remaining,
     top,
 )
+from agentcore_cli.embedding_heal_guidance import (
+    format_embedding_heal_lines,
+    print_embedding_heal_guidance,
+)
 
 
 def format_file_line(row: dict[str, Any], *, detail: bool) -> str:
@@ -68,6 +72,7 @@ def format_summary_lines(report: dict[str, Any]) -> list[str]:
     ]
     if int(code.get("edited_count") or 0) or int(docs.get("edited_count") or 0):
         lines.append("Hint: edited files were ingested before but changed — run agentcore sync")
+    lines.extend(format_embedding_heal_lines(summary))
     return lines
 
 
@@ -212,6 +217,7 @@ def print_human(report: dict[str, Any], *, detail: bool) -> None:
             f"missing={embeddings.get('missing_symbols', 0)}"
         ),
     )
+    print_embedding_heal_guidance(summary)
 
     ui.blank()
     ui.section("Need sync")

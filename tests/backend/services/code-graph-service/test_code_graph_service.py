@@ -729,6 +729,17 @@ def test_bootstrap_default_store_is_neo4j(monkeypatch):
     assert settings.neo4j_gds_concurrency == 4
 
 
+def test_settings_falls_back_to_shared_database_url(monkeypatch):
+    monkeypatch.setenv("AGENTCORE_NEO4J_PASSWORD", "secret")
+    monkeypatch.delenv("AGENTCORE_CODE_GRAPH_DATABASE_URL", raising=False)
+    monkeypatch.setenv(
+        "AGENTCORE_DATABASE_URL",
+        "postgresql://agentcore:secret@127.0.0.1:32232/agentcore",
+    )
+    settings = Settings.from_environment()
+    assert settings.database_url.startswith("postgresql://agentcore:secret@")
+
+
 def test_gds_env_option_and_concurrency_cap(monkeypatch):
     monkeypatch.setenv("AGENTCORE_NEO4J_PASSWORD", "secret")
     monkeypatch.setenv("AGENTCORE_NEO4J_GDS_ENABLED", "false")

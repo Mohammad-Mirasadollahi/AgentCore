@@ -62,9 +62,10 @@ def apply_compose_env_to_os(environ: dict[str, str], repo_root: Path) -> None:
     bolt_port = values["AGENTCORE_NEO4J_BOLT_PORT"]
     neo_user = values.get("AGENTCORE_NEO4J_USER", "neo4j")
 
-    environ["AGENTCORE_DATABASE_URL"] = (
-        f"postgresql://{pg_user}:{pg_pass}@127.0.0.1:{pg_port}/{pg_db}"
-    )
+    database_url = f"postgresql://{pg_user}:{pg_pass}@127.0.0.1:{pg_port}/{pg_db}"
+    environ["AGENTCORE_DATABASE_URL"] = database_url
+    # Same DSN powers pgvector embeddings + outbox mirror alongside Neo4j.
+    environ["AGENTCORE_CODE_GRAPH_DATABASE_URL"] = database_url
     environ["AGENTCORE_MCP_STORE_MODE"] = "postgres"
     environ["AGENTCORE_NEO4J_URI"] = f"bolt://127.0.0.1:{bolt_port}"
     environ["AGENTCORE_NEO4J_USER"] = neo_user

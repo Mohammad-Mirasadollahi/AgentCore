@@ -22,7 +22,7 @@ def _unwrap_remote_sync_argv(remote_command: list[str]) -> list[str]:
     return shlex.split(script.split("exec ", 1)[1])
 
 
-def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
+def test_remote_sync_from_args_builds_ssh_command(monkeypatch, capsys):
     seen: list[list[str]] = []
 
     def fake_run(settings, remote_command, *, connect_timeout=15, on_interrupt_remote=None):
@@ -49,6 +49,7 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
         project=None,
         path=None,
         max_files=100,
+        sync_mode="heal",
         force=True,
         allow_cloud_llm=False,
         cpu_percent=None,
@@ -65,7 +66,8 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
     assert cmd[0] == "/opt/AgentCore/.venv/bin/agentcore"
     assert cmd[1] == "sync"
     assert "--path" in cmd and "/opt/src" in cmd
-    # Remote argv must use bare max-file (peel_sync_max_file rejects --max-files).
+    assert "heal" in cmd
+    # Remote argv must use bare max-file (peel_sync_words rejects --max-files).
     assert "max-file" in cmd and "100" in cmd
     assert "--max-files" not in cmd and "--max-file" not in cmd
     # sync has no --force; must not forward it or remote parse fails after max-file.
@@ -75,6 +77,10 @@ def test_remote_sync_from_args_builds_ssh_command(monkeypatch):
 
     parsed = build_parser().parse_args(cmd[1:])
     assert parsed.max_files == 100
+    assert parsed.sync_mode == "heal"
+    out = capsys.readouterr().out
+    assert "Embeddings (server)" in out
+    assert "full-project embedding heal" in out
 
 
 def test_remote_sync_prompts_local_cloud_llm_consent_and_forwards_flag(monkeypatch):

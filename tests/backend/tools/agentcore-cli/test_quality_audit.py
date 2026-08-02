@@ -202,7 +202,9 @@ def test_code_audit_reports_missing_embedding_rows(monkeypatch):
             "detail": "2/3 searchable symbols lack embedding rows",
             "evidence": [],
             "fix_hint": (
-                "Run agentcore sync to self-heal embeddings; "
+                "Run agentcore sync (heals embeddings for touched files; noop drains a "
+                "capped backlog). For full-project missing/mismatch heal: "
+                "agentcore sync heal (or AGENTCORE_EMBEDDING_REFRESH_FULL=1 once); "
                 "inspect embedding_refresh on failure."
             ),
         }

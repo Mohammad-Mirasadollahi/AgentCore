@@ -142,9 +142,27 @@ def create_sync_followup_tasks(
 
     tasks_canceled = 0
     tasks_purged = 0
+    docs_registry_hygiene: dict[str, Any] = {
+        "deleted_count": 0,
+        "deleted": [],
+        "errors": [],
+    }
     backends = None
     try:
-        backends, core_scope, _scope_dict = open_platform_backends(scope)
+        backends, core_scope, scope_dict = open_platform_backends(scope)
+        try:
+            from agentcore_cli.docs_registry_hygiene import purge_docs_registry_fixture_noise
+
+            docs_registry_hygiene = purge_docs_registry_fixture_noise(
+                backends.docs,
+                backends.docs_scope(scope_dict),
+            )
+        except Exception as exc:  # noqa: BLE001 — never fail sync
+            docs_registry_hygiene = {
+                "deleted_count": 0,
+                "deleted": [],
+                "errors": [f"{type(exc).__name__}: {exc}"],
+            }
         corr = f"cli-sync-followup-{uuid4()}"
         for spec in specs:
             fp = sync_fingerprint(str(spec["kind"]))
@@ -206,6 +224,7 @@ def create_sync_followup_tasks(
         "create_errors": create_errors,
         "reconcile_errors": reconcile_errors,
         "purge_errors": purge_errors,
+        "docs_registry_hygiene": docs_registry_hygiene,
         "mirror_path": str(mirror_path),
         "specs": mirrored,
         "active_fingerprints": sorted(active),

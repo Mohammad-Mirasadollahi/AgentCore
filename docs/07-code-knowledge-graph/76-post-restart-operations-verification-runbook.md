@@ -28,9 +28,10 @@ related_docs:
 - ac.doc.ckg.live-ingest-remediation-index
 - ac.doc.ckg.verification-test-matrix
 - ac.doc.ckg.sync-semantic-integrity-evidence
+- ac.doc.ckg.sync-embedding-heal-runbook
 language: en
-doc_version: 1.0.2
-updated_at: '2026-07-28'
+doc_version: 1.0.3
+updated_at: '2026-08-01'
 ---
 
 # 76 - Post-Restart Operations Verification Runbook
@@ -80,7 +81,7 @@ If a sync is still running and making progress, do not start a second sync.
 | `too many clients already` | Database connection lifecycle/concurrency | Observe clients by phase and document-worker count |
 | `int()` receives `NoneType` during graph read | Legacy null node version | Inspect affected Neo4j node `version` values |
 | `ModuleNotFoundError` under a temporary root | State-root/import-root coupling | Compare state root with installed service checkout paths |
-| Many missing embeddings | Incomplete refresh or stale eligibility | Compute exact eligible/indexed identity sets |
+| Many missing embeddings | Incomplete refresh or stale eligibility | Compute exact eligible/indexed identity sets; run `agentcore sync heal` (see [77](77-sync-embedding-heal-operator-runbook.md)) |
 | Freshness appears clean immediately after process start | Unverified state | Inspect `verified`, status, and stale fields |
 | Suspicious internal call target | Ambiguous or low-confidence resolution | Inspect edge confidence, language, target identity, and consumer filter |
 
@@ -208,7 +209,7 @@ If the restarted service is unhealthy:
 4. Start the known-good MCP Gateway.
 5. Repeat health, semantic-integrity, and quality checks.
 
-If graph and semantic sets disagree, prefer an idempotent refresh or targeted re-ingest. Destructive volume recreation requires separate authorization and a verified backup.
+If graph and semantic sets disagree, prefer an idempotent refresh (`agentcore sync heal` for missing/mismatch embeddings) or targeted re-ingest. Destructive volume recreation requires separate authorization and a verified backup.
 
 ## Escalation
 
@@ -248,3 +249,4 @@ The runbook is complete only when:
 - [Live Ingest Remediation and Verification Index](72-live-ingest-remediation-verification-index.md)
 - [Verification Test Matrix and Results](74-verification-test-matrix-and-results.md)
 - [Sync Semantic Integrity and Recovery Evidence](75-sync-semantic-integrity-and-recovery-evidence.md)
+- [Sync Embedding Heal Operator Runbook](77-sync-embedding-heal-operator-runbook.md)

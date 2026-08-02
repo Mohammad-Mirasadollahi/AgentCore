@@ -83,7 +83,8 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
             roots=roots,
             max_files=int(args.max_files),
             scope=scope,
-        )
+        ),
+        sync_mode=str(getattr(args, "sync_mode", "") or ""),
     )
 
     _require_cloud_llm_consent(

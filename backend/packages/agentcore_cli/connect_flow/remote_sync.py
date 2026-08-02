@@ -2,7 +2,8 @@
 
 Module contract:
 - Role: build remote sync argv and run it on the AgentCore server.
-- SoT / invariants: local TTY cloud-LLM consent before SSH; bare ``max-file``; no ``--force``.
+- SoT / invariants: local TTY cloud-LLM consent before SSH; bare ``max-file``;
+  word ``heal`` forwarded when ``sync_mode=heal``; no ``--force``.
 - Failures: missing ssh/source fail closed; declined consent aborts before SSH.
   Never rely on a remote TTY for consent prompts.
 """
@@ -152,9 +153,11 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
     if allow_cloud:
         remote_cmd.append("--allow-cloud-llm")
 
+    if str(getattr(args, "sync_mode", "") or "").strip().lower() == "heal":
+        remote_cmd.append("heal")
     max_files = getattr(args, "max_files", None)
     if max_files is not None:
-        # Bare form only — AgentCoreArgumentParser.peel_sync_max_file rejects --max-files.
+        # Bare form only — AgentCoreArgumentParser.peel_sync_words rejects --max-files.
         remote_cmd.extend(["max-file", str(max_files)])
     cpu_percent = getattr(args, "cpu_percent", None)
     if cpu_percent is not None and str(cpu_percent).strip() != "":
@@ -173,6 +176,11 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
     for item in getattr(args, "include_ext", None) or []:
         remote_cmd.extend(["--include-ext", str(item)])
     # Do not forward --force: sync has no such flag (init/project do).
+    from agentcore_cli.embedding_heal_guidance import print_remote_sync_heal_note
+
+    print_remote_sync_heal_note(
+        sync_mode=str(getattr(args, "sync_mode", "") or ""),
+    )
     print(f"   {ui.warn('…')} remote sync on server ({target})")
     print(f"   {ui.dim('Ctrl+C stops the server-side sync (not only this SSH session).')}")
 

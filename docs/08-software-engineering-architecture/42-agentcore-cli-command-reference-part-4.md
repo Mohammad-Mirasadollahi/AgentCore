@@ -36,11 +36,16 @@ linked_symbols:
 - tests/backend/services/code-graph-service/test_human_docs_ingest.py::login
 - backend/packages/agentcore_cli/docs_audit_scope.py::is_docs_audit_path
 - backend/packages/agentcore_cli/sync_config.py::resolve_sync_filters
-doc_version: 1.2.0
+- backend/packages/agentcore_cli/parser/_core.py::peel_sync_words
+- backend/packages/agentcore_cli/commands/sync/one_root.py::embedding_refresh_mode_from_args
+- backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
+- backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
+doc_version: 1.2.5
 updated_at: '2026-08-01'
 related_docs:
 - docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md
 - docs/superpowers/specs/2026-08-01-project-backup-restore-design.md
+- docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
 ---
 
 # 42 - AgentCore CLI Command Reference (Continued) (Continued) (Continued) (Part 4)
@@ -227,6 +232,28 @@ Remaining `agentcore` command catalog entries split from `docs/08-software-engin
 | **What changes** | May flush pending sync **banners** into freshness state while running; does not replace explicit ingest. Any future flush-to-ingest path must honor Client Skip/Ingest preference — see [`../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md`](../07-code-knowledge-graph/51-client-standards-gate-and-watcher-policy.md) |
 
 Default graph CLI backend is in-memory (`AGENTCORE_GRAPH_CLI_BACKEND=memory`). Set `AGENTCORE_GRAPH_CLI_BACKEND=neo4j` (plus Neo4j env) for durable Compose labs. See [wedge connect runbook](../07-code-knowledge-graph/35-wedge-operator-connect-runbook.md).
+
+---
+
+## Sync vs `sync heal`
+
+Normative operator runbook (contracts, MCP, verification, failure):  
+[`../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md`](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
+
+| Command | File ingest | Embedding refresh |
+| --- | --- | --- |
+| `agentcore sync` | Incremental only: new / changed / lang-backfill / structural edge-repair. Hash-stable healthy files are skipped. | Scoped to touched files; on noop, drains a small capped backlog (default 256). |
+| `agentcore sync heal` | Same incremental file pass as `sync` (never force-reparses healthy hash-stable files). | Full-project heal: missing/mismatch rows + orphan cleanup, uncapped. |
+
+```bash
+agentcore sync
+agentcore sync heal
+agentcore sync heal max-file 200
+```
+
+Env overrides (service): `AGENTCORE_EMBEDDING_REFRESH_FULL=1` forces full heal; `AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING` caps the noop backlog for normal sync. MCP parity: `agentcore_code_graph_sync` accepts `embedding_refresh_mode: "touched" | "full"`.
+
+Operator surfaces: `agentcore stats`, `inventory`, and the **Before sync** preflight print **Need embedding heal** (missing count + `agentcore sync heal`) when searchable symbols lack rows. If the run is already `sync heal`, the preflight says this run will full-heal instead of suggesting another command.
 
 ---
 

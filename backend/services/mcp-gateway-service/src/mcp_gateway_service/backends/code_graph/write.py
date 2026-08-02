@@ -119,6 +119,9 @@ def sync_repo(
     payload: dict[str, Any] = {"root_path": root_path, "include_outcomes": True}
     if arguments.get("max_files") is not None:
         payload["max_files"] = int(arguments["max_files"])
+    refresh_mode = str(arguments.get("embedding_refresh_mode") or "").strip().lower()
+    if refresh_mode in {"touched", "full"}:
+        payload["embedding_refresh_mode"] = refresh_mode
     if arguments.get("include_extensions") is not None:
         payload["include_extensions"] = arguments.get("include_extensions")
     else:
@@ -149,10 +152,13 @@ def sync_repo(
         )
     except CodeGraphError as exc:
         raise ValueError(str(exc.message)) from exc
+    sync_payload = result.to_dict()
+    if payload.get("embedding_refresh_mode"):
+        sync_payload["embedding_refresh_mode"] = payload["embedding_refresh_mode"]
     return {
         **base,
         "graph_mode": backends.graph_mode,
-        "sync": result.to_dict(),
+        "sync": sync_payload,
     }
 
 

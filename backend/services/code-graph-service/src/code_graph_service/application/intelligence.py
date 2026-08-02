@@ -588,8 +588,9 @@ class IntelligenceUseCases(GraphServiceSupport):
 
         semantic_ids: list[str] = []
         embedding_backend = "unknown"
+        semantic_error: str | None = None
+        embedder = getattr(self, "embeddings", None)
         try:
-            embedder = getattr(self, "embeddings", None)
             if embedder is not None:
                 embedding_backend = getattr(embedder, "backend_name", None) or getattr(
                     embedder, "model", "stub"
@@ -599,8 +600,9 @@ class IntelligenceUseCases(GraphServiceSupport):
                 sid = str(sym.get("id") or "")
                 if sid:
                     semantic_ids.append(sid)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001 — lexical/FTS must still return
             semantic_ids = []
+            semantic_error = f"{type(exc).__name__}:{exc}"[:300]
 
         fulltext = getattr(self.store, "fulltext_search", None)
         fts_ids: list[str] = []
@@ -642,7 +644,7 @@ class IntelligenceUseCases(GraphServiceSupport):
             mode = "hybrid_rrf_semantic_bm25"
         else:
             mode = "bm25"
-        return {
+        payload = {
             "query": query,
             "mode": mode,
             "hits": hits,
@@ -654,6 +656,19 @@ class IntelligenceUseCases(GraphServiceSupport):
             "embedding_backend": embedding_backend,
             "fts_method": fts_method,
         }
+        if semantic_error:
+            payload["semantic_error"] = semantic_error
+        elif (
+            not semantic_ids
+            and getattr(self, "embedding_index", None) is None
+            and embedder is not None
+        ):
+            # Empty semantic with a live embedder usually means in-store vectors
+            # are absent because pgvector was never wired (MCP DATABASE_URL gap).
+            payload["semantic_error"] = (
+                "embedding_index_unavailable: semantic channel empty without pgvector"
+            )
+        return payload
 
     def architecture_overview(self, scope: Scope, *, top_n: int = 10) -> dict[str, Any]:
         symbols = list(self.store.list_symbols(scope))
