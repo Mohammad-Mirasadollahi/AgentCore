@@ -30,8 +30,8 @@ related_docs:
 - ac.doc.ckg.sync-cpu-budget-and-store-concurrency-lld
 - ac.doc.stack.turbovec-ann-acceleration
 - ac.doc.stack.turbovec-for-rag
-doc_version: 1.1.0
-updated_at: '2026-07-26'
+doc_version: 1.2.0
+updated_at: '2026-08-02'
 ---
 
 # 12 - LiteLLM Environment Configuration
@@ -134,13 +134,21 @@ AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/
 | --- | --- |
 | **Purpose** | PostgreSQL URL for structural postgres store and/or pgvector + outbox mirror beside Neo4j. |
 | **Default** | empty (must be set for `postgres` store; recommended for `neo4j`) |
-| **If you change it** | Wrong URL → connection errors on ingest index/outbox. Empty with Neo4j → no `symbol_embeddings` upsert and no mirror into `code_graph.outbox` (relay cannot publish those events). |
+| **Fallback** | When empty, Settings uses `AGENTCORE_DATABASE_URL` (shared MCP/CLI/platform URL). Compose and `local_mcp` also copy the shared URL into this variable when unset. |
+| **If you change it** | Wrong URL → connection errors on ingest index/outbox. Empty **both** this and `AGENTCORE_DATABASE_URL` with Neo4j → no `embedding_index`, no `symbol_embeddings` upsert, no mirror into `code_graph.outbox` (heal/sync report `embedding_index_unavailable`; hybrid may return BM25-only with `semantic_error`). |
 
 **Example:** Neo4j graph + Postgres side tables:
 
 ```bash
 AGENTCORE_CODE_GRAPH_STORE=neo4j
 AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/agentcore
+```
+
+**Example:** Cursor MCP with only the shared URL (Settings fallback):
+
+```bash
+AGENTCORE_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/agentcore
+# AGENTCORE_CODE_GRAPH_DATABASE_URL may be omitted; pgvector still attaches
 ```
 
 ### `AGENTCORE_NEO4J_URI` / `USER` / `PASSWORD` / `DATABASE`

@@ -40,8 +40,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/sync/one_root.py::embedding_refresh_mode_from_args
 - backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
 - backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
-doc_version: 1.2.5
-updated_at: '2026-08-01'
+doc_version: 1.2.6
+updated_at: '2026-08-02'
 related_docs:
 - docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md
 - docs/superpowers/specs/2026-08-01-project-backup-restore-design.md
@@ -252,6 +252,8 @@ agentcore sync heal max-file 200
 ```
 
 Env overrides (service): `AGENTCORE_EMBEDDING_REFRESH_FULL=1` forces full heal; `AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING` caps the noop backlog for normal sync. MCP parity: `agentcore_code_graph_sync` accepts `embedding_refresh_mode: "touched" | "full"`.
+
+pgvector wiring: set `AGENTCORE_CODE_GRAPH_DATABASE_URL` or fall back to `AGENTCORE_DATABASE_URL` (Settings + Compose/`local_mcp`). Missing both → `embedding_index_unavailable` (heal cannot write rows; hybrid may expose `semantic_error`).
 
 Operator surfaces: `agentcore stats`, `inventory`, and the **Before sync** preflight print **Need embedding heal** (missing count + `agentcore sync heal`) when searchable symbols lack rows. If the run is already `sync heal`, the preflight says this run will full-heal instead of suggesting another command.
 

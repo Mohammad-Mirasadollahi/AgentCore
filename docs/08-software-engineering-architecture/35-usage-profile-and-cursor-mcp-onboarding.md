@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.0
-updated_at: '2026-07-26'
+doc_version: 1.2.0
+updated_at: '2026-08-02'
 ---
 
 # Usage Profile and Cursor MCP Onboarding
@@ -180,6 +180,17 @@ Example generated fragment (shape):
 - Do not put secrets in Usage Profile JSON; inject via environment or secret managers.
 - MCP gateway must refuse tools not listed in the active profile.
 
+## MCP env for semantic / embeddings
+
+Project `.cursor/mcp.json` is often gitignored. For Neo4j + pgvector in the MCP process:
+
+| Env | Required for |
+| --- | --- |
+| Neo4j URI / user / password | Graph store when `AGENTCORE_CODE_GRAPH_STORE=neo4j` |
+| `AGENTCORE_CODE_GRAPH_DATABASE_URL` **or** `AGENTCORE_DATABASE_URL` | pgvector SoR (`symbol_embeddings`), outbox mirror, heal/sync embedding refresh |
+
+Code-graph Settings prefer `AGENTCORE_CODE_GRAPH_DATABASE_URL` and fall back to `AGENTCORE_DATABASE_URL`. If both are missing, hybrid search can look “empty” on the semantic channel (`semantic_error` / `embedding_index_unavailable`) even when Neo4j has symbols. Heal/sync contract: [77 - Sync Embedding Heal Operator Runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
+
 ## Acceptance criteria
 
 - Catalog validates required fields for every shipped profile.
@@ -190,6 +201,7 @@ Example generated fragment (shape):
 - Unknown tool names on `tools/call` fail closed.
 - MCP tool handlers call in-process AgentCore services (memory, code-graph, core-data, docs-sync), not stub-only responses.
 - MCP gateway supports `AGENTCORE_MCP_STORE_MODE=memory|postgres` (auto-postgres when `AGENTCORE_DATABASE_URL` is set) so Cursor sessions share durable store schemas with the platform.
+- With `AGENTCORE_DATABASE_URL` (or `AGENTCORE_CODE_GRAPH_DATABASE_URL`) set, MCP sync/heal can refresh pgvector embeddings beside Neo4j; without either, operators see `embedding_index_unavailable` rather than a silent empty semantic channel.
 - Write path: Usage Profile tool `agentcore_write` creates memory, task, activity, or decision records for the scoped project (in addition to `agentcore_create_task`).
 - Docs path: `agentcore_docs_write` (`validate` / `note` / `draft` / `index`) and `agentcore_docs_status` wire Cursor documentation work into docs-sync.
 - Tests cover catalog validation, activation, materialization, MCP protocol handlers, and wired backend calls.

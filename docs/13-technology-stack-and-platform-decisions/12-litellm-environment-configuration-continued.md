@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.0
-updated_at: '2026-07-26'
+doc_version: 1.1.1
+updated_at: '2026-08-02'
 ---
 
 # 12 - LiteLLM Environment Configuration (Continued)
@@ -250,7 +250,7 @@ AGENTCORE_EMBEDDING_DIMS=1024
 AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/agentcore
 ```
 
-**Result:** Ingest upserts 1024-d BGE vectors into `code_graph.symbol_embeddings`. Without the database URL, vectors may compute but are not persisted to pgvector.
+**Result:** Ingest upserts 1024-d BGE vectors into `code_graph.symbol_embeddings`. Without `AGENTCORE_CODE_GRAPH_DATABASE_URL` **and** without fallback `AGENTCORE_DATABASE_URL`, vectors may compute but are not persisted to pgvector (`embedding_index_unavailable`).
 
 ### Scenario E — Enable semantic embeddings via LiteLLM
 
@@ -270,6 +270,7 @@ AGENTCORE_CODE_GRAPH_DATABASE_URL=postgresql://agentcore:secret@127.0.0.1:32232/
 | Symptom | Likely misconfiguration | Recovery |
 | --- | --- | --- |
 | Startup: Neo4j password required | Empty `AGENTCORE_NEO4J_PASSWORD` with store=neo4j | Set password |
+| Heal `scanned=0` / hybrid `semantic_error` / `embedding_index_unavailable` | Neo4j OK but neither `AGENTCORE_CODE_GRAPH_DATABASE_URL` nor `AGENTCORE_DATABASE_URL` set in the process (common in minimal Cursor `mcp.json`) | Set either URL; reload MCP; re-run `agentcore sync heal` |
 | Connection refused to `:32400` | Auto Base URL but no proxy listening | Start proxy or set `AGENTCORE_LITELLM_API_BASE` |
 | Opaque LiteLLM error / “turn on debug” hint | Provider error mapped by LiteLLM; tip not suppressed | Gateway sets `suppress_debug_info`; use `AGENTCORE_LITELLM_DEBUG=true` for traces |
 | Sync hangs / Ctrl+C does not exit | Workers blocked in provider HTTP; pool waited forever | Cancel waits ≤15s then abandons stuck workers; quota circuit stops further LLM calls |

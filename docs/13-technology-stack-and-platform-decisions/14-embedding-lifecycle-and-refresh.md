@@ -38,14 +38,14 @@ related_docs:
 - ac.doc.stack.storage-ownership-matrix
 - ac.doc.gap.technical-implementation-gaps
 - ac.doc.ckg.sync-embedding-heal-runbook
-doc_version: 1.2.0
+doc_version: 1.3.0
 audience:
 - engineer
 - architect
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 
 # 14 - Embedding Lifecycle And Refresh
@@ -86,6 +86,11 @@ flowchart TD
 TurboVec (or any in-process ANN) is **never** SoR. Durable truth stays in PostgreSQL + pgvector.
 
 Machine policy: `backend/configs/embeddings/refresh-policy.json`.
+
+Code-graph Settings resolve the pgvector URL as `AGENTCORE_CODE_GRAPH_DATABASE_URL`, else
+`AGENTCORE_DATABASE_URL`. Without either, the embedding index is not constructed; refresh
+reports `embedding_index_unavailable` and hybrid retrieval may surface `semantic_error`
+while lexical channels still work.
 
 ## Regenerate triggers
 

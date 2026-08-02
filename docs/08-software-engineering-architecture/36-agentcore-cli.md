@@ -38,13 +38,13 @@ related_docs:
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
 - docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
-doc_version: 1.2.3
+doc_version: 1.2.4
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 
 # 36 - AgentCore CLI
@@ -133,7 +133,7 @@ agentcore purge --yes       # graph only
 ## (interactive: type two different confirmation phrases; does not delete source code)
 ```
 
-`sync` never force-reparses healthy hash-stable files. Use `sync heal` when semantic search is missing rows project-wide; it does not re-ingest unchanged sources. `agentcore stats`, `inventory`, and the plain-`sync` preflight show a **Need embedding heal** section with the missing count and the `agentcore sync heal` command when a backlog exists. Full contract: [77 - Sync Embedding Heal Operator Runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
+`sync` never force-reparses healthy hash-stable files. Use `sync heal` when semantic search is missing rows project-wide; it does not re-ingest unchanged sources. `agentcore stats`, `inventory`, and the plain-`sync` preflight show a **Need embedding heal** section with the missing count and the `agentcore sync heal` command when a backlog exists. pgvector needs `AGENTCORE_CODE_GRAPH_DATABASE_URL` or fallback `AGENTCORE_DATABASE_URL`. Full contract: [77 - Sync Embedding Heal Operator Runbook](../07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md).
 
 ## Command index (quick)
 

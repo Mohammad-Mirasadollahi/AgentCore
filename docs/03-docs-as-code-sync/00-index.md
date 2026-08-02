@@ -22,8 +22,9 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+- backend/packages/agentcore_cli/docs_registry_hygiene.py::purge_docs_registry_fixture_noise
+doc_version: 1.0.1
+updated_at: '2026-08-02'
 ---
 
 # 03 - Docs-as-Code and Synchronization Index
@@ -65,3 +66,7 @@ Make documentation, code, decisions, and ownership part of one synchronized know
 ## Operator sync bridge
 
 `agentcore sync` Phase 2 walks `doc_paths`, indexes Markdown into this service (Document + DocAnchor), and projects `DOCUMENTED_BY` edges into the Code-Knowledge Graph for resolved `linked_symbols`. See [03 - Ingestion and Living Documentation Workflow §10](../07-code-knowledge-graph/03-ingestion-and-living-documentation-workflow.md) and [42 - AgentCore CLI Command Reference § Sync filters](../08-software-engineering-architecture/42-agentcore-cli-command-reference.md#sync-filters).
+
+### Docs registry fixture hygiene
+
+Live QA can leave intentional docs-sync symbol rows whose paths contain `never_linked`, `ghost_`, or `never_should_exist`. Those rows pollute `docs_status` coverage. Best-effort purge runs from `agentcore quality-audit`, MCP `agentcore_quality_audit`, and sync follow-up (`purge_docs_registry_fixture_noise` in `agentcore_cli.docs_registry_hygiene`) — unregister only matching fixture noise; never fails the caller.

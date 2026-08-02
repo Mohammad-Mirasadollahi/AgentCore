@@ -7,7 +7,7 @@ schema_version: '1.0'
 owner: code-graph-service
 summary: 'Operator contract for scoped embedding refresh on everyday agentcore sync versus
   full-project agentcore sync heal, including stats/inventory/preflight guidance, service
-  payload, MCP parity, env overrides, and verification.'
+  payload, MCP/pgvector env wiring, failure signals, and verification.'
 tags:
 - sync
 - embeddings
@@ -32,15 +32,17 @@ linked_symbols:
 - backend/packages/agentcore_cli/parser/_core.py::peel_sync_words
 - backend/packages/agentcore_cli/commands/stats/render.py::print_sync_preflight
 - backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
+- backend/services/code-graph-service/src/code_graph_service/bootstrap.py::Settings
 - backend/services/mcp-gateway-service/src/mcp_gateway_service/backends/code_graph/write.py::sync_repo
 related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/42-agentcore-cli-command-reference-part-4.md
 - docs/13-technology-stack-and-platform-decisions/14-embedding-lifecycle-and-refresh.md
+- docs/13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md
 - docs/07-code-knowledge-graph/75-sync-semantic-integrity-and-recovery-evidence.md
 - docs/07-code-knowledge-graph/76-post-restart-operations-verification-runbook.md
-doc_version: 1.0.1
-updated_at: '2026-08-01'
+doc_version: 1.1.0
+updated_at: '2026-08-02'
 language: en
 security_classification: internal
 ---
@@ -152,12 +154,26 @@ Env overrides:
 | `AGENTCORE_EMBEDDING_REFRESH_MAX_PENDING` | Cap for noop/touched backlog (default 256) |
 | `AGENTCORE_EMBEDDING_REFRESH_WORKERS` | Parallel embed chunk workers (capped at 16) |
 
+### pgvector URL for Neo4j + embeddings
+
+Semantic SoR needs a PostgreSQL URL even when the graph store is Neo4j:
+
+| Env | Role |
+| --- | --- |
+| `AGENTCORE_CODE_GRAPH_DATABASE_URL` | Preferred graph-specific pgvector / outbox URL |
+| `AGENTCORE_DATABASE_URL` | Shared platform URL; **Settings falls back here** when the graph-specific URL is empty |
+
+Compose and `local_mcp` also copy `AGENTCORE_DATABASE_URL` into `AGENTCORE_CODE_GRAPH_DATABASE_URL` when the latter is unset. Cursor `mcp.json` may set only the shared URL; after this fallback, MCP heal/sync can write embeddings without a duplicate env key. Empty both → no `embedding_index` → heal reports `embedding_index_unavailable` and hybrid may return BM25-only with `semantic_error`.
+
+Normative env tables: [12 - LiteLLM Environment Configuration](../13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md).
+
 ## MCP
 
 Usage Profile tool `agentcore_code_graph_sync`:
 
 - `embedding_refresh_mode`: `"touched"` \| `"full"` (default touched).
 - Gateway `write.sync_repo` forwards the field into the graph service payload and echoes it on the result.
+- Ensure MCP process env has `AGENTCORE_CODE_GRAPH_DATABASE_URL` **or** `AGENTCORE_DATABASE_URL` (plus Neo4j credentials when `AGENTCORE_CODE_GRAPH_STORE=neo4j`).
 
 Prefer CLI `agentcore sync heal` for interactive operators; MCP `full` for automation.
 
@@ -168,14 +184,17 @@ Prefer CLI `agentcore sync heal` for interactive operators; MCP `full` for autom
 | Progress | Embeddings phase uses `phase=embeddings` on the sync progress tracker |
 | Partial heal | Interrupted heal is safe to re-run; already-written rows stay; missing set shrinks |
 | Report | `embedding_refresh.state` is `complete` or `failed`; inspect `error` / `reasons` |
+| No pgvector | `reasons.embedding_index_unavailable` / error text naming the URL envs; `scanned=0`, `refreshed=0` |
+| Hybrid search | When semantic channel is empty without an index, payload may include `semantic_error` (e.g. `embedding_index_unavailable:…`) while lexical results still return |
 | Tenant scope | Incomplete tenant/workspace/project fails closed |
 
 ## Verification
 
 1. `agentcore stats` — Embeddings `missing=0` (or backlog dropping after heal).
-2. Sync result JSON — `embedding_refresh.state=complete`, `embedding_refresh_mode` matches the command.
-3. `agentcore quality-audit` — `code.missing_embeddings` cleared for healed scope.
-4. Optional integrity evidence — see [75 - Sync Semantic Integrity](./75-sync-semantic-integrity-and-recovery-evidence.md).
+2. Sync result JSON — `embedding_refresh.state=complete`, `embedding_refresh_mode` matches the command; no `embedding_index_unavailable`.
+3. Hybrid / semantic explore — non-zero semantic hits (or mode includes semantic), not BM25-only with `semantic_error`.
+4. `agentcore quality-audit` — `code.missing_embeddings` cleared for healed scope.
+5. Optional integrity evidence — see [75 - Sync Semantic Integrity](./75-sync-semantic-integrity-and-recovery-evidence.md).
 
 ## Related Documents
 
@@ -184,5 +203,6 @@ Prefer CLI `agentcore sync heal` for interactive operators; MCP `full` for autom
 | [36 - AgentCore CLI](../08-software-engineering-architecture/36-agentcore-cli.md) | Everyday operator entry |
 | [42 CLI reference — Sync vs sync heal](../08-software-engineering-architecture/42-agentcore-cli-command-reference-part-4.md#sync-vs-sync-heal) | Catalog summary |
 | [14 - Embedding lifecycle](../13-technology-stack-and-platform-decisions/14-embedding-lifecycle-and-refresh.md) | SoR / refresh-policy law |
+| [12 - LiteLLM env](../13-technology-stack-and-platform-decisions/12-litellm-environment-configuration.md) | `CODE_GRAPH_DATABASE_URL` / `DATABASE_URL` contract |
 | [75 - Semantic integrity evidence](./75-sync-semantic-integrity-and-recovery-evidence.md) | Quantitative acceptance evidence |
 | [76 - Post-restart verification](./76-post-restart-operations-verification-runbook.md) | Restart / interrupt recovery |
