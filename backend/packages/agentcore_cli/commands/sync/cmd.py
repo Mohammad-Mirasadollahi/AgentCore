@@ -77,16 +77,23 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
     from agentcore_cli.commands.inventory.collect import build_inventory_report
     from agentcore_cli.commands.stats.render import print_sync_preflight
 
+    inventory = build_inventory_report(
+        args,
+        roots=roots,
+        max_files=int(args.max_files),
+        scope=scope,
+    )
     print_sync_preflight(
-        build_inventory_report(
-            args,
-            roots=roots,
-            max_files=int(args.max_files),
-            scope=scope,
-        ),
+        inventory,
         sync_mode=str(getattr(args, "sync_mode", "") or ""),
     )
 
+    # Living-doc LLM runs only when code files will ingest. Cloud embed routes still
+    # need consent on noop (embedding refresh). Skip the gate when neither applies.
+    code = (inventory.get("summary") or {}).get("code") or {}
+    code_pending = int(code.get("edited_count") or 0) + int(code.get("remaining_count") or 0)
+    llm_cfg = svc.llm_config() if hasattr(svc, "llm_config") else {}
+    may_send = code_pending > 0 or bool(llm_cfg.get("embeddings_enabled"))
     _require_cloud_llm_consent(
         svc,
         allowed=bool(getattr(args, "allow_cloud_llm", False)),
@@ -94,6 +101,7 @@ def _cmd_sync_body(args: argparse.Namespace) -> int:
         workspace=scope.workspace_id,
         project=scope.project_id,
         paths=roots,
+        may_send_code_prompts=may_send,
     )
 
     from agentcore_cli.docs_catalog import refresh_docs_catalog_after_sync

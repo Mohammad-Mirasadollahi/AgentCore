@@ -378,6 +378,10 @@ class PostgresStore:
             cursor.execute("SELECT payload FROM docs_sync.outbox ORDER BY occurred_at,event_id")
             return [row["payload"] for row in cursor.fetchall()]
 
+    def reset_connections(self) -> None:
+        """Drop worker connections after Postgres restart / AdminShutdown."""
+        self.close()
+
     def close(self) -> None:
         with self._all_lock:
             conns = list(self._all_connections)

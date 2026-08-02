@@ -27,6 +27,46 @@ def test_is_docs_registry_fixture_noise_markers():
     )
 
 
+def test_purge_retries_list_symbols_after_admin_shutdown():
+    store = InMemoryStore()
+    service = DocsSyncService(store)
+    scope = Scope("t", "w", "p-retry")
+    service.index_symbol(
+        scope,
+        "agent",
+        "c",
+        "g",
+        {
+            "repo": "agentcore",
+            "file_path": "src/ghost_retry.py",
+            "symbol_path": "ghost_retry",
+            "kind": "function",
+            "body": "def ghost_retry():\n    return 1\n",
+        },
+    )
+    calls = {"n": 0}
+    real_list = store.list_symbols
+
+    def flaky_list(scope_arg):
+        calls["n"] += 1
+        if calls["n"] == 1:
+
+            class AdminShutdown(Exception):
+                pass
+
+            raise AdminShutdown("terminating connection due to administrator command")
+        return real_list(scope_arg)
+
+    store.list_symbols = flaky_list  # type: ignore[method-assign]
+    resets = {"n": 0}
+    store.reset_connections = lambda: resets.__setitem__("n", resets["n"] + 1)  # type: ignore[attr-defined]
+    result = purge_docs_registry_fixture_noise(service, scope)
+    assert calls["n"] == 2
+    assert resets["n"] == 1
+    assert result["deleted_count"] == 1
+    assert result["errors"] == []
+
+
 def test_purge_docs_registry_fixture_noise_keeps_real_symbols():
     store = InMemoryStore()
     service = DocsSyncService(store)

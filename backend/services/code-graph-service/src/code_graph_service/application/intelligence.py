@@ -590,19 +590,44 @@ class IntelligenceUseCases(GraphServiceSupport):
         embedding_backend = "unknown"
         semantic_error: str | None = None
         embedder = getattr(self, "embeddings", None)
+        if embedder is not None:
+            embedding_backend = getattr(embedder, "backend_name", None) or getattr(
+                embedder, "model", "stub"
+            )
         try:
-            if embedder is not None:
-                embedding_backend = getattr(embedder, "backend_name", None) or getattr(
-                    embedder, "model", "stub"
-                )
+            from ..pg_thread_local import is_transient_db_error
+        except Exception:  # noqa: BLE001
+            is_transient_db_error = lambda _exc: False  # type: ignore[assignment,misc]
+
+        def _collect_semantic() -> list[str]:
+            ids: list[str] = []
             for hit in self.semantic_search(scope, query, top_k=top_k * 2):  # type: ignore[attr-defined]
                 sym = hit.get("symbol") if isinstance(hit.get("symbol"), dict) else {}
                 sid = str(sym.get("id") or "")
                 if sid:
-                    semantic_ids.append(sid)
+                    ids.append(sid)
+            return ids
+
+        try:
+            semantic_ids = _collect_semantic()
         except Exception as exc:  # noqa: BLE001 — lexical/FTS must still return
-            semantic_ids = []
-            semantic_error = f"{type(exc).__name__}:{exc}"[:300]
+            if is_transient_db_error(exc):
+                reset = getattr(self, "reset_database_connections", None)
+                if callable(reset):
+                    try:
+                        reset()
+                    except Exception:  # noqa: BLE001
+                        pass
+                try:
+                    semantic_ids = _collect_semantic()
+                except Exception as retry_exc:  # noqa: BLE001
+                    semantic_ids = []
+                    semantic_error = f"{type(retry_exc).__name__}:{retry_exc}"[:300]
+                else:
+                    semantic_error = None
+            else:
+                semantic_ids = []
+                semantic_error = f"{type(exc).__name__}:{exc}"[:300]
 
         fulltext = getattr(self.store, "fulltext_search", None)
         fts_ids: list[str] = []

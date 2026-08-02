@@ -129,6 +129,17 @@ def test_sync_cloud_llm_requires_explicit_per_run_consent():
                 "route_embed": {"primary_model": "", "fallback_models": []},
             }
 
+    # Noop / no code-prompt path → skip gate (non-interactive sync stays private)
+    assert (
+        _require_cloud_llm_consent(
+            Service("openai/gpt-oss"),
+            allowed=False,
+            stdin_isatty=False,
+            may_send_code_prompts=False,
+        )
+        is False
+    )
+
     # Non-TTY without flag → fail closed
     with pytest.raises(SystemExit, match="--allow-cloud-llm|interactive"):
         _require_cloud_llm_consent(

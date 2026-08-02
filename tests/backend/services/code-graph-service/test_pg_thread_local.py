@@ -23,6 +23,52 @@ class _Conn:
         self.closed = True
 
 
+def test_thread_local_get_replaces_closed_connection():
+    created: list[_Conn] = []
+
+    def connect() -> _Conn:
+        conn = _Conn()
+        created.append(conn)
+        return conn
+
+    pool = ThreadLocalPsycopg(connect)
+    first = pool.get()
+    first.closed = True
+    second = pool.get()
+    assert second is not first
+    assert len(created) == 2
+    pool.close_all()
+
+
+def test_thread_local_drop_forces_new_connection():
+    created: list[_Conn] = []
+
+    def connect() -> _Conn:
+        conn = _Conn()
+        created.append(conn)
+        return conn
+
+    pool = ThreadLocalPsycopg(connect)
+    first = pool.get()
+    pool.drop()
+    assert first.closed is True
+    second = pool.get()
+    assert second is not first
+    assert len(created) == 2
+    pool.close_all()
+
+
+def test_is_transient_db_error_detects_admin_shutdown():
+    from code_graph_service.pg_thread_local import is_transient_db_error
+
+    class AdminShutdown(Exception):
+        pass
+
+    assert is_transient_db_error(AdminShutdown("terminating connection due to administrator command"))
+    assert is_transient_db_error(RuntimeError("Failed to read from defunct connection"))
+    assert not is_transient_db_error(ValueError("bad dims"))
+
+
 def test_thread_local_psycopg_one_connection_per_thread():
     created: list[_Conn] = []
     lock = threading.Lock()

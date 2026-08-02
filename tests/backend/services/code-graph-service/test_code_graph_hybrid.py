@@ -85,6 +85,49 @@ def test_hybrid_search_flags_missing_embedding_index():
     assert "embedding_index_unavailable" in str(payload.get("semantic_error") or "")
 
 
+def test_hybrid_search_retries_semantic_after_admin_shutdown():
+    store = InMemoryStore()
+    index = InMemoryEmbeddingIndex()
+    service = CodeGraphService(
+        store,
+        embeddings=LocalEmbeddingStub(dims=16),
+        embedding_index=index,
+    )
+    scope = Scope("t", "w", "hyb-retry")
+    service.ingest_file(
+        scope,
+        "agent",
+        "c",
+        "idem-hyb-retry",
+        {"file_path": "src/auth.py", "source": PYTHON_SOURCE, "language": "python"},
+    )
+    calls = {"n": 0}
+    resets = {"n": 0}
+    real_semantic = service.semantic_search
+    real_reset = service.reset_database_connections
+
+    def flaky_semantic(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            class AdminShutdown(Exception):
+                pass
+
+            raise AdminShutdown("terminating connection due to administrator command")
+        return real_semantic(*args, **kwargs)
+
+    def counting_reset() -> None:
+        resets["n"] += 1
+        real_reset()
+
+    service.semantic_search = flaky_semantic  # type: ignore[method-assign]
+    service.reset_database_connections = counting_reset  # type: ignore[method-assign]
+    payload = service.hybrid_search(scope, "login password")
+    assert calls["n"] == 2
+    assert resets["n"] == 1
+    assert payload["channels"]["semantic"] >= 1
+    assert not payload.get("semantic_error")
+
+
 def test_generation_context_includes_expansion_field():
     store = InMemoryStore()
     service = CodeGraphService(store)

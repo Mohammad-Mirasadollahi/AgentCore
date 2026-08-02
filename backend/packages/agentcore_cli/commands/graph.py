@@ -80,13 +80,19 @@ def _require_cloud_llm_consent(
     paths: Sequence[str | Path] | None = None,
     input_fn: Any | None = None,
     stdin_isatty: bool | None = None,
+    may_send_code_prompts: bool = True,
 ) -> bool:
     """Fail closed on non-private LLM routes unless flag or interactive yes.
 
     Returns True when this run is explicitly allowed (flag or interactive consent)
     so remote SSH sync can forward ``--allow-cloud-llm``. Returns False when the
     route is disabled/private (no flag needed).
+
+    When ``may_send_code_prompts`` is False (e.g. noop sync with no code ingest and
+    cloud embeddings disabled), skip the gate — nothing will leave the private boundary.
     """
+    if not may_send_code_prompts:
+        return False
     config = svc.llm_config()
     if not config.get("enabled"):
         return False

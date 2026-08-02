@@ -266,6 +266,24 @@ class PostgresEmbeddingIndex:
         top_k: int = 5,
         kinds: Sequence[str] | None = None,
     ) -> list[tuple[str, float]]:
+        from .pg_thread_local import is_transient_db_error
+
+        try:
+            return self._search_once(scope, vector, top_k=top_k, kinds=kinds)
+        except Exception as exc:  # noqa: BLE001 — classify then maybe retry
+            if not is_transient_db_error(exc):
+                raise
+            self.reset_connections()
+            return self._search_once(scope, vector, top_k=top_k, kinds=kinds)
+
+    def _search_once(
+        self,
+        scope: Scope,
+        vector: list[float],
+        *,
+        top_k: int = 5,
+        kinds: Sequence[str] | None = None,
+    ) -> list[tuple[str, float]]:
         if len(vector) != self._dims:
             raise ValueError(f"query dims must be {self._dims}, got {len(vector)}")
         literal = self._vector_literal(vector)
