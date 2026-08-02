@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -54,11 +53,3 @@ def assert_no_secrets(obj: Any, *, context: str) -> None:
     hit = find_secret_hit(obj)
     if hit:
         raise ValueError(f"secret-like material rejected in {context}: {hit}")
-
-
-def assert_jsonl_no_secrets(text: str, *, context: str) -> None:
-    for i, line in enumerate(text.splitlines(), start=1):
-        line = line.strip()
-        if not line:
-            continue
-        assert_no_secrets(json.loads(line), context=f"{context}:line:{i}")

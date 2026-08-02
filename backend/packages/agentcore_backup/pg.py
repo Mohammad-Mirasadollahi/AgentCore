@@ -11,10 +11,9 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 
-from agentcore_backup.remap import remap_row
 from agentcore_backup.scope import Scope
 from agentcore_backup.secrets import assert_no_secrets
-from agentcore_backup.tables import PG_TABLES, TableSpec, tables_for_store
+from agentcore_backup.tables import PG_TABLES, TableSpec
 
 
 def database_url(env: dict[str, str] | None = None) -> str:
@@ -243,39 +242,3 @@ def wipe_scope_pg(conn: psycopg.Connection, scope: Scope) -> dict[str, int]:
             )
             deleted[f"{spec.schema}.{spec.table}"] = int(cur.rowcount)
     return deleted
-
-
-def export_all_pg(conn: psycopg.Connection, scope: Scope, stores_root: Path) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for spec in PG_TABLES:
-        dest = stores_root / spec.store_id / f"{spec.table}.jsonl"
-        n = export_table(conn, spec, scope, dest)
-        counts[spec.store_id] = counts.get(spec.store_id, 0) + n
-        if n == 0 and dest.exists() and dest.stat().st_size == 0:
-            dest.unlink(missing_ok=True)
-    return counts
-
-
-def import_store_pg(
-    conn: psycopg.Connection,
-    store_id: str,
-    store_dir: Path,
-    *,
-    source: Scope,
-    target: Scope,
-) -> int:
-    total = 0
-    for spec in tables_for_store(store_id):
-        path = store_dir / f"{spec.table}.jsonl"
-        if not path.is_file():
-            continue
-        rows: list[dict[str, Any]] = []
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            if not isinstance(row, dict):
-                raise ValueError(f"invalid row in {path}")
-            rows.append(remap_row(row, source=source, target=target))
-        total += import_table(conn, spec, iter(rows))
-    return total

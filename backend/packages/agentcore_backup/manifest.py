@@ -22,10 +22,6 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
 def build_manifest(
     *,
     scope: Scope,

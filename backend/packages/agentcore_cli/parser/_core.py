@@ -9,12 +9,6 @@ _SYNC_MAX_FILE_DASHED = frozenset({"-max-file", "--max-file", "-max-files", "--m
 DEFAULT_SYNC_MAX_FILES = 2000
 
 
-def peel_sync_max_file(argv: list[str], error) -> tuple[list[str], int | None]:
-    """Accept bare ``max-file N`` on sync; dashed forms are aliases (same value)."""
-    peeled, override, _sync_mode = peel_sync_words(argv, error)
-    return peeled, override
-
-
 def peel_sync_words(argv: list[str], error) -> tuple[list[str], int | None, str | None]:
     """Peel sync word args: ``max-file N`` and mode word ``heal``."""
     if not argv or argv[0] != "sync":

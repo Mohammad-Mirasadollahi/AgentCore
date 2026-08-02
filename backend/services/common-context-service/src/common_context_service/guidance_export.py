@@ -59,12 +59,6 @@ def relative_paths_for_item(item: dict[str, Any], layout: str) -> list[str]:
     return []
 
 
-def relative_path_for_item(item: dict[str, Any], layout: str) -> str | None:
-    """Backward-compatible single-path helper (first planned path)."""
-    paths = relative_paths_for_item(item, layout)
-    return paths[0] if paths else None
-
-
 def render_file_content(item: dict[str, Any], layout: str) -> str:
     body = str(item.get("body") or "").strip() + "\n"
     kind = str(item.get("item_type") or "")

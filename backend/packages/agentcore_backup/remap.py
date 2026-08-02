@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from agentcore_backup.scope import Remap, Scope
@@ -103,18 +102,6 @@ def _remap_json(obj: Any, *, source: Scope, target: Scope) -> Any:
         # Opaque PK namespacing stays on known id columns (see remap_row).
         return _remap_embedded_id(obj, source.project_id, target.project_id)
     return obj
-
-
-def remap_jsonl_text(text: str, *, source: Scope, target: Scope) -> str:
-    lines: list[str] = []
-    for line in text.splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if not isinstance(row, dict):
-            raise ValueError("jsonl row must be an object")
-        lines.append(json.dumps(remap_row(row, source=source, target=target), sort_keys=True))
-    return "\n".join(lines) + ("\n" if lines else "")
 
 
 def resolve_target_scope(source: Scope, remap: Remap | None) -> Scope:

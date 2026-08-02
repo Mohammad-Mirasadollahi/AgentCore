@@ -110,8 +110,11 @@ temp/
 Thumbs.db
 .pip-show.txt
 .pip-*.txt
-.tmp-mem.txt
-.tmp-tv.txt
+# Agent/session scratch files (never commit)
+.tmp-*
+.tmp_*
+**/_tmp_*
+scripts/_tmp_*
 pytest-audit.txt
 cs_pytest.txt
 

@@ -428,13 +428,6 @@ def _ensure_mermaid(body: str, doc_type: str) -> str:
     return out
 
 
-def _primary_symbol_name(path: Path) -> str | None:
-    """Pick the first public top-level def/class name from a Python file."""
-    from agentcore_cli.docs_link_suggest import primary_symbol_name
-
-    return primary_symbol_name(path)
-
-
 def _normalize_concern(raw: str, fallback: str) -> str:
     value = (raw or "").strip()
     mapped = _CONCERN_MAP.get(value.casefold(), value)
