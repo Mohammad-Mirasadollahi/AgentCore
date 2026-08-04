@@ -115,11 +115,6 @@ def print_connect_summary(
         "Check health: agentcore status",
         "Fill the graph: agentcore sync",
     ]
-    if transport.startswith("ssh") or transport == "ssh-stdio":
-        steps.append(
-            "Hand-edit .agentcore/connect.yaml for scope/clients; "
-            "run agentcore connect edit to change SSH host/user (replaces pubkey)"
-        )
     ui.next_steps(steps)
 
     ui.blank()

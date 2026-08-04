@@ -19,10 +19,10 @@ Usage Profile id (set at connect — not during client install/upgrade):
     agentcore-client connect
     # Wizard asks for Usage Profile: enter an id or list number
 
-  Non-interactive — remote AgentCore server (SSH):
+  Non-interactive — remote AgentCore server (HTTPS):
     agentcore-client connect --usage-profile programming-cursor-mcp \\
       --tenant TENANT --workspace WORKSPACE \\
-      --ssh user@agentcore-host
+      --server https://agentcore-host
 
   Non-interactive — same-host dogfood (local stdio):
     agentcore-client connect --local --usage-profile programming-cursor-mcp \\
@@ -33,7 +33,7 @@ Usage Profile id (set at connect — not during client install/upgrade):
 
   Multi-app:
     agentcore-client connect /opt/App1,/opt/App2 --usage-profile programming-cursor-mcp \\
-      --tenant TENANT --workspace WORKSPACE --ssh user@agentcore-host
+      --tenant TENANT --workspace WORKSPACE --server https://agentcore-host
 """
 
 

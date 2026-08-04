@@ -40,8 +40,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/sync/one_root.py::embedding_refresh_mode_from_args
 - backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
 - backend/services/code-graph-service/src/code_graph_service/application/embedding_refresh.py::EmbeddingRefreshMixin.refresh_embeddings_after_ingest
-doc_version: 1.2.6
-updated_at: '2026-08-02'
+doc_version: 1.3.0
+updated_at: '2026-08-04'
 related_docs:
 - docs/09-platform-governance-operations/13-project-scoped-backup-and-restore.md
 - docs/superpowers/specs/2026-08-01-project-backup-restore-design.md
@@ -131,25 +131,7 @@ Remaining `agentcore` command catalog entries split from `docs/08-software-engin
 | **Example** | `agentcore client list-mcp-clients` |
 | **What changes** | Nothing |
 
-### `agentcore client wire-remote`
-
-| | |
-| --- | --- |
-| **Why** | On a **dev host**, write MCP configs that SSH into a remote AgentCore install and run `mcp serve` |
-| **Required** | Scope flags, `--ssh`, `--remote-root` |
-| **Optional** | `--out`, `--project-dir`, `--clients`, `--register`, `--dry-run`, … |
-| **Example** | `agentcore client wire-remote --tenant acme --workspace eng --project payments --ssh ops@agentcore --remote-root /opt/AgentCore` |
-| **What changes** | Merges MCP JSON on the client; optionally registers the project on the server |
-| **Prefer today** | `agentcore connect` when `connect.yaml` is set (higher-level) |
-
-### `agentcore client doctor-remote`
-
-| | |
-| --- | --- |
-| **Why** | Verify SSH + remote Python/venv can reach the MCP serve entrypoint |
-| **Required** | `--ssh`, `--remote-root` |
-| **Example** | `agentcore client doctor-remote --ssh ops@agentcore --remote-root /opt/AgentCore` |
-| **What changes** | Nothing (remote probe only) |
+**Removed:** `agentcore client wire-remote` / `agentcore client doctor-remote` (SSH stdio wiring) have been removed from the product (API-only HTTPS migration). Use `agentcore connect` — see [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md).
 
 ### `agentcore path install`
 

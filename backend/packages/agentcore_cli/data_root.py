@@ -2,9 +2,9 @@
 
 Module contract:
 - Role: resolve and create ``<install>-data`` (or ``AGENTCORE_DATA_ROOT``) layout;
-  stamp ``.agentcore/data-root`` for remote discovery; migrate legacy in-tree
+  stamp ``.agentcore/data-root`` for operator inspection; migrate legacy in-tree
   durable dirs once.
-- SoT / invariants: durable DB/sources/usage/cache/backup live under data root;
+- SoT / invariants: durable DB/usage/cache/backup live under data root;
   lightweight ``.agentcore`` identity/upgrade/run stays under the install tree.
 - Failures: never invent paths under Docker volume storage; mkdir/stamp/migrate
   are best-effort via ``ensure_data_root``.
@@ -14,13 +14,11 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
 DATA_SUBDIRS: tuple[str, ...] = (
     "postgres",
     "neo4j",
-    "sources",
     "backup",
     "cache",
     "mcp-usage",
@@ -37,7 +35,6 @@ LEGACY_IN_TREE_SUBDIRS: tuple[str, ...] = (
 
 ENV_DATA_ROOT = "AGENTCORE_DATA_ROOT"
 DATA_ROOT_MARKER = "data-root"
-LEGACY_STAGED_SOURCES_ROOT = "/var/lib/agentcore/sources"
 
 
 def default_data_root(install_root: Path | str) -> Path:
@@ -158,50 +155,6 @@ def ensure_data_root(
     return root
 
 
-def staged_sources_root(
-    install_root: Path | str | None = None,
-    *,
-    environ: dict[str, str] | None = None,
-) -> Path:
-    """``…/AgentCore-data/sources`` (stage/rsync target parent)."""
-    return resolve_data_root(install_root=install_root, environ=environ) / "sources"
-
-
-def staged_source_path_for_project(
-    project_name: str,
-    *,
-    install_root: Path | str | None = None,
-    environ: dict[str, str] | None = None,
-) -> str:
-    name = (project_name or "").strip().strip("/\\")
-    if not name or "/" in name or "\\" in name or name in (".", ".."):
-        raise SystemExit(
-            "error: cannot stage source without a simple project name "
-            f"(got {project_name!r})"
-        )
-    return str(staged_sources_root(install_root, environ=environ) / name)
-
-
-def is_staged_source_path(
-    path: str,
-    *,
-    install_root: Path | str | None = None,
-    environ: dict[str, str] | None = None,
-    extra_roots: list[str] | None = None,
-) -> bool:
-    text = (path or "").strip().rstrip("/\\")
-    if not text:
-        return False
-    sources = str(staged_sources_root(install_root, environ=environ)).rstrip("/")
-    legacy = LEGACY_STAGED_SOURCES_ROOT.rstrip("/")
-    roots = [sources, legacy, *(extra_roots or [])]
-    for root in roots:
-        root = str(root).rstrip("/")
-        if text == root or text.startswith(root + "/"):
-            return True
-    return False
-
-
 def postgres_data_dir(
     *,
     install_root: Path | str | None = None,
@@ -249,56 +202,3 @@ def sync_usage_dir(
 ) -> Path:
     return resolve_data_root(install_root=install_root, environ=environ) / "sync-usage"
 
-
-def discover_remote_data_root(
-    settings: object,
-    remote_root: str,
-) -> str | None:
-    """SSH-read ``.agentcore/data-root`` or ``install-state.env`` ``data_root=`` on server."""
-    import shlex
-
-    from agentcore_cli.connect_flow.ssh import ssh_command
-
-    root = (remote_root or "").strip().rstrip("/\\")
-    if not root or not getattr(settings, "ssh", ""):
-        return None
-    marker = f"{root}/.agentcore/{DATA_ROOT_MARKER}"
-    try:
-        result = subprocess.run(
-            ssh_command(
-                settings,  # type: ignore[arg-type]
-                ["bash", "-lc", f"head -n1 {shlex.quote(marker)} 2>/dev/null"],
-            ),
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        result = None
-    if result is not None and result.returncode == 0:
-        lines = [ln.strip() for ln in (result.stdout or "").splitlines() if ln.strip()]
-        if lines and lines[0].startswith("/"):
-            return lines[0].rstrip("/")
-
-    state = f"{root}/.agentcore/install-state.env"
-    snippet = (
-        f"grep -E '^data_root=' {shlex.quote(state)} 2>/dev/null "
-        "| head -n1 | cut -d= -f2-"
-    )
-    try:
-        result = subprocess.run(
-            ssh_command(settings, ["bash", "-lc", snippet]),  # type: ignore[arg-type]
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if result.returncode != 0:
-        return None
-    lines = [ln.strip() for ln in (result.stdout or "").splitlines() if ln.strip()]
-    if lines and lines[0].startswith("/"):
-        return lines[0].rstrip("/")
-    return None

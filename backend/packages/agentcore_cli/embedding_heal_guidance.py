@@ -68,7 +68,7 @@ def print_embedding_heal_guidance(
 
 
 def print_remote_sync_heal_note(*, sync_mode: str = "") -> None:
-    """Client SSH path has no local graph inventory — still guide embeddings mode."""
+    """Client remote (content-push) path has no local graph inventory — still guide embeddings mode."""
     ui.blank()
     ui.section("Embeddings (server)")
     if str(sync_mode or "").strip().lower() == "heal":

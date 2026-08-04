@@ -32,7 +32,7 @@ prompted for the remote AgentCore root (missing marker → clear error; optional
 
 **Data root:** server/both install prompts for a durable directory (Enter =
 sibling `<install>-data`, e.g. `/opt/AgentCore-data`) or accepts `--data-root` /
-`AGENTCORE_DATA_ROOT`. Postgres, Neo4j, staged sources, usage logs, and caches
+`AGENTCORE_DATA_ROOT`. Postgres, Neo4j, usage logs, and caches
 live there. Install stamps `<AGENTCORE_ROOT>/.agentcore/data-root` and persists
 `data_root=` in `install-state.env` so remote `agentcore-client sync` stages to
 the correct path. The sibling data tree is outside the checkout, so

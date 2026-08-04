@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Thin launcher: run AgentCore client wire-remote without adding agentcore to PATH."""
+"""Thin launcher: run AgentCore client connect without adding agentcore to PATH.
+
+SSH wiring (``wire-remote`` / ``doctor-remote``) has been removed from the
+product; use ``connect`` (HTTPS) instead.
+"""
 from __future__ import annotations
 
 import sys
@@ -21,11 +25,7 @@ def main() -> int:
         return agentcore_main(["connect", *sys.argv[2:]])
     if len(sys.argv) > 1 and sys.argv[1] == "list-mcp-clients":
         return agentcore_main(["client", "list-mcp-clients"])
-    if len(sys.argv) > 1 and sys.argv[1] == "wire-remote":
-        return agentcore_main(["client", *sys.argv[1:]])
-    if len(sys.argv) > 1 and sys.argv[1] == "doctor-remote":
-        return agentcore_main(["client", *sys.argv[1:]])
-    sys.stderr.write("usage: wire-remote-mcp.py wire-remote|doctor-remote ... (same flags as agentcore client)\n")
+    sys.stderr.write("usage: wire-remote-mcp.py connect|list-mcp-clients ... (same flags as agentcore)\n")
     return 2
 
 

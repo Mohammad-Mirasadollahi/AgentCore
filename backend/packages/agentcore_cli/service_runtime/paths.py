@@ -96,7 +96,7 @@ def missing_local_stack_message(root: Path) -> str:
         "Client installs skip Compose (Postgres/Neo4j) on purpose.\n"
         "  • Run `agentcore sync` on the AgentCore server, or\n"
         "  • Configure `.agentcore/connect.yaml` (`agentcore connect`) "
-        "so this CLI can sync over SSH, or\n"
+        "so this CLI can sync over HTTPS, or\n"
         "  • Re-install with local stack: bash install.sh --role server "
         "(or --role both for dogfood client+server)"
     )

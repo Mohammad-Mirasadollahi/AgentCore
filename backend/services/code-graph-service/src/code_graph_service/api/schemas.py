@@ -11,6 +11,12 @@ class IngestFileRequest(BaseModel):
     language: str | None = None
 
 
+class PurgeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    yes: bool = False
+
+
 class IngestRepoRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -20,6 +26,37 @@ class IngestRepoRequest(BaseModel):
     max_files: int = Field(default=2000, ge=1, le=20000)
     max_file_bytes: int = Field(default=1_500_000, ge=1024, le=20_000_000)
     include_outcomes: bool = True
+
+
+class IngestPushFile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    file_path: str = Field(min_length=1, max_length=1024)
+    source: str = Field(max_length=2_000_000)
+    language: str | None = Field(default=None, max_length=64)
+
+
+class IngestPushDoc(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    doc_id: str = Field(min_length=1, max_length=512)
+    relative_path: str = Field(min_length=1, max_length=1024)
+    body: str = Field(default="", max_length=2_000_000)
+    title: str | None = Field(default=None, max_length=512)
+    linked_symbol_tokens: list[str] = Field(default_factory=list, max_length=500)
+    file_path: str | None = Field(default=None, max_length=1024)
+
+
+class IngestPushRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    files: list[IngestPushFile] = Field(default_factory=list, max_length=2000)
+    present_paths: list[str] | None = Field(default=None, max_length=2000)
+    docs: list[IngestPushDoc] | None = Field(default=None, max_length=2000)
+    include_outcomes: bool = True
+    embedding_refresh_mode: str = Field(default="touched", max_length=32)
+    max_files: int = Field(default=2000, ge=1, le=20000)
+    max_file_bytes: int = Field(default=1_500_000, ge=1024, le=20_000_000)
 
 
 class RuntimeTraceCall(BaseModel):

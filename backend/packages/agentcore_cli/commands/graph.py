@@ -85,7 +85,7 @@ def _require_cloud_llm_consent(
     """Fail closed on non-private LLM routes unless flag or interactive yes.
 
     Returns True when this run is explicitly allowed (flag or interactive consent)
-    so remote SSH sync can forward ``--allow-cloud-llm``. Returns False when the
+    so remote HTTPS sync can forward ``--allow-cloud-llm``. Returns False when the
     route is disabled/private (no flag needed).
 
     When ``may_send_code_prompts`` is False (e.g. noop sync with no code ingest and

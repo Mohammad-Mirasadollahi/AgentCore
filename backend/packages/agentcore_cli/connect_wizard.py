@@ -1,4 +1,4 @@
-"""Interactive first-time / edit SSH onboarding for `agentcore connect`."""
+"""Interactive first-time / edit onboarding for `agentcore connect` (HTTPS)."""
 
 from __future__ import annotations
 
@@ -15,38 +15,16 @@ from agentcore_cli.connect_config import (
     try_resolve_config_path,
     write_or_merge_connect_yaml,
 )
-from agentcore_cli.ssh_bootstrap import bootstrap_ssh_auth, default_identity_path, probe_batch_mode
 
 
 PromptFn = Callable[[str], str]
 PasswordFn = Callable[[str], str]
 
 
-def parse_ssh_target(raw: str) -> tuple[str, str]:
-    """Split ``user@host`` into (user, host). Host-only returns empty user."""
-    text = (raw or "").strip()
-    if not text:
-        return "", ""
-    if "@" in text:
-        user, _, host = text.partition("@")
-        return user.strip(), host.strip()
-    return "", text
-
-
-def format_ssh_target(user: str, host: str) -> str:
-    user = user.strip()
-    host = host.strip()
-    if not host:
-        raise SystemExit("error: SSH host is required")
-    if user:
-        return f"{user}@{host}"
-    return host
-
-
 def _require_tty() -> None:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise SystemExit(
-            "error: interactive SSH setup needs a TTY; "
+            "error: interactive HTTPS setup needs a TTY; "
             "create .agentcore/connect.yaml (agentcore connect init) "
             "or run from a terminal: agentcore connect / agentcore connect edit"
         )
@@ -103,39 +81,41 @@ def prompt_usage_profile(
         print(f"   {ui.warn('!')} unknown profile {raw!r}; pick from the list")
 
 
-def run_ssh_connect_wizard(
+def run_https_connect_wizard(
     *,
     existing: ConnectSettings | None = None,
-    rotate: bool = False,
     config_path: Path | None = None,
     project_dir: Path | None = None,
-    ssh_override: str = "",
+    url_override: str = "",
     input_fn: PromptFn = input,
     password_fn: PasswordFn = getpass.getpass,
 ) -> ConnectSettings:
-    """Prompt for host/user/password, install pubkey, merge connect.yaml, return settings."""
+    """Prompt for HTTPS URL + bootstrap secret; merge connect.yaml, return settings.
+
+    The actual bootstrap HTTP call (mint the long-lived access token, register
+    the project) happens later in ``run_connect`` — this wizard only collects
+    the inputs and writes them to ``connect.yaml``.
+    """
     _require_tty()
     work = project_dir or Path.cwd()
     base = existing or ConnectSettings()
 
     ui.blank()
-    ui.heading("SSH connect setup" if not rotate else "SSH connect edit (replace pubkey)")
+    ui.heading("HTTPS connect setup")
     ui.blank()
-    ui.bullet("Password is used once to install an AgentCore SSH key; it is never saved.")
-    ui.bullet("Remote AgentCore root is auto-discovered from install-root markers after SSH.")
-    ui.bullet("Software source path on the server is auto-discovered over SSH (no prompt).")
+    ui.bullet("Bootstrap secret authenticates the first connect only; it is never saved.")
     ui.bullet("Usage Profile defaults to the sole shipped catalog entry when only one exists.")
-    ui.bullet("Hand-edit .agentcore/connect.yaml for scope/clients; use connect edit to change SSH identity.")
     ui.blank()
 
-    override_user, override_host = parse_ssh_target(ssh_override)
-    cur_user, cur_host = parse_ssh_target(base.ssh)
-    host_default = override_host or cur_host
-    user_default = override_user or cur_user or getpass.getuser() or "ops"
-
-    host = _prompt_line("Server host", default=host_default, input_fn=input_fn)
-    user = _prompt_line("SSH username", default=user_default, input_fn=input_fn)
-    ssh_target = format_ssh_target(user, host)
+    url = _prompt_line(
+        "AgentCore server URL (https://…)",
+        default=url_override or base.api_url,
+        input_fn=input_fn,
+    ).rstrip("/")
+    if not url:
+        raise SystemExit("error: server URL is required")
+    if url.split("://", 1)[0].lower() != "https":
+        raise SystemExit(f"error: HTTPS connect requires an https:// URL, got {url!r}")
 
     tenant = _prompt_line("Tenant", default=base.tenant or "default", input_fn=input_fn)
     workspace = _prompt_line("Workspace", default=base.workspace or "default", input_fn=input_fn)
@@ -144,131 +124,25 @@ def run_ssh_connect_wizard(
         input_fn=input_fn,
     )
     project = base.project or work.name or "project"
-
-    password = password_fn(f"SSH password for {ssh_target}: ")
-    if not password:
-        raise SystemExit("error: empty password")
-
-    identity = Path(base.ssh_identity).expanduser() if base.ssh_identity else default_identity_path()
-    print(f"   {ui.warn('…')} installing AgentCore SSH pubkey on {ssh_target}")
-    result = bootstrap_ssh_auth(
-        ssh_target,
-        password,
-        rotate=rotate,
-        identity=identity,
-    )
-    # Drop password from locals as soon as possible (best-effort).
-    password = ""
-
-    print(f"   {ui.warn('…')} discovering AgentCore remote root (install-root marker)")
-    from agentcore_cli.install_root_marker import discover_remote_install_root
-
-    discovered = discover_remote_install_root(
-        ssh_target,
-        identity_file=result.private_path,
-    )
-    if discovered is not None:
-        remote_root = str(discovered)
-        print(f"   {ui.ok('✔')} remote root {remote_root}")
-    else:
-        raise SystemExit(
-            "error: could not discover AgentCore remote root (no install-root marker).\n"
-            "  On the server: finish install so markers are stamped "
-            "(.agentcore/install-root), then retry connect.\n"
-            "  Or set server.remote_root in .agentcore/connect.yaml and re-run "
-            "after markers exist (connect does not prompt for this path)."
-        )
+    secret = password_fn(f"Bootstrap secret for {url} (blank if none configured): ")
 
     settings = replace(
         base,
-        ssh=ssh_target,
-        remote_root=remote_root.rstrip("/\\") or "/opt/AgentCore",
-        ssh_identity=str(result.private_path),
+        api_url=url,
         tenant=tenant,
         workspace=workspace,
         project=project,
         project_name=base.project_name or project,
         usage_profile=usage_profile,
-        prefer_http=False,
+        prefer_http=True,
         local=False,
-        register=bool(base.register),
+        register=True,
+        bootstrap_secret=secret,
     )
+    secret = ""
 
     target = config_path or try_resolve_config_path() or default_connect_yaml_path()
-    written = write_or_merge_connect_yaml(settings, path=target, prefer_http=False)
+    written = write_or_merge_connect_yaml(settings, path=target, prefer_http=True)
     print(f"   {ui.ok('✔')} wrote {written}")
-    print(f"   {ui.ok('✔')} SSH key {result.private_path} (BatchMode ready)")
+    print(f"   {ui.ok('✔')} HTTPS target {settings.api_url}")
     return settings
-
-
-def ensure_ssh_ready(
-    settings: ConnectSettings,
-    *,
-    force_edit: bool = False,
-    allow_wizard: bool = True,
-    config_path: Path | None = None,
-    project_dir: Path | None = None,
-    ssh_override: str = "",
-) -> ConnectSettings:
-    """Run wizard when forced, missing SSH, or BatchMode probe fails (TTY only)."""
-    if settings.local:
-        return settings
-
-    http_ready = bool(settings.prefer_http and settings.mcp_http_url and settings.api_token)
-    if force_edit:
-        if not allow_wizard:
-            raise SystemExit("error: connect edit requires an interactive TTY")
-        return run_ssh_connect_wizard(
-            existing=settings,
-            rotate=True,
-            config_path=config_path,
-            project_dir=project_dir,
-            ssh_override=ssh_override or settings.ssh,
-        )
-
-    # Prefer HTTP when fully ready; skip SSH wizard unless SSH is the only path.
-    if http_ready and not settings.ssh:
-        return settings
-
-    if not settings.ssh:
-        if not allow_wizard:
-            raise SystemExit(
-                "error: no server.ssh in connect config; run `agentcore connect` in a TTY "
-                "or set server.ssh / auth.ssh_key in .agentcore/connect.yaml"
-            )
-        return run_ssh_connect_wizard(
-            existing=settings,
-            rotate=False,
-            config_path=config_path,
-            project_dir=project_dir,
-            ssh_override=ssh_override,
-        )
-
-    if http_ready:
-        return settings
-
-    identity = Path(settings.ssh_identity).expanduser() if settings.ssh_identity else default_identity_path()
-    if probe_batch_mode(settings.ssh, identity):
-        if not settings.ssh_identity:
-            return replace(settings, ssh_identity=str(identity))
-        return settings
-
-    if not allow_wizard or not sys.stdin.isatty():
-        raise SystemExit(
-            f"error: SSH key login failed for {settings.ssh} (BatchMode). "
-            "Hand-editing server.ssh / auth.ssh_key requires a working key. "
-            "Run `agentcore connect edit` to re-auth and replace the AgentCore pubkey."
-        )
-
-    print(
-        f"   {ui.warn('!')} SSH BatchMode failed for {settings.ssh}; "
-        "starting interactive key setup",
-        file=sys.stderr,
-    )
-    return run_ssh_connect_wizard(
-        existing=settings,
-        rotate=True,
-        config_path=config_path,
-        project_dir=project_dir,
-        ssh_override=ssh_override or settings.ssh,
-    )

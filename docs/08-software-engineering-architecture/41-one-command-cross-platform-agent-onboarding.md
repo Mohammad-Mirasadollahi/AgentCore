@@ -6,9 +6,12 @@ status: active
 schema_version: '1.0'
 owner: platform-product
 summary: Operator guide and specification for connecting any MCP-capable coding agent to a
-  remote AgentCore server with one command. Covers interactive SSH key bootstrap, SSH stdio
-  and Streamable HTTP transports, shared config (including auto-discovered or auto-staged
-  source.server_path for connect and client sync), authentication, concurrency, and security.
+  remote AgentCore server with one command over HTTPS (long-lived scoped access token with
+  SHA-256 digest at rest, Argon2id bootstrap secret, auto-TLS). Covers the HTTPS connect
+  wizard, Streamable HTTP MCP transport, same-host local stdio dogfood, shared config
+  (client content-push sync; optional source.server_path for existing on-server trees),
+  authentication, concurrency, and security. SSH has been removed from the AgentCore
+  product (see doc 40, historical).
 tags:
 - mcp
 - onboarding
@@ -17,7 +20,7 @@ tags:
 - coding-agent
 - specification
 - runbook
-- ssh
+- https
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 lifecycle_lane: current
@@ -32,17 +35,16 @@ related_docs:
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.3.5
+- docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
+doc_version: 2.1.0
 updated_at: '2026-08-04'
 linked_symbols:
-- backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
+- backend/packages/agentcore_cli/connect_wizard.py::run_https_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
-- backend/packages/agentcore_cli/ssh_bootstrap.py::bootstrap_ssh_auth
 - backend/packages/agentcore_cli/connect_flow/run.py::run_connect
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
-- backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_client/main.py::main
-- backend/packages/agentcore_cli/connect_flow/source_path.py::ensure_remote_source_path
+- backend/packages/agentcore_cli/connect_flow/source_path.py::source_path_for_connect
 - backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
 ---
 
@@ -56,9 +58,9 @@ Connect any **MCP-capable coding agent** (Cursor, Windsurf, VS Code, Claude Code
 agentcore connect
 ```
 
-This document is the **operator guide** (examples included) and the **normative specification** for what is shipped.
+This document is the **operator guide** (examples included) and the **normative specification** for what is shipped. HTTPS is the **only** remote transport — SSH has been removed from the AgentCore product (API-only HTTPS migration).
 
-Companion detail for SSH-only wiring: [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).  
+Historical SSH wiring (removed): [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).  
 CLI reference: [36-agentcore-cli.md](./36-agentcore-cli.md).  
 Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).
 
@@ -66,11 +68,11 @@ Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).
 
 ```text
 ┌──────────────────────────────┐         network          ┌──────────────────────────────┐
-│ Dev host                     │ ◄──── SSH and/or HTTP ──► │ AgentCore server             │
+│ Dev host                     │ ◄──────── HTTPS ────────► │ AgentCore server             │
 │ - Application repository     │                           │ - bash install.sh            │
 │ - Coding agent / IDE         │                           │ - Postgres + Neo4j (Compose) │
-│ - agentcore on PATH          │                           │ - MCP stdio and/or HTTP      │
-│ - .agentcore/connect.yaml    │                           │ - optional profile API       │
+│ - agentcore on PATH          │                           │ - MCP HTTP (Streamable)      │
+│ - .agentcore/connect.yaml    │                           │ - profile / graph API        │
 └──────────────────────────────┘                           └──────────────────────────────┘
 ```
 
@@ -94,24 +96,24 @@ agentcore status
 agentcore sync
 ```
 
-This registers a local project, writes workspace MCP configs (stdio gateway on this checkout), and skips SSH/HTTP. Check state with `agentcore status`. Graph sync is off by default for `--local`; run `agentcore sync` when you want the code graph filled (requires a sync filter file; auto full vs incremental; scope/path defaults apply). Use `agentcore purge --yes` only to wipe corrupt graph data.
+This registers a local project, writes workspace MCP configs (stdio gateway on this checkout), and skips HTTPS entirely. Check state with `agentcore status`. Graph sync is off by default for `--local`; run `agentcore sync` when you want the code graph filled (requires a sync filter file; auto full vs incremental; scope/path defaults apply). Use `agentcore purge --yes` only to wipe corrupt graph data.
 
 Command details (required flags, sync filters, what each run changes) → [42 - AgentCore CLI Command Reference](./42-agentcore-cli-command-reference.md) ([§ Sync filters](./42-agentcore-cli-command-reference.md#sync-filters)).
 
 Equivalent YAML: `server.local: true` and `connect.prefer_http: false` in `<checkout>/.agentcore/connect.yaml`.
 
-## Two transports (both shipped)
+## Two modes (both shipped)
 
-Both modes speak the **same MCP tools** and the **same project scope**. Only **how the IDE reaches the gateway** and **how you authenticate** change.
+Both modes speak the **same MCP tools** and the **same project scope**. Only **how the IDE reaches the gateway** changes.
 
-| | **SSH stdio (Phase A)** | **HTTP MCP (Phase B)** |
+| | **Local stdio (same-host dogfood)** | **Streamable HTTP (remote, HTTPS)** |
 | --- | --- | --- |
-| IDE config shape | `command: ssh` + `args` | `url` + `headers` |
-| Auth | SSH **public key** (BatchMode) | Bearer token (scoped HMAC or shared) |
-| Encryption | SSH tunnel | TLS only if you put a reverse proxy in front (plain HTTP is for private LAN labs) |
-| Server process | Spawned per IDE session via SSH | Long-running `agentcore mcp serve-http` |
-| Best when | Private LAN, OpenSSH available, strongest default security without TLS | Many clients want URL-only config; you terminate TLS at the edge |
-| Fail closed | Needs working key login | Needs `serve-http` up + valid token |
+| IDE config shape | `command` + `args` (stdio, this checkout) | `url` + `headers` |
+| Auth | None (same-host process) | Bearer access token (long-lived scoped; re-bootstrap on expiry) |
+| Encryption | N/A (local process) | HTTPS (TLS; auto-generated CA for private deployments) |
+| Server process | Spawned per IDE session on this checkout | Long-running `agentcore mcp serve-http` |
+| Best when | Developing/dogfooding the AgentCore checkout itself | Any remote AgentCore server |
+| Fail closed | N/A | Needs `serve-http` up + valid `server.mcp_http_url` + token |
 
 Shared for both modes:
 
@@ -123,8 +125,8 @@ Shared for both modes:
 
 Selection rule inside `agentcore connect`:
 
-1. If `prefer_http: true` (default) **and** HTTP URL + auth headers/token are available → write **HTTP** MCP configs.
-2. Else if SSH BatchMode works (or the interactive wizard just installed a key) → write **SSH** MCP configs.
+1. If `--local` (or `server.local: true`) → local stdio MCP on this checkout; no network transport.
+2. Else if HTTP URL + auth headers/token are available → write **Streamable HTTP** MCP configs.
 3. Else fail closed with a message to run `agentcore connect edit` (or fix `connect.yaml`).
 
 ## One-time setup checklist
@@ -152,7 +154,7 @@ agentcore-client connect
 
 On **client-only** hosts, use **`agentcore-client`** (there is no bare `agentcore` on PATH). Help lists only connect / profile / process commands. Use `agentcore-client sync`, `agentcore-client status`, and `agentcore-client purge --yes` for **your** connected scope on the server (scope locked to `connect.yaml`). Server-admin commands stay on the AgentCore server (or a `both` install under bare `agentcore`).
 
-On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive SSH wizard**: host, username, password (once), remote root discovery, **tenant / workspace / Usage Profile**, then project register. It generates `<checkout>/.agentcore/ssh/id_ed25519_agentcore`, installs the pubkey on the server, writes `connect.yaml` (mode `600`), and wires MCP. Password is never stored. Legacy `~/.agentcore/connect.yaml` and `~/.ssh/id_ed25519_agentcore` are still read if present.
+On a TTY with no `<checkout>/.agentcore/connect.yaml`, `agentcore connect` runs the **interactive HTTPS wizard**: server URL, tenant / workspace, **Usage Profile**, and a one-time bootstrap secret. It writes `connect.yaml` (mode `600`), mints a long-lived scoped access token via the bootstrap call (server stores only the SHA-256 digest), and wires MCP. The bootstrap secret is never stored on the client. Legacy `~/.agentcore/connect.yaml` is still read if present.
 
 **Missing scope on first connect:** if tenant, workspace, Usage Profile (and related connect fields) are not already present, the wizard **must** collect them before wiring MCP — see [First connect when scope is missing](./41-one-command-cross-platform-agent-onboarding-continued.md#first-connect-when-scope-is-missing) in the continued document. Usage Profile is **selected** from the installed catalog (not authored during client install). Project id defaults to the current directory name.
 
@@ -160,132 +162,30 @@ Advanced template only: `agentcore connect init` then hand-edit YAML.
 
 Reload MCP / the IDE window after connect succeeds.
 
----
-
-## Example 1 — SSH mode (recommended for private LAN)
-
-Use this when the coding agent runs on a machine that can reach the AgentCore host over SSH.
-
-### Server: nothing extra for MCP HTTP
-
-SSH mode only needs a completed `install.sh` and a login that can run:
-
-```text
-/opt/AgentCore/.venv/bin/python -m agentcore_cli.remote_mcp_serve <tenant> <workspace> <project>
-```
-
-(that is what `agentcore connect` puts into MCP `ssh` args).
-
-### Dev host: interactive key bootstrap (default)
-
-```bash
-cd /opt/MyApp
-agentcore connect
-## prompts: host, username, tenant, workspace, Usage Profile, password
-## (remote root auto-discovered; project id = directory name)
-```
-
-`connect` uses **this directory** as the project (MCP under the checkout; path pinned for later `sync`).
-
-Several apps in one command (comma-separated):
-
-```bash
-agentcore connect /opt/App1,/opt/App2,/opt/App3
-```
-
-Prefer a dedicated OS user (for example `ops`). The password is used **once** to install the AgentCore pubkey. After that, IDE MCP spawn uses **BatchMode + key only** — passwords do not work for IDE MCP spawn.
-
-Re-enter host/user (and replace the pubkey):
+Re-run the wizard (new server URL, rotate the bootstrap secret, or scope changed):
 
 ```bash
 agentcore connect edit
 ```
 
-`edit` always rotates `<checkout>/.agentcore/ssh/id_ed25519_agentcore` (or the configured `auth.ssh_key`), installs the new pubkey, and best-effort removes the old pubkey line from remote `authorized_keys`.
-
-Manual key install remains possible (`ssh-keygen` + `ssh-copy-id`) but is not required.
-
-### Dev host: `<checkout>/.agentcore/connect.yaml`
-
-The wizard writes this file. Hand-edit **scope / clients / remote_root / ingest** freely; re-run `agentcore connect` to apply. If you change `server.ssh` or `auth.ssh_key` and BatchMode breaks, run `agentcore connect edit` — do not put OS passwords in YAML.
-
-```yaml
-server:
-  ssh: ops@agentcore.example.internal
-  remote_root: /opt/AgentCore
-
-auth:
-  ssh_key: .agentcore/ssh/id_ed25519_agentcore
-
-scope:
-  tenant: acme
-  workspace: eng
-  # project: defaults to current directory name (e.g. MyApp)
-
-usage_profile: programming-cursor-mcp
-clients: all
-
-source:
-  # Path visible ON THE AGENTCORE SERVER (NFS, clone, or sync) — not required to be the laptop path
-  server_path: /srv/repos/MyApp
-
-connect:
-  register: true
-  smoke_test: true
-  prefer_http: false    # force SSH even if HTTP fields exist
-  ingest: optional
-```
-
-### Dev host: run connect
-
-```bash
-cd /opt/MyApp
-agentcore connect
-```
-
-Expected: merges `AgentCore-Programming` into project MCP files (for example `.cursor/mcp.json`, `.vscode/mcp.json`, …), prints `transport: ssh-stdio`, optional ingest.
-
-What lands in MCP config (shape):
-
-```json
-{
-  "mcpServers": {
-    "AgentCore-Programming": {
-      "command": "ssh",
-      "args": [
-        "-o", "BatchMode=yes",
-        "-o", "ConnectTimeout=15",
-        "ops@agentcore.example.internal",
-        "/opt/AgentCore/.venv/bin/python",
-        "-m",
-        "agentcore_cli.remote_mcp_serve",
-        "acme",
-        "eng",
-        "MyApp"
-      ]
-    }
-  }
-}
-```
-
 ---
 
-## Example 2 — HTTP mode (URL + token)
+## Example 1 — HTTPS mode (remote AgentCore server)
 
-Use this when you want IDE config without SSH spawn. On private LAN without TLS, treat this as a **lab** setup and firewall the MCP port.
+Use this whenever the coding agent connects to an AgentCore server over the network.
 
 ### Server: start HTTP MCP
 
 ```bash
 export AGENTCORE_MCP_TOKEN_SECRET='replace-with-a-long-random-secret'
-export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
+export AGENTCORE_MCP_HTTP_PUBLIC_URL='https://agentcore.example.internal:32500'
 ## When Compose Postgres is up:
 ## export AGENTCORE_MCP_STORE_MODE=postgres
 ## export AGENTCORE_DATABASE_URL=...
 agentcore mcp serve-http --host 0.0.0.0 --port 32500
 ```
 
-Keep this process running (systemd/supervisor in real deployments).
+Keep this process running (systemd/supervisor in real deployments). Put a TLS-terminating reverse proxy (or the auto-generated CA) in front — plain `http://` is rejected unless `AGENTCORE_ALLOW_INSECURE_HTTP=1` is set for an explicit lab/loopback override.
 
 Optional: run project-profile HTTP API for bootstrap (`server.url` in connect.yaml). Port profile default for project-profile is `AGENTCORE_PROJECT_PROFILE_PORT` (`32194`).
 
@@ -293,8 +193,8 @@ Optional: run project-profile HTTP API for bootstrap (`server.url` in connect.ya
 
 ```yaml
 server:
-  url: http://agentcore.example.internal:32194
-  mcp_http_url: http://agentcore.example.internal:32500
+  url: https://agentcore.example.internal:32194
+  mcp_http_url: https://agentcore.example.internal:32500
 
 auth:
   # Optional API token for bootstrap if your profile API requires it:
@@ -323,7 +223,7 @@ Export API token if needed:
 export AGENTCORE_TOKEN='...'
 ```
 
-The MCP bearer token is **minted by bootstrap** (scoped `ac1.…` HMAC) when `AGENTCORE_MCP_TOKEN_SECRET` is set on the server, and written into IDE `headers` — not as a database password.
+The MCP bearer token is **minted by bootstrap** (single long-lived scoped access token; no refresh token) when the profile API is set, and written into IDE `headers` — not as a database password. On the server, only the token's SHA-256 digest is persisted (`project_profile.access_tokens`). When the token expires or is revoked, re-run `agentcore connect` / `agentcore connect edit`.
 
 ### Dev host: run connect
 
@@ -332,7 +232,7 @@ cd /opt/MyApp
 agentcore connect
 ```
 
-Expected: prints `transport: streamable_http (http://agentcore.example.internal:32500/mcp)`.
+Expected: prints `transport: streamable_http (https://agentcore.example.internal:32500/mcp)`.
 
 What lands in MCP config (shape):
 
@@ -340,7 +240,7 @@ What lands in MCP config (shape):
 {
   "mcpServers": {
     "AgentCore-Programming": {
-      "url": "http://agentcore.example.internal:32500/mcp",
+      "url": "https://agentcore.example.internal:32500/mcp",
       "headers": {
         "Authorization": "Bearer ac1....",
         "X-Tenant-Id": "acme",
@@ -357,55 +257,26 @@ Do **not** commit files that contain live bearer tokens. Prefer gitignoring gene
 
 ---
 
-## Example 3 — Both configured (HTTP preferred, SSH fallback)
-
-```yaml
-server:
-  url: http://agentcore.example.internal:32194
-  mcp_http_url: http://agentcore.example.internal:32500
-  ssh: ops@agentcore.example.internal
-  remote_root: /opt/AgentCore
-
-auth:
-  token_env: AGENTCORE_TOKEN
-  ssh_key: .agentcore/ssh/id_ed25519_agentcore
-
-scope:
-  tenant: acme
-  workspace: eng
-
-connect:
-  prefer_http: true
-```
-
-- If HTTP MCP is healthy and bootstrap returns headers → **HTTP**.
-- If HTTP is down / incomplete → **SSH** (when `ssh` is set).
-- Force SSH anytime with `prefer_http: false`.
-
----
-
 ## Shared config reference (`<checkout>/.agentcore/connect.yaml`)
 
 | Key | Required | Meaning |
 | --- | --- | --- |
-| `server.ssh` | For SSH mode | `user@host` of AgentCore server |
-| `server.remote_root` | For SSH mode | AgentCore install path (default `/opt/AgentCore`) |
+| `server.remote_root` | Optional | AgentCore install path (informational; default `/opt/AgentCore`) |
 | `server.url` | Optional | project-profile API base for bootstrap / ingest |
-| `server.mcp_http_url` | For HTTP mode | Public base of MCP HTTP (port `32500` by default) |
-| `auth.ssh_key` | Recommended for SSH | Path to private key |
+| `server.mcp_http_url` | For remote mode | Public base of MCP HTTP (port `32500` by default); must be `https://` |
 | `auth.token_env` | Optional | Env var name holding API bearer for bootstrap |
 | `scope.tenant` / `workspace` | Yes | Platform scope |
 | `scope.project` | Optional | Defaults to **cwd directory name** |
 | `usage_profile` | Optional | Default `programming-cursor-mcp` |
 | `clients` | Optional | `all` or comma list (`cursor,vscode,…`) |
-| `source.server_path` | Auto-discovered or auto-staged when missing | Path **on AgentCore server** for ingest/sync. Connect and `agentcore-client sync` share one SSH resolver (`connect_flow.source_path`); probes first, else rsync-stages to `<install>-data/sources/<project>` and persists. Never invent AgentCore install pins. Details: [41-continued invariant](./41-one-command-cross-platform-agent-onboarding-continued.md) |
+| `source.server_path` | Optional (NFS/clone / explicit `--path`) | On-server tree when set. Default `agentcore-client sync` uses **content-push** (`ingest-push`) and does not require this. Details: [41-continued](./41-one-command-cross-platform-agent-onboarding-continued.md) |
 | `source.git` | Optional | `{ remote, branch }` registration |
 | `connect.prefer_http` | Optional | Default `true` |
 | `connect.register` | Optional | Default `true` |
 | `connect.smoke_test` | Optional | Default `true` |
 | `connect.ingest` | Optional | `off` \| `optional` \| `always` |
 
-Environment overrides (examples): `AGENTCORE_CONNECT_SSH`, `AGENTCORE_CONNECT_URL`, `AGENTCORE_CONNECT_MCP_HTTP_URL`, `AGENTCORE_CONNECT_TENANT`, `AGENTCORE_CONNECT_PROJECT`.
+Environment overrides (examples): `AGENTCORE_CONNECT_URL`, `AGENTCORE_CONNECT_MCP_HTTP_URL`, `AGENTCORE_CONNECT_TENANT`, `AGENTCORE_CONNECT_PROJECT`, `AGENTCORE_CONNECT_LOCAL`.
 
 CLI:
 
@@ -419,4 +290,8 @@ agentcore client list-mcp-clients
 
 ## Related Documents
 
-- Continued in `docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding-continued.md`
+- Continued: [41-one-command-cross-platform-agent-onboarding-continued.md](./41-one-command-cross-platform-agent-onboarding-continued.md)
+- Normative HTTPS/auth: [2026-08-04-api-only-https-no-ssh-design.md](../superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md)
+- Historical SSH wiring: [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md)
+- CLI: [36-agentcore-cli.md](./36-agentcore-cli.md)
+- Install: [39-local-install-runbook.md](./39-local-install-runbook.md)

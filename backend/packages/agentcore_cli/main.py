@@ -7,11 +7,7 @@ from agentcore_cli.util import ensure_service_import_paths, repo_root
 ensure_service_import_paths()
 
 from agentcore_cli.commands.connect import cmd_connect
-from agentcore_cli.commands.client import (
-    cmd_client_doctor_remote,
-    cmd_client_list_mcp_clients,
-    cmd_client_wire_remote,
-)
+from agentcore_cli.commands.client import cmd_client_list_mcp_clients
 from agentcore_cli.commands.cursor import cmd_cursor_export
 from agentcore_cli.commands.doctor import cmd_doctor, cmd_version
 from agentcore_cli.commands.init_cmd import cmd_init
@@ -26,6 +22,7 @@ from agentcore_cli.commands.stats import cmd_stats
 from agentcore_cli.commands.destroy_cmd import cmd_destroy_profile
 from agentcore_cli.commands.list_profiles import cmd_list_profiles
 from agentcore_cli.commands.sync import cmd_purge, cmd_sync
+from agentcore_cli.commands.ingest_push import cmd_file_hashes, cmd_ingest_push
 from agentcore_cli.commands.llm_cmd import cmd_llm_sessions, cmd_llm_test
 from agentcore_cli.commands.context_cmd import cmd_context_measure, cmd_context_stats
 from agentcore_cli.commands.pack_cmd import cmd_pack_review
@@ -174,6 +171,10 @@ def _dispatch(argv: list[str] | None = None) -> int:
         return cmd_connect(args)
     if args.command == "sync":
         return cmd_sync(args)
+    if args.command == "ingest-push":
+        return cmd_ingest_push(args)
+    if args.command == "file-hashes":
+        return cmd_file_hashes(args)
     if args.command == "llm":
         if args.llm_command == "sessions":
             return cmd_llm_sessions(args)
@@ -220,10 +221,6 @@ def _dispatch(argv: list[str] | None = None) -> int:
     if args.command == "client":
         if args.client_command == "list-mcp-clients":
             return cmd_client_list_mcp_clients(args)
-        if args.client_command == "wire-remote":
-            return cmd_client_wire_remote(args)
-        if args.client_command == "doctor-remote":
-            return cmd_client_doctor_remote(args)
     if args.command == "mcp":
         if args.mcp_command == "tools":
             return cmd_mcp_tools(args)

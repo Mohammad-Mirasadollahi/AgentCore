@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from agentcore_cli.commands.client import (
-    cmd_client_doctor_remote,
-    cmd_client_list_mcp_clients,
-    cmd_client_wire_remote,
-)
+from agentcore_cli.commands.client import cmd_client_list_mcp_clients
 from agentcore_cli.commands.connect import cmd_connect
 from agentcore_cli.commands.doctor import cmd_doctor, cmd_version
 from agentcore_cli.commands.path_cmd import cmd_path_install
@@ -59,10 +55,6 @@ def dispatch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.command == "client":
         if args.client_command == "list-mcp-clients":
             return cmd_client_list_mcp_clients(args)
-        if args.client_command == "wire-remote":
-            return cmd_client_wire_remote(args)
-        if args.client_command == "doctor-remote":
-            return cmd_client_doctor_remote(args)
     if args.command == "path":
         if args.path_command == "install":
             return cmd_path_install(args)

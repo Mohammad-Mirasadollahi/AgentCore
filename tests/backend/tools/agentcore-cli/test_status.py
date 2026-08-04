@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from argparse import Namespace
 from pathlib import Path
+from types import ModuleType
 
 from agentcore_cli.commands.status import _overall, build_status_report, cmd_status
 from agentcore_cli.connect_config import ConnectSettings
@@ -60,11 +62,13 @@ def test_overall_empty_vs_ready():
     )
 
 
-def test_cmd_status_proxies_to_server_on_client_install(monkeypatch, tmp_path: Path):
+def test_cmd_status_proxies_to_server_over_https_on_client_install(monkeypatch, tmp_path: Path):
+    """server.url set → status proxies over HTTPS on a client install (no local stack)."""
     cfg = tmp_path / "connect.yaml"
-    cfg.write_text("server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n", encoding="utf-8")
-    seen: list[list[str]] = []
-
+    cfg.write_text(
+        "server:\n  url: https://agentcore.example:9443\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(
         "agentcore_cli.service_runtime.paths.local_compose_stack_present",
         lambda _root: False,
@@ -75,16 +79,38 @@ def test_cmd_status_proxies_to_server_on_client_install(monkeypatch, tmp_path: P
     )
     monkeypatch.setattr(
         "agentcore_cli.connect_config.load_connect_settings",
-        lambda **_k: ConnectSettings(ssh="alice@srv", remote_root="/opt/AgentCore", project="demo"),
+        lambda **_k: ConnectSettings(
+            api_url="https://agentcore.example:9443",
+            api_token="tokentokentoken12",
+            project="demo",
+        ),
     )
-    monkeypatch.setattr(
-        "agentcore_cli.connect_flow.ssh.run_ssh",
-        lambda settings, remote_command, *, connect_timeout=15: seen.append(list(remote_command)) or 0,
-    )
-    assert cmd_status(Namespace(tenant="", workspace="", project="", json=False, verbose=False)) == 0
-    assert seen
-    assert seen[0][0].endswith("/agentcore")
-    assert seen[0][1] == "status"
+
+    fake_httpx = ModuleType("httpx")
+    fake_httpx.HTTPError = Exception
+    calls: list[str] = []
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "scope": {"tenant_id": "t", "workspace_id": "w", "project_id": "demo"},
+                "usage_profile": "programming-cursor-mcp",
+                "code_source": {"server_path": "/srv/repos/demo"},
+                "ingest": {"status": "registered"},
+            }
+
+    def get(url, headers=None, timeout=None):
+        calls.append(url)
+        return _Resp()
+
+    fake_httpx.get = get
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+
+    assert cmd_status(Namespace(tenant="", workspace="", project="", json=True, verbose=False)) == 0
+    assert calls == ["https://agentcore.example:9443/api/v1/projects/demo/connect/status"]
 
 
 def test_build_status_report_smoke(monkeypatch, tmp_path: Path):

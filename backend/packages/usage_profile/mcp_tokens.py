@@ -9,6 +9,7 @@ import json
 import os
 import time
 from typing import Any
+from uuid import uuid4
 
 
 def extract_bearer(authorization: str | None) -> str:
@@ -43,17 +44,25 @@ def mint_connect_token(
     project_id: str,
     ttl_seconds: int = 86400 * 30,
     secret: str | None = None,
+    iat: int | None = None,
+    nonce: str | None = None,
 ) -> str:
     """Issue a scoped HMAC token (ac1.<payload>.<sig>)."""
     key = (secret if secret is not None else token_secret()).encode("utf-8")
     if not key:
         raise ValueError("AGENTCORE_MCP_TOKEN_SECRET or AGENTCORE_MCP_HTTP_TOKEN is required to mint tokens")
-    payload = {
+    now = int(time.time())
+    payload: dict[str, Any] = {
         "tenant_id": tenant_id,
         "workspace_id": workspace_id,
         "project_id": project_id,
-        "exp": int(time.time()) + int(ttl_seconds),
+        "exp": now + int(ttl_seconds),
+        "jti": uuid4().hex,
     }
+    if iat is not None:
+        payload["iat"] = int(iat)
+    if nonce is not None:
+        payload["nonce"] = nonce
     body = _b64url_encode(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"))
     sig = _b64url_encode(hmac.new(key, body.encode("ascii"), hashlib.sha256).digest())
     return f"ac1.{body}.{sig}"
@@ -102,7 +111,11 @@ def verify_connect_token(
             raise ValueError("workspace header does not match token")
         if project_id and project_id != claim_p:
             raise ValueError("project header does not match token")
-        return {"tenant_id": claim_t, "workspace_id": claim_w, "project_id": claim_p}
+        claims = {"tenant_id": claim_t, "workspace_id": claim_w, "project_id": claim_p}
+        jti = str(payload.get("jti") or "").strip()
+        if jti:
+            claims["jti"] = jti
+        return claims
 
     if static and hmac.compare_digest(token, static):
         t = (tenant_id or "").strip()

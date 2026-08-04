@@ -7,24 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from agentcore_cli.connect_config import ConnectSettings
-from agentcore_cli.connect_security import (
-    atomic_write_text,
-    reject_secrets_in_connect_doc,
-    validate_connect_settings,
-)
+from agentcore_cli.connect_security import atomic_write_text, reject_secrets_in_connect_doc
 from agentcore_cli.mcp_client_targets import merge_mcp_servers_file
 
 
 def test_reject_password_in_connect_doc():
     with pytest.raises(SystemExit):
         reject_secrets_in_connect_doc({"auth": {"password": "secret"}}, Path("/tmp/x.yaml"))
-
-
-def test_validate_warns_on_root_ssh():
-    settings = ConnectSettings(ssh="root@host", project="p")
-    warnings = validate_connect_settings(settings)
-    assert any("root" in w for w in warnings)
 
 
 def test_atomic_merge_preserves_other_servers(tmp_path: Path):

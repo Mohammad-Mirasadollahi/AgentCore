@@ -1,11 +1,101 @@
+import os
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, Request
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+
+from agentcore_auth import (
+    InMemoryAccessTokenRegistry,
+    PostgresAccessTokenRegistry,
+    hash_secret,
+    mint_and_register_access_token,
+    verify_secret,
+)
+from agentcore_auth.token_registry import AccessTokenRegistry
+from agentcore_auth.tokens import DEFAULT_ACCESS_TTL_SECONDS
 
 from .bootstrap import ServiceContainer, build_container
 from .core import ProjectProfileError, ProjectProfileService, Scope
+from .http_auth import ConnectBearerAuth
+from .rate_limit import InProcessRateLimiter
+
+BOOTSTRAP_SECRET_ENV = "AGENTCORE_CONNECT_BOOTSTRAP_SECRET"
+BOOTSTRAP_RATE_LIMIT_PER_MINUTE = 10
+
+
+def _require_bootstrap_secret(secret_hash: str | None, body: dict[str, Any]) -> None:
+    """No-op when no operator secret is configured (dev/lab default)."""
+    if secret_hash is None:
+        return
+    provided = str(body.get("bootstrap_secret") or "")
+    if not provided or not verify_secret(provided, secret_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="bootstrap_secret is required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def _client_ip(request: Request) -> str:
+    if request.client is None:
+        return "unknown"
+    return request.client.host or "unknown"
+
+
+def _enforce_rate_limit(request: Request, limiter_attr: str) -> None:
+    limiter = getattr(request.app.state, limiter_attr)
+    if not limiter.allow(_client_ip(request)):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="rate limit exceeded",
+        )
+
+
+def _read_ca_pem() -> str:
+    data_root = os.environ.get("AGENTCORE_DATA_ROOT", "").strip()
+    if not data_root:
+        return ""
+    try:
+        return (Path(data_root) / "certs" / "ca.pem").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _attach_auth_material(
+    result: dict[str, Any], scope: Scope, registry: AccessTokenRegistry
+) -> dict[str, Any]:
+    """Mint a long-lived scoped access token for the bootstrapped scope, best-effort.
+
+    Minting requires ``AGENTCORE_MCP_TOKEN_SECRET`` (or ``AGENTCORE_MCP_HTTP_TOKEN``);
+    when unset, the token is empty so bootstrap still succeeds (matches existing
+    graceful degradation for the ``mcp`` block's connect token). No refresh token
+    is issued — clients re-run bootstrap/connect once the access token expires.
+    The token's SHA-256 hash (never the plaintext) is registered at rest so it
+    can be checked for liveness/revocation on every subsequent request.
+    """
+    try:
+        result["access_token"] = mint_and_register_access_token(
+            registry,
+            tenant_id=scope.tenant_id,
+            workspace_id=scope.workspace_id,
+            project_id=scope.project_id,
+        )
+        result["expires_in"] = DEFAULT_ACCESS_TTL_SECONDS
+    except ValueError:
+        result["access_token"] = ""
+        result["expires_in"] = 0
+    result["ca_pem"] = _read_ca_pem()
+    return result
+
+
+def _build_token_registry(container: ServiceContainer) -> AccessTokenRegistry:
+    """Postgres when a DSN is available (container settings or env); else in-memory (unit tests)."""
+    database_url = (container.settings.database_url if container.settings else "") or os.environ.get(
+        "AGENTCORE_PROJECT_PROFILE_DATABASE_URL", ""
+    ).strip()
+    return PostgresAccessTokenRegistry(database_url) if database_url else InMemoryAccessTokenRegistry()
 
 
 def build_app(
@@ -24,6 +114,12 @@ def build_app(
     service = container.service
     api = FastAPI(title="AgentCore Project Profile API", version="1.0.0")
     api.state.container = container
+    api.state.bootstrap_rate_limiter = InProcessRateLimiter(
+        max_events=BOOTSTRAP_RATE_LIMIT_PER_MINUTE,
+    )
+    api.state.token_registry = _build_token_registry(container)
+    bootstrap_secret = os.environ.get(BOOTSTRAP_SECRET_ENV, "").strip()
+    api.state.bootstrap_secret_hash = hash_secret(bootstrap_secret) if bootstrap_secret else None
 
     @api.exception_handler(ProjectProfileError)
     async def domain_error(_: Request, exc: ProjectProfileError):
@@ -133,24 +229,29 @@ def build_app(
     async def connect_bootstrap(
         project_id: str,
         body: dict[str, Any],
+        request: Request,
         x_tenant_id: str = Header(),
         x_workspace_id: str = Header(),
         x_actor_id: str = Header(),
         x_correlation_id: str | None = Header(default=None),
         idempotency_key: str = Header(alias="Idempotency-Key", default=""),
     ) -> dict[str, Any]:
+        _require_bootstrap_secret(request.app.state.bootstrap_secret_hash, body)
+        _enforce_rate_limit(request, "bootstrap_rate_limiter")
         scope = Scope(x_tenant_id, x_workspace_id, project_id)
-        return service.connect_bootstrap(
+        result = service.connect_bootstrap(
             scope,
             x_actor_id,
             x_correlation_id or str(uuid4()),
             idempotency_key or str(uuid4()),
             body,
         )
+        return _attach_auth_material(result, scope, request.app.state.token_registry)
 
     @api.post("/api/v1/projects/{project_id}/connect/sources")
     async def connect_sources(
         project_id: str,
+        _auth: ConnectBearerAuth,
         body: dict[str, Any],
         x_tenant_id: str = Header(),
         x_workspace_id: str = Header(),
@@ -163,6 +264,7 @@ def build_app(
     @api.post("/api/v1/projects/{project_id}/connect/ingest")
     async def connect_ingest(
         project_id: str,
+        _auth: ConnectBearerAuth,
         body: dict[str, Any] | None = None,
         x_tenant_id: str = Header(),
         x_workspace_id: str = Header(),
@@ -174,6 +276,7 @@ def build_app(
     @api.get("/api/v1/projects/{project_id}/connect/status")
     async def connect_status(
         project_id: str,
+        _auth: ConnectBearerAuth,
         x_tenant_id: str = Header(),
         x_workspace_id: str = Header(),
         x_actor_id: str = Header(),

@@ -39,8 +39,8 @@ linked_symbols:
 - tests/backend/tools/agentcore-cli/test_docs_standards.py::test_parser_docs_standards_word_modes
 - backend/packages/agentcore_cli/embedding_heal_guidance.py::print_embedding_heal_guidance
 - backend/packages/agentcore_cli/docs_registry_hygiene.py::purge_docs_registry_fixture_noise
-doc_version: 1.3.1
-updated_at: '2026-08-02'
+doc_version: 1.4.0
+updated_at: '2026-08-04'
 related_docs:
 - docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
 ---
@@ -211,9 +211,9 @@ Operator surface for automated follow-up Tasks created by `sync` / `agentcore_qu
 
 | | |
 | --- | --- |
-| **Why** | Materialize coding-agent MCP configs from `<project>/.agentcore/connect.yaml` (SSH, HTTP, or same-host local) |
+| **Why** | Materialize coding-agent MCP configs from `<project>/.agentcore/connect.yaml` (HTTPS or same-host local) |
 | **Required** | For normal connect: TTY wizard or a connect config (create with `init`). For `--local`: AgentCore checkout available |
-| **Optional** | word `edit` or `init`, `PATH[,PATH…]` (comma-separated project dirs; default cwd), `--local`, `--config`, `--project`, `--ssh`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
+| **Optional** | word `edit` or `init`, `PATH[,PATH…]` (comma-separated project dirs; default cwd), `--local`, `--config`, `--project`, `--server`, `--clients`, `--include-user-clients`, `--dry-run`, `--tenant`, `--workspace`, `--remote-root` |
 | **Example (template)** | `agentcore connect init` then edit `<checkout>/.agentcore/connect.yaml` |
 | **Example (dogfood)** | `agentcore connect --local` (scope from `init` / identity / env — not hardcoded) |
 | **Example (remote)** | `agentcore connect` from the app repo (cwd = that project for MCP + sync pins) |

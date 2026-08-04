@@ -23,9 +23,11 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.0.0
-updated_at: '2026-07-24'
-linked_symbols: []
+doc_version: 1.1.0
+updated_at: '2026-08-04'
+linked_symbols:
+- backend/services/code-graph-service/src/code_graph_service/api/ingest.py
+- backend/services/code-graph-service/src/code_graph_service/api/auth.py::require_content_push_http_auth
 ---
 
 # Code Graph Service Phase 7 API Contract
@@ -54,6 +56,8 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 
 - `POST /api/v1/projects/{project_id}/graph/ingest-file`
 - `POST /api/v1/projects/{project_id}/graph/ingest-repo` — walk a local `root_path` and ingest supported sources (soft-fail per file)
+- `POST /api/v1/projects/{project_id}/graph/ingest-push` — client content-push bodies (no on-server tree); optional `docs[]`; requires Bearer when `AGENTCORE_CODE_GRAPH_HTTP_TOKEN` / `AGENTCORE_CONNECT_TOKEN` is set (else loopback only)
+- `GET /api/v1/projects/{project_id}/graph/file-hashes` — FILE path → content hash map for client skip; same Bearer gate as ingest-push
 - `POST /api/v1/projects/{project_id}/graph/search:semantic` — Stage-1 hybrid RAG: kind-filtered pgvector (when `AGENTCORE_CODE_GRAPH_DATABASE_URL` set) or in-store cosine, then Neo4j/store neighborhood expand on top seeds
 - `POST /api/v1/projects/{project_id}/graph/explore` — hybrid seeds + call path + APOC expand when available; budgeted bodies / sibling skeletonization; `retrieval` mode
 - `POST /api/v1/projects/{project_id}/graph/detect-changes` — Wave 1 risk-scored review report for changed files (flows, test gaps, priorities)

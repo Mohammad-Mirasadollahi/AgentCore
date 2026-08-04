@@ -1,4 +1,4 @@
-"""Remote purge from a client install (SSH to AgentCore server).
+"""Remote purge from a client install (HTTPS graph_url only).
 
 Security: effective scope is always connect.yaml; CLI scope flags must match or fail.
 Never falls back to local GraphService.purge_scope.
@@ -7,11 +7,10 @@ Never falls back to local GraphService.purge_scope.
 from __future__ import annotations
 
 import argparse
-import shlex
 
 from agentcore_cli import ui
-from agentcore_cli.connect_config import ConnectSettings
-from agentcore_cli.connect_flow.ssh import run_ssh
+from agentcore_cli.connect_config import ConnectSettings, http_error_message
+from agentcore_cli.util import print_json
 
 
 def locked_scope_from_settings(settings: ConnectSettings) -> tuple[str, str, str]:
@@ -42,56 +41,44 @@ def assert_cli_scope_matches_connect(args: argparse.Namespace, settings: Connect
             )
 
 
-def remote_sync_pidfile(settings: ConnectSettings, tenant: str, workspace: str, project: str) -> str:
-    root = settings.remote_root.rstrip("/\\")
-    return f"{root}/.agentcore/run/remote-sync-{tenant}-{workspace}-{project}.pid"
+def _graph_http_ready(settings: ConnectSettings) -> bool:
+    return bool((settings.graph_url or "").strip() and (settings.api_token or "").strip())
 
 
-def remote_purge_from_args(settings: ConnectSettings, args: argparse.Namespace) -> int:
-    if not settings.ssh:
-        raise SystemExit("error: client purge requires server.ssh in connect.yaml")
-    if not getattr(args, "yes", False):
-        raise SystemExit("error: purge requires --yes (destructive: wipes project graph data)")
+def http_purge_from_args(settings: ConnectSettings, args: argparse.Namespace) -> int:
+    """Purge over HTTPS (code-graph-service ``graph/purge``); only supported transport."""
+    import httpx
 
     assert_cli_scope_matches_connect(args, settings)
     tenant, workspace, project = locked_scope_from_settings(settings)
-    root = settings.remote_root.rstrip("/\\")
-    if not root:
-        raise SystemExit("error: server.remote_root missing in connect.yaml")
+    url = f"{settings.graph_url.rstrip('/')}/api/v1/projects/{project}/graph/purge"
+    headers = {
+        "X-Tenant-Id": tenant,
+        "X-Workspace-Id": workspace,
+        "Content-Type": "application/json",
+    }
+    if settings.api_token:
+        headers["Authorization"] = f"Bearer {settings.api_token}"
 
-    agentcore = f"{root}/.venv/bin/agentcore"
-    pidfile = remote_sync_pidfile(settings, tenant, workspace, project)
-    q = shlex.quote(pidfile)
-    check = run_ssh(
-        settings,
-        [
-            "bash",
-            "-lc",
-            (
-                f"if [ -f {q} ]; then "
-                f"pid=$(cat {q} 2>/dev/null || true); "
-                f"if [ -n \"$pid\" ] && kill -0 \"$pid\" 2>/dev/null; then exit 42; fi; "
-                f"fi; exit 0"
-            ),
-        ],
-    )
-    if check == 42:
-        raise SystemExit(
-            "error: remote sync still running for this scope; stop it (Ctrl+C) before purge"
-        )
+    try:
+        response = httpx.post(url, headers=headers, json={"yes": True}, timeout=60.0)
+    except httpx.HTTPError as exc:
+        raise SystemExit(f"error: remote purge request failed: {exc}") from exc
+    if response.status_code >= 400:
+        raise SystemExit(http_error_message("purge", response))
 
-    remote = [
-        agentcore,
-        "purge",
-        "--tenant",
-        tenant,
-        "--workspace",
-        workspace,
-        "--project",
-        project,
-        "--yes",
-    ]
     ui.blank()
-    print(f"   {ui.warn('…')} remote purge on server ({settings.ssh})")
+    print(f"   {ui.warn('…')} remote purge via HTTPS ({settings.graph_url})")
     ui.kv("Scope", f"{tenant}/{workspace}/{project}")
-    return run_ssh(settings, remote)
+    print_json(response.json())
+    return 0
+
+
+def remote_purge_from_args(settings: ConnectSettings, args: argparse.Namespace) -> int:
+    if not getattr(args, "yes", False):
+        raise SystemExit("error: purge requires --yes (destructive: wipes project graph data)")
+    if not _graph_http_ready(settings):
+        raise SystemExit(
+            "error: client purge requires server.graph_url + auth token (HTTPS)"
+        )
+    return http_purge_from_args(settings, args)

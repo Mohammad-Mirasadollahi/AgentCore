@@ -10,7 +10,6 @@ from agentcore_cli.data_root import (
     ensure_data_root,
     read_data_root_marker,
     resolve_data_root,
-    staged_sources_root,
     stamp_data_root,
 )
 
@@ -31,6 +30,7 @@ def test_resolve_data_root_default_sibling(tmp_path: Path, monkeypatch):
     install = tmp_path / "AgentCore"
     install.mkdir()
     assert resolve_data_root(install_root=install) == (tmp_path / "AgentCore-data").resolve()
+    assert "sources" not in DATA_SUBDIRS
 
 
 def test_ensure_data_root_creates_layout(tmp_path: Path, monkeypatch):
@@ -41,10 +41,6 @@ def test_ensure_data_root_creates_layout(tmp_path: Path, monkeypatch):
     assert root == (tmp_path / "AgentCore-data").resolve()
     for name in DATA_SUBDIRS:
         assert (root / name).is_dir()
-
-
-def test_staged_sources_root_from_install():
-    assert staged_sources_root(Path("/opt/AgentCore")) == Path("/opt/AgentCore-data/sources")
 
 
 def test_ensure_stamps_marker_and_migrates_legacy(tmp_path: Path, monkeypatch):

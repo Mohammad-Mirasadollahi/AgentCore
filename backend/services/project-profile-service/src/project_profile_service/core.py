@@ -406,7 +406,7 @@ class ProjectProfileService:
             "transport": "stdio",
             "url": None,
             "headers": {},
-            "note": "SSH stdio fallback available via agentcore connect when MCP HTTP is unset.",
+            "note": "Set server.mcp_http_url for Streamable HTTP MCP; stdio has no remote fallback.",
         }
         if mcp_http_url:
             mcp_block["transport"] = "streamable_http"

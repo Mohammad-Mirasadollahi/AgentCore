@@ -15,7 +15,12 @@ def test_mint_and_verify_scoped_token(monkeypatch):
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     token = mint_connect_token(tenant_id="t", workspace_id="w", project_id="p", ttl_seconds=60)
     scope = verify_connect_token(token)
-    assert scope == {"tenant_id": "t", "workspace_id": "w", "project_id": "p"}
+    assert scope["jti"]
+    assert {k: v for k, v in scope.items() if k != "jti"} == {
+        "tenant_id": "t",
+        "workspace_id": "w",
+        "project_id": "p",
+    }
 
 
 def test_verify_rejects_wrong_project_header(monkeypatch):

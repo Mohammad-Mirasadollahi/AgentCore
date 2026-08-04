@@ -5,9 +5,10 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: Continuation of one-command onboarding — first-connect scope wizard when tenant,
-  workspace, and Usage Profile are missing; shared SSH source.server_path discovery plus
-  automatic rsync stage to <install>-data/sources/<project>; sibling data root; APIs; troubleshooting.
+summary: Continuation of one-command onboarding — first-connect scope wizard; client
+  content-push sync (HTTPS ingest-push + optional docs); sibling data root; APIs;
+  troubleshooting; security (long-lived access token, SHA-256 at rest). SSH has been
+  removed from the AgentCore product.
 tags:
 - standard
 - sea
@@ -25,25 +26,27 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols:
-- backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
+- backend/packages/agentcore_cli/connect_wizard.py::run_https_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
 - backend/packages/agentcore_cli/commands/connect.py::_ensure_usage_profile
-- backend/packages/agentcore_cli/remote_client.py::remote_register_project
-- backend/packages/agentcore_cli/install_root_marker.py::discover_remote_install_root
-- backend/packages/agentcore_cli/connect_flow/source_path.py::ensure_remote_source_path
-- backend/packages/agentcore_cli/connect_flow/source_path.py::remote_source_candidates
-- backend/packages/agentcore_cli/connect_flow/source_path.py::stage_local_checkout
-- backend/packages/agentcore_cli/connect_flow/source_path.py::staged_source_path
+- backend/packages/agentcore_cli/connect_flow/source_path.py::source_path_for_connect
+- backend/packages/agentcore_cli/connect_flow/client_push.py::client_push_sync
+- backend/packages/agentcore_cli/connect_flow/client_push.py::build_push_docs
+- backend/packages/agentcore_cli/connect_flow/ingest.py::remote_ingest
 - backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
-doc_version: 1.5.0
+- backend/packages/agentcore_cli/commands/ingest_push.py::cmd_ingest_push
+doc_version: 2.1.0
 updated_at: '2026-08-04'
+related_docs:
+- docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
+- docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding (Continued)
 
 ## Purpose
 
-Continuation of [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) after the soft size budget. Owns the **first-connect scope wizard** contract, the **shared SSH `source.server_path` resolver** (probe + optional rsync stage for connect and client remote sync), connect HTTP APIs, troubleshooting, and implementation status.
+Continuation of [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) after the soft size budget. Owns the **first-connect scope wizard** contract, **client content-push sync** over HTTPS, connect HTTP APIs, troubleshooting, and implementation status.
 
 ## First connect when scope is missing
 
@@ -53,9 +56,9 @@ When an operator runs `agentcore connect` from an application checkout on a **TT
 
 | Condition | Behavior |
 | --- | --- |
-| No `<checkout>/.agentcore/connect.yaml` (and no usable legacy home config) | Full SSH wizard + scope prompts |
+| No `<checkout>/.agentcore/connect.yaml` (and no usable legacy home config) | Full HTTPS wizard + scope prompts |
 | `connect.yaml` exists but `usage_profile` empty | Auto-select sole catalog profile; otherwise prompt (TTY) or require `--usage-profile` |
-| `connect.yaml` already has `scope.*` + `usage_profile` + working SSH | Reuse; no re-prompt for tenant/workspace/profile |
+| `connect.yaml` already has `scope.*` + `usage_profile` + a working HTTPS/local transport | Reuse; no re-prompt for tenant/workspace/profile |
 | Non-interactive / no TTY and profile missing | Fail closed: pass `--usage-profile` (and scope flags as needed) |
 
 `agentcore init` remains the **server/dogfood** path for pinning software roots on an AgentCore checkout. Remote **client** first connect does not require a prior `init` on the laptop; the wizard + `project register` establish scope on the AgentCore server.
@@ -69,14 +72,12 @@ agentcore connect
 
 Typical interactive order:
 
-1. Server host and SSH username
+1. Server URL (`https://…`)
 2. Tenant id (default `default` if the operator accepts the empty default)
 3. Workspace id (default `default`)
 4. Usage Profile — auto-selected when the catalog has one entry; otherwise numbered list
-5. SSH password **once** (pubkey install; never stored)
-6. Auto-discover AgentCore `remote_root` via `install-root` markers (not prompted)
-7. Auto-discover `source.server_path` over SSH (client path, dogfood `remote_root`, `/opt/<project>`, …) — not prompted
-8. Write/merge `<checkout>/.agentcore/connect.yaml`, register/activate project on the server, write IDE MCP configs
+5. Bootstrap secret **once** (authenticates the first connect only; never stored)
+6. Write/merge `<checkout>/.agentcore/connect.yaml`, mint a long-lived scoped access token via bootstrap (server stores SHA-256 digest only), register/activate project on the server, write IDE MCP configs
 
 | Field | Source when missing | Notes |
 | --- | --- | --- |
@@ -84,58 +85,50 @@ Typical interactive order:
 | `scope.workspace` | Wizard prompt | Operator-chosen id string |
 | `scope.project` | Current directory name | Override with `--project` |
 | `usage_profile` | Sole catalog entry, else `prompt_usage_profile` | Select only — list with `agentcore profile list` |
-| `server.remote_root` | `discover_remote_install_root` over SSH | Fail if no marker / common root found |
-| `source.server_path` | SSH probe of candidate paths (shared with sync) | Must exist on the AgentCore host for ingest/sync; never ask on TTY |
+| `server.url` | Wizard prompt | Must be `https://` (or `--local`) |
+| `source.server_path` | Operator-set explicitly in `connect.yaml` (no auto-probe); not required for sync | Used when set / for local `--local` cwd; empty → content-push |
+| `server.graph_url` | Optional graph HTTPS base | With bearer token → HTTP content-push |
 
-### Invariant: shared `source.server_path` resolver
+### Invariant: client remote sync transport
 
-**Connect and client remote sync share one SSH discovery implementation** (`connect_flow.source_path.ensure_remote_source_path`). Agents must not reintroduce a sync-only fail-closed gap that ignores that resolver.
+**Default** (`agentcore-client sync`): **content-push** — discover on the client, send changed file bodies (and optional human docs) to server `ingest-push` over HTTPS. No durable checkout is copied onto the AgentCore host. Design: [client-direct-ingest-no-stage](../../superpowers/specs/2026-08-04-client-direct-ingest-no-stage-design.md).
 
 | Rule | Detail |
 | --- | --- |
-| One probe order | Client cwd → dogfood `remote_root` when applicable → `/opt/<project>` → `/srv/repos/<project>` → `<install>-data/sources/<project>` (legacy `/var/lib/agentcore/sources/` still probed) |
-| Auto-stage | If no candidate exists, rsync to `<install>-data/sources/<project>` (`stage_local_checkout`); requires `rsync` on the client |
-| Connect | Discovers or stages when missing, then persists into `.agentcore/connect.yaml` |
-| `agentcore-client sync` / client remote sync | If CLI `--path` is absent and `source.server_path` is empty, runs the **same** resolver, persists the result, then SSH-syncs |
-| Never | Silently fall back to AgentCore host identity pins (that would sync the wrong tree) |
-| Fail closed | Only when SSH probe and rsync stage both fail |
+| Content-push | Local `discover_source_files` + hash skip via `file-hashes` → HTTP `ingest-push` |
+| Docs push | When sync docs filters enabled, last batch includes `docs[]` for `upsert_human_documentation` |
+| HTTP | `server.graph_url` + `AGENTCORE_CONNECT_TOKEN` / token; required (only transport) |
+| Connect ingest | Same content-push path when HTTPS is ready |
+| Never | Silently fall back to AgentCore host identity pins; never rsync-stage a durable mirror |
+| Fail closed | Missing `graph_url`/token, or ingest-push failure; path traversal / absolute paths rejected server-side |
+| Secrets floor | Client skips `.env*`, pem/key material, and common credential filenames |
+
+Trust boundary is **HTTPS with a bearer token**. Do not expose `ingest-push` publicly without TLS. Cloud LLM routes still require local TTY consent.
 
 ```mermaid
 flowchart TD
   syncCmd[agentcore-client sync] --> loadYaml[Load connect.yaml]
-  loadYaml --> hasCli{CLI --path set?}
-  hasCli -->|yes| sshSync[SSH agentcore sync --path]
-  hasCli -->|no| hasSrc{source.server_path set?}
-  hasSrc -->|yes| sshSync
-  hasSrc -->|no| discover[ensure_remote_source_path SSH probes]
-  discover -->|found| persist[write_or_merge connect.yaml]
-  persist --> sshSync
-  discover -->|none| stage[rsync stage to install-data/sources/project]
-  stage -->|ok| persist
-  stage -->|fail| failClosed[Fail closed]
+  loadYaml --> httpReady{graph_url + token?}
+  httpReady -->|yes| httpPush[HTTPS ingest-push]
+  httpReady -->|no| fail[Fail closed: set server.graph_url + auth.token_env]
 ```
 
 | Step | Actor | Action | Outcome |
 | --- | --- | --- | --- |
 | 1 | Operator | Runs `agentcore-client sync` under the app checkout | Client remote path (no local Compose stack) |
-| 2 | CLI | Loads `connect.yaml`; skips discovery if `--path` or `source.server_path` set | Path known without probe |
-| 3 | CLI | Otherwise probes candidates over SSH | Same resolver as connect |
-| 4 | CLI | If none found, rsync-stages checkout to `<install>-data/sources/<project>` | Tree exists on server |
-| 5 | CLI | Merges `source.server_path` into yaml | Path reused next time |
-| 6 | CLI | If path is under `<install>-data/sources/` (or legacy `/var/lib/…`), re-rsync before remote sync | Staged mirror stays fresh |
-| 7 | CLI | Runs remote `agentcore sync --path …` | Graph ingest on server |
+| 2 | CLI | Loads `connect.yaml` | Scope + `graph_url` known |
+| 3 | CLI | Content-push batches to `ingest-push` (+ optional docs) | Graph updated without an on-server checkout |
 
 ### Flow
 
 ```mermaid
 flowchart TD
-  start[agentcore connect in app checkout] --> hasYaml{connect.yaml with SSH + scope + profile?}
+  start[agentcore connect in app checkout] --> hasYaml{connect.yaml with HTTPS + scope + profile?}
   hasYaml -->|yes| wire[Wire MCP / refresh]
-  hasYaml -->|no| wizard[SSH wizard prompts]
+  hasYaml -->|no| wizard[HTTPS wizard prompts]
   wizard --> scope[Collect tenant workspace Usage Profile]
-  scope --> key[Install pubkey once]
-  key --> root[Discover remote_root markers]
-  root --> write[Write connect.yaml]
+  scope --> bootstrap[Bootstrap secret once -> mint tokens]
+  bootstrap --> write[Write connect.yaml]
   write --> reg[Remote project register and activate]
   reg --> wire
 ```
@@ -144,8 +137,8 @@ flowchart TD
 | --- | --- | --- | --- |
 | 1 | Operator | Runs `agentcore connect` under the app repo | Starts client onboarding |
 | 2 | CLI | Detects missing config / incomplete scope | Enters interactive wizard on TTY |
-| 3 | Operator | Enters host, user, tenant, workspace | Scope ids chosen; profile auto if sole |
-| 4 | CLI | Password once → pubkey; discover `remote_root` + `source.server_path` | SSH BatchMode ready; ingest path set |
+| 3 | Operator | Enters server URL, tenant, workspace | Scope ids chosen; profile auto if sole |
+| 4 | CLI | Bootstrap secret once → long-lived access token (hash at rest) | HTTPS transport ready |
 | 5 | CLI | Writes `connect.yaml`; `project register` / `activate` on server | Scope exists in AgentCore state |
 | 6 | CLI | Merges MCP client configs | IDE can talk to AgentCore after reload |
 
@@ -154,7 +147,7 @@ flowchart TD
 ```bash
 agentcore connect --usage-profile programming-cursor-mcp \
   --tenant acme --workspace eng \
-  --ssh ops@agentcore.example.internal
+  --server https://agentcore.example.internal
 ```
 
 Or set `scope` + `usage_profile` in `.agentcore/connect.yaml` and re-run `agentcore connect`.
@@ -163,10 +156,7 @@ Or set `scope` + `usage_profile` in `.agentcore/connect.yaml` and re-run `agentc
 
 - New Usage Profile **templates** (catalog ships with the CLI; choose an existing id)
 - A second identity via `agentcore init` unless you are dogfooding on the AgentCore checkout itself
-
-### What is staged automatically
-
-When SSH probes find no matching tree, connect / client sync **rsync** the client checkout to `<install>-data/sources/<project>` on the AgentCore host (excludes `.git`, `node_modules`, `.venv`, caches). Operators may still NFS/clone to `/opt/<project>` if they prefer a shared path; discovery prefers an existing probe hit before staging.
+- A durable rsync mirror of the client checkout on the AgentCore host
 
 ## APIs (when `server.url` is set)
 
@@ -184,12 +174,12 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| MCP hangs on connect | SSH password prompt | Install key; test `ssh -o BatchMode=yes … true` |
 | `HTTP smoke failed` | `serve-http` down or bad token | Start `agentcore mcp serve-http`; check `AGENTCORE_MCP_TOKEN_SECRET` |
 | Tools empty / wrong project | Wrong scope | Check `tenant` / `workspace` / project id (= cwd name unless set) |
 | Connect exits: Usage Profile required | Empty catalog / multi-profile without flag | Pass `--usage-profile ID` or run interactively; `agentcore profile list` |
-| Ingest / connect / sync fails: could not auto-discover or stage `source.server_path` | SSH/rsync failed after probes missed | Fix BatchMode SSH + install `rsync` on the client; re-run connect or sync |
-| `agentcore-client sync`: remote sync needs explicit server-side path | Safety net after discovery/stage skipped | Re-run sync (auto-discover/stage+persist) or set `source.server_path` / pass `--path` |
+| Ingest / connect / sync fails: remote ingest-push failed | HTTP or server graph ingest error | Fix `graph_url`/token; check server logs; re-run sync |
+| `agentcore-client sync`: content-push requires server.graph_url + auth token | Missing transport | Set `server.graph_url` + `auth.token_env` in `connect.yaml` |
+| `error: server.ssh=… but SSH has been removed` | Legacy `connect.yaml` with `server.ssh` and no HTTPS | Set `server.url` / `server.mcp_http_url`, or remove `server.ssh` |
 | `agentcore: command not found` | PATH | New shell after install; `agentcore path install` |
 
 ## Implementation status
@@ -197,15 +187,17 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | Capability | Status |
 | --- | --- |
 | `agentcore connect` + `connect.yaml` | Shipped |
-| Shared SSH `source.server_path` discovery (connect + client sync) | Shipped |
-| Auto rsync stage to `<install>-data/sources/<project>` when probes miss | Shipped |
+| Client content-push (`ingest-push`; no durable sources mirror) | Shipped |
+| HTTP content-push (`server.graph_url` + bearer) | Shipped |
+| Content-push HTTP bearer gate (`AGENTCORE_CODE_GRAPH_HTTP_TOKEN`) | Shipped |
+| Docs push on content-push last batch | Shipped |
+| Connect ingest via content-push | Shipped |
 | Sibling `AgentCore-data` root for Postgres/Neo4j/usage/cache/backup | Shipped |
-| SSH stdio transport | Shipped |
 | Interactive scope + Usage Profile on first connect | Shipped |
 | HTTP MCP (`serve-http`, port `32500`) | Shipped |
 | Bootstrap / sources / ingest / status APIs | Shipped |
 | Multi-client MCP file merge | Shipped |
-| Prefer HTTP with SSH fallback | Shipped |
+| SSH transport (stdio, remote wiring, content-push fallback) | Removed |
 
 ## Coding-agent files written
 
@@ -226,23 +218,24 @@ User-global targets (`cursor-user`, `claude-desktop`) only with `--include-user-
 
 | Layer | Behavior |
 | --- | --- |
-| **SSH** | Each IDE session is a separate SSH + stdio MCP process |
-| **HTTP** | Each session is a separate authenticated HTTP client; gateway is multi-request / concurrent |
+| **Local stdio** | Each IDE session spawns its own MCP process on the same checkout |
+| **HTTPS** | Each session is a separate authenticated HTTP client; gateway is multi-request / concurrent |
 | **Data** | Same `tenant/workspace/project` shares Postgres/Neo4j stores |
 | **Different products** | Use different `scope.project` values |
 
 ## Security (operator rules)
 
 1. **Never** put OS passwords or database passwords in `connect.yaml` or `mcp.json`.
-2. SSH: interactive wizard uses password **once** to install a dedicated AgentCore key; afterward **keys only** — BatchMode must succeed without a prompt. Re-auth with `agentcore connect edit` (replaces pubkey).
-3. HTTP without TLS: private network + firewall on the MCP port; prefer reverse-proxy TLS for anything beyond a closed lab.
-4. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
-5. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.
-6. Prefer non-root SSH users on the AgentCore host.
+2. Bootstrap secret authenticates the first connect **once** and mints a long-lived scoped access token; the secret itself is never stored on the client. The server stores only the token's SHA-256 digest (not plaintext). Re-auth / rotate with `agentcore connect edit` (re-bootstrap).
+3. `server.url` / `server.mcp_http_url` must be `https://`; plain `http://` is rejected unless `AGENTCORE_ALLOW_INSECURE_HTTP=1` is set for an explicit lab/loopback override.
+4. Content-push HTTP (`server.graph_url`): set matching `AGENTCORE_CODE_GRAPH_HTTP_TOKEN` on the graph service and client bearer (`AGENTCORE_CONNECT_TOKEN` / `auth.token_env`). Do not expose `ingest-push` publicly.
+5. Prefer scoped tokens (`AGENTCORE_MCP_TOKEN_SECRET`) over a single shared `AGENTCORE_MCP_HTTP_TOKEN`.
+6. Keep `connect.yaml` mode `600`; do not commit live bearer tokens.
 
 ## Related Documents
 
 - Parent: [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md)
+- Normative HTTPS/auth: [2026-08-04-api-only-https-no-ssh-design.md](../superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md)
 - [35-usage-profile-and-cursor-mcp-onboarding.md](./35-usage-profile-and-cursor-mcp-onboarding.md)
 - [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md)
 - [36-agentcore-cli.md](./36-agentcore-cli.md)

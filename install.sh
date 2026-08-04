@@ -56,7 +56,7 @@ Already cloned — from the repository root:
 Options:
   --role ROLE             client | server | both (skips role prompt)
   --runtime MODE          SERVER MCP mode: venv | docker (alias: host→venv)
-  --data-root PATH        Durable data dir (Postgres/Neo4j/sources/…); default <install>-data
+  --data-root PATH        Durable data dir (Postgres/Neo4j/usage/…); default <install>-data
   --non-interactive       No prompts; default action=install, role=server, runtime=venv
   --yes, -y               Skip the interactive y/n confirmation
   --upgrade               Upgrade existing install (still asks y/n unless --yes/--non-interactive)

@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from agentcore_cli.connect_config import ConnectSettings
+from agentcore_cli.connect_config import ConnectSettings, http_error_message
 
 
 def api_headers(settings: ConnectSettings) -> dict[str, str]:
@@ -35,6 +35,8 @@ def api_bootstrap(settings: ConnectSettings) -> dict[str, Any]:
         body["git"] = {"remote": settings.source_git_remote, "branch": settings.source_git_branch}
     if settings.mcp_http_url:
         body["mcp_http_url"] = settings.mcp_http_url
+    if settings.bootstrap_secret:
+        body["bootstrap_secret"] = settings.bootstrap_secret
     url = f"{settings.api_url}/api/v1/projects/{settings.project}/connect/bootstrap"
     try:
         response = httpx.post(url, headers=api_headers(settings), json=body, timeout=30.0)
@@ -52,12 +54,13 @@ def api_ingest(settings: ConnectSettings) -> dict[str, Any]:
     if settings.source_server_path:
         body["source_path"] = settings.source_server_path
     url = f"{settings.api_url}/api/v1/projects/{settings.project}/connect/ingest"
+
     try:
         response = httpx.post(url, headers=api_headers(settings), json=body, timeout=120.0)
     except httpx.HTTPError as exc:
         raise SystemExit(f"error: connect ingest request failed: {exc}") from exc
     if response.status_code >= 400:
-        raise SystemExit(f"error: ingest HTTP {response.status_code}: {response.text[:500]}")
+        raise SystemExit(http_error_message("ingest", response))
     return response.json()
 
 

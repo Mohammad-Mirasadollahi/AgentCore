@@ -5,15 +5,15 @@ doc_type: contract
 status: active
 schema_version: '1.0'
 owner: project-profile-service
-summary: '| Method | Path | Purpose | |--------|------|---------| | GET | `/health` | Service
-  health (used by `agentcore connect`) | | GET | `/api/v1/usage-profiles` | List catalog profile
-  ids | | POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register +
-  activate...'
+summary: HTTP contract for project-profile health, Usage Profile catalog/activation, and
+  connect bootstrap/status/sources/ingest. Bootstrap mints a long-lived scoped access
+  token; the server stores only the SHA-256 digest in project_profile.access_tokens.
 tags:
 - api
 - contract
 - project-profile
 - usage-profile
+- auth
 phase: usage-profile
 canonical_path: backend/services/project-profile-service/docs/usage-profile-api.md
 lifecycle_lane: current
@@ -23,17 +23,24 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.0.0
-updated_at: '2026-07-24'
-linked_symbols: []
+doc_version: 1.1.0
+updated_at: '2026-08-04'
+linked_symbols:
+- backend/services/project-profile-service/src/project_profile_service/api.py
+- backend/packages/agentcore_auth/tokens.py::mint_and_register_access_token
+- backend/packages/agentcore_auth/token_registry.py::hash_access_token
+related_docs:
+- docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
+- docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 ---
 
 # Usage Profile API (project-profile-service)
 
-
 ## Purpose
 
-| Method | Path | Purpose | |--------|------|---------| | GET | `/health` | Service health (used by `agentcore connect`) | | GET | `/api/v1/usage-profiles` | List catalog profile ids | | POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register + activate + MCP fragment (HTTP or stdio) | | POST | `/api/v1/projects/{project_id}/connect/sources` | Register server path or git.
+Document the project-profile-service HTTP surface used by `agentcore connect`: Usage
+Profile catalog and activation, connect bootstrap/status/sources/ingest, and how
+bootstrap issues a scoped Bearer token without storing plaintext at rest.
 
 ## Endpoints
 
@@ -41,13 +48,31 @@ linked_symbols: []
 |--------|------|---------|
 | GET | `/health` | Service health (used by `agentcore connect`) |
 | GET | `/api/v1/usage-profiles` | List catalog profile ids |
-| POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register + activate + MCP fragment (HTTP or stdio) |
+| POST | `/api/v1/projects/{project_id}/connect/bootstrap` | Idempotent register + activate + MCP fragment; mint access token |
 | POST | `/api/v1/projects/{project_id}/connect/sources` | Register server path or git source |
 | POST | `/api/v1/projects/{project_id}/connect/ingest` | Request graph ingest for registered source |
-| GET | `/api/v1/projects/{project_id}/connect/status` | Profile, code source, ingest status |
+| GET | `/api/v1/projects/{project_id}/connect/status` | Profile, code source, ingest status (Bearer when enforcement on) |
 | POST | `/api/v1/projects/{project_id}/usage-profile:activate` | Activate a Usage Profile on the project |
 | GET | `/api/v1/projects/{project_id}/usage-profile/effective` | Resolve effective profile for scope |
 | GET | `/api/v1/projects/{project_id}/usage-profile/cursor-mcp` | Materialize Cursor `mcpServers` fragment |
+
+### Connect bootstrap auth
+
+When `AGENTCORE_CONNECT_BOOTSTRAP_SECRET` is set, the bootstrap body must include a matching
+`bootstrap_secret` (verified with Argon2id against the server hash). On success the response
+includes:
+
+| Field | Meaning |
+| --- | --- |
+| `access_token` | Plaintext `ac1.*` Bearer returned **once** to the client |
+| `expires_in` | TTL seconds (default 30 days) |
+| `ca_pem` | Trust material when auto-TLS CA exists under the data root |
+
+The server **does not** persist the raw access token. It registers a SHA-256 digest plus
+`jti` / scope / expiry in `project_profile.access_tokens` via
+`mint_and_register_access_token`. Subsequent connect Bearer checks use
+`verify_registered_access_token` (HMAC + registry liveness). There is no refresh token;
+clients re-run bootstrap/connect after expiry or revoke.
 
 ### MCP HTTP gateway (Phase B)
 
@@ -55,7 +80,7 @@ On the AgentCore host:
 
 ```bash
 export AGENTCORE_MCP_TOKEN_SECRET='long-random-secret'
-export AGENTCORE_MCP_HTTP_PUBLIC_URL='http://agentcore.example.internal:32500'
+export AGENTCORE_MCP_HTTP_PUBLIC_URL='https://agentcore.example.internal:32500'
 export AGENTCORE_MCP_STORE_MODE=postgres   # when Compose is up
 agentcore mcp serve-http --host 0.0.0.0 --port 32500
 ```
@@ -87,5 +112,6 @@ See `docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-o
 
 ## Related Documents
 
+- Normative HTTPS/auth design: `docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md`
+- Operator onboarding: `docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md`
 - `backend/docs/API_NAMING_AND_CONTRACT_STANDARD.md` — HTTP naming and contract conventions
-- Sibling service design docs under `docs/` for the owning phase vertical slice

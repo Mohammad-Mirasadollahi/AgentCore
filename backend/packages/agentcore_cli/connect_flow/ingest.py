@@ -3,47 +3,37 @@
 from __future__ import annotations
 
 import subprocess
-import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 from agentcore_cli import ui
 from agentcore_cli.connect_config import ConnectSettings
-from agentcore_cli.connect_flow.ssh import missing_server_source_message, remote_is_dir
 from agentcore_cli.util import repo_root
 
 
-def remote_ingest(settings: ConnectSettings) -> int:
-    if not settings.source_server_path or not settings.ssh:
+def remote_ingest(settings: ConnectSettings, *, work: Path | None = None) -> int:
+    """Ingest after connect via content-push (HTTPS)."""
+    root = work or Path.cwd()
+    can_push = bool((settings.graph_url or "").strip() and (settings.api_token or "").strip())
+    if not can_push:
         return 0
-    path = settings.source_server_path
-    if not remote_is_dir(settings, path):
-        msg = missing_server_source_message(path)
-        if settings.ingest_mode == "always":
-            print(f"   {ui.warn('!')} {msg}", file=sys.stderr)
-            return 1
-        print(f"   {ui.warn('!')} skipping ingest: {msg}")
-        return 0
-    # SSH has no TTY — reuse the client-side consent path used by ``agentcore sync``.
-    from types import SimpleNamespace
+    from agentcore_cli.connect_flow.client_push import client_push_sync
 
-    from agentcore_cli.connect_flow.remote_sync import remote_sync_from_args
-
-    return remote_sync_from_args(
+    return client_push_sync(
         settings,
         SimpleNamespace(
             tenant=settings.tenant,
             workspace=settings.workspace,
             project=settings.project,
-            path=[path],
+            path=None,
             allow_cloud_llm=False,
             max_files=None,
-            cpu_percent=None,
-            progress_interval=None,
-            skip_nonconforming=False,
-            sync_nonconforming=False,
-            exclude_dir=None,
-            include_path=None,
-            include_ext=None,
+            sync_mode="",
+            exclude_dir=[],
+            include_path=[],
+            include_ext=[],
         ),
+        work=root,
     )
 
 
@@ -70,10 +60,11 @@ def local_ingest(settings: ConnectSettings, path: str) -> int:
 
 
 def should_ingest(settings: ConnectSettings) -> bool:
-    if not settings.source_server_path and not settings.source_git_remote:
-        return False
     mode = settings.ingest_mode
     if mode == "off":
+        return False
+    can_push = bool((settings.graph_url or "").strip() and (settings.api_token or "").strip())
+    if not can_push and not (settings.source_server_path or settings.source_git_remote):
         return False
     if mode == "always":
         return True

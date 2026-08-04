@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/port-profile-verification/run_gate.py::main
-doc_version: 1.0.2
-updated_at: '2026-07-28'
+doc_version: 1.1.0
+updated_at: '2026-08-04'
 ---
 
 # 08 - Software Engineering Architecture Index
@@ -58,8 +58,8 @@ The section is intentionally broader than a classic architecture summary. It is 
 - 39-local-install-runbook.md is the operator runbook for the shipped modular root `install.sh` (prerequisites, `.venv`, Compose, verify).
 - 51-software-upgrade-server-and-client.md is the operator runbook for server/client upgrade, contract handshake, and control-plane upgrade jobs.
 - 43-app-docker-and-wheelhouse-runbook.md is the operator runbook for exporting `.venv` wheels to `/opt/agentcore-wheelhouse`, building `mcp-gateway`, and Compose profile `app` (PATH, mounts, CLI parity).
-- 40-remote-dev-client-mcp-wiring.md is the cross-platform Python runbook for wiring a remote dev host to AgentCore MCP over SSH stdio.
-- 41-one-command-cross-platform-agent-onboarding.md specifies the target single-command, API-first, cross-platform onboarding UX (with phased delivery from today's wire-remote).
+- 40-remote-dev-client-mcp-wiring.md is HISTORICAL — the removed SSH stdio wiring path (SSH has been removed from the AgentCore product).
+- 41-one-command-cross-platform-agent-onboarding.md specifies the shipped single-command, API-first, cross-platform onboarding UX over HTTPS.
 - 20-agent-and-resource-connectivity-automation.md defines connector registry, agent onboarding, capability discovery, generated connection profiles, authentication automation, validation, self-service UI and CLI, dynamic discovery, connector health, and failure handling.
 - 21-automation-control-plane-and-self-service-operations.md defines the automation control plane, self-service action catalog, automation jobs, safe defaults, drift detection, automated repair, upgrade automation, diagnostics bundles, and approval boundaries.
 - 22-product-design-and-engineering-specification-discipline.md defines how professional product design and software engineering specifications should map roles, workflows, interaction states, information architecture, contracts, data, permissions, diagnostics, metrics, and acceptance criteria.
@@ -166,8 +166,8 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | local modular install (`install.sh`) | 39-local-install-runbook.md |
 | software upgrade (server + client + control plane) | 51-software-upgrade-server-and-client.md |
 | app Docker + `/opt` wheelhouse (`mcp-gateway`) | 43-app-docker-and-wheelhouse-runbook.md |
-| remote dev client MCP (SSH) | 40-remote-dev-client-mcp-wiring.md |
-| one-command agent connect (spec) | 41-one-command-cross-platform-agent-onboarding.md |
+| remote dev client MCP (SSH, historical/removed) | 40-remote-dev-client-mcp-wiring.md |
+| one-command agent connect (spec, HTTPS) | 41-one-command-cross-platform-agent-onboarding.md |
 | agentcore CLI install / overview | 36-agentcore-cli.md |
 | agentcore CLI full command reference | 42-agentcore-cli-command-reference.md |
 | MCP token accounting (`mcp tokens`) | 44-mcp-token-accounting.md |

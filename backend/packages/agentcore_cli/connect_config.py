@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,11 +22,10 @@ from agentcore_cli.connect_security import harden_connect_config_permissions, re
 class ConnectSettings:
     """Resolved connect configuration after file + env merge."""
 
-    ssh: str = ""
     remote_root: str = "/opt/AgentCore"
     api_url: str = ""
+    graph_url: str = ""
     api_token: str = ""
-    ssh_identity: str = ""
     tenant: str = "default"
     workspace: str = "default"
     project: str = ""
@@ -42,8 +42,11 @@ class ConnectSettings:
     mcp_http_url: str = ""
     prefer_http: bool = True
     local: bool = False
-    remote_os: str = "unix"
     actor_id: str = "connect-cli"
+    config_path: Path | None = None
+    # Operator secret entered once by the HTTPS wizard for the initial bootstrap call.
+    # Transient only — never read from or written to connect.yaml.
+    bootstrap_secret: str = ""
 
 
 def repo_agentcore_dir(root: Path | None = None) -> Path:
@@ -116,11 +119,54 @@ def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
 
 
+def http_error_message(action: str, response: Any) -> str:
+    """Format an HTTP error; on 401 point at re-bootstrap (no refresh flow exists)."""
+    if getattr(response, "status_code", None) == 401:
+        return (
+            f"error: {action} HTTP 401 (access token expired or invalid); "
+            "re-run `agentcore connect` (or bootstrap) to mint a new one"
+        )
+    return f"error: {action} HTTP {response.status_code}: {response.text[:500]}"
+
+
+def _reject_insecure_http(value: str, field: str, path: Path) -> None:
+    """Fail closed on ``http://`` unless explicitly overridden (lab/loopback only)."""
+    if not value or value.split("://", 1)[0].lower() != "http":
+        return
+    if _env("AGENTCORE_ALLOW_INSECURE_HTTP").lower() in ("1", "true", "yes"):
+        return
+    raise SystemExit(
+        f"error: {field}={value!r} in {path} uses http:// (insecure); "
+        "use https:// or set AGENTCORE_ALLOW_INSECURE_HTTP=1 for an explicit lab/loopback override"
+    )
+
+
+def _reject_or_ignore_ssh(raw_ssh: str, *, has_https: bool, is_local: bool, path: Path) -> None:
+    """SSH has been removed from the AgentCore product.
+
+    A leftover ``server.ssh`` is ignored (with a warning) when an HTTPS or
+    local transport is also configured; it is a fail-closed error when SSH
+    would otherwise be the *only* transport.
+    """
+    if not raw_ssh:
+        return
+    if has_https or is_local:
+        print(
+            f"warning: server.ssh={raw_ssh!r} in {path} is ignored "
+            "(SSH has been removed from AgentCore; using HTTPS/local transport instead)",
+            file=sys.stderr,
+        )
+        return
+    raise SystemExit(
+        f"error: server.ssh={raw_ssh!r} in {path}, but SSH has been removed from the "
+        "AgentCore product; set server.url / server.mcp_http_url (HTTPS) instead"
+    )
+
+
 def load_connect_settings(
     *,
     config_path: str = "",
     project_override: str = "",
-    ssh_override: str = "",
     api_url_override: str = "",
     clients_override: str = "",
     cwd: Path | None = None,
@@ -140,12 +186,12 @@ def load_connect_settings(
     token_env = str(auth.get("token_env") or "AGENTCORE_TOKEN")
     token = _env(token_env) or str(auth.get("token") or "")
 
+    raw_ssh = str(server.get("ssh") or "").strip()
     settings = ConnectSettings(
-        ssh=str(server.get("ssh") or "").strip(),
         remote_root=str(server.get("remote_root") or "/opt/AgentCore").strip(),
         api_url=str(server.get("url") or "").strip().rstrip("/"),
+        graph_url=str(server.get("graph_url") or "").strip().rstrip("/"),
         api_token=token,
-        ssh_identity=str(auth.get("ssh_key") or "").strip(),
         tenant=str(scope.get("tenant") or "default").strip(),
         workspace=str(scope.get("workspace") or "default").strip(),
         project=str(scope.get("project") or "").strip(),
@@ -166,24 +212,21 @@ def load_connect_settings(
         mcp_http_url=str(server.get("mcp_http_url") or "").strip().rstrip("/"),
         prefer_http=bool(connect.get("prefer_http", True)),
         local=bool(server.get("local") or connect.get("local")),
-        remote_os=str(server.get("remote_os") or "unix").strip(),
         actor_id=str(doc.get("actor_id") or "connect-cli").strip(),
+        config_path=path,
     )
 
-    settings.ssh = _env("AGENTCORE_CONNECT_SSH", settings.ssh) or _env("AGENTCORE_SSH", settings.ssh)
     settings.remote_root = _env("AGENTCORE_CONNECT_REMOTE_ROOT", settings.remote_root)
     settings.api_url = _env("AGENTCORE_CONNECT_URL", settings.api_url)
+    settings.graph_url = _env("AGENTCORE_CONNECT_GRAPH_URL", settings.graph_url)
     settings.api_token = _env("AGENTCORE_CONNECT_TOKEN", settings.api_token) or settings.api_token
     settings.tenant = _env("AGENTCORE_CONNECT_TENANT", settings.tenant)
     settings.workspace = _env("AGENTCORE_CONNECT_WORKSPACE", settings.workspace)
     settings.project = _env("AGENTCORE_CONNECT_PROJECT", settings.project)
-    settings.ssh_identity = _env("AGENTCORE_CONNECT_SSH_KEY", settings.ssh_identity)
     settings.mcp_http_url = _env("AGENTCORE_CONNECT_MCP_HTTP_URL", settings.mcp_http_url)
     if _env("AGENTCORE_CONNECT_LOCAL", "").lower() in ("1", "true", "yes"):
         settings.local = True
 
-    if ssh_override.strip():
-        settings.ssh = ssh_override.strip()
     if api_url_override.strip():
         settings.api_url = api_url_override.strip().rstrip("/")
     if clients_override.strip():
@@ -197,15 +240,24 @@ def load_connect_settings(
     if not settings.project_name:
         settings.project_name = settings.project
 
+    _reject_insecure_http(settings.api_url, "server.url", path)
+    _reject_insecure_http(settings.mcp_http_url, "server.mcp_http_url", path)
+    _reject_insecure_http(settings.graph_url, "server.graph_url", path)
+    _reject_or_ignore_ssh(
+        raw_ssh,
+        has_https=bool(settings.api_url or settings.mcp_http_url),
+        is_local=settings.local,
+        path=path,
+    )
+
     if (
         not allow_incomplete
         and not settings.local
-        and not settings.ssh
         and not settings.api_url
         and not settings.mcp_http_url
     ):
         raise SystemExit(
-            "error: set server.local: true, and/or server.ssh, and/or server.url / mcp_http_url "
+            "error: set server.local: true, and/or server.url / mcp_http_url (HTTPS) "
             "(or run `agentcore connect` / `agentcore connect edit` in a TTY)"
         )
     return settings
@@ -214,14 +266,13 @@ def load_connect_settings(
 CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 #
 # Lives under this checkout: .agentcore/connect.yaml (gitignored).
-# Preferred first-time path: run `agentcore connect` in a TTY (interactive SSH wizard).
-# Re-auth / replace pubkey: `agentcore connect edit`
+# Preferred first-time path: run `agentcore connect` in a TTY (interactive HTTPS wizard).
+# Re-enter URL / bootstrap secret: `agentcore connect edit`
 # Multi-project: `agentcore connect /path/a,/path/b` (comma-separated; pins all for sync)
-# Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
-# breaks BatchMode login, run `agentcore connect edit` (do not store OS passwords here).
-# Sync / connect: source.server_path is auto-discovered over SSH when empty
-# (shared resolver — see docs …/41-…-onboarding-continued.md). CLI --path overrides.
-# Sync uses the project dir(s) you connected; never invent AgentCore install pins.
+# Hand-edit this file for scope/clients. SSH has been removed from AgentCore;
+# server.ssh is rejected unless an HTTPS URL is also configured.
+# Sync always content-pushes over HTTPS (client checkout discovery); no server-side
+# software path is required. Never invent AgentCore install pins.
 #
 # --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
 # server:
@@ -230,26 +281,16 @@ CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-a
 # connect:
 #   prefer_http: false
 #
-# --- SSH mode (private LAN, recommended without TLS) ---
-# server:
-#   ssh: ops@agentcore.example.internal
-#   remote_root: /opt/AgentCore
-# auth:
-#   ssh_key: .agentcore/ssh/id_ed25519_agentcore
-# connect:
-#   prefer_http: false
-#
-# --- HTTP mode (requires: agentcore mcp serve-http on the AgentCore host) ---
+# --- HTTPS mode (requires: agentcore mcp serve-http on the AgentCore host) ---
+# http:// is rejected unless AGENTCORE_ALLOW_INSECURE_HTTP=1 (explicit lab/loopback only).
 server:
-  url: http://agentcore.example.internal:32194
-  mcp_http_url: http://agentcore.example.internal:32500
-  # Optional SSH fallback:
-  # ssh: ops@agentcore.example.internal
-  # remote_root: /opt/AgentCore
+  url: https://agentcore.example.internal:32194
+  mcp_http_url: https://agentcore.example.internal:32500
 
 auth:
   token_env: AGENTCORE_TOKEN
-  # ssh_key: .agentcore/ssh/id_ed25519_agentcore
+  # access token is long-lived (30 days); re-run `agentcore connect` to re-bootstrap
+  # once it expires — there is no refresh flow.
 
 scope:
   tenant: acme
@@ -295,7 +336,7 @@ def write_or_merge_connect_yaml(
     path: Path | None = None,
     prefer_http: bool | None = None,
 ) -> Path:
-    """Create or merge SSH/wizard fields into connect.yaml without wiping hand-tuned keys."""
+    """Create or merge wizard fields into connect.yaml without wiping hand-tuned keys."""
     target = path or default_connect_yaml_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     doc: dict[str, Any] = {}
@@ -308,17 +349,23 @@ def write_or_merge_connect_yaml(
     scope = _ensure_mapping(doc, "scope")
     connect = _ensure_mapping(doc, "connect")
 
-    if settings.ssh:
-        server["ssh"] = settings.ssh
+    # SSH has been removed from the product; strip any leftover legacy keys.
+    server.pop("ssh", None)
+    auth.pop("ssh_key", None)
+
     if settings.remote_root:
         server["remote_root"] = settings.remote_root
+    if settings.api_url:
+        server["url"] = settings.api_url
+    if settings.mcp_http_url:
+        server["mcp_http_url"] = settings.mcp_http_url
+    if settings.graph_url:
+        server["graph_url"] = settings.graph_url
     if settings.local:
         server["local"] = True
     elif "local" in server and not settings.local:
         server.pop("local", None)
 
-    if settings.ssh_identity:
-        auth["ssh_key"] = settings.ssh_identity
     # Never persist password; strip if a previous bad edit left one.
     for forbidden in ("password", "postgres_password", "neo4j_password", "secret"):
         auth.pop(forbidden, None)

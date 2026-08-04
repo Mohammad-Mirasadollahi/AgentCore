@@ -14,7 +14,7 @@ def test_client_next_steps_cover_interactive_and_noninteractive():
     assert "agentcore-client connect" in text
     assert "--usage-profile" in text
     assert "--local" in text
-    assert "--ssh" in text
+    assert "--server" in text
     assert "connect.yaml" in text
 
 

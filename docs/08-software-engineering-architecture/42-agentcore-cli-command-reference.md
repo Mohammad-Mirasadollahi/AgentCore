@@ -40,8 +40,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/docs_standards/cmd.py::cmd_docs_standards
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/packages/agentcore_cli/commands/docs_standards/remediate.py::remediate_markdown_doc
-doc_version: 1.2.1
-updated_at: '2026-07-25'
+doc_version: 1.3.0
+updated_at: '2026-08-04'
 ---
 
 # 42 - AgentCore CLI Command Reference
@@ -120,7 +120,7 @@ For `status`, `sync`, `purge` (and other commands that call operator defaults):
 | `followup-tasks` | Automated follow-up Task lifecycle ops: `list`, `status`, `adopt-legacy`, `reconcile`, `purge` (scope optional; destructive steps need `--yes` or `--dry-run`) |
 | `stats` | **No dashed mode flags.** Word modes only (`detail`, `save <path>`). Scope from identity/env/connect; pinned software paths + sync filters |
 | `project register|activate|show|effective` | **Required** (`--tenant` `--workspace` `--project`) |
-| `cursor export`, `mcp serve`, `graph *`, `client wire-remote` | **Required** unless noted |
+| `cursor export`, `mcp serve`, `graph *` | **Required** unless noted |
 
 ## First-time dogfood flow (same host)
 

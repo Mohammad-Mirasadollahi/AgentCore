@@ -36,6 +36,22 @@ env/
 # =============================================================================
 .agentcore/
 
+# HTTPS / TLS auto-certs (ensure_tls_material; never commit private CA/leaf)
+# Broader *.pem / *.key rules above also apply; these pin the data-root layout.
+**/certs/ca.pem
+**/certs/ca.key
+**/certs/server.pem
+**/certs/server.key
+**/.agentcore-certs.json
+**/certs/.agentcore-certs.json
+# Sibling durable data root beside install (Postgres/Neo4j/usage/certs)
+AgentCore-data/
+**/AgentCore-data/
+# Live HTTPS probe scratch if created under the tree
+**/agentcore-live-https-qa/
+# Subagent-driven-development scratch (ledgers/briefs; not product SoT)
+.superpowers/sdd/
+
 # Sync usage reports (default .agentcore/sync-usage/; also if relocated)
 **/sync-usage/
 sync-usage.jsonl

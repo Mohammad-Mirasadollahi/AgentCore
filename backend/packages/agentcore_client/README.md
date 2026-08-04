@@ -11,7 +11,7 @@ Expose only connect / Usage Profile / process-lifecycle commands so a laptop can
 | May | Must not |
 | --- | --- |
 | Parse allowlisted commands | Register `service`, `graph`, `mcp serve`, governance, … |
-| Dispatch to shared `agentcore_cli` handlers | Call local graph purge when `connect.yaml` has SSH |
+| Dispatch to shared `agentcore_cli` handlers | Call local graph purge when `connect.yaml` has a remote `graph_url` |
 | Own the PATH name `agentcore-client` on `role=client` | Put bare `agentcore` on PATH for client-only; replace full CLI on `server` / `both` |
 
 ## Start here

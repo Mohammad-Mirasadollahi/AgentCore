@@ -5,7 +5,7 @@ doc_type: design
 status: active
 schema_version: '1.0'
 owner: platform-engineering
-summary: Durable AgentCore data (Postgres, Neo4j, staged sources, usage logs, cache,
+summary: Durable AgentCore data (Postgres, Neo4j, usage logs, cache,
   backup metadata) lives in a sibling directory of the install root (default
   AgentCore-data), not Docker anonymous volume storage or /var/lib/agentcore.
 tags:
@@ -22,7 +22,7 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.2.0
+doc_version: 1.4.0
 updated_at: '2026-08-04'
 linked_symbols:
 - backend/packages/agentcore_cli/data_root.py::resolve_data_root
@@ -49,7 +49,6 @@ Given install root `/opt/AgentCore` (or any `AGENTCORE_ROOT`):
 /opt/AgentCore-data/            # default sibling: <basename>-data
   postgres/                     # Compose bind → container /var/lib/postgresql
   neo4j/                        # Compose bind → container /data
-  sources/<project>/            # client remote sync rsync stage target
   backup/                       # backup job metadata (+ archives when local)
   cache/                        # docs-catalog and similar caches
   mcp-usage/                    # MCP usage JSONL
@@ -78,8 +77,8 @@ server/both install prompts with Enter = sibling default; choice is persisted as
 legacy nonempty `.agentcore/{backup,cache,mcp-usage,sync-usage}` into the data
 root when those dest dirs are empty.
 
-Remote client stage reads the server marker (or `data_root=` in
-`install-state.env`) over SSH so custom `--data-root` installs stage correctly.
+Remote install discovery reads the server marker (or `data_root=` in
+`install-state.env`) over SSH so custom `--data-root` installs resolve correctly.
 
 ## Compose
 

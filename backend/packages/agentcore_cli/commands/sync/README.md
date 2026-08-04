@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Owns `agentcore sync` / `agentcore purge`: local stack sync, client remote SSH sync, and per-root ingest UI.
+Owns `agentcore sync` / `agentcore purge`: local stack sync, client remote HTTPS content-push sync, and per-root ingest UI.
 
 ## Boundaries
 
-- **May:** CLI orchestration, progress UI, usage logging, client→server SSH sync.
+- **May:** CLI orchestration, progress UI, usage logging, client→server HTTPS content-push sync.
 - **Must not:** Own graph store / ingest algorithms (those live in `code_graph_service`).
 
 ## Start here

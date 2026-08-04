@@ -16,11 +16,8 @@ from agentcore_cli.connect_config import (
     write_or_merge_connect_yaml,
 )
 from agentcore_cli.connect_flow import run_connect
-from agentcore_cli.connect_flow.source_path import (
-    ensure_remote_source_path as _ensure_remote_source_path,
-    source_path_for_connect as _source_path_for_connect,
-)
-from agentcore_cli.connect_wizard import ensure_ssh_ready, run_ssh_connect_wizard
+from agentcore_cli.connect_flow.source_path import source_path_for_connect as _source_path_for_connect
+from agentcore_cli.connect_wizard import run_https_connect_wizard
 
 
 def parse_connect_project_dirs(
@@ -151,16 +148,12 @@ def _persist_and_run_connect(
     work: Path,
     yaml_path: Path,
     dry_run: bool,
-    allow_prompt: bool,
 ) -> tuple[int, ConnectSettings]:
-    """Resolve remote source.server_path, persist connect.yaml, then run_connect."""
-    settings = _ensure_remote_source_path(
-        settings,
-        work,
-        allow_prompt=allow_prompt and not dry_run,
-    )
+    """Persist connect.yaml (unless dry-run/local), then run_connect."""
     if not dry_run and not settings.local:
         write_or_merge_connect_yaml(settings, path=yaml_path, prefer_http=settings.prefer_http)
+        if settings.config_path is None:
+            settings = replace(settings, config_path=yaml_path)
     code = run_connect(settings, project_dir=work, dry_run=dry_run)
     return code, settings
 
@@ -172,7 +165,7 @@ def _connect_one(
     shared: ConnectSettings | None,
     force_edit: bool,
 ) -> tuple[int, ConnectSettings]:
-    """Connect a single project directory. Reuse *shared* SSH settings when provided."""
+    """Connect a single project directory. Reuse *shared* settings when provided."""
     project_override = str(args.project or "").strip()
     project_id = project_override or work.name or "project"
     dry_run = bool(args.dry_run)
@@ -216,7 +209,6 @@ def _connect_one(
             work=work,
             yaml_path=yaml_path,
             dry_run=dry_run,
-            allow_prompt=allow_prompt,
         )
 
     if cfg is None and not args.local:
@@ -228,15 +220,14 @@ def _connect_one(
             tenant=str(args.tenant or "default"),
             workspace=str(args.workspace or "default"),
             usage_profile=str(getattr(args, "usage_profile", "") or "").strip(),
-            prefer_http=False,
+            prefer_http=True,
             source_server_path="",
         )
-        settings = run_ssh_connect_wizard(
+        settings = run_https_connect_wizard(
             existing=existing,
-            rotate=force_edit,
             config_path=yaml_path,
             project_dir=work,
-            ssh_override=str(args.ssh or ""),
+            url_override=str(args.server or "").strip(),
         )
         if args.include_user_clients:
             settings = replace(settings, include_user_clients=True)
@@ -256,13 +247,11 @@ def _connect_one(
             work=work,
             yaml_path=yaml_path,
             dry_run=dry_run,
-            allow_prompt=allow_prompt,
         )
 
     settings = load_connect_settings(
         config_path=str(args.config or "") or (str(cfg) if cfg else ""),
         project_override=project_override,
-        ssh_override=str(args.ssh or ""),
         api_url_override=str(args.server or ""),
         clients_override=str(args.clients or ""),
         cwd=work,
@@ -286,14 +275,12 @@ def _connect_one(
         ),
     )
 
-    if not settings.local:
-        settings = ensure_ssh_ready(
-            settings,
-            force_edit=force_edit,
-            allow_wizard=not dry_run,
+    if force_edit and not settings.local:
+        settings = run_https_connect_wizard(
+            existing=settings,
             config_path=cfg or yaml_path,
             project_dir=work,
-            ssh_override=str(args.ssh or ""),
+            url_override=str(args.server or "").strip(),
         )
 
     settings = _ensure_usage_profile(
@@ -307,7 +294,6 @@ def _connect_one(
         work=work,
         yaml_path=cfg or yaml_path,
         dry_run=dry_run,
-        allow_prompt=allow_prompt,
     )
 
 
@@ -316,7 +302,7 @@ def cmd_connect(args: argparse.Namespace) -> int:
     if mode == "init":
         path = write_connect_template(default_connect_yaml_path(Path.cwd()))
         print(f"wrote {path}")
-        print("Edit connect.yaml (local / ssh / http), then run: agentcore connect")
+        print("Edit connect.yaml (local / https), then run: agentcore connect")
         return 0
 
     cwd = Path.cwd()

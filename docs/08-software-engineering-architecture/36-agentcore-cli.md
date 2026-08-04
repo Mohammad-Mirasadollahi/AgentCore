@@ -38,13 +38,13 @@ related_docs:
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
 - docs/07-code-knowledge-graph/77-sync-embedding-heal-operator-runbook.md
-doc_version: 1.2.4
+doc_version: 1.3.0
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
-updated_at: '2026-08-02'
+updated_at: '2026-08-04'
 ---
 
 # 36 - AgentCore CLI
@@ -60,7 +60,7 @@ updated_at: '2026-08-02'
 | `server` / `both` | `agentcore` only (full `agentcore_cli`) | Full catalog; includes client workflows — no `agentcore-client` on PATH |
 | `client` | `agentcore-client` only (thin `agentcore_client`) | Allowlist only; bare `agentcore` is **not** installed on PATH |
 
-Client-only `purge` / `sync` / `status` run against the AgentCore **server** over SSH using `connect.yaml` scope (fail-closed if CLI scope flags disagree). Design SoT: [thin-client CLI design](../superpowers/specs/2026-07-25-thin-client-cli-design.md).
+Client-only `purge` / `sync` / `status` run against the AgentCore **server** over HTTPS using `connect.yaml` scope (fail-closed if CLI scope flags disagree). Design SoT: [thin-client CLI design](../superpowers/specs/2026-07-25-thin-client-cli-design.md).
 
 **Full command catalog** (why each command exists, required vs optional flags, examples, and what changes when you run it):
 
@@ -148,7 +148,7 @@ Full CLI (`server` / `both`). On **client-only**, only the rows marked **client*
 | `agentcore docs-standards` | Which `docs/` files fail documentation standards + percent | no |
 | `agentcore stats` | Code/docs counts, language mix %, processed vs remaining | no |
 | `agentcore connect` / `init` / `--local` | Onboard coding agents from connect.yaml or same-host dogfood | **yes** |
-| `agentcore sync` [`heal`] / `purge` | Load or wipe project graph data; `heal` adds full-project embedding refresh (client: remote SSH, scope locked to connect.yaml) | **yes** |
+| `agentcore sync` [`heal`] / `purge` | Load or wipe project graph data; `heal` adds full-project embedding refresh (client: remote HTTPS, scope locked to connect.yaml) | **yes** |
 | `agentcore destroy-profile` | Delete this scope’s profile data (not source code); two typed confirmations | no |
 | `agentcore backup *` | Export/validate/dry-run/restore project `.acbak` bundles | no |
 | `agentcore list-profiles` | List local tenant/workspace/project profiles + active scope | no |
@@ -157,7 +157,7 @@ Full CLI (`server` / `both`). On **client-only**, only the rows marked **client*
 | `agentcore project *` | Local project register / activate / show | **yes** |
 | `agentcore cursor export` | Export Cursor `mcpServers` fragment | no |
 | `agentcore mcp tools` / `tokens` / `serve` / `serve-http` | List tools; estimate connect/usage tokens; run stdio or HTTP gateway | no |
-| `agentcore client *` | Remote SSH wire / doctor / list MCP clients | **yes** |
+| `agentcore client *` | List supported coding-agent MCP config targets | **yes** |
 | `agentcore path install` | Symlink CLI onto `~/.local/bin` (thin vs full by role) | **yes** |
 | `agentcore ports show` / `check` | Port profile preflight | no |
 | `agentcore graph *` | Ingest, freshness, explore, hybrid, smoke, watch | no |

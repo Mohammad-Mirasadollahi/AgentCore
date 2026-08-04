@@ -378,8 +378,8 @@ def cmd_status(args: argparse.Namespace) -> int:
         cfg = try_resolve_config_path()
         if cfg is not None:
             settings = load_connect_settings(config_path=str(cfg), allow_incomplete=True)
-            if settings.ssh:
-                return _cmd_status_client_remote(settings, args)
+            if settings.api_url:
+                return _cmd_status_client_http(settings, args)
 
     report = build_status_report(
         tenant=str(args.tenant or ""),
@@ -401,27 +401,44 @@ def cmd_status(args: argparse.Namespace) -> int:
     return code
 
 
-def _cmd_status_client_remote(settings: Any, args: argparse.Namespace) -> int:
-    """Run ``agentcore status`` on the connected AgentCore server and print its output."""
-    from agentcore_cli import ui
-    from agentcore_cli.connect_flow.ssh import run_ssh
+def _cmd_status_client_http(settings: Any, args: argparse.Namespace) -> int:
+    """Fetch connect status from project-profile-service over HTTPS (preferred transport)."""
+    import httpx
 
-    root = settings.remote_root.rstrip("/\\")
-    agentcore = f"{root}/.venv/bin/agentcore"
-    remote = [agentcore, "status"]
-    tenant = str(getattr(args, "tenant", None) or settings.tenant or "").strip()
-    workspace = str(getattr(args, "workspace", None) or settings.workspace or "").strip()
+    from agentcore_cli.connect_config import http_error_message
+    from agentcore_cli.connect_flow.api import api_headers
+
     project = str(getattr(args, "project", None) or settings.project or "").strip()
-    if tenant:
-        remote.extend(["--tenant", tenant])
-    if workspace:
-        remote.extend(["--workspace", workspace])
-    if project:
-        remote.extend(["--project", project])
+    url = f"{settings.api_url}/api/v1/projects/{project}/connect/status"
+
+    try:
+        response = httpx.get(url, headers=api_headers(settings), timeout=30.0)
+    except httpx.HTTPError as exc:
+        raise SystemExit(f"error: status request failed: {exc}") from exc
+    if response.status_code >= 400:
+        raise SystemExit(http_error_message("status", response))
+    report = response.json()
     if getattr(args, "json", False):
-        remote.append("--json")
-    if getattr(args, "verbose", False):
-        remote.append("--verbose")
+        print_json(report)
+        return 0
     ui.blank()
-    print(f"   {ui.dim('status via server')}  {settings.ssh}  ({root})", flush=True)
-    return run_ssh(settings, remote)
+    print(f"   {ui.dim('status via server')}  {settings.api_url}", flush=True)
+    scope = report.get("scope") or {}
+    ui.kv(
+        "Scope",
+        ui.scope_line(
+            str(scope.get("tenant_id") or ""),
+            str(scope.get("workspace_id") or ""),
+            str(scope.get("project_id") or ""),
+        ),
+    )
+    ui.kv("Usage profile", str(report.get("usage_profile") or "?"))
+    ui.kv("Code source", str(report.get("code_source") or "none"))
+    ingest = report.get("ingest") or {}
+    ui.kv("Ingest", str(ingest.get("status") or "unknown"))
+    if getattr(args, "verbose", False):
+        print("---")
+        print_json(report)
+    return 0
+
+

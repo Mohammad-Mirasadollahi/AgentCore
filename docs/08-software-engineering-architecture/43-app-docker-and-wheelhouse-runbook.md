@@ -32,14 +32,14 @@ related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - backend/deployments/docker/README.md
 - backend/deployments/compose/README.md
-doc_version: 1.0.0
+doc_version: 1.1.0
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-04'
 ---
 
 # 43 - App Docker And Wheelhouse Runbook
@@ -63,7 +63,7 @@ Implementation status: **shipped** for the MCP HTTP gateway wedge on the **Agent
 | AgentCore **server** (`--runtime host`) | Infra only (Postgres/Neo4j); MCP from server `.venv` | Same server host |
 | Coding-agent **client** (Cursor, laptop, CI agent) | **Never** | Client OS + `agentcore connect` / MCP config only |
 
-Do **not** ship or install a client-side Docker Compose stack for AgentCore. Clients attach to the server MCP endpoint (HTTP URL or SSH stdio). Remote client wiring: [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).
+Do **not** ship or install a client-side Docker Compose stack for AgentCore. Clients attach to the server MCP endpoint over HTTPS via `agentcore connect`: [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md).
 
 ## What works today
 

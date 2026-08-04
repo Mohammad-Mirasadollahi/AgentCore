@@ -25,7 +25,6 @@ ensure_agentcore_data_root() {
   mkdir -p \
     "${data_root}/postgres" \
     "${data_root}/neo4j" \
-    "${data_root}/sources" \
     "${data_root}/backup" \
     "${data_root}/cache" \
     "${data_root}/mcp-usage" \
@@ -710,7 +709,7 @@ prompt_install_data_root() {
   local choice=""
   banner "Choose durable data directory"
   cat >&2 <<EOF
-  Postgres, Neo4j, staged sources, usage logs, and caches live here
+  Postgres, Neo4j, usage logs, and caches live here
   (not inside the code tree).
 
   Default: ${default_root}

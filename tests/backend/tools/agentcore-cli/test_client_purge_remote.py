@@ -1,9 +1,11 @@
-"""Tests for client remote purge scope lock."""
+"""Tests for client remote purge scope lock (HTTPS-only; SSH removed)."""
 
 from __future__ import annotations
 
+import sys
 from argparse import Namespace
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -16,7 +18,8 @@ from agentcore_cli.connect_flow.remote_purge import (
 
 def _settings(**kwargs) -> ConnectSettings:
     base = dict(
-        ssh="alice@srv",
+        graph_url="https://g.internal:8080",
+        api_token="tokentokentoken12",
         remote_root="/opt/AgentCore",
         tenant="mir",
         workspace="dev",
@@ -24,6 +27,27 @@ def _settings(**kwargs) -> ConnectSettings:
     )
     base.update(kwargs)
     return ConnectSettings(**base)
+
+
+def _fake_httpx_module(*, calls: list[str]) -> ModuleType:
+    fake_httpx = ModuleType("httpx")
+    fake_httpx.HTTPError = Exception
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"ok": True, "purge": {"deleted": 3}}
+
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append(url)
+        assert headers["Authorization"] == "Bearer tokentokentoken12"
+        assert json == {"yes": True}
+        return _Resp()
+
+    fake_httpx.post = post
+    return fake_httpx
 
 
 def test_scope_mismatch_hard_fails():
@@ -35,41 +59,46 @@ def test_scope_mismatch_hard_fails():
         )
 
 
-def test_remote_purge_does_not_call_local_and_locks_scope(monkeypatch):
+def test_remote_purge_locks_scope_and_purges_over_https(monkeypatch):
     settings = _settings()
-    seen: list[list[str]] = []
-
-    def fake_run_ssh(s, remote_command, *, connect_timeout=15):
-        seen.append(list(remote_command))
-        # First call: sync-running check → 0; second: purge
-        if remote_command[0] == "bash":
-            return 0
-        return 0
-
-    monkeypatch.setattr("agentcore_cli.connect_flow.remote_purge.run_ssh", fake_run_ssh)
+    calls: list[str] = []
+    monkeypatch.setitem(sys.modules, "httpx", _fake_httpx_module(calls=calls))
     args = Namespace(yes=True, tenant="mir", workspace="dev", project="ThinkingSOC")
     assert remote_purge_from_args(settings, args) == 0
-    assert any(cmd[:2] == ["/opt/AgentCore/.venv/bin/agentcore", "purge"] for cmd in seen)
-    purge_cmd = next(cmd for cmd in seen if cmd[:2] == ["/opt/AgentCore/.venv/bin/agentcore", "purge"])
-    assert purge_cmd[purge_cmd.index("--tenant") + 1] == "mir"
-    assert "--yes" in purge_cmd
+    assert calls == ["https://g.internal:8080/api/v1/projects/ThinkingSOC/graph/purge"]
 
 
-def test_remote_purge_rejects_mismatch_before_ssh(monkeypatch):
+def test_remote_purge_rejects_mismatch_before_http(monkeypatch):
     settings = _settings()
-    called = {"n": 0}
+    calls: list[str] = []
 
     def boom(*_a, **_k):
-        called["n"] += 1
-        return 0
+        calls.append("called")
+        return None
 
-    monkeypatch.setattr("agentcore_cli.connect_flow.remote_purge.run_ssh", boom)
+    monkeypatch.setitem(sys.modules, "httpx", _fake_httpx_module(calls=calls))
     with pytest.raises(SystemExit, match="does not match"):
         remote_purge_from_args(
             settings,
             Namespace(yes=True, tenant="evil", workspace="dev", project="ThinkingSOC"),
         )
-    assert called["n"] == 0
+    assert calls == []
+
+
+def test_remote_purge_prefers_https_when_graph_url_ready(monkeypatch):
+    settings = _settings(graph_url="https://g.internal:8080", api_token="tokentokentoken12")
+    calls: list[str] = []
+    monkeypatch.setitem(sys.modules, "httpx", _fake_httpx_module(calls=calls))
+
+    args = Namespace(yes=True, tenant="mir", workspace="dev", project="ThinkingSOC")
+    assert remote_purge_from_args(settings, args) == 0
+    assert calls == ["https://g.internal:8080/api/v1/projects/ThinkingSOC/graph/purge"]
+
+
+def test_remote_purge_without_graph_url_exits(monkeypatch):
+    settings = _settings(graph_url="", api_token="")
+    with pytest.raises(SystemExit, match="graph_url"):
+        remote_purge_from_args(settings, Namespace(yes=True, tenant="mir", workspace="dev", project="ThinkingSOC"))
 
 
 def test_cmd_purge_client_role_routes_remote(monkeypatch, tmp_path: Path):
@@ -77,7 +106,10 @@ def test_cmd_purge_client_role_routes_remote(monkeypatch, tmp_path: Path):
     from agentcore_cli.connect_config import ConnectSettings
 
     cfg = tmp_path / "connect.yaml"
-    cfg.write_text("server:\n  ssh: a@b\n  remote_root: /opt/AgentCore\n", encoding="utf-8")
+    cfg.write_text(
+        "server:\n  graph_url: https://g.internal:8080\n  remote_root: /opt/AgentCore\n",
+        encoding="utf-8",
+    )
     seen = {"n": 0}
 
     monkeypatch.setattr(
@@ -95,7 +127,8 @@ def test_cmd_purge_client_role_routes_remote(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         "agentcore_cli.connect_config.load_connect_settings",
         lambda **_k: ConnectSettings(
-            ssh="a@b",
+            graph_url="https://g.internal:8080",
+            api_token="tokentokentoken12",
             remote_root="/opt/AgentCore",
             tenant="mir",
             workspace="dev",

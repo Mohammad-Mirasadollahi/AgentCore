@@ -31,10 +31,13 @@ visibility: internal
 linked_symbols:
 - tests/backend/tools/install/test_install_smoke.py::test_install_smoke_script_exists_and_executable
 - tests/backend/tools/install/test_get_agentcore.py::test_sync_git_checkout_to_origin_discards_tracked_dirt
+- tests/backend/tools/install/test_tls_edge_recipe.py::test_tls_edge_recipe_files_exist_and_nonempty
 - scripts/install/common.sh::resolve_install_role
 - scripts/install/common.sh::resolve_install_runtime
 - scripts/install/common.sh::resolve_install_data_root
+- scripts/install/tls_edge/ensure_certs.sh
 - backend/packages/agentcore_cli/data_root.py::ensure_data_root
+- backend/packages/agentcore_cli/tls_certs.py::ensure_tls_material
 - scripts/get-agentcore.sh::parse_and_run
 - scripts/get-agentcore.sh::fetch_release_into
 - scripts/get-agentcore.sh::fetch_main_into
@@ -46,7 +49,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.5.0
+doc_version: 1.5.2
 audience:
 - engineer
 - operator
@@ -180,7 +183,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 | --- | --- |
 | `--role ROLE` | `client`, `server`, or `both` (skips first prompt). `client` = thin CLI only (no Compose). `server` = full CLI + stack. `both` = same-host dogfood: Compose + full CLI (includes client workflows; no second client install) |
 | `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
-| `--data-root PATH` | Durable data dir for Postgres/Neo4j/sources/usage/cache/backup (default sibling `<install>-data`) |
+| `--data-root PATH` | Durable data dir for Postgres/Neo4j/usage/cache/backup (default sibling `<install>-data`) |
 | `--yes` / `-y` | Skip the interactive y/n confirmation |
 | `--upgrade` | Upgrade path (interactive still requires y/n unless `--yes` / `--non-interactive`) |
 | `--non-interactive` | No prompts; default `action=install`, `role=server`, `runtime=venv` |
@@ -235,6 +238,18 @@ docker compose --env-file backend/deployments/compose/.env.local \
 backend/deployments/compose/wait-healthy.sh --timeout 300 \
   agentcore-postgres-1 agentcore-neo4j-1
 ```
+
+## HTTPS edge (optional)
+
+For client-facing HTTPS, terminate TLS at Caddy (or similar) and proxy to loopback MCP and connect APIs. Auto-generate cert material under `<AGENTCORE_DATA_ROOT>/certs/` before starting the edge:
+
+```bash
+export AGENTCORE_DATA_ROOT=/opt/AgentCore-data
+export AGENTCORE_PUBLIC_HOSTNAME=agentcore.example.internal
+source scripts/install/tls_edge/ensure_certs.sh
+```
+
+Recipe, example Caddyfile, and routing table: [`scripts/install/tls_edge/README.md`](../../scripts/install/tls_edge/README.md).
 
 ## Failure recovery
 

@@ -49,14 +49,14 @@ related_docs:
 - ac.doc.sea.agentcore-cli-command-reference
 - ac.doc.sea.remote-dev-client-mcp-wiring
 - ac.doc.sea.one-command-cross-platform-agent-onboarding
-doc_version: 1.1.1
+doc_version: 1.2.0
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-04'
 ---
 
 # 44 - MCP Token Accounting
@@ -110,7 +110,7 @@ flowchart LR
   CLI["agentcore mcp tokens"] -->|"estimate"| PROF["Usage Profile JSON"]
   CLI -->|"load + filter"| LOG
   CLI -->|"wiring check"| CFG["IDE mcp.json files"]
-  WIRE["connect / wire-remote"] -->|"AGENTCORE_MCP_CLIENT_ID"| CFG
+  WIRE["connect"] -->|"AGENTCORE_MCP_CLIENT_ID"| CFG
 ```
 
 | Step | Actor | Action | Result |
@@ -206,7 +206,7 @@ On failure the gateway also prints one line to **stderr**
 
 ### Client ids (`--clients`)
 
-Same resolver as connect / wire-remote: `resolve_client_ids`.
+Same resolver as `connect`: `resolve_client_ids`.
 
 | Value | Behavior |
 | --- | --- |
@@ -280,7 +280,7 @@ session hits the gateway.
 | Unknown `--clients` id | CLI exits listing known ids | Run `agentcore client list-mcp-clients` |
 | Log directory unwritable | Gateway continues; event dropped | Fix permissions / disk |
 | Log over max bytes | Oldest half of lines discarded | Archive externally if needed |
-| `client_id` missing in env | Events use `unknown` | Re-run `connect` / `wire-remote` so env is stamped |
+| `client_id` missing in env | Events use `unknown` | Re-run `connect` so env is stamped |
 | History empty | Report shows zero calls | Connect IDE MCP once, then re-run |
 
 ## Security and data boundary
@@ -322,6 +322,6 @@ Run:
 - [35-usage-profile-and-cursor-mcp-onboarding.md](./35-usage-profile-and-cursor-mcp-onboarding.md) — Usage Profile and MCP surface
 - [36-agentcore-cli.md](./36-agentcore-cli.md) — CLI install and overview
 - [42-agentcore-cli-command-reference-part-4.md](./42-agentcore-cli-command-reference-part-4.md) — compact `mcp tokens` catalog row
-- [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md) — client id table and wire-remote
+- [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md) — historical (SSH removed)
 - [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) — connect UX
 - [14-observability-and-debuggability-engineering.md](./14-observability-and-debuggability-engineering.md) — broader observability principles

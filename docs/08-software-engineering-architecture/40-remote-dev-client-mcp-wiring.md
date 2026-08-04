@@ -1,12 +1,13 @@
 ---
 doc_id: ac.doc.sea.remote-dev-client-mcp-wiring
-title: 40 - Remote Dev Client MCP Wiring
+title: 40 - Remote Dev Client MCP Wiring (Historical — SSH Removed)
 doc_type: runbook
-status: active
+status: deprecated
 schema_version: '1.0'
 owner: platform-engineering
-summary: Cross-platform Python workflow to connect a dev machine (Windows, macOS, or Linux)
-  running any MCP-capable coding agent to AgentCore on a remote server via SSH stdio.
+summary: HISTORICAL. Describes the removed Phase A SSH stdio path for wiring a dev
+  machine to AgentCore MCP. SSH has been removed from the AgentCore product; use
+  the HTTPS wizard in doc 41 instead.
 tags:
 - mcp
 - cursor
@@ -14,6 +15,7 @@ tags:
 - client
 - runbook
 - cross-platform
+- historical
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 lifecycle_lane: current
@@ -24,9 +26,6 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols:
-- backend/packages/agentcore_cli/mcp_client_targets.py::McpClientTarget
-- backend/packages/agentcore_cli/remote_client.py::wire_remote_dev_host
-- backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
 - scripts/client/wire-remote-mcp.py::main
 related_docs:
 - docs/08-software-engineering-architecture/35-usage-profile-and-cursor-mcp-onboarding.md
@@ -34,24 +33,28 @@ related_docs:
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/44-mcp-token-accounting.md
-doc_version: 1.1.1
+doc_version: 2.0.2
 audience:
 - engineer
 - operator
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-04'
 ---
 
-# 40 - Remote Dev Client MCP Wiring
+# 40 - Remote Dev Client MCP Wiring (Historical — SSH Removed)
 
 ## Purpose
 
-Operators often run **AgentCore on a dedicated server** (`install.sh`) while editing **application code** on another host—for example Windows with Cursor, connected over **Remote SSH** to a Linux workspace. This runbook describes the **cross-platform Python** path to wire that dev host to AgentCore MCP without shell-only scripts.
+**HISTORICAL — this runbook describes a removed feature.** SSH has been removed from the AgentCore product (API-only HTTPS migration; see
+[docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md](../superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md)).
+The `agentcore client wire-remote` / `doctor-remote` commands, `remote_client.wire_remote_dev_host`,
+`remote_mcp_serve.py`, and `connect_wizard.run_ssh_connect_wizard` described below no longer exist.
 
-**Target UX (one command, API-first):** [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md). This document is **Phase A (interim)** until `agentcore connect` and HTTP MCP ship.
+**Use instead:** [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) —
+`agentcore connect` now wires MCP over **Streamable HTTP** (long-lived scoped access token with SHA-256 digest at rest, auto-TLS), with local stdio for same-host dogfood. This document is retained for historical reference only (why the SSH path existed, what it did); do not follow its steps.
 
-Implementation: `backend/packages/agentcore_cli/mcp_client_targets.py`, `remote_client.py`, `remote_mcp_serve.py`, and `agentcore client wire-remote`.
+The remainder of this document is preserved as-written for historical context.
 
 ## Supported coding-agent clients
 

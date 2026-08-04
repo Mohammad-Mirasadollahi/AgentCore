@@ -11,7 +11,7 @@ from agentcore_cli.util import add_scope_args
 def register_connect(sub: argparse._SubParsersAction) -> None:
     connect = sub.add_parser(
         "connect",
-        help="One-command coding-agent onboarding (interactive SSH wizard or connect.yaml)",
+        help="One-command coding-agent onboarding (interactive HTTPS wizard or connect.yaml)",
     )
     connect.add_argument(
         "connect_mode",
@@ -19,15 +19,14 @@ def register_connect(sub: argparse._SubParsersAction) -> None:
         default="",
         metavar="edit|init|PATH[,PATH…]",
         help=(
-            "Optional: edit (re-auth SSH), init (connect.yaml template), "
+            "Optional: edit (re-auth HTTPS), init (connect.yaml template), "
             "or one/more project dirs comma-separated (default: cwd). "
             "Each dir is wired for MCP and pinned for sync."
         ),
     )
     connect.add_argument("--config", default="", help="Path to connect.yaml / connect.json")
     connect.add_argument("--project", default="", help="Override project id (default: cwd directory name)")
-    connect.add_argument("--ssh", default="", help="Override server.ssh")
-    connect.add_argument("--server", default="", help="Override server.url (API bootstrap)")
+    connect.add_argument("--server", default="", help="Override server.url (HTTPS API bootstrap)")
     connect.add_argument("--clients", default="", help="Override clients (all or comma-separated ids)")
     connect.add_argument(
         "--include-user-clients",
@@ -38,7 +37,7 @@ def register_connect(sub: argparse._SubParsersAction) -> None:
     connect.add_argument(
         "--local",
         action="store_true",
-        help="Same-host stdio MCP (dogfood this checkout; no SSH/HTTP required)",
+        help="Same-host stdio MCP (dogfood this checkout; no HTTPS required)",
     )
     connect.add_argument("--tenant", default="", help="Override scope.tenant (local mode)")
     connect.add_argument("--workspace", default="", help="Override scope.workspace (local mode)")
@@ -239,6 +238,28 @@ def register_purge(sub: argparse._SubParsersAction) -> None:
     )
 
 
+def register_ingest_push(sub: argparse._SubParsersAction) -> None:
+    push = sub.add_parser(
+        "ingest-push",
+        help=(
+            "Ingest file bodies from stdin JSON (client content-push; "
+            "no on-server source tree required)"
+        ),
+    )
+    add_scope_args(push, required=False)
+    push.add_argument(
+        "--embedding-refresh-mode",
+        default="touched",
+        choices=("touched", "full"),
+        help="Embedding refresh after push (default: touched)",
+    )
+    hashes = sub.add_parser(
+        "file-hashes",
+        help="Print FILE path→content-hash map (for client-side skip)",
+    )
+    add_scope_args(hashes, required=False)
+
+
 def _register_destroy_and_list(sub: argparse._SubParsersAction) -> None:
     destroy = sub.add_parser(
         "destroy-profile",
@@ -261,6 +282,7 @@ def _register_destroy_and_list(sub: argparse._SubParsersAction) -> None:
 def register(sub: argparse._SubParsersAction) -> None:
     register_connect(sub)
     register_sync(sub)
+    register_ingest_push(sub)
     _register_server_only_middle(sub)
     register_purge(sub)
     _register_destroy_and_list(sub)

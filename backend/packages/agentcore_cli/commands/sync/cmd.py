@@ -172,7 +172,7 @@ def cmd_purge(args: argparse.Namespace) -> int:
     from agentcore_cli.service_runtime.paths import install_role, local_compose_stack_present
 
     root = repo_root()
-    # Client-only (or no local stack + connect.yaml): purge on server via SSH — never local.
+    # Client-only (or no local stack + connect.yaml): purge on server via HTTPS — never local.
     if install_role(root) == "client" or not local_compose_stack_present(root):
         cfg = try_resolve_config_path()
         if cfg is None:
@@ -180,12 +180,15 @@ def cmd_purge(args: argparse.Namespace) -> int:
                 "error: client purge requires connect.yaml (run agentcore connect first)"
             )
         settings = load_connect_settings(config_path=str(cfg), allow_incomplete=True)
-        if settings.ssh:
+        graph_http_ready = bool((settings.graph_url or "").strip() and (settings.api_token or "").strip())
+        if graph_http_ready:
             from agentcore_cli.connect_flow.remote_purge import remote_purge_from_args
 
             return remote_purge_from_args(settings, args)
         if install_role(root) == "client":
-            raise SystemExit("error: client purge requires server.ssh in connect.yaml")
+            raise SystemExit(
+                "error: client purge requires server.graph_url + auth token (HTTPS) in connect.yaml"
+            )
 
     if not args.yes:
         raise SystemExit("error: purge requires --yes (destructive: wipes project graph data)")
