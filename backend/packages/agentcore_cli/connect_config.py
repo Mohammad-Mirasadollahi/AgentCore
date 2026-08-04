@@ -219,7 +219,9 @@ CONNECT_TEMPLATE = """# AgentCore connect — see docs/08-software-engineering-a
 # Multi-project: `agentcore connect /path/a,/path/b` (comma-separated; pins all for sync)
 # Hand-edit this file for scope/clients/remote_root. If server.ssh or auth.ssh_key
 # breaks BatchMode login, run `agentcore connect edit` (do not store OS passwords here).
-# Sync uses the project dir(s) you connected (pinned software paths).
+# Sync / connect: source.server_path is auto-discovered over SSH when empty
+# (shared resolver — see docs …/41-…-onboarding-continued.md). CLI --path overrides.
+# Sync uses the project dir(s) you connected; never invent AgentCore install pins.
 #
 # --- Local mode (same machine: dogfood AgentCore on its own checkout) ---
 # server:

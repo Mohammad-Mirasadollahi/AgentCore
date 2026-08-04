@@ -59,12 +59,12 @@ def test_settings_for_local_uses_identity_scope(tmp_path: Path, monkeypatch):
 
 
 def test_source_path_for_connect_remote_does_not_use_client_cwd(tmp_path: Path):
-    from agentcore_cli.commands.connect import _source_path_for_connect
+    from agentcore_cli.connect_flow.source_path import source_path_for_connect
 
-    assert _source_path_for_connect(local=False, work=tmp_path) == ""
-    assert _source_path_for_connect(local=True, work=tmp_path) == str(tmp_path)
+    assert source_path_for_connect(local=False, work=tmp_path) == ""
+    assert source_path_for_connect(local=True, work=tmp_path) == str(tmp_path)
     assert (
-        _source_path_for_connect(
+        source_path_for_connect(
             local=False,
             work=tmp_path,
             configured="/srv/repos/MyApp",
@@ -74,21 +74,21 @@ def test_source_path_for_connect_remote_does_not_use_client_cwd(tmp_path: Path):
 
 
 def test_ensure_remote_source_path_autodetects_when_on_server(tmp_path: Path, monkeypatch):
-    from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
 
     monkeypatch.setattr(
         "agentcore_cli.connect_flow.ssh.remote_is_dir",
         lambda _settings, path: path == str(tmp_path.resolve()),
     )
     settings = ConnectSettings(ssh="user@host", source_server_path="")
-    out = _ensure_remote_source_path(settings, tmp_path, allow_prompt=False)
+    out = ensure_remote_source_path(settings, tmp_path, allow_prompt=False)
     assert out.source_server_path == str(tmp_path.resolve())
 
 
 def test_ensure_remote_source_path_discovers_opt_project(tmp_path: Path, monkeypatch):
-    from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
 
     app = tmp_path / "ThinkingSOC"
     app.mkdir()
@@ -102,15 +102,15 @@ def test_ensure_remote_source_path_discovers_opt_project(tmp_path: Path, monkeyp
         lambda *a, **k: Path("/opt/AgentCore"),
     )
     settings = ConnectSettings(ssh="user@host", source_server_path="", remote_root="/opt/AgentCore")
-    out = _ensure_remote_source_path(settings, app, allow_prompt=False)
+    out = ensure_remote_source_path(settings, app, allow_prompt=False)
     assert out.source_server_path == "/opt/ThinkingSOC"
 
 
 def test_ensure_remote_source_path_uses_remote_root_for_agentcore_dogfood(
     tmp_path: Path, monkeypatch
 ):
-    from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
 
     root = tmp_path / "AgentCore"
     (root / "backend" / "packages" / "agentcore_cli").mkdir(parents=True)
@@ -129,13 +129,13 @@ def test_ensure_remote_source_path_uses_remote_root_for_agentcore_dogfood(
         lambda p: Path(p).name == "AgentCore",
     )
     settings = ConnectSettings(ssh="user@host", source_server_path="", remote_root="/opt/AgentCore")
-    out = _ensure_remote_source_path(settings, root, allow_prompt=False)
+    out = ensure_remote_source_path(settings, root, allow_prompt=False)
     assert out.source_server_path == "/opt/AgentCore"
 
 
 def test_ensure_remote_source_path_fails_closed_when_undiscoverable(tmp_path: Path, monkeypatch):
-    from agentcore_cli.commands.connect import _ensure_remote_source_path
     from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
 
     monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", lambda *_a, **_k: False)
     monkeypatch.setattr(
@@ -144,7 +144,7 @@ def test_ensure_remote_source_path_fails_closed_when_undiscoverable(tmp_path: Pa
     )
     settings = ConnectSettings(ssh="user@host", source_server_path="")
     try:
-        _ensure_remote_source_path(settings, tmp_path, allow_prompt=True)
+        ensure_remote_source_path(settings, tmp_path, allow_prompt=True)
         raised = False
     except SystemExit as exc:
         raised = True

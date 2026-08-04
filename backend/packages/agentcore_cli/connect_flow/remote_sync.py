@@ -2,8 +2,10 @@
 
 Module contract:
 - Role: build remote sync argv and run it on the AgentCore server.
-- SoT / invariants: local TTY cloud-LLM consent before SSH; bare ``max-file``;
-  word ``heal`` forwarded when ``sync_mode=heal``; no ``--force``.
+- SoT / invariants: path from CLI ``--path`` or ``source.server_path`` (resolved by
+  shared ``connect_flow.source_path`` discovery in the client entrypoint); never
+  invent AgentCore identity pins; local TTY cloud-LLM consent before SSH; bare
+  ``max-file``; word ``heal`` forwarded when ``sync_mode=heal``; no ``--force``.
 - Failures: missing ssh/source fail closed; declined consent aborts before SSH.
   Never rely on a remote TTY for consent prompts.
 """
@@ -129,16 +131,17 @@ def remote_sync_from_args(settings: ConnectSettings, args: Any) -> int:
         target = settings.source_server_path
         consent_paths = [settings.source_server_path]
     else:
-        # Do not fall back to the AgentCore host identity pins — that silently syncs
-        # /opt/AgentCore (or whatever the server last pinned) instead of the client app.
+        # Safety net: client_remote should have run shared SSH discovery first.
+        # Do not fall back to AgentCore identity pins (silent wrong-tree sync).
         raise SystemExit(
             "error: remote sync needs an explicit server-side software path\n"
-            "  In .agentcore/connect.yaml (on the client) set:\n"
+            "  Auto-discovery did not set source.server_path (or was skipped).\n"
+            "  In .agentcore/connect.yaml set:\n"
             "    source:\n"
             "      server_path: /opt/YourApp   # path that EXISTS on the AgentCore server\n"
             "  Or pass once: agentcore sync --path /opt/YourApp\n"
-            "  The client checkout path is not used over SSH; copy/NFS/clone the tree "
-            "onto the server first if it is missing there."
+            "  Or re-run agentcore connect / agentcore sync after cloning the tree "
+            "onto the server (NFS/rsync). Never sync AgentCore install pins by accident."
         )
 
     # SSH has no TTY — ask on the local interactive client, then forward the flag.

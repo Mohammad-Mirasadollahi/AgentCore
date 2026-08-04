@@ -216,7 +216,7 @@ def test_remote_sync_forwards_allow_cloud_llm_without_reprompt(monkeypatch):
 
 
 def test_remote_sync_requires_explicit_server_path(monkeypatch):
-    """Client remote sync must not silently use AgentCore host identity pins."""
+    """Safety net: remote_sync_from_args must not silently use AgentCore identity pins."""
     monkeypatch.setattr(
         "agentcore_cli.connect_flow.remote_sync.client_remote_cloud_llm_allowed",
         lambda *_a, **_k: False,
@@ -310,7 +310,82 @@ def test_remote_ingest_fails_always_when_path_missing_on_server(monkeypatch, cap
     assert "not a directory on the AgentCore server" in err
 
 
-def test_cmd_sync_client_remote_helper(monkeypatch, tmp_path: Path):
+def test_cmd_sync_client_remote_discovers_and_persists_server_path(monkeypatch, tmp_path: Path):
+    """Empty source.server_path → shared SSH discovery → merge yaml → sync."""
+    import yaml
+
+    app = tmp_path / "ThinkingSOC"
+    app.mkdir()
+    agentcore = tmp_path / ".agentcore"
+    agentcore.mkdir()
+    cfg = agentcore / "connect.yaml"
+    cfg.write_text(
+        "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
+        "scope:\n  tenant: mir\n  workspace: dev\n  project: ThinkingSOC\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(app)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.ssh.remote_is_dir",
+        lambda _settings, path: path == "/opt/ThinkingSOC",
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+
+    seen: list[ConnectSettings] = []
+
+    def fake_remote(settings, args):
+        seen.append(settings)
+        return 0
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync_from_args",
+        fake_remote,
+    )
+    args = SimpleNamespace(force=False, path=None, tenant=None, workspace=None, project=None)
+    assert sync_cmd._cmd_sync_client_remote(args) == 0
+    assert seen[0].source_server_path == "/opt/ThinkingSOC"
+    doc = yaml.safe_load(cfg.read_text(encoding="utf-8"))
+    assert doc["source"]["server_path"] == "/opt/ThinkingSOC"
+
+
+def test_cmd_sync_client_remote_discovery_fails_closed(monkeypatch, tmp_path: Path):
+    cfg = tmp_path / "connect.yaml"
+    cfg.write_text(
+        "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
+        "scope:\n  project: demo\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.ssh.remote_is_dir",
+        lambda *_a, **_k: False,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+    with pytest.raises(SystemExit) as exc:
+        sync_cmd._cmd_sync_client_remote(
+            SimpleNamespace(force=False, path=None, tenant=None, workspace=None, project=None)
+        )
+    assert "auto-discover source.server_path" in str(exc.value)
+    assert "Probed via SSH" in str(exc.value)
+
+
+def test_cmd_sync_client_remote_cli_path_bypasses_discovery(monkeypatch, tmp_path: Path):
     cfg = tmp_path / "connect.yaml"
     cfg.write_text(
         "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
@@ -319,12 +394,57 @@ def test_cmd_sync_client_remote_helper(monkeypatch, tmp_path: Path):
     )
     monkeypatch.setattr(
         "agentcore_cli.connect_config.try_resolve_config_path",
-        lambda explicit="": cfg,
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+
+    def boom_discover(*_a, **_k):
+        raise AssertionError("discovery must not run when --path is set")
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.ensure_remote_source_path",
+        boom_discover,
+    )
+
+    seen: list[object] = []
+
+    def fake_remote(settings, args):
+        seen.append(args)
+        assert not (settings.source_server_path or "").strip()
+        return 0
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync_from_args",
+        fake_remote,
+    )
+    args = SimpleNamespace(
+        force=False,
+        path=["/opt/ExplicitApp"],
+        tenant=None,
+        workspace=None,
+        project=None,
+    )
+    assert sync_cmd._cmd_sync_client_remote(args) == 0
+    assert list(seen[0].path) == ["/opt/ExplicitApp"]
+
+
+def test_cmd_sync_client_remote_helper(monkeypatch, tmp_path: Path):
+    cfg = tmp_path / "connect.yaml"
+    cfg.write_text(
+        "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
+        "scope:\n  project: demo\n"
+        "source:\n  server_path: /opt/demo\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
     )
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
 
     def fake_remote(settings, args):
         assert settings.ssh == "alice@srv"
+        assert settings.source_server_path == "/opt/demo"
         assert args.force is True
         return 0
 
@@ -339,7 +459,7 @@ def test_cmd_sync_client_remote_helper(monkeypatch, tmp_path: Path):
 def test_cmd_sync_client_remote_without_connect_exits(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         "agentcore_cli.connect_config.try_resolve_config_path",
-        lambda explicit="": None,
+        lambda explicit="", project_root=None: None,
     )
     monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
     try:

@@ -7,7 +7,8 @@ schema_version: '1.0'
 owner: platform-product
 summary: Operator guide and specification for connecting any MCP-capable coding agent to a
   remote AgentCore server with one command. Covers interactive SSH key bootstrap, SSH stdio
-  and Streamable HTTP transports, shared config, authentication, concurrency, and security.
+  and Streamable HTTP transports, shared config (including auto-discovered source.server_path
+  for connect and client sync), authentication, concurrency, and security.
 tags:
 - mcp
 - onboarding
@@ -31,8 +32,8 @@ related_docs:
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
-doc_version: 1.3.2
-updated_at: '2026-07-25'
+doc_version: 1.3.3
+updated_at: '2026-08-04'
 linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_ssh_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
@@ -41,6 +42,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_client/main.py::main
+- backend/packages/agentcore_cli/connect_flow/source_path.py::ensure_remote_source_path
+- backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding
@@ -395,7 +398,7 @@ connect:
 | `scope.project` | Optional | Defaults to **cwd directory name** |
 | `usage_profile` | Optional | Default `programming-cursor-mcp` |
 | `clients` | Optional | `all` or comma list (`cursor,vscode,…`) |
-| `source.server_path` | Optional | Code path **on AgentCore server** for ingest |
+| `source.server_path` | Auto-discovered when missing | Path **on AgentCore server** for ingest/sync. Connect and `agentcore-client sync` share one SSH resolver (`connect_flow.source_path`); sync persists the hit into yaml. Never invent AgentCore install pins. Details: [41-continued invariant](./41-one-command-cross-platform-agent-onboarding-continued.md) |
 | `source.git` | Optional | `{ remote, branch }` registration |
 | `connect.prefer_http` | Optional | Default `true` |
 | `connect.register` | Optional | Default `true` |

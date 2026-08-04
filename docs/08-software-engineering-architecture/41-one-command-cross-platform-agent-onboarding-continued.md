@@ -6,13 +6,15 @@ status: active
 schema_version: '1.0'
 owner: platform-docs
 summary: Continuation of one-command onboarding — first-connect scope wizard when tenant,
-  workspace, and Usage Profile are missing; APIs; troubleshooting; implementation status.
+  workspace, and Usage Profile are missing; shared SSH source.server_path discovery for
+  connect and client remote sync; APIs; troubleshooting; implementation status.
 tags:
 - standard
 - sea
 - mcp
 - onboarding
 - connect
+- sync
 phase: 08-software-engineering-architecture
 canonical_path: docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding-continued.md
 lifecycle_lane: current
@@ -28,17 +30,18 @@ linked_symbols:
 - backend/packages/agentcore_cli/commands/connect.py::_ensure_usage_profile
 - backend/packages/agentcore_cli/remote_client.py::remote_register_project
 - backend/packages/agentcore_cli/install_root_marker.py::discover_remote_install_root
-- backend/packages/agentcore_cli/commands/connect.py::_ensure_remote_source_path
-- backend/packages/agentcore_cli/commands/connect.py::_remote_source_candidates
-doc_version: 1.2.0
-updated_at: '2026-07-28'
+- backend/packages/agentcore_cli/connect_flow/source_path.py::ensure_remote_source_path
+- backend/packages/agentcore_cli/connect_flow/source_path.py::remote_source_candidates
+- backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
+doc_version: 1.3.0
+updated_at: '2026-08-04'
 ---
 
 # 41 - One-Command Cross-Platform Agent Onboarding (Continued)
 
 ## Purpose
 
-Continuation of [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) after the soft size budget. Owns the **first-connect scope wizard** contract, connect HTTP APIs, troubleshooting, and implementation status.
+Continuation of [41-one-command-cross-platform-agent-onboarding.md](./41-one-command-cross-platform-agent-onboarding.md) after the soft size budget. Owns the **first-connect scope wizard** contract, the **shared SSH `source.server_path` resolver** (connect + client remote sync), connect HTTP APIs, troubleshooting, and implementation status.
 
 ## First connect when scope is missing
 
@@ -80,7 +83,40 @@ Typical interactive order:
 | `scope.project` | Current directory name | Override with `--project` |
 | `usage_profile` | Sole catalog entry, else `prompt_usage_profile` | Select only — list with `agentcore profile list` |
 | `server.remote_root` | `discover_remote_install_root` over SSH | Fail if no marker / common root found |
-| `source.server_path` | SSH probe of candidate paths | Must exist on the AgentCore host for ingest; never ask on TTY |
+| `source.server_path` | SSH probe of candidate paths (shared with sync) | Must exist on the AgentCore host for ingest/sync; never ask on TTY |
+
+### Invariant: shared `source.server_path` resolver
+
+**Connect and client remote sync share one SSH discovery implementation** (`connect_flow.source_path.ensure_remote_source_path`). Agents must not reintroduce a sync-only fail-closed gap that ignores that resolver.
+
+| Rule | Detail |
+| --- | --- |
+| One probe order | Client cwd → dogfood `remote_root` when applicable → `/opt/<project>` → `/srv/repos/<project>` → `/var/lib/agentcore/sources/<project>` |
+| Connect | Discovers when missing, then persists into `.agentcore/connect.yaml` |
+| `agentcore-client sync` / client remote sync | If CLI `--path` is absent and `source.server_path` is empty, runs the **same** discovery, persists the result, then SSH-syncs |
+| Never | Silently fall back to AgentCore host identity pins (that would sync the wrong tree) |
+| Fail closed | When no candidate exists on the server, exit with the probed list; operator must clone/rsync/NFS then re-run |
+
+```mermaid
+flowchart TD
+  syncCmd[agentcore-client sync] --> loadYaml[Load connect.yaml]
+  loadYaml --> hasCli{CLI --path set?}
+  hasCli -->|yes| sshSync[SSH agentcore sync --path]
+  hasCli -->|no| hasSrc{source.server_path set?}
+  hasSrc -->|yes| sshSync
+  hasSrc -->|no| discover[ensure_remote_source_path SSH probes]
+  discover -->|found| persist[write_or_merge connect.yaml]
+  persist --> sshSync
+  discover -->|none| failClosed[Fail with probed list]
+```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Operator | Runs `agentcore-client sync` under the app checkout | Client remote path (no local Compose stack) |
+| 2 | CLI | Loads `connect.yaml`; skips discovery if `--path` or `source.server_path` set | Path known without probe |
+| 3 | CLI | Otherwise probes candidates over SSH | Same resolver as connect |
+| 4 | CLI | On hit, merges `source.server_path` into yaml | Next sync does not re-probe |
+| 5 | CLI | Runs remote `agentcore sync --path …` | Graph ingest on server |
 
 ### Flow
 
@@ -142,7 +178,8 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | `HTTP smoke failed` | `serve-http` down or bad token | Start `agentcore mcp serve-http`; check `AGENTCORE_MCP_TOKEN_SECRET` |
 | Tools empty / wrong project | Wrong scope | Check `tenant` / `workspace` / project id (= cwd name unless set) |
 | Connect exits: Usage Profile required | Empty catalog / multi-profile without flag | Pass `--usage-profile ID` or run interactively; `agentcore profile list` |
-| Ingest / connect fails: could not auto-discover `source.server_path` | No matching tree on server | Clone/rsync the app onto the host (`/opt/<name>` or dogfood AgentCore root), then re-run connect |
+| Ingest / connect / sync fails: could not auto-discover `source.server_path` | No matching tree on server | Clone/rsync the app onto the host (`/opt/<name>` or dogfood AgentCore root), then re-run connect or sync |
+| `agentcore-client sync`: remote sync needs explicit server-side path | Safety net after discovery skipped/failed; empty yaml without SSH probe success | Ensure the app tree exists on the AgentCore host; re-run sync (auto-discover+persist) or set `source.server_path` / pass `--path` |
 | `agentcore: command not found` | PATH | New shell after install; `agentcore path install` |
 
 ## Implementation status
@@ -150,6 +187,7 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | Capability | Status |
 | --- | --- |
 | `agentcore connect` + `connect.yaml` | Shipped |
+| Shared SSH `source.server_path` discovery (connect + client sync) | Shipped |
 | SSH stdio transport | Shipped |
 | Interactive scope + Usage Profile on first connect | Shipped |
 | HTTP MCP (`serve-http`, port `32500`) | Shipped |
