@@ -49,7 +49,7 @@ external_refs:
 - https://github.com/headroomlabs-ai/headroom
 - https://opensource.org/licenses/MIT
 - https://www.apache.org/licenses/LICENSE-2.0
-doc_version: 1.4.1
+doc_version: 1.4.2
 audience:
 - engineer
 - architect
@@ -76,7 +76,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
+updated_at: '2026-08-04'
 ---
 
 # 21 - Code Intelligence Prior Art Ideas And License
@@ -191,7 +191,7 @@ Upstream snapshot (ideas only; MIT DeusData): indexing (`index_repository`, `lis
 | CI-37 | Hybrid: structural then escalate when quality needs it | Adopt | **Shipped:** `escalate_hint` + workspace guidance |
 | CI-38 | Hybrid LSP type-resolution pass refining CALLS (no LS process) | Adapt | Keep ADR `48`/`49`: real IDE LSP = `ide_semantic` only; durable edges from AST ingest + reconcile — do **not** embed C Hybrid LSP |
 | CI-39 | IaC nodes (Dockerfile / K8s / Kustomize) with cross-refs | Adapt | Future deploy/IaC graph lane; not v1 coding wedge |
-| CI-40 | Index-coverage check before “absent / dead” claims | Adopt | **Shipped:** `index_coverage` on unused_candidates + freshness fail-closed |
+| CI-40 | Index-coverage check before “absent / dead” claims | Adopt | **Shipped:** `index_coverage` + freshness fail-closed on scored `unused_candidates`; demotes `safe_to_delete` when incomplete |
 | CI-41 | ADR CRUD linked into architecture overview | Adapt | Docs-sync + `DOCUMENTED_BY` / rationale (`CI-28`); no parallel ADR store in SQLite |
 | CI-42 | Agent-facing openCypher `query_graph` | Avoid | Prefer typed MCP tools; Neo4j Cypher stays service/ops behind ACL |
 | CI-43 | Runtime `ingest_traces` to validate HTTP_CALLS | Adapt | Optional live/eval evidence path; not default agent coding loop |

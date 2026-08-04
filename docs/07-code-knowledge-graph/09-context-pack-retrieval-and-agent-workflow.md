@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.1.0
-updated_at: '2026-07-25'
+doc_version: 1.2.1
+updated_at: '2026-08-04'
 ---
 
 # 09 - Context Pack Retrieval And Agent Workflow
@@ -95,7 +95,7 @@ When repeated failures happen around the same symbol or dependency, metadata can
 
 ### Dead-Code Cleanup
 
-After an agent replaces or retires behavior, unused-candidate queries (see [`36-dead-code-candidates-and-cleanup-loop.md`](36-dead-code-candidates-and-cleanup-loop.md)) help remove orphaned predecessors in the same change. Context packs should highlight superseded symbols and callers so cleanup stays task-scoped.
+After an agent replaces or retires behavior, scored unused-candidate queries (see [`36-dead-code-candidates-and-cleanup-loop.md`](36-dead-code-candidates-and-cleanup-loop.md)) help remove orphaned predecessors in the same change. Prefer MCP default `task_neighborhood` (or `changed_symbols`); use `project_scan` only for ranked discovery with `min_confidence`. Context packs should highlight superseded symbols and callers, and agents should act on `safe_to_delete` rows with `score ≥ 0.8` after reading `evidence` and `finding_kind`.
 
 ### Token Consumption
 

@@ -13,6 +13,7 @@ from agentcore_cli.commands.quality_audit import (
     parse_quality_audit_words,
 )
 from agentcore_cli.commands.quality_audit.categories import (
+    CATEGORY_CODE_DEAD_CODE_HINT,
     CATEGORY_CODE_MISSING_EMBEDDINGS,
     CATEGORY_DOCS_LINKING_GAP,
     CATEGORY_DOCS_REVISION_INVALID,
@@ -209,3 +210,30 @@ def test_code_audit_reports_missing_embedding_rows(monkeypatch):
             ),
         }
     ]
+
+
+def test_code_audit_dead_code_hint_on_stale(monkeypatch):
+    from agentcore_cli.commands.quality_audit.collect import _audit_code
+
+    monkeypatch.setattr(
+        "agentcore_cli.commands.inventory.collect.build_inventory_report",
+        lambda _args: {
+            "paths": ["/repo"],
+            "summary": {},
+            "results": [
+                {
+                    "code": {
+                        "remaining_files": [],
+                        "edited_files": [{"path": "src/old.py"}],
+                        "done_files": [],
+                    }
+                }
+            ],
+        },
+    )
+    findings, meta = _audit_code(argparse.Namespace())
+    assert meta["available"] is True
+    hints = [f for f in findings if f["category"] == CATEGORY_CODE_DEAD_CODE_HINT]
+    assert len(hints) == 1
+    assert "agentcore_code_graph_unused_candidates" in hints[0]["detail"]
+    assert "skill:agentcore-remove-dead-code" in hints[0]["evidence"]

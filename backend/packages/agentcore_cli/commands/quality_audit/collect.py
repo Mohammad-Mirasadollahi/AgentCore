@@ -15,6 +15,7 @@ from agentcore_cli.commands.docs_standards.collect import (
     build_docs_standards_report,
 )
 from agentcore_cli.commands.quality_audit.categories import (
+    CATEGORY_CODE_DEAD_CODE_HINT,
     CATEGORY_CODE_LOW_SYMBOL_DOCS,
     CATEGORY_CODE_MISSING_EMBEDDINGS,
     CATEGORY_CODE_NEVER_INGESTED,
@@ -27,6 +28,7 @@ from agentcore_cli.commands.quality_audit.categories import (
     CATEGORY_DOCS_SIZE_HARD,
     CATEGORY_DOCS_SIZE_SOFT,
     CATEGORY_DOCS_STANDARDS,
+    CATEGORY_DOCS_STALE_CLEANUP_HINT,
     CATEGORY_META,
     VALID_CONCERNS,
 )
@@ -188,6 +190,25 @@ def _audit_docs(root: Path) -> list[dict[str, Any]]:
                         evidence=["mermaid_without_flow_table"],
                     )
                 )
+    linking_gaps = [f for f in findings if f.get("category") == CATEGORY_DOCS_LINKING_GAP]
+    if linking_gaps:
+        sample = str(linking_gaps[0].get("path") or "")
+        findings.append(
+            _finding(
+                category=CATEGORY_DOCS_STALE_CLEANUP_HINT,
+                path=sample,
+                detail=(
+                    f"linking_gaps={len(linking_gaps)}; "
+                    "call agentcore_docs_stale_candidates after sync "
+                    "(prefer safe_to_update/safe_to_unlink; safe_to_delete only score>=0.8)"
+                ),
+                evidence=[
+                    "maps_to:docs.stale_candidates",
+                    "skill:agentcore-remove-stale-docs",
+                    f"linking_gap_count={len(linking_gaps)}",
+                ],
+            )
+        )
     return findings
 
 
@@ -280,6 +301,28 @@ def _audit_code(args: Any | None) -> tuple[list[dict[str, Any]], dict[str, Any]]
                 category=CATEGORY_CODE_MISSING_EMBEDDINGS,
                 path=path,
                 detail=detail,
+            )
+        )
+    # Deep-link: after stale/never-ingested inventory, point agents at scored unused-candidates.
+    if remaining_paths or edited_paths:
+        sample = (edited_paths or remaining_paths)[0]
+        findings.append(
+            _finding(
+                category=CATEGORY_CODE_DEAD_CODE_HINT,
+                path=sample,
+                detail=(
+                    f"inventory hints cleanup: stale={len(edited_paths)} "
+                    f"never_ingested={len(remaining_paths)}; "
+                    "call agentcore_code_graph_unused_candidates after sync "
+                    "(prefer path_prefix; act only safe_to_delete score>=0.8 same change)"
+                ),
+                evidence=[
+                    "maps_to:code_graph.unused_candidates",
+                    "skill:agentcore-remove-dead-code",
+                    "act:safe_to_delete_score_ge_0.8",
+                    f"stale_count={len(edited_paths)}",
+                    f"never_ingested_count={len(remaining_paths)}",
+                ],
             )
         )
     return findings, meta

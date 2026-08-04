@@ -22,8 +22,8 @@ visibility: internal
 linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/services/code-graph-service/src/code_graph_service/domain/doc_discovery.py::discover_documentation_files
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.0.1
+updated_at: '2026-08-04'
 ---
 
 # Docs-as-Code and Synchronization - Feature Specification
@@ -80,3 +80,9 @@ Code comments or manifests can mark whether a symbol is expected to have documen
 - Create DriftFindings and Docs Agent Tasks.
 - Block merges for critical documentation drift.
 - Keep documents readable by humans and routable by machines.
+- Surface scored stale-documentation candidates for agent cleanup (`agentcore_docs_stale_candidates`; normative detail in `../07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md`). AgentCore never deletes Markdown.
+
+## Related Documents
+
+- [`../07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md) — scored stale-doc cleanup loop (sister to dead-code).
+- [`00-index.md`](00-index.md) — docs-as-code phase index.

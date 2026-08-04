@@ -13,7 +13,8 @@
 - `agentcore-session-bootstrap` — session start / MCP bootstrap
 - `agentcore-memory` — recall or persist project memory
 - `agentcore-code-graph` — symbols, callers, ownership, blast radius
-- `agentcore-remove-dead-code` — prove and delete orphans after replace/retire
+- `agentcore-remove-dead-code` — prove and delete orphans after replace/retire (scored unused-candidates MCP; prefer `safe_to_delete` + `score ≥ 0.8`)
+- `agentcore-remove-stale-docs` — prove and remediate orphan/ghost/wiki/duplicate/stale docs (scored `agentcore_docs_stale_candidates`; prefer update/unlink over delete)
 - `agentcore-durable-write` — memory / task / activity / decision records
 - `agentcore-documentation-authoring` — Full-tier Markdown; write + fix-on-read
 - `agentcore-standards-on-edit` — fix-on-write for docs and hard modules

@@ -11,10 +11,12 @@ CATEGORY_DOCS_FLOW_TABLE = "docs.flow_table_gap"
 CATEGORY_DOCS_LANE_INVALID = "docs.lane_invalid"
 CATEGORY_DOCS_REVISION_MISSING = "docs.revision_missing"
 CATEGORY_DOCS_REVISION_INVALID = "docs.revision_invalid"
+CATEGORY_DOCS_STALE_CLEANUP_HINT = "docs.stale_cleanup_hint"
 CATEGORY_CODE_NEVER_INGESTED = "code.never_ingested"
 CATEGORY_CODE_STALE_EDITED = "code.stale_edited"
 CATEGORY_CODE_LOW_SYMBOL_DOCS = "code.low_symbol_docs"
 CATEGORY_CODE_MISSING_EMBEDDINGS = "code.missing_embeddings"
+CATEGORY_CODE_DEAD_CODE_HINT = "code.dead_code_cleanup_hint"
 
 CATEGORY_META: dict[str, dict[str, str]] = {
     CATEGORY_DOCS_STANDARDS: {
@@ -71,6 +73,21 @@ CATEGORY_META: dict[str, dict[str, str]] = {
         "meaning": "doc_version or updated_at present but not valid (semver / ISO date).",
         "fix_hint": "Fix to doc_version MAJOR.MINOR.PATCH and updated_at YYYY-MM-DD (UTC).",
     },
+    CATEGORY_DOCS_STALE_CLEANUP_HINT: {
+        "title": "Stale-documentation cleanup opportunity",
+        "severity": "low",
+        "meaning": (
+            "Linking gaps or sync inventory may leave orphan/ghost/stale docs; "
+            "AgentCore scores candidates but does not delete Markdown."
+        ),
+        "fix_hint": (
+            "After sync: MCP agentcore_docs_stale_candidates "
+            "(task_neighborhood default; project_scan + path_prefix for scoped discovery; "
+            "prefer safe_to_update/safe_to_unlink; act on safe_to_delete only with score>=0.8); "
+            "skill agentcore-remove-stale-docs. "
+            "See docs/07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md."
+        ),
+    },
     CATEGORY_CODE_NEVER_INGESTED: {
         "title": "Code never ingested",
         "severity": "high",
@@ -98,6 +115,21 @@ CATEGORY_META: dict[str, dict[str, str]] = {
             "capped backlog). For full-project missing/mismatch heal: "
             "agentcore sync heal (or AGENTCORE_EMBEDDING_REFRESH_FULL=1 once); "
             "inspect embedding_refresh on failure."
+        ),
+    },
+    CATEGORY_CODE_DEAD_CODE_HINT: {
+        "title": "Dead-code cleanup opportunity",
+        "severity": "low",
+        "meaning": (
+            "Stale or never-ingested code may leave orphaned predecessors after "
+            "replace/retire; AgentCore scores candidates but does not delete files."
+        ),
+        "fix_hint": (
+            "After sync: MCP agentcore_code_graph_unused_candidates "
+            "(task_neighborhood default; project_scan + path_prefix for scoped discovery; "
+            "act only on safe_to_delete with score>=0.8 in the same change); "
+            "skill agentcore-remove-dead-code. "
+            "See docs/07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md."
         ),
     },
 }

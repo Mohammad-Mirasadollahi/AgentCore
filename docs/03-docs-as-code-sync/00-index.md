@@ -23,8 +23,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/docs_link_sync.py::sync_human_docs
 - backend/services/code-graph-service/src/code_graph_service/application/ingest/human_docs.py::HumanDocIngestMixin
 - backend/packages/agentcore_cli/docs_registry_hygiene.py::purge_docs_registry_fixture_noise
-doc_version: 1.0.1
-updated_at: '2026-08-02'
+doc_version: 1.0.2
+updated_at: '2026-08-04'
 ---
 
 # 03 - Docs-as-Code and Synchronization Index
@@ -46,6 +46,7 @@ Make documentation, code, decisions, and ownership part of one synchronized know
 - `04-data-contracts-and-events.md` defines docs, code symbol, graph, and drift contracts.
 - `05-risks-challenges-and-acceptance.md` defines risks and acceptance criteria.
 - `06-detailed-section-design.md` provides deep rationale, graph design, AST anchor details, drift behavior, edge cases, and phase output.
+- Sister cleanup loop (scored stale-doc candidates): `../07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md` (`agentcore_docs_stale_candidates`; finding kinds include `wiki_orphan` / `duplicate_authority`).
 
 ## Features Covered
 
@@ -53,6 +54,8 @@ Make documentation, code, decisions, and ownership part of one synchronized know
 - AST Anchoring
 - YAML Frontmatter
 - Bloom Filter Lookup
+- Drift Detection / CI Gate
+- Scored stale-documentation candidates (MCP; AgentCore never deletes Markdown)
 - Lightweight y/n Doc Flags
 
 ## Related Technical Logic

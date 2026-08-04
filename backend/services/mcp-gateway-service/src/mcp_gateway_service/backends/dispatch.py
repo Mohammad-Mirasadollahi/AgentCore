@@ -130,6 +130,9 @@ def dispatch_capability(
     if maps_to == "docs_sync.status":
         return docs.docs_status(backends, scope=scope, base=base)
 
+    if maps_to == "docs.stale_candidates" or maps_to == "docs_sync.stale_candidates":
+        return docs.docs_stale_candidates(backends, arguments, scope=scope, base=base)
+
     if maps_to == "docs_sync.authoring_standards":
         return docs.docs_authoring_standards(base=base)
     if maps_to == "docs_sync.catalog":

@@ -41,7 +41,7 @@ external_refs:
 - https://github.com/oraios/serena
 - https://github.com/Graphify-Labs/graphify
 - https://github.com/tirth8205/code-review-graph
-doc_version: 1.0.0
+doc_version: 1.0.1
 audience:
 - engineer
 - architect
@@ -61,7 +61,7 @@ chunk_hints:
   overlap_tokens: 48
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-04'
 ---
 
 # 48 - AST and LSP Hybrid Parsing ADR
@@ -214,5 +214,5 @@ Notes:
 - Ingest workflow: `03-ingestion-and-living-documentation-workflow.md`
 - Projection: `13-codesymbol-projection-adr.md`
 - Competitive roadmap (AST-style intelligence waves): `19-competitive-code-intelligence-roadmap-adr.md`
-- Unused symbols on structural edges: `36-dead-code-candidates-and-cleanup-loop.md`
+- Unused symbols on structural edges with scored confidence: `36-dead-code-candidates-and-cleanup-loop.md`
 - Hybrid **documentation** layers (distinct from this parsing ADR): `41-hybrid-documentation-coverage.md`

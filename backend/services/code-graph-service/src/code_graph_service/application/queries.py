@@ -32,6 +32,12 @@ class QueryUseCases(GraphServiceSupport):
         anchor_paths: list[str] | None = None,
         max_results: int = 50,
         include_uncertain: bool = False,
+        min_confidence: float | None = None,
+        coverage_hits: dict[str, int] | None = None,
+        flag_states: dict[str, Any] | None = None,
+        repo_root: str | None = None,
+        disk_search: bool = False,
+        path_prefix: str | None = None,
     ) -> dict[str, Any]:
         banner = (
             self.freshness_status(scope)
@@ -55,25 +61,71 @@ class QueryUseCases(GraphServiceSupport):
                 max_results=max_results,
                 include_uncertain=include_uncertain,
                 freshness=freshness,
+                min_confidence=min_confidence,
+                coverage_hits=coverage_hits,
+                flag_states=flag_states,
+                repo_root=repo_root,
+                disk_search=disk_search,
+                path_prefix=path_prefix,
             )
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
         pending_count = int(banner.get("pending_count") or len(pending) or 0)
+        safe_absence = freshness == "ok" and pending_count == 0
         payload["freshness_detail"] = {
             "pending_files": pending if isinstance(pending, list) else [],
             "last_sync_at": banner.get("last_sync_at"),
         }
         payload["index_coverage"] = {
-            "status": "incomplete" if freshness != "ok" or pending_count else "ok",
+            "status": "incomplete" if not safe_absence else "ok",
             "pending_count": pending_count,
-            "safe_absence_claims": freshness == "ok" and pending_count == 0,
+            "safe_absence_claims": safe_absence,
             "note": (
                 "Refuse safe_to_delete when index incomplete (CI-40); "
                 "run agentcore sync / check freshness before dead-code claims"
-                if freshness != "ok" or pending_count
+                if not safe_absence
                 else "index looks fresh for scoped absence claims"
             ),
         }
+        # CI-40: never claim safe_to_delete when the index cannot support absence claims.
+        if not safe_absence:
+            demoted: list[dict[str, Any]] = []
+            for row in payload.get("candidates") or []:
+                moved = dict(row)
+                moved["safe_to_delete"] = False
+                blockers = list(moved.get("blockers") or [])
+                blockers = list(dict.fromkeys([*blockers, "index_incomplete"]))
+                moved["blockers"] = blockers
+                demoted.append(moved)
+            if demoted:
+                skipped = list(payload.get("skipped_uncertain") or [])
+                skipped = [
+                    {
+                        "symbol": r.get("symbol"),
+                        "symbol_id": r.get("symbol_id"),
+                        "path": r.get("path"),
+                        "finding_kind": r.get("finding_kind"),
+                        "score": r.get("score"),
+                        "confidence": r.get("confidence"),
+                        "test_only": r.get("test_only", False),
+                        "evidence": r.get("evidence") or [],
+                        "blockers": r.get("blockers") or [],
+                    }
+                    for r in demoted
+                ] + skipped
+                payload["candidates"] = []
+                payload["skipped_uncertain"] = skipped[: max(1, min(int(max_results or 50), 200))]
+            hints = dict(payload.get("kpi_hints") or {})
+            hints["dead_code_candidates_surfaced"] = len(payload.get("candidates") or [])
+            hints["dead_code_candidates_skipped_uncertain"] = len(
+                payload.get("skipped_uncertain") or []
+            )
+            hints.setdefault("dead_code_candidates_resolved", 0)
+            payload["kpi_hints"] = hints
+        else:
+            hints = dict(payload.get("kpi_hints") or {})
+            hints.setdefault("dead_code_candidates_resolved", 0)
+            payload["kpi_hints"] = hints
         return payload
 
     def get_polyglot_profile(self, scope: Scope) -> PolyglotProjectProfile:

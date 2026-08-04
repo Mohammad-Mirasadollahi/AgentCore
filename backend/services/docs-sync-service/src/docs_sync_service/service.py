@@ -391,6 +391,38 @@ class DocsSyncService:
                 missing.append({"symbol": symbol.public(), "severity": severity_for(symbol).value})
         return missing
 
+    def stale_candidates(
+        self,
+        scope: Scope,
+        *,
+        scope_mode: str,
+        anchor_symbols: list[str] | None = None,
+        anchor_paths: list[str] | None = None,
+        max_results: int = 50,
+        include_uncertain: bool = False,
+        min_confidence: float | None = None,
+        path_prefix: str | None = None,
+        include_coverage_gaps: bool = False,
+        freshness: str = "ok",
+    ) -> dict[str, Any]:
+        """Scored stale-documentation candidates (AgentCore does not delete Markdown)."""
+        from .domain.stale_docs import find_stale_doc_candidates
+
+        return find_stale_doc_candidates(
+            self.store.list_documents(scope),
+            self.store.list_symbols(scope),
+            self.store.list_anchors(scope),
+            scope_mode=scope_mode,
+            anchor_symbols=anchor_symbols,
+            anchor_paths=anchor_paths,
+            max_results=max_results,
+            include_uncertain=include_uncertain,
+            freshness=freshness,
+            min_confidence=min_confidence,
+            path_prefix=path_prefix,
+            include_coverage_gaps=include_coverage_gaps,
+        )
+
     def bloom_lookup(self, scope: Scope, symbol_id: str) -> dict[str, Any]:
         bloom = self._bloom_for(scope)
         maybe = bloom.might_contain(symbol_id)

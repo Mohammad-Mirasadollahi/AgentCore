@@ -227,6 +227,146 @@ def test_code_graph_tools_neighbors_and_ingest():
     backends.close()
 
 
+def test_code_graph_unused_candidates_scored_contract():
+    """MCP unused_candidates returns score/evidence/kpi_hints (dead-code intelligence)."""
+    from uuid import uuid4
+
+    from mcp_gateway_service.backends import PlatformBackends, dispatch_capability
+    from mcp_gateway_service.store_factory import build_stores
+
+    backends = PlatformBackends(
+        build_stores({"AGENTCORE_MCP_STORE_MODE": "memory", "AGENTCORE_MCP_GRAPH_MODE": "memory"})
+    )
+    scope = {"tenant_id": "t", "workspace_id": "w", "project_id": "p-dead"}
+    dispatch_capability(
+        backends,
+        "code_graph.ingest_file",
+        {
+            "file_path": "src/orphan.py",
+            "language": "python",
+            "source": "def unused_helper():\n    return 42\n\ndef also_unused():\n    return unused_helper()\n",
+        },
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    payload = dispatch_capability(
+        backends,
+        "code_graph.unused_candidates",
+        {
+            "scope_mode": "project_scan",
+            "path_prefix": "src",
+            "min_confidence": 0.5,
+            "include_uncertain": True,
+            "max_results": 50,
+        },
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert payload["scope_mode"] == "project_scan"
+    assert payload.get("path_prefix") == "src"
+    assert "kpi_hints" in payload
+    assert "dead_code_candidates_surfaced" in payload["kpi_hints"]
+    assert "index_coverage" in payload
+    rows = list(payload.get("candidates") or []) + list(payload.get("skipped_uncertain") or [])
+    assert rows
+    assert all(str(r.get("path") or "").startswith("src") for r in rows)
+    sample = rows[0]
+    assert "score" in sample
+    assert "confidence" in sample
+    assert "evidence" in sample
+    assert "finding_kind" in sample
+    triage_payload = dispatch_capability(
+        backends,
+        "code_graph.unused_candidates",
+        {
+            "scope_mode": "project_scan",
+            "include_uncertain": True,
+            "triage": True,
+            "max_results": 10,
+        },
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert triage_payload.get("triage_enabled") is True
+    assert triage_payload.get("triage_note") == "triage_cannot_raise_safe_to_delete"
+    assert triage_payload.get("triage_engine") == "local_rules"
+    uncertain = list(triage_payload.get("skipped_uncertain") or [])
+    if uncertain:
+        assert "triage" in uncertain[0]
+        assert uncertain[0]["triage"].get("safe_to_delete") is False
+    backends.close()
+
+
+def test_docs_stale_candidates_scored_contract():
+    """MCP docs.stale_candidates returns score/evidence/kpi_hints (doc 78)."""
+    from uuid import uuid4
+
+    from mcp_gateway_service.backends import PlatformBackends, dispatch_capability
+    from mcp_gateway_service.store_factory import build_stores
+
+    backends = PlatformBackends(
+        build_stores({"AGENTCORE_MCP_STORE_MODE": "memory", "AGENTCORE_MCP_GRAPH_MODE": "memory"})
+    )
+    scope = {"tenant_id": "t", "workspace_id": "w", "project_id": "p-stale-docs"}
+    dispatch_capability(
+        backends,
+        "docs_sync.write",
+        {
+            "mode": "index",
+            "title": "Orphan fixture",
+            "body": "Body for stale orphan fixture.\n",
+            "path": "docs/fixtures/stale_orphan.md",
+            "doc_id": "ac.doc.test.stale-orphan",
+            "frontmatter": {
+                "doc_id": "ac.doc.test.stale-orphan",
+                "title": "Orphan fixture",
+                "owner": "test",
+                "status": "active",
+                "schema_version": "1.0",
+                "linked_symbols": [],
+                "decision_refs": [],
+                "concern_lane": "product",
+                "lifecycle_lane": "current",
+                "authority": "informative",
+                "updated_at": "2020-01-01",
+            },
+        },
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    payload = dispatch_capability(
+        backends,
+        "docs.stale_candidates",
+        {
+            "scope_mode": "project_scan",
+            "path_prefix": "docs/fixtures",
+            "min_confidence": 0.5,
+            "include_uncertain": True,
+            "max_results": 20,
+        },
+        scope=scope,
+        usage_profile="programming-cursor-mcp",
+        correlation_id=str(uuid4()),
+    )
+    assert payload["scope_mode"] == "project_scan"
+    assert payload.get("path_prefix") == "docs/fixtures"
+    assert "kpi_hints" in payload
+    assert "stale_docs_candidates_surfaced" in payload["kpi_hints"]
+    assert "index_coverage" in payload
+    rows = list(payload.get("candidates") or []) + list(payload.get("skipped_uncertain") or [])
+    assert rows
+    sample = rows[0]
+    assert "score" in sample
+    assert "finding_kind" in sample
+    assert "evidence" in sample
+    assert any(r.get("finding_kind") == "orphan_doc" for r in rows), rows
+    backends.close()
+
+
 def test_code_graph_ingest_repo_via_mcp(tmp_path):
     from uuid import uuid4
 

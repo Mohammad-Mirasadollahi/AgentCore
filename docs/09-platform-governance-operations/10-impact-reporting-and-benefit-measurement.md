@@ -20,16 +20,15 @@ authority: normative
 visibility: internal
 linked_symbols: []
 placeholder: 1
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.2.0
+updated_at: '2026-08-04'
 ---
 
 # 10 - Impact Reporting And Benefit Measurement
 
-## 10 - Impact Reporting And Benefit Measurement
 ## Purpose
 
-AgentCore must prove its value with measurable, auditable, scope-aware reporting. The platform should help teams compare engineering outcomes with AgentCore enabled versus disabled, or with specific AgentCore capabilities enabled versus disabled. Reports must show whether the platform improves initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup after AI coding changes.
+AgentCore must prove its value with measurable, auditable, scope-aware reporting. The platform should help teams compare engineering outcomes with AgentCore enabled versus disabled, or with specific AgentCore capabilities enabled versus disabled. Reports must show whether the platform improves initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, dead-code cleanup after AI coding changes, and stale-documentation cleanup after code or docs edits.
 
 This document defines the measurement framework, KPI definitions, event instrumentation, baseline strategy, comparison methodology, dashboard requirements, evidence model, interpretation rules, and acceptance criteria.
 
@@ -37,7 +36,7 @@ This document defines the measurement framework, KPI definitions, event instrume
 
 The raw user requirement can be formalized as follows:
 
-AgentCore must include an impact reporting system that measures the practical difference between using and not using the platform. The system should not only show activity counts. It should measure outcome quality and engineering efficiency across defined scopes. The required metrics are initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, and dead-code cleanup. Each metric must have a clear definition, data source, baseline, time range, project scope, confidence caveat, and evidence drilldown.
+AgentCore must include an impact reporting system that measures the practical difference between using and not using the platform. The system should not only show activity counts. It should measure outcome quality and engineering efficiency across defined scopes. The required metrics are initial code generation speed, bug reduction, architecture quality, rework reduction, token consumption, dead-code cleanup, and stale-documentation cleanup. Each metric must have a clear definition, data source, baseline, time range, project scope, confidence caveat, and evidence drilldown.
 
 The reporting system should be useful for engineering leaders, product owners, platform operators, and architects who need to decide whether AgentCore is improving real delivery outcomes or only adding process overhead.
 
@@ -254,7 +253,10 @@ Recommended KPIs:
 - docs_to_symbol_coverage.
 - migration_risk_score.
 - orphaned_symbols_remaining (task-neighborhood unused candidates still present after coding tasks that enabled cleanup guidance).
-- dead_code_candidates_resolved (unused candidates removed after proof in the same agent task; see dead-code cleanup loop).
+- dead_code_candidates_resolved (scored unused candidates removed after proof in the same agent task; see dead-code cleanup loop).
+- stale_docs_candidates_surfaced (scored stale-documentation candidates returned by `agentcore_docs_stale_candidates`).
+- stale_docs_candidates_resolved (docs remediated or retired after proof in the same agent task; see stale-docs cleanup loop).
+- stale_docs_candidates_skipped_uncertain (candidates left for human Task / blockers).
 
 ### Architecture Health Dimensions
 
@@ -269,11 +271,13 @@ Dimensions:
 - migration safety.
 - project isolation compliance.
 - orphan debt (proven-unused symbols left after AI replace/retire).
+- stale-doc debt (orphan/ghost/superseded docs left after AI replace/retire or doc edits).
 
 ### Data Sources
 
 - code graph snapshots.
-- unused-candidate query results (`agentcore_code_graph_unused_candidates` when implemented).
+- unused-candidate query results (`agentcore_code_graph_unused_candidates` with `score` / `evidence` / `finding_kind` / `kpi_hints`, including `dead_code_candidates_resolved` placeholder for Activity write-back).
+- stale-doc candidate query results (`agentcore_docs_stale_candidates` with `score` / `evidence` / `finding_kind` / `kpi_hints`, including `stale_docs_candidates_resolved` placeholder for Activity write-back).
 - dependency boundary checks.
 - docs graph.
 - contract registry.
@@ -323,6 +327,7 @@ Recommended KPIs:
 - connector validation history.
 - human correction records.
 - dead-code cleanup Activity fields (candidates surfaced vs resolved).
+- stale-docs cleanup Activity fields (`stale_docs_candidates_surfaced` / `resolved` / `skipped_uncertain`; do not double-count the same remediation with `repeated_documentation_drift_count`).
 
 ### Interpretation Rules
 

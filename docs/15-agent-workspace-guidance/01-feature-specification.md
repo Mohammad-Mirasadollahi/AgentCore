@@ -31,7 +31,8 @@ related_docs:
 - ac.doc.awg.index
 - ac.doc.awg.high-level-design
 - ac.doc.common_context.feature-specification
-doc_version: 1.0.0
+doc_version: 1.1.1
+updated_at: '2026-08-04'
 audience:
 - engineer
 - architect
@@ -53,7 +54,7 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-24'
+updated_at: '2026-08-04'
 ---
 
 # 01 - Agent Workspace Guidance Feature Specification
@@ -94,7 +95,7 @@ Today AgentCore connects those agents primarily as MCP clients with memory, grap
 - Make selection explainable: why each rule or skill was included, suppressed, or deferred.
 - Preserve tenant / workspace / project / user isolation and precedence (task override > user > project > org).
 - Ship a platform seed pack of always-on rules and skills that instruct coding agents to route AgentCore-capable work through MCP (see [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
-- Include dead-code cleanup in that seed pack: always-on same-change orphan removal plus on-demand `agentcore-remove-dead-code`, aligned with the graph cleanup loop ([`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md)).
+- Include dead-code cleanup in that seed pack: always-on same-change orphan removal plus on-demand `agentcore-remove-dead-code` (scored unused-candidates with `score`/`evidence`/`finding_kind`; MCP default `task_neighborhood`), aligned with the graph cleanup loop ([`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md)).
 ## Non-Goals
 
 - Not a replacement for the platform rule engine; policy *execution* stays in rule-engine-service.
@@ -250,7 +251,7 @@ Ship docs and contracts first. Implementation adds kinds to Common Context, then
 - An operator can optionally export the same guidance to IDE-native paths and see conflicts instead of silent clobber.
 - Developers can explain, from audit UI, which guidance applied to a session.
 - Seeded MCP-first rule/skills instruct the agent to call AgentCore MCP tools for memory, graph, docs-sync, durable writes, tasks, guidance bootstrap, and dead-code cleanup (normative catalog in [`06-mcp-first-agent-skills-and-rules.md`](06-mcp-first-agent-skills-and-rules.md)).
-- Connected coding agents are instructed to remove proven-dead predecessors in the same change after replace/retire; AgentCore does not delete repository files.
+- Connected coding agents are instructed to remove proven-dead predecessors in the same change after replace/retire (prefer `safe_to_delete` with `score ≥ 0.8`); AgentCore does not delete repository files.
 ## Open Gaps
 
 Tracked in [`05-risks-challenges-and-acceptance.md`](05-risks-challenges-and-acceptance.md). Design closes the documentation side of GAP-A06 for connect-time context injection shape; IDE plugin UX details remain follow-on.

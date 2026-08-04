@@ -21,7 +21,7 @@ description: Search AgentCore code knowledge graph before wide local search.
 7. Architecture: `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
 8. IDE-precise rename/refs/definition (local LSPs): `agentcore_code_graph_ide_references` / `ide_definition` / `ide_rename` (`reference_kind=ide_semantic`). Reconcile via rename or `agentcore_code_graph_reconcile_after_edit` — never durable `CODE_REL` from LSP. `available=false` → configure `AGENTCORE_LSP_CMD_*`.
 9. Escalate to Read/`rg` only for pending-sync, low-confidence edges, empty graph, or after structural + explore/hybrid fails; report degraded mode.
-10. After replace/retire → skill `agentcore-remove-dead-code` in the same change.
+10. After replace/retire → skill `agentcore-remove-dead-code` in the same change (scored `agentcore_code_graph_unused_candidates`; act on `safe_to_delete` with `score ≥ 0.8`).
 
 ## Do not
 

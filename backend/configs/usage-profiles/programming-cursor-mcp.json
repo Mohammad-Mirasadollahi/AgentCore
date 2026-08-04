@@ -421,7 +421,7 @@
       },
       {
         "name": "agentcore_code_graph_unused_candidates",
-        "description": "Task-scoped unused-symbol candidates from the code graph (no inbound CALLS/IMPORTS). Prefer after replace/retire; AgentCore never deletes files — prove then delete locally. Requires anchor_symbols and/or anchor_paths (no whole-repo scan).",
+        "description": "Scored dead-code candidates from the code graph (numeric score, evidence, finding_kind). Default scope_mode=task_neighborhood after replace/retire; optional project_scan for ranked discovery (prefer path_prefix to scope a package); optional disk_search/coverage_hits/flag_states/triage. AgentCore never deletes files — prove then delete locally. Anchors required except project_scan. Prefer min_confidence=0.8 before safe deletes. Graph is SoT — do not treat Memory as a candidate queue.",
         "maps_to": "code_graph.unused_candidates",
         "input_schema": {
           "type": "object",
@@ -432,8 +432,8 @@
             },
             "scope_mode": {
               "type": "string",
-              "enum": ["task_neighborhood", "changed_symbols", "explicit_paths"],
-              "default": "changed_symbols"
+              "enum": ["task_neighborhood", "changed_symbols", "explicit_paths", "project_scan"],
+              "default": "task_neighborhood"
             },
             "anchor_symbols": {
               "type": "array",
@@ -449,6 +449,10 @@
               },
               "description": "Repo-relative path prefixes for explicit_paths / anchors"
             },
+            "path_prefix": {
+              "type": "string",
+              "description": "Optional repo-relative directory/file prefix; report candidates only under this path while liveness still uses the full project graph"
+            },
             "max_results": {
               "type": "integer",
               "minimum": 1,
@@ -458,6 +462,41 @@
             "include_uncertain": {
               "type": "boolean",
               "default": false
+            },
+            "min_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0,
+              "description": "Minimum numeric score to include; use 0.8 when acting on safe_to_delete"
+            },
+            "triage": {
+              "type": "boolean",
+              "default": false,
+              "description": "Advisory triage (local rules; optional LLM judge later); cannot raise safe_to_delete"
+            },
+            "disk_search": {
+              "type": "boolean",
+              "default": false,
+              "description": "Optional bounded disk string-name search (requires repo_root); soft-blocks safe_to_delete"
+            },
+            "repo_root": {
+              "type": "string",
+              "description": "Absolute or workspace root for optional disk_search"
+            },
+            "coverage_hits": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "description": "Optional map symbol_id→hit_count; hits>0 block delete; 0 is evidence only"
+            },
+            "flag_states": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              },
+              "description": "Optional feature-flag states for flag_controlled_dead findings (constant_for_days>=90)"
             }
           },
           "required": ["scope_mode"],
@@ -912,6 +951,67 @@
           "required": [
             "symbol"
           ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "agentcore_docs_stale_candidates",
+        "description": "Scored stale-documentation candidates (orphan_doc/ghost_link/stale_anchor/superseded_retrieval_risk/wiki_orphan/duplicate_authority; optional coverage_gap). Default scope_mode=task_neighborhood; optional project_scan with path_prefix. Prefer safe_to_update/safe_to_unlink over safe_to_delete; act only when score>=0.8 and blockers empty. wiki_orphan and duplicate_authority never auto-delete. AgentCore never deletes Markdown. Graph/docs registry are SoT — not Memory.",
+        "maps_to": "docs.stale_candidates",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "Optional; must match active MCP project scope when set"
+            },
+            "scope_mode": {
+              "type": "string",
+              "enum": ["task_neighborhood", "changed_symbols", "explicit_paths", "project_scan"],
+              "default": "task_neighborhood"
+            },
+            "anchor_symbols": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Symbol ids or paths in the change neighborhood"
+            },
+            "anchor_paths": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Code or doc path prefixes"
+            },
+            "path_prefix": {
+              "type": "string",
+              "description": "Optional docs-root relative prefix; report candidates only under this path"
+            },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "include_uncertain": {
+              "type": "boolean",
+              "default": false
+            },
+            "min_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum score; use 0.8 for destructive remediations; project_scan omit→0.50"
+            },
+            "triage": {
+              "type": "boolean",
+              "default": false,
+              "description": "Advisory triage; cannot raise act flags"
+            },
+            "include_coverage_gaps": {
+              "type": "boolean",
+              "default": false,
+              "description": "Opt-in missing human-doc findings for doc_required symbols"
+            }
+          },
+          "required": ["scope_mode"],
           "additionalProperties": false
         }
       },

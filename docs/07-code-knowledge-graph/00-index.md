@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/application/service.py::CodeGraphService
-doc_version: 1.1.4
-updated_at: '2026-08-02'
+doc_version: 1.1.9
+updated_at: '2026-08-04'
 ---
 
 # 07 - Code-Knowledge Graph Index
@@ -76,7 +76,8 @@ This design extends the existing Docs-as-Code and Technical Logic sections. It f
 - `32-intentional-fallbacks-and-neo4j-plugin-licensing.md` why stub/Louvain/Cypher-degree/legacy-FTS stay; APOC/GDS Community vs Enterprise licensing.
 - `33-production-retrieval-live-test-gates.md` live/fuzzer/challenge gates, pythonpath, AuthError skip policy, anti-cascade acceptance.
 - `35-wedge-operator-connect-runbook.md` operator connect → ingest → explore/hybrid smoke.
-- `36-dead-code-candidates-and-cleanup-loop.md` unused-symbol candidates, MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
+- `36-dead-code-candidates-and-cleanup-loop.md` scored dead-code intelligence (numeric confidence, evidence, finding kinds including `zombie_package` / `runtime_dead` / `flag_controlled_dead`, `project_scan`, optional coverage/disk/triage), MCP contract, live-until-proven exclusions, and closed loop with guidance + cleanup KPIs.
+- `78-stale-documentation-candidates-and-cleanup-loop.md` scored stale-documentation intelligence (finding kinds: `orphan_doc`, `ghost_link`, `stale_anchor`, `superseded_retrieval_risk`, `wiki_orphan`, `duplicate_authority`, optional `coverage_gap`; sister loop to doc 36; MCP `agentcore_docs_stale_candidates`; AgentCore does not mutate Markdown). **Implemented.**
 - `37-rpm-session-parallel-sync-feature-specification.md` requirements for RPM-session-gated parallel `agentcore sync` (**implemented**).
 - `72-live-ingest-remediation-verification-index.md` is the entry point for the current live-ingest remediation evidence.
 - `73-live-audit-defect-remediation-record.md` maps seven reproduced defects to root causes, fixes, and live proof.
@@ -144,6 +145,8 @@ Code evidence anchor: `backend/services/code-graph-service/src/code_graph_servic
 - 2026-07-22: Added `41-hybrid-documentation-coverage.md` (hybrid read pack + evidence `docs-suggest-links` write path).
 - 2026-07-22: Added RPM-session parallel sync design pack `37`–`40` (`lifecycle_lane: future`; docs only until implementation).
 - 2026-07-21: Core product readiness backlog `34` (`ac.doc.ckg.core-product-readiness-phased-backlog`) retired (archived). Durable gates live in `19`/`26`/`31`/`33`, product scope, gap register (GAP-005), and runbook `35`. Do not reuse that `doc_id`.
+- 2026-08-04: Doc `36` v2.3 — full finding-kind set (`zombie_package`, `runtime_dead`, flags), monotonic caps, MCP default `task_neighborhood`, `kpi_hints.dead_code_candidates_resolved` placeholder; related product/guidance/impact docs aligned.
+- 2026-08-04: Doc `36` upgraded to dead-code intelligence with numeric scores, evidence chains, `project_scan`, and CallConfidence-aware reachability (implementation in `unused_candidates` + `dead_code_scoring`).
 - 2026-07-21: Added `36-dead-code-candidates-and-cleanup-loop.md` for the unused-candidate / cleanup full loop (guidance + KPIs).
 
 ## Code Intelligence Enhancements (current)
@@ -203,7 +206,7 @@ Claim-level sufficiency, typed sparse results, hop recovery, freshness eligibili
 - Wiki + graph composed retrieval (`43`) defines how wiki narrative and graph/hybrid evidence combine for higher-understanding Q&A after Wiki ships.
 - Code Intelligence Enhancements (`19`, `21`–`26`, `THIRD_PARTY_NOTICES`, `52`–`54`) add explore/risk/routes analytics, CBM language/speed notes, Repomix-inspired **pack review** + layered ignore, and **native Headroom-inspired compression** (MCP/CLI/LiteLLM) for the AgentCore product.
 - Production Retrieval Stack (`27`–`31`) adds BM25/FTS/BGE/APOC/free Leiden for agent search quality.
-- Dead-code cleanup loop (`36`) adds unused candidates, MCP contract, and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
+- Dead-code cleanup loop (`36`) adds **scored** candidates (`unused_symbol`, `unreachable_file`, `dead_subgraph`, `zombie_package`, optional `runtime_dead` / `flag_controlled_dead`), MCP contract (`score`/`evidence`/`kpi_hints`), and measurement hooks so coding agents remove orphaned predecessors; AgentCore does not mutate the repo.
 - AST vs LSP hybrid (`48`–`49`) keeps durable knowledge↔code edges on AST ingest; LSP edit-session tools are IDE-semantic and reconcile via re-ingest.
 - RPM-session parallel sync (`37`–`40`) parallel ingest gated by tracked LiteLLM sessions with CLI/HTTP observability.
 - Client standards gate + watcher policy (`51`) defines mutable Skip vs Ingest for nonconforming docs when Client/watcher flush cannot ask a TTY prompt.

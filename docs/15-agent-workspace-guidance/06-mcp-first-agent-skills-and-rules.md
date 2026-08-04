@@ -7,7 +7,7 @@ schema_version: '1.0'
 owner: platform-product
 summary: Normative always-on rule and on-demand skills that instruct Cursor and other coding
   agents to route AgentCore-capable work through MCP tools instead of inventing local-only
-  substitutes, including same-change dead-code cleanup.
+  substitutes, including same-change dead-code and stale-documentation cleanup.
 tags:
 - agent-workspace-guidance
 - mcp
@@ -25,9 +25,11 @@ audience_lane:
 - product
 authority: normative
 visibility: internal
-doc_version: 1.2.0
-updated_at: '2026-07-28'
-linked_symbols: []
+doc_version: 1.4.2
+updated_at: '2026-08-04'
+linked_symbols:
+- backend/services/common-context-service/src/common_context_service/seed_mcp_first_prompts/skills/agentcore-remove-stale-docs.md
+- backend/services/common-context-service/src/common_context_service/seed_mcp_first_prompts/skills/agentcore-remove-dead-code.md
 ---
 
 # 06 - MCP-First Agent Skills And Rules
@@ -96,8 +98,8 @@ When this workspace is connected to AgentCore over MCP (lazy facade: `mcp_search
 3. Do not store project facts only in chat when `agentcore_write` or `agentcore_memory_retrieve` can persist or recall them.
 4. Do not skip code-graph search when locating symbols AgentCore can index. Prefer structural tools (`callers` / directed `impact` / `community`) before wide Read/Grep; escalate via `explore` / hybrid when sparse or semantic. Use `ide_references` / `ide_definition` / `ide_rename` only for local-LSP IDE-semantic edits (`reference_kind=ide_semantic`); never dual-write LSP into durable `CODE_REL` — reconcile via AST re-ingest.
 5. Do not skip docs-sync tools when checking drift, coverage, or drafting docs AgentCore governs.
-6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` when listed; otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `tsoc-defer`). AgentCore does not delete files — you do.
-7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance.
+6. When implementing, replacing, or retiring behavior, remove orphaned predecessors in the **same change** after proof: unused imports, superseded symbols, exclusive tests, and stale re-exports. Prefer `agentcore_code_graph_unused_candidates` (read `score` / `evidence` / `finding_kind`; act on `safe_to_delete` with `score ≥ 0.8`; default `task_neighborhood`; for `project_scan` prefer `path_prefix`). Graph is SoT — do not queue candidates in Memory. Otherwise prove with graph explore + repository search. Skip anything marked live-until-proven (dynamic registries, public HTTP/IAM exports, `test_only`, `tsoc-defer`). AgentCore does not delete files — you do. When exclusive docs only described removed symbols, also call `agentcore_docs_stale_candidates` (prefer `safe_to_update` / `safe_to_unlink`; delete only when `safe_to_delete` and score ≥ 0.8).
+7. When the user asks how documentation works, or when writing/remediating product Markdown under `docs/` (or other normative doc trees): call `agentcore_docs_authoring_standards` and follow skill `agentcore-documentation-authoring`. Docs-sync `validate` is Body-tier only — not Full-tier compliance. After material doc edits, prefer skill `agentcore-remove-stale-docs` when drift/linking inventory suggests orphans or ghost links.
 8. If a needed capability is missing from `mcp_search_tools` results, execute `agentcore_get_effective_profile`, report the gap, and ask before bypassing with unmanaged workflows.
 9. Keep identifiers, paths, and committed docs in English; follow any other always-on project rules from the guidance bundle.
 10. When editing **hard modules** (must pass the Hard Module Test in `docs/08-software-engineering-architecture/49-module-contract-docstrings-standard.md` — SoT vs wake, queues/workers, fail-open/fail-closed, state machines, trust boundaries, exclusivity): read then keep/update a selective file-top **module contract docstring** (role + source of truth / invariants + allowed vs forbidden failures). **Default: skip.** Unsure or helper/DTO/re-export/thin wiring → **MUST NOT** write a header. Follow skill `agentcore-source-contracts`.
@@ -126,10 +128,11 @@ The project `agents_entry` body **must** list high-signal MCP skills (at minimum
 - `agentcore-memory` — Need prior decisions, facts, or task context from AgentCore
 - `agentcore-code-graph` — Finding symbols, call paths, or ownership via the code graph
 - `agentcore-remove-dead-code` — After replace/retire: prove and delete orphaned symbols, imports, tests
+- `agentcore-remove-stale-docs` — After code/docs change: prove and remediate orphan/ghost/wiki/duplicate/stale docs
 - `agentcore-durable-write` — Persisting memory, task, activity, or decision records
 - `agentcore-documentation-authoring` — Full-tier Markdown law; required on write and fix-on-read of nonconforming product docs
 - `agentcore-standards-on-edit` — Fix-on-write: remediate docs/hard-module code to standards in the same edit turn
-- `agentcore-docs-sync` — Docs drift, coverage, Body-tier validate, note, draft, or index
+- `agentcore-docs-sync` — Docs drift, coverage, stale candidates, Body-tier validate, note, draft, or index
 - `agentcore-source-contracts` — Hard-module contracts (49) + package README maps (50); fix-on-read when header missing
 - `agentcore-create-task` — Creating a durable follow-up Task in AgentCore
 ```
@@ -144,11 +147,12 @@ Each skill is a Common Context `skill` item. Bodies below are normative seed tex
 | `agentcore-session-bootstrap` | Connect / guidance / profile | `agentcore_ping`, `agentcore_get_effective_profile`, `agentcore_guidance_resolve`, `agentcore_guidance_list_skills`, `agentcore_guidance_get_skill` | Session start; before first substantive edit |
 | `agentcore-memory` | Memory retrieve / recall | `agentcore_memory_retrieve`; optional write via `agentcore_write` (`resource=memory`) | Need prior facts, decisions, or task context |
 | `agentcore-code-graph` | Code knowledge graph | Structural-first: `agentcore_code_graph_callers`, directed `impact`, `community`, `call_path`; then `explore` / hybrid / detect_changes / architecture | Locate symbols, callers, blast radius, flows, review impact, and architecture before wide filesystem search |
-| `agentcore-remove-dead-code` | Unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (when listed); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
+| `agentcore-remove-dead-code` | Scored unused candidates / cleanup loop | `agentcore_code_graph_unused_candidates` (`score`, `evidence`, `finding_kind`; default `task_neighborhood`; optional `project_scan` / `path_prefix` / `disk_search` / `coverage_hits` / `flag_states` / `triage`); else explore + local proof | After implementing, replacing, or retiring behavior in the same change |
+| `agentcore-remove-stale-docs` | Scored stale-doc candidates / cleanup loop | `agentcore_docs_stale_candidates` (`score`, `evidence`, `finding_kind` incl. `wiki_orphan` / `duplicate_authority`; default `task_neighborhood`; optional `project_scan` / `path_prefix` / `triage`); prefer `safe_to_update` / `safe_to_unlink` | After code replace/retire with exclusive docs; after material doc edits / linking gaps |
 | `agentcore-durable-write` | Durable project records | `agentcore_write` | Persist memory, task, activity, or decision |
 | `agentcore-documentation-authoring` | Full-tier Markdown authoring law | `agentcore_docs_authoring_standards`; optional Read of `docs/agents/documentation-authoring.md` | How documentation works; before writing/remediating product docs; **fix-on-read** of nonconforming product Markdown |
 | `agentcore-standards-on-edit` | Fix-on-write convergence | Load `agentcore-documentation-authoring` / `agentcore-source-contracts`; optional `agentcore_docs_authoring_standards` | Create/edit product docs or hard modules; after sync skipped nonconforming paths |
-| `agentcore-docs-sync` | Docs-as-code sync (Body-tier) | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status` | Drift, coverage, Body-tier validate, note, draft, index |
+| `agentcore-docs-sync` | Docs-as-code sync (Body-tier) | `agentcore_docs_drift_check`, `agentcore_docs_write`, `agentcore_docs_status`, `agentcore_docs_stale_candidates` | Drift, coverage, stale candidates, Body-tier validate, note, draft, index |
 | `agentcore-source-contracts` | In-source contracts (49/50) | Prefer graph sync after edits; local Read of standards 49/50 | Hard modules / package seams; **fix-on-read** when hard-module header missing |
 | `agentcore-create-task` | Core data Task | `agentcore_create_task` (or `agentcore_write` with `resource=task`) | Explicit durable follow-up work |
 
@@ -233,7 +237,7 @@ description: Search AgentCore code knowledge graph before wide local search.
 6. For reviews/PRs call `agentcore_code_graph_detect_changes` with changed file paths.
 7. For architecture questions use `agentcore_code_graph_architecture_overview` or `agentcore_code_graph_path`.
 8. Escalate to Read/`rg` only for pending-sync banners, low-confidence edges, empty graph, or after structural + explore/hybrid; report degraded mode when tools fail.
-9. After replacing or retiring symbols, open `agentcore-remove-dead-code` for orphan cleanup in the same change.
+9. After replacing or retiring symbols, open `agentcore-remove-dead-code` for orphan cleanup in the same change (scored unused-candidates; `safe_to_delete` + `score ≥ 0.8`). When exclusive docs only described removed symbols, also open `agentcore-remove-stale-docs`.
 10. Prefer hybrid packs that surface module-contract rationale (`MODULE_CONTRACT`) and near-code package README maps after sync — they encode SoT/fail policy for hard modules.
 
 ## Do not
@@ -261,20 +265,29 @@ description: Prove and delete orphaned symbols, imports, and exclusive tests aft
 
 ## How
 
-1. Prefer `agentcore_code_graph_unused_candidates` when listed (`scope_mode=changed_symbols` or task neighborhood). If missing, use explore + repository search (`rg`) for bare names and import paths.
-2. Treat each candidate as **live until proven** otherwise: check dynamic loaders, string registries, public HTTP/IAM/SDK exports, tests-only refs, entrypoints, and `tsoc-defer` stopgaps.
-3. Delete only what you can prove unused. Remove the symbol **and** its exclusive tests, fixtures, barrels, and docs that only described it.
-4. Do not widen into unrelated refactors or repo-wide deletion hunts.
-5. Verify with the smallest check that would fail if the delete were wrong.
-6. Optionally `agentcore_write` Activity/WorkLog fields for paths removed so cleanup KPIs can attribute the task.
-7. List skipped uncertain symbols with blockers in the chat summary.
+1. Prefer `agentcore_code_graph_unused_candidates` (`scope_mode=task_neighborhood` default, or `changed_symbols`). For ranked discovery only, use `project_scan` with `min_confidence` (agents acting on deletes: `0.8`). Optional: `disk_search`+`repo_root`, `coverage_hits`, `flag_states`, `triage`. Else explore + `rg` on bare names and import paths.
+2. Read `score`, `confidence` tier, `evidence`, and `finding_kind` on each row. Act only on `safe_to_delete` with `score ≥ 0.8` and empty hard blockers.
+3. Treat each candidate as **live until proven**: dynamic loaders, string registries, public HTTP/IAM/SDK exports, `test_only`, entrypoints, `tsoc-defer`, ambiguous/`unresolved` CALLS.
+4. Delete only proven-unused symbols **and** their exclusive tests, fixtures, barrels, and docs that only described them.
+5. Do not widen into unrelated refactors; avoid whole-repo deletes from a casual `project_scan`.
+6. Verify with the smallest check that would fail if the delete were wrong.
+7. Record Activity/WorkLog using MCP `kpi_hints` field names: `dead_code_candidates_surfaced`, `dead_code_candidates_resolved`, `dead_code_candidates_skipped_uncertain`.
+8. List skipped uncertain symbols + blockers + evidence in the chat summary. Optional `triage=true` is advisory only and cannot raise `safe_to_delete`.
 
 ## Do not
 
 - Ask AgentCore to delete files; AgentCore only surfaces candidates and guidance.
 - Delete public APIs, plugin hooks, or deferred stopgaps without an explicit root-cause fix.
 - Count blind deletes (no proof, no verify) as successful cleanup.
+- Trust LLM triage alone over graph evidence.
 ```
+
+### Skill body: `agentcore-remove-stale-docs`
+
+Normative body lives in
+`docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules-continued.md`
+(soft-budget split). Seed file:
+`common_context_service/seed_mcp_first_prompts/skills/agentcore-remove-stale-docs.md`.
 
 ### Skill body: `agentcore-durable-write`
 
@@ -320,6 +333,7 @@ description: Run AgentCore docs-sync drift, status, Body-tier validate, note, dr
 
 - Checking documentation drift or coverage (docs-as-code sync).
 - Body-tier validate / note / draft / index via MCP.
+- Scored stale-doc candidates after linking gaps or code replace/retire with exclusive docs.
 
 ## How
 
@@ -327,15 +341,17 @@ description: Run AgentCore docs-sync drift, status, Body-tier validate, note, dr
    execute `agentcore_docs_authoring_standards` and skill `agentcore-documentation-authoring`.
 2. Coverage / gaps: `agentcore_docs_status`.
 3. Drift for a symbol: `agentcore_docs_drift_check` (`symbol`, optional `file_path`).
-4. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
-5. Keep committed documentation English per project laws.
-6. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`.
+4. Stale candidates: `agentcore_docs_stale_candidates` (default `task_neighborhood`; discovery via `project_scan` + `path_prefix`). Prefer skill `agentcore-remove-stale-docs`.
+5. Write workflows: `agentcore_docs_write` with `mode` in `validate` | `note` | `draft` | `index`.
+6. Keep committed documentation English per project laws.
+7. After Full-tier edits on disk: gate with `agentcore docs-standards` / `agentcore quality-audit`.
 
 ## Do not
 
 - Treat `agentcore_docs_write` mode=`validate` as Full-tier compliance for product docs.
 - Bypass docs-sync for governed docs-as-code changes when these tools are on the profile.
 - Skip `agentcore_docs_authoring_standards` when the user asks how documentation writing works.
+- Treat Memory as a stale-doc candidate queue.
 ```
 
 ### Skill body: `agentcore-standards-on-edit`
@@ -406,3 +422,5 @@ Suggested seed pack id: `awg-seed-mcp-first-programming`.
 ## Related Documents
 
 - Continued in `docs/15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules-continued.md`
+- `docs/07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md` — dead-code cleanup loop
+- `docs/07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md` — stale-docs cleanup loop

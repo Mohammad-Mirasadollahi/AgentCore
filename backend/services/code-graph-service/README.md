@@ -28,6 +28,7 @@ code_graph_service/
 - Feature 49 edit session: local LSP `ide_references` / `ide_definition` / `ide_rename` (`reference_kind=ide_semantic`); never dual-writes the graph
 - Call resolution confidence: `exact` / `probable` / `ambiguous` / `unresolved` (import-alias aware; `getattr(obj, "name")` call refs)
 - Wave 1–3 intelligence: framework routes, `TESTED_BY`, surgical `explore`, risk-scored `detect_changes`, architecture overview, hybrid search, freshness
+- Dead-code intelligence (doc `36`): scored `unused_candidates` (`unused_symbol` / `unreachable_file` / `dead_subgraph` / `zombie_package` / optional `runtime_dead` / `flag_controlled_dead`) with evidence, CallConfidence policy, `index_coverage`, and `kpi_hints`
 - Codebase-Memory hybrid (docs `44`–`47`): ranked `callers`, directed `impact`, `community`, structural-first `escalate_hint`
 - Production retrieval: BM25 + Neo4j/Postgres FTS + BGE (default) / LiteLLM / stub via RRF (docs `07-code-knowledge-graph/27`–`31`)
 - Local BGE / LiteLLM embeddings for semantic ranking (pgvector when `AGENTCORE_CODE_GRAPH_DATABASE_URL` set; default dims 1024)

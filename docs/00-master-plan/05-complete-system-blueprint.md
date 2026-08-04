@@ -5,10 +5,12 @@ doc_type: standard
 status: active
 schema_version: '1.0'
 owner: platform-docs
-summary: AgentCore connects to a codebase and improves the outputs of connected AI coding
+summary: >-
+  AgentCore connects to a codebase and improves the outputs of connected AI coding
   tools. It indexes repository structure, documentation, decisions, and current project truth,
   then injects task-scoped context into IDE assistants and agent runtimes. The first proof
-  of value is measu.
+  of value is measurable — fewer hallucinations, less rework, lower token cost, stronger
+  architecture adherence, and measured dead-code / stale-documentation cleanup.
 tags:
 - standard
 - master
@@ -22,8 +24,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.0.3
+updated_at: '2026-08-04'
 ---
 
 # Complete System Blueprint
@@ -31,11 +33,11 @@ updated_at: '2026-07-24'
 
 ## Purpose
 
-AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measu.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measurable — fewer hallucinations, less rework, lower token cost, stronger architecture adherence, and measured dead-code / stale-documentation cleanup.
 
 ## Executive Summary
 
-AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measurable: fewer hallucinations, less rework, lower token cost, and stronger architecture adherence.
+AgentCore connects to a codebase and improves the outputs of connected AI coding tools. It indexes repository structure, documentation, decisions, and current project truth, then injects task-scoped context into IDE assistants and agent runtimes. The first proof of value is measurable: fewer hallucinations, less rework, lower token cost, and stronger architecture adherence — plus measured dead-code and stale-documentation cleanup.
 
 The platform does not replace coding assistants, IDEs, CI pipelines, ticket systems, or human reviewers. Connected runtimes still execute work. AgentCore owns the code-linked knowledge layer and, over time, the control plane that coordinates those runtimes.
 
@@ -63,11 +65,13 @@ The wedge is valuable because it gives developers and leads:
 
 - Connected truth: agents see what exists in the repository now.
 - Relevant context: task-scoped symbols, docs, decisions, and constraints instead of repository dumps.
-- Better outputs: fewer invented APIs, fewer architecture violations, less abandoned work — and **dead-code cleanup** so replacements do not leave orphaned symbols, imports, or exclusive tests behind.
+- Better outputs: fewer invented APIs, fewer architecture violations, less abandoned work — **dead-code cleanup** so replacements do not leave orphaned symbols behind, and **stale-documentation cleanup** so orphan/ghost/wiki/duplicate docs do not mislead retrieval.
 - Cost control: precise context reduces token waste and retry loops.
 - Evidence of gain: benefit metrics against a pre-connection baseline, including cleanup KPIs.
 
-AgentCore surfaces unused candidates from the Code-Knowledge Graph and seeds always-on guidance so connected coding agents delete proven-dead predecessors in the same change. AgentCore does not delete repository files itself. See `../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`.
+AgentCore surfaces **scored** unused candidates from the Code-Knowledge Graph (`score`, `evidence`, finding kinds including `zombie_package` and optional `runtime_dead` / `flag_controlled_dead`) and seeds always-on guidance so connected coding agents delete proven-dead predecessors in the same change. AgentCore does not delete repository files itself. See `../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`.
+
+Sister loop: scored **stale-documentation** candidates (`orphan_doc`, `ghost_link`, `stale_anchor`, `superseded_retrieval_risk`, `wiki_orphan`, `duplicate_authority`, optional `coverage_gap`) via MCP `agentcore_docs_stale_candidates` and skill `agentcore-remove-stale-docs`. AgentCore does not mutate Markdown. See `../07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md`.
 
 The platform expansion adds:
 

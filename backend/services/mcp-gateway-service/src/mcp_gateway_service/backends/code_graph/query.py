@@ -210,8 +210,13 @@ def unused_candidates(
     scope: dict[str, str],
     base: dict[str, Any],
 ) -> dict[str, Any]:
-    """Task-scoped unused-symbol candidates (AgentCore does not delete files)."""
-    scope_mode = str(arguments.get("scope_mode") or "changed_symbols").strip()
+    """Scored unused-symbol candidates (AgentCore does not delete files).
+
+    Default modes are task-scoped (anchors required). ``project_scan`` is opt-in
+    ranked discovery. Optional ``triage`` runs local advisory rules (or an injected
+    LLM judge) and cannot raise ``safe_to_delete``.
+    """
+    scope_mode = str(arguments.get("scope_mode") or "task_neighborhood").strip()
     anchors = arguments.get("anchor_symbols")
     paths = arguments.get("anchor_paths")
     if anchors is not None and not isinstance(anchors, list):
@@ -220,6 +225,26 @@ def unused_candidates(
         raise ValueError("anchor_paths must be an array of strings")
     max_results = int(arguments.get("max_results") or 50)
     include_uncertain = bool(arguments.get("include_uncertain") or False)
+    triage = bool(arguments.get("triage") or False)
+    disk_search = bool(arguments.get("disk_search") or False)
+    coverage_raw = arguments.get("coverage_hits")
+    coverage_hits: dict[str, int] | None = None
+    if isinstance(coverage_raw, dict):
+        coverage_hits = {}
+        for key, val in coverage_raw.items():
+            try:
+                coverage_hits[str(key)] = int(val)
+            except (TypeError, ValueError):
+                continue
+    flag_raw = arguments.get("flag_states")
+    flag_states = flag_raw if isinstance(flag_raw, dict) else None
+    repo_root = str(arguments.get("repo_root") or "").strip() or None
+    path_prefix = str(arguments.get("path_prefix") or "").strip() or None
+    # Normative: project_scan requires a floor; discovery default is 0.50 when omitted.
+    if "min_confidence" not in arguments or arguments.get("min_confidence") is None:
+        min_confidence: float | None = None  # domain applies project_scan default
+    else:
+        min_confidence = float(arguments.get("min_confidence"))
     # project_id from session scope; optional arg must match when provided
     requested = str(arguments.get("project_id") or "").strip()
     if requested and requested != scope.get("project_id"):
@@ -233,9 +258,38 @@ def unused_candidates(
             anchor_paths=[str(x) for x in (paths or [])],
             max_results=max_results,
             include_uncertain=include_uncertain,
+            min_confidence=min_confidence,
+            coverage_hits=coverage_hits,
+            flag_states=flag_states,
+            repo_root=repo_root,
+            disk_search=disk_search,
+            path_prefix=path_prefix,
         )
     except CodeGraphError as exc:
         raise ValueError(str(getattr(exc, "message", exc))) from exc
+    if triage:
+        try:
+            from code_graph_service.domain.dead_code_scoring import llm_triage_port
+        except Exception:  # noqa: BLE001 — gateway must stay resilient
+            llm_triage_port = None  # type: ignore[assignment]
+        for row in list(payload.get("skipped_uncertain") or []):
+            if not isinstance(row, dict):
+                continue
+            if llm_triage_port is not None:
+                verdict = llm_triage_port(row, enabled=True)
+                row["triage"] = verdict or {
+                    "safe_to_delete": False,
+                    "note": "triage_cannot_raise_safe_to_delete",
+                }
+            else:
+                row["triage"] = {
+                    "safe_to_delete": False,
+                    "note": "triage_cannot_raise_safe_to_delete",
+                    "status": "port_unavailable",
+                }
+        payload["triage_enabled"] = True
+        payload["triage_note"] = "triage_cannot_raise_safe_to_delete"
+        payload["triage_engine"] = "local_rules"
     return {**base, "graph_mode": backends.graph_mode, "project_id": scope.get("project_id"), **payload}
 
 

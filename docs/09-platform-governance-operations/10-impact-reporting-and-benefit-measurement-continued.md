@@ -20,8 +20,8 @@ audience_lane:
 authority: normative
 visibility: internal
 linked_symbols: []
-doc_version: 1.0.0
-updated_at: '2026-07-24'
+doc_version: 1.1.1
+updated_at: '2026-08-04'
 ---
 
 # 10 - Impact Reporting And Benefit Measurement (Continued)
@@ -34,28 +34,28 @@ Continuation of `docs/09-platform-governance-operations/10-impact-reporting-and-
 
 ### Definition
 
-Dead-code cleanup measures whether AgentCore-guided coding sessions remove orphaned predecessors when agents replace or retire behavior — not only whether they add new code. AgentCore surfaces candidates and records evidence; external agents perform deletes. Normative loop: [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md).
+Dead-code cleanup measures whether AgentCore-guided coding sessions remove orphaned predecessors when agents replace or retire behavior — not only whether they add new code. AgentCore surfaces **scored** candidates (`score`, `evidence`, `finding_kind`, `kpi_hints`) and records evidence; external agents perform deletes. Normative loop: [`../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md`](../07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md).
 
 Recommended KPIs:
 
-- dead_code_candidates_surfaced.
-- dead_code_candidates_resolved (removed after proof in the same task).
-- dead_code_candidates_skipped_uncertain.
+- dead_code_candidates_surfaced (echoed on MCP as `kpi_hints.dead_code_candidates_surfaced`).
+- dead_code_candidates_resolved (removed after proof in the same task; prefer rows that were `safe_to_delete` with `score ≥ 0.8`; MCP echoes `kpi_hints.dead_code_candidates_resolved=0` as a write-back placeholder).
+- dead_code_candidates_skipped_uncertain (echoed on MCP as `kpi_hints.dead_code_candidates_skipped_uncertain`).
 - orphaned_symbols_remaining (delta in task neighborhood after coding tasks with cleanup guidance).
 - unused_loc_removed_net (optional; unused LOC removed vs LOC added in the same task).
 - cleanup_verify_pass_rate (smallest verification passed after delete).
 
 ### Instrumentation
 
-- Graph unused-candidate query before/after task scope (when MCP tool is implemented).
-- Activity / WorkLog fields: paths removed, candidate ids, blockers skipped.
+- Graph unused-candidate query before/after task scope (`agentcore_code_graph_unused_candidates`).
+- Activity / WorkLog fields: paths removed, candidate ids, blockers skipped, optional score/evidence snapshot.
 - Test or acceptance outcome linked to the same task id.
-- Freshness / pending-sync flags on the candidate snapshot.
+- Freshness / pending-sync / `index_coverage.safe_absence_claims` on the candidate snapshot.
 
 ### Data Sources
 
 - Code-Knowledge Graph snapshots.
-- `agentcore_code_graph_unused_candidates` results (or explore + agent-reported proof until the tool ships).
+- `agentcore_code_graph_unused_candidates` results (`candidates`, `skipped_uncertain`, `kpi_hints`).
 - Activity and WorkLog cleanup payloads.
 - CI / smallest verification commands recorded on the task.
 - Guidance resolve evidence that cleanup skill/rule applied.
@@ -64,7 +64,8 @@ Recommended KPIs:
 
 - Cleanup without regressions (tests/acceptance) counts as positive benefit.
 - Blind deletes without proof do **not** count toward `dead_code_candidates_resolved`.
-- Uncertain skips are healthy when blockers are dynamic/public; they are not failures.
+- Uncertain skips are healthy when blockers are dynamic/public or `test_only`; they are not failures.
+- Low-score / triage-only rows must not be counted as resolved until graph proof and verification exist.
 - Compare with and without cleanup guidance / unused-candidate capability using feature_flag_split or agent_workflow_comparison.
 
 ### Evidence Drilldown

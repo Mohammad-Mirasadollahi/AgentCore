@@ -28,6 +28,7 @@ def test_seed_includes_documentation_authoring_skill():
     assert "agentcore-documentation-authoring" in names
     assert "agentcore-docs-sync" in names
     assert "agentcore-remove-dead-code" in names
+    assert "agentcore-remove-stale-docs" in names
     assert "agentcore-source-contracts" in names
     assert "agentcore-standards-on-edit" in names
     authoring = next(p for p in skills if p["name"] == "agentcore-documentation-authoring")
@@ -37,6 +38,8 @@ def test_seed_includes_documentation_authoring_skill():
     assert "Full-tier" in docs_sync["body"] or "agentcore_docs_authoring_standards" in docs_sync["body"]
     dead = next(p for p in skills if p["name"] == "agentcore-remove-dead-code")
     assert "live until proven" in dead["body"]
+    stale = next(p for p in skills if p["name"] == "agentcore-remove-stale-docs")
+    assert "agentcore_docs_stale_candidates" in stale["body"]
     contracts = next(p for p in skills if p["name"] == "agentcore-source-contracts")
     assert "49-module-contract" in contracts["body"]
     assert "50-package-folder" in contracts["body"]

@@ -20,7 +20,7 @@ from common_context_service.seed_mcp_first_prompts import load_prompt
 
 SEED_PACK_ID = "awg-seed-mcp-first-programming"
 # Bump when rule/skill/entry bodies change so client store + disk refresh.
-SEED_PACK_VERSION = "2026.07.24.5"
+SEED_PACK_VERSION = "2026.08.04.2"
 
 MCP_FIRST_RULE_BODY = load_prompt("always_rule_mcp_first.md")
 AGENTS_ENTRY_BODY = load_prompt("agents_entry.md")
@@ -55,6 +55,16 @@ _SKILL_SPECS: list[dict[str, Any]] = [
         "when_to_use": ["dead-code", "unused", "cleanup", "orphan"],
         "title": "AgentCore remove dead code",
         "prompt_file": "agentcore-remove-dead-code.md",
+    },
+    {
+        "name": "agentcore-remove-stale-docs",
+        "description": (
+            "Prove and remediate orphaned, ghost-linked, or hash-stale documentation after "
+            "code or docs changes."
+        ),
+        "when_to_use": ["stale-docs", "docs-cleanup", "orphan-doc", "ghost-link", "drift"],
+        "title": "AgentCore remove stale docs",
+        "prompt_file": "agentcore-remove-stale-docs.md",
     },
     {
         "name": "agentcore-durable-write",

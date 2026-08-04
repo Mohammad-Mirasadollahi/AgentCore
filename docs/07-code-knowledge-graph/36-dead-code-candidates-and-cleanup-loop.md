@@ -5,9 +5,9 @@ doc_type: feature_spec
 status: active
 schema_version: '1.0'
 owner: platform-product
-summary: Normative design for graph-backed unused-symbol candidates, MCP contract, live-until-proven
-  exclusions, and the closed loop with Workspace Guidance and benefit measurement. AgentCore
-  never mutates the repository.
+summary: Normative design for graph-backed dead-code intelligence — unused symbols, unreachable
+  files, numeric confidence scores, evidence chains, MCP contract, live-until-proven exclusions,
+  and the closed cleanup loop. AgentCore never mutates the repository.
 tags:
 - dead-code
 - unused-symbols
@@ -15,6 +15,7 @@ tags:
 - mcp
 - cleanup
 - wedge
+- confidence-scoring
 phase: 07-code-knowledge-graph
 canonical_path: docs/07-code-knowledge-graph/36-dead-code-candidates-and-cleanup-loop.md
 lifecycle_lane: current
@@ -25,15 +26,18 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-linked_symbols: []
+linked_symbols:
+- backend/services/code-graph-service/src/code_graph_service/domain/unused_candidates/
+- backend/services/code-graph-service/src/code_graph_service/domain/dead_code_scoring.py
 related_docs:
 - ac.doc.ckg.index
 - docs/07-code-knowledge-graph/02-neo4j-schema-design.md
 - docs/07-code-knowledge-graph/09-context-pack-retrieval-and-agent-workflow.md
+- ac.doc.ckg.stale-documentation-candidates-and-cleanup-loop
 - ac.doc.awg.mcp-first-skills-rules
 - docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
 - docs/00-master-plan/01-product-scope-and-feature-catalog.md
-doc_version: 1.1.0
+doc_version: 2.4.2
 audience:
 - engineer
 - architect
@@ -42,11 +46,14 @@ audience:
 primary_entities:
 - UnusedCandidate
 - DeadCodeCleanupLoop
+- DeadCodeScore
 relations_declared:
 - type: depends_on
   target: docs/07-code-knowledge-graph/02-neo4j-schema-design.md
 - type: complements
   target: ac.doc.awg.mcp-first-skills-rules
+- type: complements
+  target: ac.doc.ckg.stale-documentation-candidates-and-cleanup-loop
 - type: complements
   target: docs/09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md
 chunk_hints:
@@ -55,16 +62,16 @@ chunk_hints:
   overlap_tokens: 64
 language: en
 security_classification: internal
-updated_at: '2026-07-25'
+updated_at: '2026-08-04'
 ---
 
 # 36 - Dead-Code Candidates And Cleanup Loop
 
 ## Purpose
 
-This document specifies the **dead-code cleanup full loop** for the AgentCore wedge: detect unused candidates from the Code-Knowledge Graph, guide connected coding agents to remove proven-dead predecessors in the same change, and measure cleanup outcomes.
+This document specifies **dead-code intelligence** for the AgentCore wedge: detect unused candidates from the Code-Knowledge Graph with **numeric confidence scores** and **evidence chains**, guide connected coding agents to remove proven-dead predecessors in the same change, and measure cleanup outcomes.
 
-AgentCore is not the executor. External IDE assistants and agent runtimes delete code. AgentCore owns candidates, guidance seed content, freshness signals, and evidence for benefit measurement.
+AgentCore is not the executor. External IDE assistants and agent runtimes delete code. AgentCore owns candidates, scoring, guidance seed content, freshness signals, and evidence for benefit measurement.
 
 Product positioning: [`../00-master-plan/01-product-scope-and-feature-catalog.md`](../00-master-plan/01-product-scope-and-feature-catalog.md). Guidance seed: [`../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md`](../15-agent-workspace-guidance/06-mcp-first-agent-skills-and-rules.md). Measurement: [`../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md`](../09-platform-governance-operations/10-impact-reporting-and-benefit-measurement.md).
 
@@ -82,193 +89,283 @@ flowchart TD
 | 2 | Reader | Follows the Mermaid flow | Sees primary component interactions |
 | 3 | Reader | Uses Related Documents / linked symbols | Reaches deeper design or implementation |
 
-
 ## Professional Audience
 
 Engineers implementing `code-graph-service` and MCP gateway tools; product owners of the programming wedge; authors of Workspace Guidance seed packs.
 
 ## Goals
 
-- Define unused candidates with explicit graph edge rules and confidence.
-- Scope cleanup to the task neighborhood or symbols touched by a replace — not repo-wide silent mass deletion.
-- Expose a stable MCP tool contract for candidates (implementation may follow this design).
+- Define unused candidates with explicit graph edge rules, **CallConfidence** policy, and **numeric scores**.
+- Attach a machine-readable **evidence chain** on every finding.
+- Scope cleanup to the task neighborhood or symbols touched by a replace; allow conservative **`project_scan`** for ranked discovery (never the agent default).
 - Mark **live-until-proven** cases so agents skip unsafe deletes.
 - Close the loop with guidance + measurable KPIs without AgentCore mutating disk.
 
 ## Non-Goals
 
-- AgentCore auto-deleting files or rewriting the working tree.
+- AgentCore auto-deleting files or rewriting the working tree (no CodemodService-style land).
 - Claiming perfect unused detection across dynamic languages or string-based registries.
 - Marketing unused detection beyond the v1 language matrix ([`10-language-support-policy.md`](10-language-support-policy.md)).
-- Replacing IDE linters; this loop is graph-backed and task-scoped for AI coding sessions.
+- Replacing IDE linters; this loop is graph-backed for AI coding sessions.
+- Requiring external tools (Vulture/Knip) as the source of truth — the CKG remains SoT.
 
 ## Closed Loop
 
-```text
-Agent replaces or retires behavior
-  → Graph unused-candidate query (task neighborhood)
-  → Always-on rule + skill instruct agent to prove and delete
-  → External agent deletes proven-dead symbols/imports/tests
-  → Activity / WorkLog + graph delta feed cleanup KPIs
+```mermaid
+flowchart LR
+  ingest[CKG ingest] --> graph[CODE_REL graph]
+  graph --> score[DeadCodeScorer]
+  score --> mcp[MCP unused_candidates]
+  mcp --> agent[External agent]
+  agent --> act[Prove and delete]
+  act --> kpi[Activity KPIs]
 ```
+
+| Step | Actor | Action | Outcome |
+| --- | --- | --- | --- |
+| 1 | Agent | Replaces or retires behavior | Graph may show orphans nearby |
+| 2 | AgentCore | Unused-candidate query + score | Ranked candidates with evidence |
+| 3 | Guidance | Skill `agentcore-remove-dead-code` | Agent proves then deletes |
+| 4 | Agent | Deletes proven-dead code + exclusive tests | Working tree updated |
+| 5 | AgentCore | Activity / WorkLog KPI fields | Benefit measurement |
 
 | Layer | AgentCore owns | External agent owns |
 | --- | --- | --- |
-| Detect | Candidate query, confidence, blockers, freshness | Confirms dynamic/public API before delete |
+| Detect | Candidate query, score, evidence, blockers, freshness | Confirms dynamic/public API before delete |
 | Guide | Seed always-on rule + `agentcore-remove-dead-code` skill | Follows rule in the same coding change |
 | Act | Never mutates repo | Deletes proven-dead code |
 | Measure | KPIs and evidence linkage | Tests / acceptance as quality signals |
 
+## Finding Kinds
+
+| Kind | Meaning | Phase |
+| --- | --- | --- |
+| `unused_symbol` | Function/method/class with no qualifying inbound use from live roots | v1 |
+| `unreachable_file` | No inbound `IMPORTS` to the file and all eligible exports unused | v1 |
+| `dead_subgraph` | Mutual-only cluster with no inbound use from outside the cluster (SCARF whole-graph GC) | v1 |
+| `flag_controlled_dead` | Stale feature-flag branch (Piranha-style) | v1 optional via `flag_states` |
+| `zombie_package` | Package (≥2 files) with no external importers and all pool exports unused | v1 |
+| `runtime_dead` | Reachable from live roots but zero `coverage_hits` | v1 optional via `coverage_hits` |
+
 ## Candidate Definition
 
-### Symbol candidates
+### Reachability model (precision-first)
 
-A symbol is an **unused candidate** when, within the declared scope and after the latest successful ingest for that project:
+Within the declared scope and after the latest successful ingest:
 
-1. There is **no inbound** structural edge of type `CALLS` or `IMPORTS` (via `CODE_REL.rel_type`) from another live symbol or file in scope, and
-2. The symbol is not itself an entrypoint excluded below, and
-3. Confidence is computed from edge completeness and ingest freshness.
-
-Optional file-level candidates: a file whose exported symbols are all unused candidates and that has no inbound `IMPORTS` from other files in scope.
+1. **Live roots** = entrypoints in scope ∪ symbols with strong inbound use from **outside** the pool.
+2. Propagate liveness along **strong use** edges (`exact` / `probable` confidence).
+3. Symbols in the pool that remain unreachable from live roots are **unused candidates**.
+4. Confidence is a **numeric score** (0.0–1.0) derived from visibility, freshness, blockers, and caps — scores only decrease via caps (Repowise/Vulture monotonic pattern).
 
 ### Scope
 
 | Scope mode | Meaning |
 | --- | --- |
-| `task_neighborhood` | Symbols/files within N hops of symbols named in the task or last explore pack (default) |
-| `changed_symbols` | Symbols replaced, renamed, or superseded in the current agent session / change set |
-| `explicit_paths` | Operator- or agent-supplied path prefixes (still not whole-repo by default) |
+| `task_neighborhood` | Symbols/files within N hops of anchors (default for agents) |
+| `changed_symbols` | Symbols named in the change set |
+| `explicit_paths` | Operator- or agent-supplied path prefixes |
+| `project_scan` | Whole-project ranked discovery; requires a confidence floor (`min_confidence`, default `0.50` when omitted); hard `max_results`; **never** the programming-profile default |
 
-Default for coding agents: `changed_symbols` union one-hop `task_neighborhood`. Never default to full-repository scan in the programming Usage Profile.
+Default for coding agents (MCP profile default): `task_neighborhood` with change-set anchors — that is anchors ∪ one-hop neighbors. Use `changed_symbols` only when the pool must be exactly the named symbols. Anchors required except for `project_scan`.
 
 ### Edge types consulted
 
-Normative for v1 (see [`02-neo4j-schema-design.md`](02-neo4j-schema-design.md)):
+Normative (see [`02-neo4j-schema-design.md`](02-neo4j-schema-design.md)):
 
-- Inbound absence of `CALLS` and `IMPORTS`.
-- Treat `INHERITS_FROM` / `CONTAINS` as structural membership, not proof of use.
-- `DOCUMENTED_BY` / living-doc links do **not** count as runtime use.
-- Future edges (`TESTED_BY`, framework routes) may raise confidence or mark “tests-only” — see exclusions.
+- **Proof-of-live** inbound: `CALLS`, `IMPORTS`, `HTTP_CALLS`, `ASYNC_CALLS`, `ROUTES_TO`.
+- **Not** proof of use: `CONTAINS`, `INHERITS_FROM`, `DOCUMENTED_BY`.
+- **`CallConfidence` policy** (reuse domain `confidence_policy`):
+  - `exact` / `probable` → strong use (propagates liveness).
+  - `ambiguous` / `unresolved` → do **not** mark live; add evidence `weak_or_ambiguous_call_edge` and cap score.
+  - `external` → treat target as live-until-proven (counts as strong use for safety).
+- **`TESTED_BY` / test-path callers**: when the only strong references are from tests, **or** the symbol has outbound `TESTED_BY` to a test path with no production strong callers → `test_only: true`; not `safe_to_delete` unless production and tests are both unused.
+
+### Numeric score and tiers
+
+| Base | Condition |
+| --- | --- |
+| 0.95 | Private/unexported, no live-root reachability, fresh index, no blockers, containing file has other live importers |
+| 0.80 | Same but public/exported within project |
+| 0.70 | File-level orphan |
+| 0.55 | Recent / WIP path heuristics |
+
+**Caps (evidence lines; score only decreases):**
+
+| Cap | Max score | Evidence / blocker |
+| --- | --- | --- |
+| Hard blockers (entrypoint, HTTP, registry, `tsoc-defer`, external) | 0.40 | Matching blocker id |
+| Freshness stale/pending | 0.50 | `freshness_*` |
+| Dynamic-loader / config-path risk | 0.40 | `dynamic_import_nearby` / `runtime_load_path_risk` |
+| WIP / scratch path heuristics | 0.55 | `wip_or_recent_path` |
+| Recent file (`days_since_touch` < 30) | 0.55 | `recent_file_cap` |
+| Weak / ambiguous call edge | 0.55 | `weak_or_ambiguous_call_edge` (always a blocker so the row surfaces) |
+| Phase-2 string-name hit (graph corpus or injected search) | 0.45 | `string_name_reference` |
+| Coverage runtime use (`coverage_hits` > 0) | 0.40 | `coverage_runtime_use` |
+
+**Tiers:** `high` ≥ 0.80 · `medium` 0.50–0.79 · `low` &lt; 0.50.
+
+**`safe_to_delete`:** `score ≥ 0.80` **and** empty hard blockers **and** `index_coverage.safe_absence_claims` **and** not `test_only`.
+
+Agent default floor for acting on deletes: `min_confidence=0.80`. Discovery scans may use `0.50`.
+
+### Evidence chain
+
+Every finding includes `evidence: [{kind, detail}]`, for example `no_inbound_strong_use`, `unreachable_from_live_roots`, `freshness_ok`, `test_only`, `dead_subgraph_member`, `weak_or_ambiguous_call_edge`.
 
 ### Freshness
 
-Respect session pending-sync and stale banners already defined for explore / detect_changes. If freshness is `stale` or ingest is pending:
+If freshness is `stale` or ingest is pending:
 
-- Return candidates with `freshness` and `confidence` capped.
-- Do not claim live indexing.
-- Skill body must tell the agent to re-ingest or treat high-impact deletes as uncertain.
-- Response includes `index_coverage` (`status`, `pending_count`, `safe_absence_claims`) so agents refuse `safe_to_delete` when the index is incomplete (CI-40).
+- Cap score; add freshness blockers.
+- Do not claim live indexing (`safe_absence_claims=false`).
+- Response includes `index_coverage` (`status`, `pending_count`, `safe_absence_claims`).
 
 ## Live-Until-Proven Exclusions
 
-Treat as **live** (do not list as safe-to-delete, or list only with `blockers`) until human or agent proves otherwise:
-
 | Exclusion | Reason |
 | --- | --- |
-| `__getattr__` / lazy loaders / plugin registries | Dynamic resolution not visible as `CALLS` |
+| `__getattr__` / lazy loaders / plugin registries | Dynamic resolution not visible as strong `CALLS` |
 | String route / permission / feature-flag tables | Name referenced as data, not AST call |
 | Public HTTP handlers, IAM permission strings, SDK exports | External callers outside the graph |
-| Symbols referenced only from tests | Tests count as use; delete tests **with** prod code when both are dead |
+| Symbols referenced only from tests | `test_only`; delete tests **with** prod code when both are dead |
 | Entrypoints (`__main__`, CLI `main`, framework `app`) | No inbound graph edges by design |
-| User-approved `tsoc-defer:` stopgaps | Do not delete the guarded workaround without root-cause fix |
-| Low-confidence `CALLS` edges | Schema already warns against high-risk automation on low confidence |
+| User-approved `tsoc-defer:` stopgaps | Do not delete without root-cause fix |
+| Ambiguous / unresolved `CALLS` | Cap score; do not treat as proof of life or of death alone |
 
-Ambiguous candidates must appear with `confidence: low` and non-empty `blockers`, not as `safe_to_delete: true`.
+Ambiguous candidates must appear with tier `low` or `medium`, non-empty `blockers` / evidence, and `safe_to_delete: false`.
 
-## MCP Tool Contract (planned)
+## MCP Tool Contract
 
 Tool name: `agentcore_code_graph_unused_candidates`
 
-### Request (normative fields)
+### Request
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `project_id` | string | yes | Active project scope |
-| `scope_mode` | enum | yes | `task_neighborhood` \| `changed_symbols` \| `explicit_paths` |
-| `anchor_symbols` | string[] | no | Qualified names or symbol ids |
+| `project_id` | string | no | Must match active MCP project when set |
+| `scope_mode` | enum | yes | `task_neighborhood` \| `changed_symbols` \| `explicit_paths` \| `project_scan` |
+| `anchor_symbols` | string[] | no | Required effectively for non-`project_scan` modes |
 | `anchor_paths` | string[] | no | Repo-relative paths |
-| `max_results` | int | no | Default bounded (e.g. 50) |
+| `path_prefix` | string | no | Repo-relative directory/file prefix; **report** candidates only under this path. Liveness still uses the full project graph (cross-prefix callers keep callees live). Prefer for `project_scan` on large repos |
+| `max_results` | int | no | Default 50; max 200 |
 | `include_uncertain` | bool | no | Default false |
+| `min_confidence` | number | no | Floor 0.0–1.0; default 0.0 for task modes; `project_scan` omits → `0.50`; agents acting on deletes should pass 0.80 |
+| `triage` | bool | no | Advisory triage (local rules by default); cannot raise `safe_to_delete` |
+| `disk_search` | bool | no | Bounded disk string-name search; requires `repo_root` |
+| `repo_root` | string | no | Workspace/repo root for `disk_search` |
+| `coverage_hits` | object | no | Map `symbol_id` → hit count; `>0` blocks delete; `0` is evidence only |
+| `flag_states` | object | no | Feature-flag states for `flag_controlled_dead` (`constant_for_days` ≥ 90) |
 
-### Response (normative fields)
+### Response
 
 ```json
 {
   "freshness": "ok|pending_sync|stale",
   "scope_mode": "changed_symbols",
+  "path_prefix": "optional/when/set",
   "index_coverage": {
     "status": "ok|incomplete",
     "pending_count": 0,
     "safe_absence_claims": true,
     "note": "…"
   },
+  "kpi_hints": {
+    "dead_code_candidates_surfaced": 1,
+    "dead_code_candidates_skipped_uncertain": 0,
+    "dead_code_candidates_resolved": 0
+  },
   "candidates": [
     {
       "symbol": "pkg.module.OldHelper",
+      "symbol_id": "…",
       "path": "src/pkg/module.py",
       "kind": "function",
-      "confidence": "high|medium|low",
-      "reasons": ["no_inbound_calls", "no_inbound_imports"],
+      "finding_kind": "unused_symbol",
+      "score": 0.95,
+      "confidence": "high",
+      "test_only": false,
+      "evidence": [{"kind": "unreachable_from_live_roots", "detail": ""}],
+      "reasons": ["unreachable_from_live_roots"],
       "blockers": [],
       "safe_to_delete": true
     }
   ],
-  "skipped_uncertain": [
-    {
-      "symbol": "pkg.routes.login",
-      "path": "src/pkg/routes.py",
-      "confidence": "low",
-      "blockers": ["possible_string_registry", "public_http_handler"]
-    }
-  ]
+  "skipped_uncertain": []
 }
 ```
 
-Implementation of the handler and CLI is **follow-on** after this contract; Usage Profiles must advertise the tool only when implemented. Until then, the skill requires graph explore + local `rg` proof (same safety bar).
+**Status:** Tool is implemented and advertised on `programming-cursor-mcp` (`maps_to: code_graph.unused_candidates`). MCP default `scope_mode` is `task_neighborhood`; `project_scan` is opt-in discovery. Finding kinds include `zombie_package` and optional `runtime_dead` / `flag_controlled_dead`.
 
-**Status (2026-07):** Tool is implemented and advertised on `programming-cursor-mcp` (`maps_to: code_graph.unused_candidates`). Default remains task-scoped (anchors required; no whole-repo scan).
+## Configuration
+
+Tuning is **per MCP call**, not via dedicated `.env` knobs:
+
+| Knob | Where | Notes |
+| --- | --- | --- |
+| `min_confidence` | MCP request | Floor for returned rows; agents deleting should pass `0.8`. For `project_scan`, omitting the field applies discovery default `0.50`; an explicit `0.0` opts out of that floor. |
+| `max_results` | MCP request | Hard cap (1–200) |
+| `scope_mode` | MCP request | Task modes vs opt-in `project_scan` |
+| `path_prefix` | MCP request | Report-only path filter; keep full-graph liveness |
+| `include_uncertain` / `triage` | MCP request | Uncertain rows / advisory triage (`local_rules` engine) |
+| `disk_search` + `repo_root` | MCP request | Optional bounded disk string-name soft-blocker |
+| `coverage_hits` / `flag_states` | MCP request | Optional coverage / Piranha flag inputs |
+
+Infrastructure env vars (`AGENTCORE_MCP_GRAPH_MODE`, Neo4j/Postgres URLs) already select the graph store. Do **not** add `AGENTCORE_DEAD_CODE_*` defaults unless an operator policy later requires org-wide floors without per-call args (YAGNI for v1).
+
+## Phase roadmap (research-aligned)
+
+| Phase | Deliverable |
+| --- | --- |
+| 1–3 (current) | Full scored loop: finding kinds (`unused_symbol`, `unreachable_file`, `dead_subgraph`, `zombie_package`, `runtime_dead`, `flag_controlled_dead`), CallConfidence, graph+disk string-name, coverage/flags/triage ports, optional `path_prefix` report filter, quality-audit hint, MCP/skill/KPIs including `dead_code_candidates_resolved` placeholder. No separate Memory SoT for candidates. |
+
+Scores only decrease via caps (monotonic). Agent MCP default scope is `task_neighborhood` (anchors ∪ one hop). Disk search remains opt-in.
 
 ## Agent Workflow (with guidance)
 
-1. After replacing or retiring behavior, call unused-candidates (or explore + reference proof).
-2. For each `safe_to_delete` candidate in scope, prove with repo search and non-Python callers (gateway, OpenAPI, frontend, deploy).
-3. Delete symbol **and** exclusive tests / re-exports / docs that only described it.
-4. Skip `blockers` / uncertain; optionally open a Task for human review.
-5. Run the smallest verification that would fail if the delete were wrong.
-6. Record cleanup in Activity / WorkLog (paths removed, candidate ids) for KPI instrumentation.
+1. After replacing or retiring behavior, call unused-candidates **in the same change** (or `project_scan` with `min_confidence` and preferably `path_prefix` for discovery).
+2. Prefer `safe_to_delete` and `score ≥ 0.80`; read `evidence` before acting.
+3. Prove with repo search and non-Python callers (gateway, OpenAPI, frontend, deploy).
+4. Delete symbol **and** exclusive tests / re-exports / docs that only described it.
+5. Skip blockers / uncertain; optionally open a Task for human review. Do **not** treat Memory or chat notes as a durable unused-candidate queue — recompute from the graph (SoT).
+6. Run the smallest verification that would fail if the delete were wrong.
+7. Record cleanup in Activity / WorkLog using `kpi_hints` field names for instrumentation.
 
 Normative skill text: `agentcore-remove-dead-code` in phase 15 MCP-first seed pack.
 
 ## Measurement Hooks
 
-Emit or attach to WorkLog / Activity:
+Emit or attach to WorkLog / Activity (and echo on MCP as `kpi_hints`):
 
 - `dead_code_candidates_surfaced` (count, scope).
 - `dead_code_candidates_resolved` (removed after proof).
 - `dead_code_candidates_skipped_uncertain`.
-- Optional: net unused LOC removed vs LOC added in the same task.
 
-KPI definitions live in impact reporting (`dead_code_candidates_resolved`, `orphaned_symbols_remaining`). Blind deletes without tests/acceptance must not count as positive benefit.
+Blind deletes without tests/acceptance must not count as positive benefit.
 
 ## Risks And Acceptance
 
 | Risk | Mitigation |
 | --- | --- |
-| False unused via dynamic dispatch | Exclusions + blockers; never auto-delete |
+| False unused via dynamic dispatch | Exclusions + blockers + score caps; never auto-delete |
 | Stale graph after local edits | Freshness caps; pending-sync banners |
-| Agent deletes public API | Public/export/HTTP exclusions |
-| Scope creep to whole repo | Default task/changed scope only |
+| Agent deletes public API | Public/export/HTTP exclusions; score floors |
+| Scope creep to whole repo | Default task/changed scope; `project_scan` opt-in only |
+| LLM triage hallucination | Triage cannot raise `safe_to_delete`; graph remains SoT |
 
-Acceptance for this design:
+Acceptance:
 
-- [ ] Candidate definition and exclusions are unambiguous for implementers.
-- [ ] MCP request/response fields are stable enough for gateway contract tests when implemented.
-- [ ] Product docs state AgentCore does not mutate the repo for cleanup.
-- [ ] Seed guidance references this loop and the skill name.
-- [ ] Impact KPIs name cleanup metrics and instrumentation sources.
+- [x] Candidate definition, score model, and exclusions are unambiguous for implementers.
+- [x] MCP request/response fields include score, evidence, finding_kind, project_scan, optional coverage/flags/disk_search/triage.
+- [x] Finding kinds cover unused_symbol, unreachable_file, dead_subgraph, zombie_package, runtime_dead, flag_controlled_dead.
+- [x] Product docs state AgentCore does not mutate the repo for cleanup.
+- [x] Seed guidance references this loop and the skill name.
+- [x] Impact KPIs name cleanup metrics; MCP returns `kpi_hints` including `dead_code_candidates_resolved` placeholder.
+- [x] Optional `path_prefix` scopes reported candidates without dropping cross-prefix liveness; guidance forbids Memory as candidate SoT.
 
 ## Related Documents
 
+- [`78-stale-documentation-candidates-and-cleanup-loop.md`](78-stale-documentation-candidates-and-cleanup-loop.md) — sister stale-documentation loop (future design).
 - [`09-context-pack-retrieval-and-agent-workflow.md`](09-context-pack-retrieval-and-agent-workflow.md) — context packs around coding tasks.
 - [`02-neo4j-schema-design.md`](02-neo4j-schema-design.md) — `CODE_REL` / `CALLS` / `IMPORTS`.
 - [`22-code-intelligence-enhancements-feature-specification.md`](22-code-intelligence-enhancements-feature-specification.md) — explore / change-risk surfaces.

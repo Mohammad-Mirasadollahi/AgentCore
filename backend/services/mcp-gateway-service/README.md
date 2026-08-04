@@ -27,7 +27,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_code_graph_callers` | read | Ranked inbound callers (fan-in) |
 | `agentcore_code_graph_community` | read | Community membership for one symbol |
 | `agentcore_code_graph_call_path` | read | Compact outbound call-path pack |
-| `agentcore_code_graph_unused_candidates` | read | Task-scoped unused-symbol candidates (anchors required; never deletes) |
+| `agentcore_code_graph_unused_candidates` | read | Scored dead-code candidates (`score`/`evidence`/`finding_kind`; default `task_neighborhood`; optional `path_prefix`; anchors required except `project_scan`; optional coverage/disk/flags/triage; never deletes) |
 | `agentcore_code_graph_explore` | read | **Primary** surgical context: seeds + call path + budgeted source |
 | `agentcore_code_graph_detect_changes` | read | Risk-scored review context for changed files |
 | `agentcore_code_graph_architecture_overview` | read | Communities, hubs, bridges, gaps, surprises |
@@ -43,6 +43,7 @@ Exposes AgentCore capabilities to IDE clients (Cursor) over the Model Context Pr
 | `agentcore_create_task` | write | Create a Task |
 | `agentcore_write` | write | Unified write: `memory` / `task` / `activity` / `decision` |
 | `agentcore_docs_drift_check` | read | Docs drift for a symbol |
+| `agentcore_docs_stale_candidates` | read | Scored stale-documentation candidates (`orphan_doc`/`ghost_link`/`stale_anchor`/`superseded_retrieval_risk`/`wiki_orphan`/`duplicate_authority`; optional `coverage_gap`; never deletes Markdown) |
 | `agentcore_docs_write` | write | Docs workflow: `validate` / `note` / `draft` / `index` |
 | `agentcore_docs_status` | read | Coverage + missing docs |
 | `agentcore_docs_catalog` | read | Cached frontmatter catalog (tags/lanes) for retrieval narrowing |

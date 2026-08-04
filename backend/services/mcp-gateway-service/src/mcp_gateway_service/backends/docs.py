@@ -124,6 +124,82 @@ def docs_status(
     }
 
 
+def docs_stale_candidates(
+    backends: PlatformBackends,
+    arguments: dict[str, Any],
+    *,
+    scope: dict[str, str],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    """Scored stale-documentation candidates (AgentCore does not delete Markdown).
+
+    Normative: docs/07-code-knowledge-graph/78-stale-documentation-candidates-and-cleanup-loop.md
+    """
+    scope_mode = str(arguments.get("scope_mode") or "task_neighborhood").strip()
+    anchors = arguments.get("anchor_symbols")
+    paths = arguments.get("anchor_paths")
+    if anchors is not None and not isinstance(anchors, list):
+        raise ValueError("anchor_symbols must be an array of strings")
+    if paths is not None and not isinstance(paths, list):
+        raise ValueError("anchor_paths must be an array of strings")
+    max_results = int(arguments.get("max_results") or 50)
+    include_uncertain = bool(arguments.get("include_uncertain") or False)
+    triage = bool(arguments.get("triage") or False)
+    include_coverage_gaps = bool(arguments.get("include_coverage_gaps") or False)
+    path_prefix = str(arguments.get("path_prefix") or "").strip() or None
+    if "min_confidence" not in arguments or arguments.get("min_confidence") is None:
+        min_confidence: float | None = None
+    else:
+        min_confidence = float(arguments.get("min_confidence"))
+    requested = str(arguments.get("project_id") or "").strip()
+    if requested and requested != scope.get("project_id"):
+        raise ValueError("project_id does not match the active MCP project scope")
+
+    docs_scope = backends.docs_scope(scope)
+    payload = backends.docs.stale_candidates(
+        docs_scope,
+        scope_mode=scope_mode,
+        anchor_symbols=[str(x) for x in (anchors or [])],
+        anchor_paths=[str(x) for x in (paths or [])],
+        max_results=max_results,
+        include_uncertain=include_uncertain,
+        min_confidence=min_confidence,
+        path_prefix=path_prefix,
+        include_coverage_gaps=include_coverage_gaps,
+        freshness="ok",
+    )
+    # index_coverage: absence claims unsafe when docs store empty under non-scan modes handled in domain.
+    docs_count = len(backends.docs.store.list_documents(docs_scope))
+    safe_absence = docs_count > 0 or scope_mode == "project_scan"
+    payload["index_coverage"] = {
+        "status": "ok" if safe_absence else "incomplete",
+        "pending_count": 0,
+        "safe_absence_claims": safe_absence,
+        "note": (
+            "docs-sync registry present for scoped absence claims"
+            if safe_absence
+            else "empty docs registry — orphan claims incomplete"
+        ),
+    }
+    if triage:
+        for row in list(payload.get("skipped_uncertain") or []):
+            if not isinstance(row, dict):
+                continue
+            row["triage"] = {
+                "safe_to_delete": False,
+                "safe_to_unlink": False,
+                "note": "triage_cannot_raise_act_flags",
+            }
+        payload["triage_enabled"] = True
+        payload["triage_note"] = "triage_cannot_raise_act_flags"
+        payload["triage_engine"] = "local_rules"
+    return {
+        **base,
+        "project_id": scope.get("project_id"),
+        **payload,
+    }
+
+
 def docs_drift_check(
     backends: PlatformBackends,
     arguments: dict[str, Any],
