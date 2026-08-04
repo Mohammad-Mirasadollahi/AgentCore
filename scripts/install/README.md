@@ -11,7 +11,7 @@ Entrypoint options:
 | [`common.sh`](common.sh) | Logging, root paths, state file, secret helpers, root/sudo runner |
 | [`01_prerequisites.sh`](01_prerequisites.sh) | Check/install Python 3.12+, curl, git; Docker/Compose only when **server** (not client / `--skip-infra`) |
 | [`02_venv.sh`](02_venv.sh) | Create `.venv`, install deps, editable `agentcore` CLI; seed `.env` + `agentcore.sync.yaml` from examples |
-| [`03_compose_env.sh`](03_compose_env.sh) | Seed repo templates; create `backend/deployments/compose/.env.local` with generated secrets |
+| [`03_compose_env.sh`](03_compose_env.sh) | Seed repo templates; create `backend/deployments/compose/.env.local` with generated secrets + `AGENTCORE_DATA_ROOT` |
 | [`04_docker_infra.sh`](04_docker_infra.sh) | `docker compose --profile core up` for Postgres + Neo4j, wait healthy |
 | [`05_verify.sh`](05_verify.sh) | `agentcore doctor` + infra re-check; optional ai-toolstack |
 | [`06_runtime_bringup.sh`](06_runtime_bringup.sh) | Prompted/flagged runtime: host MCP or Docker `mcp-gateway`; always re-ensure PATH |
@@ -29,6 +29,14 @@ prompted for the remote AgentCore root (missing marker → clear error; optional
 `server.remote_root` in connect.yaml as override). Local checkout path for
 `get-agentcore.sh` defaults to `/opt/AgentCore` (override with `--root` /
 `AGENTCORE_ROOT`; no interactive prompt).
+
+**Data root:** server/both install prompts for a durable directory (Enter =
+sibling `<install>-data`, e.g. `/opt/AgentCore-data`) or accepts `--data-root` /
+`AGENTCORE_DATA_ROOT`. Postgres, Neo4j, staged sources, usage logs, and caches
+live there. Install stamps `<AGENTCORE_ROOT>/.agentcore/data-root` and persists
+`data_root=` in `install-state.env` so remote `agentcore-client sync` stages to
+the correct path. The sibling data tree is outside the checkout, so
+`get-agentcore.sh` refresh does not overwrite it.
 
 | Related | Path |
 |---------|------|

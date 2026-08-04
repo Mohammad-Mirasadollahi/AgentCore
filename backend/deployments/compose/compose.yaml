@@ -11,7 +11,7 @@ services:
     ports:
       - "${AGENTCORE_POSTGRES_PORT:-32232}:5432"
     volumes:
-      - agentcore-postgres-data:/var/lib/postgresql
+      - ${AGENTCORE_DATA_ROOT:?AGENTCORE_DATA_ROOT is required}/postgres:/var/lib/postgresql
       - ../../platform/persistence/postgres/0000_extensions.sql:/docker-entrypoint-initdb.d/0000_extensions.sql:ro
       - ../../services/core-data-service/migrations/0001_core_data.sql:/docker-entrypoint-initdb.d/0010_core_data.sql:ro
       - ../../services/core-data-service/migrations/0002_outbox_published.sql:/docker-entrypoint-initdb.d/0011_core_data_outbox.sql:ro
@@ -69,7 +69,7 @@ services:
       - "${AGENTCORE_NEO4J_BOLT_PORT:-32287}:7687"
       - "${AGENTCORE_NEO4J_HTTP_PORT:-32474}:7474"
     volumes:
-      - agentcore-neo4j-data:/data
+      - ${AGENTCORE_DATA_ROOT:?AGENTCORE_DATA_ROOT is required}/neo4j:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
       interval: 10s
@@ -144,6 +144,5 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-volumes:
-  agentcore-postgres-data:
-  agentcore-neo4j-data:
+# Durable DB files live under AGENTCORE_DATA_ROOT (sibling <install>-data by default).
+# Named Docker volumes are no longer used.

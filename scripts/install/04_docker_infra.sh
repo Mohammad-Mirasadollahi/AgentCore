@@ -81,6 +81,23 @@ stage_04_docker_infra_run() {
   require_file "${COMPOSE_ENV_FILE}"
   require_file "${WAIT_HEALTHY}"
 
+  ensure_agentcore_data_root
+  # Best-effort one-shot migrate from legacy named Docker volumes into bind dirs.
+  if [[ -x "${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/python" ]]; then
+    AGENTCORE_ROOT="${AGENTCORE_ROOT}" AGENTCORE_DATA_ROOT="${AGENTCORE_DATA_ROOT}" \
+      "${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/python" - <<'PY' || true
+from pathlib import Path
+import os
+from agentcore_cli.data_root import ensure_data_root
+from agentcore_cli.data_root_migrate import migrate_named_volumes_to_data_root
+root = Path(os.environ["AGENTCORE_ROOT"])
+data = ensure_data_root(install_root=root)
+migrated = migrate_named_volumes_to_data_root(data)
+if migrated:
+    print(f"migrated volumes → {data}: {', '.join(migrated)}")
+PY
+  fi
+
   run_port_preflight
 
   info "Pulling/starting compose profile core (postgres + neo4j)…"

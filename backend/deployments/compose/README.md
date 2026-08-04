@@ -26,7 +26,7 @@ This directory is part of the AgentCore backend modular architecture. It must ex
 
 ## Status
 
-Active PostgreSQL + Neo4j foundation. `compose.yaml` provisions PostgreSQL 18 with pgvector and Neo4j 5 community on configurable non-default host ports. PostgreSQL initializes service-owned schemas; Neo4j constraints are applied by `code-graph-service` when `AGENTCORE_CODE_GRAPH_STORE=neo4j`.
+Active PostgreSQL + Neo4j foundation. `compose.yaml` provisions PostgreSQL 18 with pgvector and Neo4j 5 community on configurable non-default host ports. Database files bind-mount under `AGENTCORE_DATA_ROOT` (default sibling `<install>-data`, e.g. `/opt/AgentCore-data/postgres` and `…/neo4j`). PostgreSQL initializes service-owned schemas; Neo4j constraints are applied by `code-graph-service` when `AGENTCORE_CODE_GRAPH_STORE=neo4j`.
 
 
 ## AgentCore Local Compose Policy

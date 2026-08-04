@@ -12,6 +12,7 @@ stage_03_compose_env_check() {
 
   local key
   for key in \
+    AGENTCORE_DATA_ROOT \
     AGENTCORE_POSTGRES_PASSWORD \
     AGENTCORE_NEO4J_PASSWORD \
     AGENTCORE_POSTGRES_PORT \
@@ -46,9 +47,13 @@ _stage_03_write_env() {
   cp "${COMPOSE_ENV_EXAMPLE}" "${COMPOSE_ENV_FILE}"
   chmod 600 "${COMPOSE_ENV_FILE}"
 
+  local data_root
+  data_root="${AGENTCORE_DATA_ROOT:-$(default_agentcore_data_root)}"
+
   # Prefer sed -i; fall back to temp file if needed.
   if sed --version >/dev/null 2>&1; then
     sed -i \
+      -e "s|^AGENTCORE_DATA_ROOT=.*|AGENTCORE_DATA_ROOT=${data_root}|" \
       -e "s|^AGENTCORE_POSTGRES_PASSWORD=.*|AGENTCORE_POSTGRES_PASSWORD=${pg_secret}|" \
       -e "s|^AGENTCORE_NEO4J_PASSWORD=.*|AGENTCORE_NEO4J_PASSWORD=${neo_secret}|" \
       "${COMPOSE_ENV_FILE}"
@@ -56,12 +61,16 @@ _stage_03_write_env() {
     local tmp
     tmp="$(mktemp)"
     sed \
+      -e "s|^AGENTCORE_DATA_ROOT=.*|AGENTCORE_DATA_ROOT=${data_root}|" \
       -e "s|^AGENTCORE_POSTGRES_PASSWORD=.*|AGENTCORE_POSTGRES_PASSWORD=${pg_secret}|" \
       -e "s|^AGENTCORE_NEO4J_PASSWORD=.*|AGENTCORE_NEO4J_PASSWORD=${neo_secret}|" \
       "${COMPOSE_ENV_FILE}" >"${tmp}"
     mv "${tmp}" "${COMPOSE_ENV_FILE}"
     chmod 600 "${COMPOSE_ENV_FILE}"
   fi
+
+  export AGENTCORE_DATA_ROOT="${data_root}"
+  ensure_agentcore_data_root
 
   ok "Generated local secrets in ${COMPOSE_ENV_FILE} (not printed)"
 }
@@ -85,6 +94,9 @@ stage_03_compose_env_run() {
     mark_stage "03_compose_env" "checked"
     return 0
   fi
+
+  # Ensure data root + AGENTCORE_DATA_ROOT in .env.local before the key check.
+  ensure_agentcore_data_root
 
   if stage_03_compose_env_check; then
     ok "Compose env already valid"
@@ -113,6 +125,7 @@ stage_03_compose_env_run() {
   fi
 
   stage_03_compose_env_check || fail "compose env still invalid after generation"
+  ensure_agentcore_data_root
   mark_stage "03_compose_env" "ok"
   ok "Stage 03 complete"
 }

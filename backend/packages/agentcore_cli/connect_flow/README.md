@@ -12,7 +12,7 @@ Owns `agentcore connect` orchestration: reachability, API/SSH MCP wiring, remote
 ## Start here
 
 1. `run.py` — `run_connect` entrypoint
-2. `source_path.py` — shared SSH `source.server_path` discovery (connect + client sync)
+2. `source_path.py` — shared SSH `source.server_path` discovery + rsync stage (connect + client sync)
 3. `remote_sync.py` — client `agentcore sync` over SSH + consent
 4. `ssh.py` — SSH argv + remote path probes
 5. `ingest.py` / `summary.py` — ingest helpers and connect UI

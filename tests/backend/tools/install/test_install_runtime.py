@@ -257,6 +257,58 @@ def test_prompt_menus_go_to_stderr_and_confirm_still_asks_yes() -> None:
     assert "default: 2" not in text
 
 
+def test_resolve_data_root_flag_and_default(tmp_path: Path) -> None:
+    state = tmp_path / "install-state.env"
+    custom = tmp_path / "my-data"
+    proc = _bash_snippet(
+        f'INSTALL_STATE_DIR={tmp_path.as_posix()!r}; '
+        f'INSTALL_STATE_FILE={state.as_posix()!r}; '
+        "INSTALL_ROLE=server; INSTALL_SKIP_INFRA=0; "
+        f'AGENTCORE_DATA_ROOT={custom.as_posix()!r}; '
+        "resolve_install_data_root; printf '%s\\n' \"${AGENTCORE_DATA_ROOT}\"",
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == str(custom.resolve())
+    assert f"data_root={custom.resolve()}" in state.read_text(encoding="utf-8")
+    assert (custom / "postgres").is_dir()
+
+
+def test_resolve_data_root_noninteractive_default(tmp_path: Path) -> None:
+    state = tmp_path / "install-state.env"
+    proc = _bash_snippet(
+        f'INSTALL_STATE_DIR={tmp_path.as_posix()!r}; '
+        f'INSTALL_STATE_FILE={state.as_posix()!r}; '
+        "INSTALL_ROLE=server; INSTALL_SKIP_INFRA=0; "
+        "unset AGENTCORE_DATA_ROOT || true; "
+        "resolve_install_data_root; printf '%s\\n' \"${AGENTCORE_DATA_ROOT}\"",
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    # Snippet exports AGENTCORE_ROOT=repo; default is sibling *-data of that root.
+    expected = f"{ROOT.parent / (ROOT.name + '-data')}"
+    # normalize may resolve; compare resolved forms
+    got = proc.stdout.strip().splitlines()[-1]
+    assert Path(got).resolve() == Path(expected).resolve()
+
+
+def test_resolve_data_root_skipped_for_client(tmp_path: Path) -> None:
+    state = tmp_path / "install-state.env"
+    proc = _bash_snippet(
+        f'INSTALL_STATE_DIR={tmp_path.as_posix()!r}; '
+        f'INSTALL_STATE_FILE={state.as_posix()!r}; '
+        "INSTALL_ROLE=client; INSTALL_SKIP_INFRA=1; "
+        "unset AGENTCORE_DATA_ROOT || true; "
+        "resolve_install_data_root; "
+        'if [[ -n "${AGENTCORE_DATA_ROOT:-}" ]]; then echo SET; else echo UNSET; fi',
+        env={"INSTALL_NONINTERACTIVE": "1", "INSTALL_ASSUME_YES": "1"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert proc.stdout.strip().splitlines()[-1] == "UNSET"
+    text = state.read_text(encoding="utf-8") if state.is_file() else ""
+    assert "data_root=" not in text
+
+
 def test_prompt_copy_mentions_client_or_server() -> None:
     text = (LIB / "common.sh").read_text(encoding="utf-8")
     assert "Install client, server, or both" in text
@@ -268,6 +320,15 @@ def test_prompt_copy_mentions_client_or_server() -> None:
     assert "install_can_prompt" in text
     assert "install_read_line" in text
     assert "/dev/tty" in text
+
+
+def test_prompt_copy_mentions_data_root() -> None:
+    text = (LIB / "common.sh").read_text(encoding="utf-8")
+    assert "prompt_install_data_root" in text
+    assert "resolve_install_data_root" in text
+    assert "Data root [Enter = default]" in text
+    install = (ROOT / "install.sh").read_text(encoding="utf-8")
+    assert "--data-root" in install
 
 
 def test_list_stages_includes_runtime_bringup() -> None:

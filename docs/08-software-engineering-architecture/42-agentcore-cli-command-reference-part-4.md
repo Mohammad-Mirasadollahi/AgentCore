@@ -74,7 +74,7 @@ Remaining `agentcore` command catalog entries split from `docs/08-software-engin
 | **Required** | None |
 | **Optional** | `--usage-profile` · `--since` / `-s` (`24h`, `7d`, `30d`, ISO; default `7d`) · `--until` / `-u` · `--clients` (`all` or `cursor,vscode,…`) · `--id` (`all` or `tenant/workspace/project[,…]`) · `--project-dir` · `--include-user-clients` · `--format text\|json` |
 | **Example** | `agentcore mcp tokens --since 24h` · `agentcore mcp tokens --clients cursor,vscode --id mir/dev/agentcore` · `agentcore mcp tokens -f json` |
-| **What changes** | Nothing (read-only). Gateway appends `.agentcore/mcp-usage/events.jsonl` on `initialize` / `tools/list` / `tools/call` when an IDE is connected (`AGENTCORE_MCP_CLIENT_ID` stamped at wire/connect time) |
+| **What changes** | Nothing (read-only). Gateway appends `<AGENTCORE_DATA_ROOT>/mcp-usage/events.jsonl` on `initialize` / `tools/list` / `tools/call` when an IDE is connected (`AGENTCORE_MCP_CLIENT_ID` stamped at wire/connect time) |
 | **Token unit** | Approx UTF-8 bytes/4 (same heuristic as sync usage) |
 | **Normative design** | [44-mcp-token-accounting.md](./44-mcp-token-accounting.md) |
 
@@ -357,7 +357,7 @@ AGENTCORE_SYNC_DOC_EXCLUDE='**/CHANGELOG.md' agentcore sync
 | **Required** | `--output` / `-o`; scope from flags/env/identity/connect |
 | **Optional** | `--tenant` `--workspace` `--project` |
 | **Example** | `agentcore backup export -o ./project.acbak` |
-| **What changes** | Writes `.acbak`; updates `.agentcore/backup/last-job.json` |
+| **What changes** | Writes `.acbak`; updates `<AGENTCORE_DATA_ROOT>/backup/last-job.json` |
 | **Client-only** | No (server / both) |
 
 ### `agentcore backup validate`

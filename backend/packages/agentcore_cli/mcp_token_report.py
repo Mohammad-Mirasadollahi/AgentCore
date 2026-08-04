@@ -395,7 +395,7 @@ def format_text(report: dict[str, Any]) -> str:
     if tot["calls"] == 0:
         lines.append(
             "  (no events yet — connect an IDE MCP session; gateway appends "
-            ".agentcore/mcp-usage/events.jsonl)"
+            "<AGENTCORE_DATA_ROOT>/mcp-usage/events.jsonl)"
         )
     else:
         lines.append("  By client_id:")

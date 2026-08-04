@@ -1,4 +1,4 @@
-"""MCP token usage JSONL (connect + tool calls) under .agentcore/mcp-usage/."""
+"""MCP token usage JSONL under AgentCore-data/mcp-usage (or AGENTCORE_MCP_USAGE_LOG_DIR)."""
 
 from __future__ import annotations
 
@@ -31,7 +31,9 @@ def usage_log_dir(environ: dict[str, str] | None = None) -> Path:
     if raw:
         path = Path(raw).expanduser()
         return path if path.is_absolute() else (repo_root() / path).resolve()
-    return (repo_root() / DEFAULT_DIR_REL).resolve()
+    from agentcore_cli.data_root import mcp_usage_dir
+
+    return mcp_usage_dir(install_root=repo_root(), environ=dict(env)).resolve()
 
 
 def events_path(environ: dict[str, str] | None = None) -> Path:

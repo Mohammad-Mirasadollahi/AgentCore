@@ -64,6 +64,35 @@ def start_compose(root: Path) -> dict[str, Any]:
     compose_started_at = wall_clock_now()
     services = ", ".join(COMPOSE_SERVICES)
     progress(f"Databases: starting {services}")
+
+    from agentcore_cli.data_root import ENV_DATA_ROOT, ensure_data_root
+    from agentcore_cli.data_root_migrate import migrate_named_volumes_to_data_root
+
+    data_root = ensure_data_root(install_root=root)
+    env_file = compose_env_file(root)
+    if env_file.is_file():
+        text = env_file.read_text(encoding="utf-8")
+        line = f"{ENV_DATA_ROOT}={data_root}"
+        if f"{ENV_DATA_ROOT}=" in text:
+            import re
+
+            text = re.sub(
+                rf"^{ENV_DATA_ROOT}=.*$",
+                line,
+                text,
+                count=1,
+                flags=re.MULTILINE,
+            )
+        else:
+            text = text.rstrip() + "\n" + line + "\n"
+        env_file.write_text(text, encoding="utf-8")
+    try:
+        migrated = migrate_named_volumes_to_data_root(data_root)
+    except RuntimeError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    if migrated:
+        progress(f"Databases: migrated legacy volumes → {data_root} ({', '.join(migrated)})")
+
     cmd = compose_base_cmd(root) + ["--profile", "core", "up", "-d", *COMPOSE_SERVICES]
     proc = run_cmd(cmd, cwd=root, check=False)
     if proc.returncode != 0:

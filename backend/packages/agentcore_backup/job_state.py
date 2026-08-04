@@ -8,7 +8,9 @@ from typing import Any
 
 
 def job_path(repo_root: Path) -> Path:
-    return repo_root / ".agentcore" / "backup" / "last-job.json"
+    from agentcore_cli.data_root import backup_dir
+
+    return backup_dir(install_root=repo_root) / "last-job.json"
 
 
 def write_job(repo_root: Path, payload: dict[str, Any]) -> Path:

@@ -7,6 +7,7 @@
 #   bash install.sh
 #   bash install.sh --role server --runtime venv
 #   bash install.sh --role server --runtime docker
+#   bash install.sh --role server --data-root /srv/agentcore-data
 #   bash install.sh --role client
 #   bash install.sh --role both --runtime venv
 #   bash install.sh --non-interactive --role server --runtime venv
@@ -55,6 +56,7 @@ Already cloned — from the repository root:
 Options:
   --role ROLE             client | server | both (skips role prompt)
   --runtime MODE          SERVER MCP mode: venv | docker (alias: host→venv)
+  --data-root PATH        Durable data dir (Postgres/Neo4j/sources/…); default <install>-data
   --non-interactive       No prompts; default action=install, role=server, runtime=venv
   --yes, -y               Skip the interactive y/n confirmation
   --upgrade               Upgrade existing install (still asks y/n unless --yes/--non-interactive)
@@ -74,6 +76,7 @@ Interactive (TTY, no flags):
   2) confirm with y/yes or n/no (no default)
   3) if install → client, server, or both? (no default)
   4) if server/both → venv or docker MCP? (no default)
+  5) if server/both → data root path (Enter = sibling <install>-data)
 
 Roles:
   client  Coding-agent machine: CLI + .venv only; then run agentcore connect
@@ -108,6 +111,11 @@ while [[ $# -gt 0 ]]; do
     --role)
       [[ $# -ge 2 ]] || { echo "error: --role needs client|server|both" >&2; exit 64; }
       export INSTALL_ROLE="$2"
+      shift 2
+      ;;
+    --data-root)
+      [[ $# -ge 2 ]] || { echo "error: --data-root needs a path" >&2; exit 64; }
+      export AGENTCORE_DATA_ROOT="$2"
       shift 2
       ;;
     --upgrade)

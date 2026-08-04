@@ -48,6 +48,7 @@ run_install_stage() {
       if [[ "${name}" == "06_runtime_bringup" ]]; then
         resolve_install_role
         resolve_install_runtime
+        resolve_install_data_root
       fi
       "${fn}"
       return $?
@@ -71,6 +72,7 @@ run_install_all() {
   # Interactive / flagged choice before stages that depend on it.
   resolve_install_role
   resolve_install_runtime
+  resolve_install_data_root
 
   # Human full installs must install OS prerequisites (ignore accidental skip).
   if [[ "${INSTALL_NONINTERACTIVE}" != "1" && "${INSTALL_SKIP_PREREQS}" == "1" ]]; then
@@ -130,6 +132,7 @@ run_install_upgrade() {
   # Resolve while TTY prompts are still allowed (if role was cleared as invalid).
   resolve_install_role
   resolve_install_runtime
+  resolve_install_data_root
 
   local saved_ni="${INSTALL_NONINTERACTIVE:-0}"
   INSTALL_NONINTERACTIVE=1

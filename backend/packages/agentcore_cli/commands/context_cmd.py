@@ -12,7 +12,9 @@ from agentcore_cli.util import print_json, repo_root
 
 
 def _metrics_path() -> Path:
-    return repo_root() / ".agentcore" / "cache" / "context-compression-metrics.json"
+    from agentcore_cli.data_root import cache_dir
+
+    return cache_dir(install_root=repo_root()) / "context-compression-metrics.json"
 
 
 def _empty_metrics() -> dict[str, Any]:

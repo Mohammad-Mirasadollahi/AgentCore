@@ -133,14 +133,104 @@ def test_ensure_remote_source_path_uses_remote_root_for_agentcore_dogfood(
     assert out.source_server_path == "/opt/AgentCore"
 
 
-def test_ensure_remote_source_path_fails_closed_when_undiscoverable(tmp_path: Path, monkeypatch):
+def test_staged_source_path_honors_explicit_data_root():
+    from agentcore_cli.connect_flow.source_path import staged_source_path
+
+    assert (
+        staged_source_path("App", remote_root="/opt/AgentCore", data_root="/srv/ac-data")
+        == "/srv/ac-data/sources/App"
+    )
+
+
+def test_ensure_remote_source_path_uses_discovered_data_root(tmp_path: Path, monkeypatch):
+    from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
+
+    app = tmp_path / "ThinkingSOC"
+    app.mkdir()
+    staged: list[str] = []
+
+    def fake_stage(_settings, work: Path, dest: str) -> None:
+        staged.append(dest)
+
+    monkeypatch.setattr(
+        "agentcore_cli.data_root.discover_remote_data_root",
+        lambda *_a, **_k: "/srv/ac-data",
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.stage_local_checkout",
+        fake_stage,
+    )
+
+    def remote_after_stage(_settings, path: str) -> bool:
+        return bool(staged) and path == "/srv/ac-data/sources/ThinkingSOC"
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", remote_after_stage)
+    settings = ConnectSettings(ssh="user@host", source_server_path="", project="ThinkingSOC")
+    out = ensure_remote_source_path(settings, app, allow_prompt=False)
+    assert staged == ["/srv/ac-data/sources/ThinkingSOC"]
+    assert out.source_server_path == "/srv/ac-data/sources/ThinkingSOC"
+
+
+def test_ensure_remote_source_path_stages_when_undiscoverable(tmp_path: Path, monkeypatch):
+    from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
+
+    app = tmp_path / "ThinkingSOC"
+    app.mkdir()
+    staged: list[str] = []
+
+    def fake_stage(_settings, work: Path, dest: str) -> None:
+        assert work == app
+        staged.append(dest)
+
+    monkeypatch.setattr(
+        "agentcore_cli.data_root.discover_remote_data_root",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.stage_local_checkout",
+        fake_stage,
+    )
+
+    def remote_after_stage(_settings, path: str) -> bool:
+        return bool(staged) and path == "/opt/AgentCore-data/sources/ThinkingSOC"
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", remote_after_stage)
+    settings = ConnectSettings(ssh="user@host", source_server_path="", project="ThinkingSOC")
+    out = ensure_remote_source_path(settings, app, allow_prompt=False)
+    assert staged == ["/opt/AgentCore-data/sources/ThinkingSOC"]
+    assert out.source_server_path == "/opt/AgentCore-data/sources/ThinkingSOC"
+
+
+def test_ensure_remote_source_path_fails_closed_when_stage_fails(tmp_path: Path, monkeypatch):
     from agentcore_cli.connect_config import ConnectSettings
     from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
 
     monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", lambda *_a, **_k: False)
     monkeypatch.setattr(
+        "agentcore_cli.data_root.discover_remote_data_root",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
         "agentcore_cli.install_root_marker.discover_remote_install_root",
         lambda *a, **k: Path("/opt/AgentCore"),
+    )
+
+    def boom_stage(*_a, **_k):
+        raise SystemExit("error: rsync to /opt/AgentCore-data/sources/x failed (exit 1)")
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.stage_local_checkout",
+        boom_stage,
     )
     settings = ConnectSettings(ssh="user@host", source_server_path="")
     try:
@@ -148,6 +238,5 @@ def test_ensure_remote_source_path_fails_closed_when_undiscoverable(tmp_path: Pa
         raised = False
     except SystemExit as exc:
         raised = True
-        assert "auto-discover source.server_path" in str(exc)
-        assert "Probed via SSH" in str(exc)
+        assert "rsync" in str(exc)
     assert raised

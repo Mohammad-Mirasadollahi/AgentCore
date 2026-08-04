@@ -13,6 +13,38 @@ COMPOSE_ENV_FILE="${COMPOSE_DIR}/.env.local"
 COMPOSE_ENV_EXAMPLE="${COMPOSE_DIR}/neo4j.example.env"
 WAIT_HEALTHY="${COMPOSE_DIR}/wait-healthy.sh"
 
+# Durable data sibling of the install (override with AGENTCORE_DATA_ROOT).
+default_agentcore_data_root() {
+  printf '%s/%s-data\n' "$(dirname "${AGENTCORE_ROOT}")" "$(basename "${AGENTCORE_ROOT}")"
+}
+
+ensure_agentcore_data_root() {
+  local data_root
+  data_root="${AGENTCORE_DATA_ROOT:-$(default_agentcore_data_root)}"
+  export AGENTCORE_DATA_ROOT="${data_root}"
+  mkdir -p \
+    "${data_root}/postgres" \
+    "${data_root}/neo4j" \
+    "${data_root}/sources" \
+    "${data_root}/backup" \
+    "${data_root}/cache" \
+    "${data_root}/mcp-usage" \
+    "${data_root}/sync-usage"
+  mkdir -p "${AGENTCORE_ROOT}/.agentcore"
+  printf '%s\n' "${data_root}" >"${AGENTCORE_ROOT}/.agentcore/data-root"
+  chmod 644 "${AGENTCORE_ROOT}/.agentcore/data-root" 2>/dev/null || true
+  chmod 755 "${AGENTCORE_ROOT}/.agentcore" 2>/dev/null || true
+  if [[ -f "${COMPOSE_ENV_FILE}" ]]; then
+    if grep -q '^AGENTCORE_DATA_ROOT=' "${COMPOSE_ENV_FILE}" 2>/dev/null; then
+      sed -i "s|^AGENTCORE_DATA_ROOT=.*|AGENTCORE_DATA_ROOT=${data_root}|" "${COMPOSE_ENV_FILE}"
+    else
+      printf '\nAGENTCORE_DATA_ROOT=%s\n' "${data_root}" >>"${COMPOSE_ENV_FILE}"
+    fi
+    chmod 600 "${COMPOSE_ENV_FILE}" || true
+  fi
+  ok "data root: ${data_root}"
+}
+
 # Repo-root operator templates (never overwrite existing files).
 REPO_ENV_FILE="${AGENTCORE_ROOT}/.env"
 REPO_ENV_EXAMPLE="${AGENTCORE_ROOT}/.env.example"
@@ -668,4 +700,99 @@ resolve_install_runtime() {
   ensure_state_dir
   mark_stage "runtime" "${INSTALL_RUNTIME}"
   ok "Install runtime: ${INSTALL_RUNTIME}"
+}
+
+# Resolve AGENTCORE_DATA_ROOT (sibling <install>-data by default).
+# Prompt only for server/both when interactive; --data-root / env / persisted win.
+# Persists data_root=<path> in install-state.env.
+prompt_install_data_root() {
+  local default_root="$1"
+  local choice=""
+  banner "Choose durable data directory"
+  cat >&2 <<EOF
+  Postgres, Neo4j, staged sources, usage logs, and caches live here
+  (not inside the code tree).
+
+  Default: ${default_root}
+
+  Tip: non-interactive — --data-root /path  or  AGENTCORE_DATA_ROOT=/path
+EOF
+  choice="$(install_read_line "Data root [Enter = default]: ")"
+  choice="$(install_stdout_token "${choice}")"
+  if [[ -z "${choice}" ]]; then
+    printf '%s\n' "${default_root}"
+  else
+    printf '%s\n' "${choice}"
+  fi
+}
+
+normalize_data_root_path() {
+  local raw="${1:-}"
+  raw="$(install_stdout_token "${raw}")"
+  [[ -n "${raw}" ]] || return 1
+  # Expand leading ~ ; require absolute after that.
+  if [[ "${raw}" == "~"* ]]; then
+    raw="${HOME}${raw:1}"
+  fi
+  if [[ "${raw}" != /* ]]; then
+    raw="$(pwd)/${raw}"
+  fi
+  # Collapse . / .. without requiring the path to exist yet.
+  (cd "$(dirname "${raw}")" 2>/dev/null && printf '%s/%s\n' "$(pwd)" "$(basename "${raw}")") \
+    || printf '%s\n' "${raw}"
+}
+
+resolve_install_data_root() {
+  local resolved=""
+  local persisted=""
+  local default_root
+  local raw="${AGENTCORE_DATA_ROOT:-}"
+
+  default_root="$(default_agentcore_data_root)"
+
+  if [[ "${INSTALL_ROLE:-}" == "client" || "${INSTALL_SKIP_INFRA}" == "1" ]]; then
+    info "Data root skipped (client / --skip-infra — no local Compose stores)"
+    return 0
+  fi
+
+  if [[ -n "${raw}" ]]; then
+    raw="$(install_stdout_token "${raw}")"
+    if resolved="$(normalize_data_root_path "${raw}" 2>/dev/null)"; then
+      :
+    else
+      warn "Ignoring invalid AGENTCORE_DATA_ROOT='${raw}'"
+      AGENTCORE_DATA_ROOT=""
+      export AGENTCORE_DATA_ROOT
+      resolved=""
+    fi
+  fi
+
+  if [[ -n "${resolved}" ]]; then
+    :
+  elif [[ -f "${INSTALL_STATE_FILE}" ]]; then
+    persisted="$(install_stdout_token "$(env_key_value "${INSTALL_STATE_FILE}" "data_root" || true)")"
+    if [[ -n "${persisted}" ]] && resolved="$(normalize_data_root_path "${persisted}" 2>/dev/null)"; then
+      info "Using persisted data_root=${resolved}"
+    else
+      resolved=""
+    fi
+  fi
+
+  if [[ -n "${resolved}" ]]; then
+    :
+  elif install_can_prompt; then
+    resolved="$(install_stdout_token "$(prompt_install_data_root "${default_root}")")"
+    resolved="$(normalize_data_root_path "${resolved}" || true)"
+    [[ -n "${resolved}" ]] || fail "invalid data root path"
+  else
+    resolved="${default_root}"
+    info "Non-interactive install: default data root=${resolved} (pass --data-root to override)"
+  fi
+
+  AGENTCORE_DATA_ROOT="${resolved}"
+  export AGENTCORE_DATA_ROOT
+  ensure_state_dir
+  mark_stage "data_root" "${AGENTCORE_DATA_ROOT}"
+  ensure_agentcore_data_root
+  ok "Data root: ${AGENTCORE_DATA_ROOT}"
 }

@@ -6,8 +6,8 @@ status: active
 schema_version: '1.0'
 owner: platform-engineering
 summary: 'Beginner-safe modular install for AgentCore local-dev: interactive client/server/both
-  role, venv or docker MCP mode, system prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j,
-  and verification.'
+  role, venv or docker MCP mode, selectable durable data root (default sibling AgentCore-data),
+  system prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j, and verification.'
 tags:
 - install
 - bootstrap
@@ -33,6 +33,8 @@ linked_symbols:
 - tests/backend/tools/install/test_get_agentcore.py::test_sync_git_checkout_to_origin_discards_tracked_dirt
 - scripts/install/common.sh::resolve_install_role
 - scripts/install/common.sh::resolve_install_runtime
+- scripts/install/common.sh::resolve_install_data_root
+- backend/packages/agentcore_cli/data_root.py::ensure_data_root
 - scripts/get-agentcore.sh::parse_and_run
 - scripts/get-agentcore.sh::fetch_release_into
 - scripts/get-agentcore.sh::fetch_main_into
@@ -44,14 +46,14 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.4.2
+doc_version: 1.5.0
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-07-28'
+updated_at: '2026-08-04'
 ---
 
 # 39 - Local Install Runbook
@@ -80,7 +82,7 @@ You will be asked:
    - **release** — latest GitHub Release (immutable semver tag + source tarball; recommended)
    - **main** — tip of the `main` branch (may include unreleased commits). Re-running on an existing git checkout resets tracked files to `origin/main` (same overwrite intent as the release tarball sync). Operator state under preserve paths (`.agentcore`, `.env`, `.venv`, compose `.env.local`, …) is kept.
 2. **Install root** (default `/opt/AgentCore`)
-3. Then `install.sh` menus: install/upgrade (no default) → **y/n confirm** (no default; `y`/`yes` or `n`/`no`) → client/server (no default; and server MCP mode). Unattended: pass `--role` (implies `--non-interactive --yes`) or explicit `--yes --non-interactive`.
+3. Then `install.sh` menus: install/upgrade (no default) → **y/n confirm** (no default; `y`/`yes` or `n`/`no`) → client/server/both (no default) → server MCP mode → **data root** (Enter = sibling `<install>-data`, e.g. `/opt/AgentCore-data`). Unattended: pass `--role` / `--data-root` (and `--non-interactive --yes`) or explicit `--yes --non-interactive`.
 
 Non-interactive fetch + install examples:
 
@@ -162,7 +164,7 @@ flowchart TD
 
 | Step | Stage | What it checks | What it does if missing |
 | --- | --- | --- | --- |
-| 0 | role + runtime | `--role` / `--runtime` / prompts / defaults | Persists `role=` and `runtime=` in `.agentcore/install-state.env` |
+| 0 | role + runtime + data root | `--role` / `--runtime` / `--data-root` / prompts / defaults | Persists `role=`, `runtime=`, and `data_root=` in `.agentcore/install-state.env`; stamps `.agentcore/data-root` |
 | 1 | `01_prerequisites` | Python 3.12+, curl, git, Docker daemon, Compose plugin | `apt` install on Debian/Ubuntu; enable Docker (interactive installs always run this) |
 | 2 | `02_venv` | `.venv` + PATH shim | `ensure-venv.sh`; seed `.env` / `agentcore.sync.yaml`; install `~/.local/bin/agentcore-client` when `role=client`, else `~/.local/bin/agentcore` |
 | 3 | `03_compose_env` | Compose `.env.local` with real secrets | Generate secrets from example templates (server) |
@@ -178,6 +180,7 @@ Module map: [`scripts/install/README.md`](../../scripts/install/README.md).
 | --- | --- |
 | `--role ROLE` | `client`, `server`, or `both` (skips first prompt). `client` = thin CLI only (no Compose). `server` = full CLI + stack. `both` = same-host dogfood: Compose + full CLI (includes client workflows; no second client install) |
 | `--runtime MODE` | Server MCP: `venv` or `docker` (alias: `host`→`venv`) |
+| `--data-root PATH` | Durable data dir for Postgres/Neo4j/sources/usage/cache/backup (default sibling `<install>-data`) |
 | `--yes` / `-y` | Skip the interactive y/n confirmation |
 | `--upgrade` | Upgrade path (interactive still requires y/n unless `--yes` / `--non-interactive`) |
 | `--non-interactive` | No prompts; default `action=install`, `role=server`, `runtime=venv` |
@@ -196,6 +199,7 @@ Examples:
 ```bash
 bash install.sh
 bash install.sh --role server --runtime docker
+bash install.sh --role server --data-root /srv/agentcore-data
 bash install.sh --role both --runtime venv
 bash install.sh --non-interactive --role server --runtime venv
 bash install.sh --non-interactive --role client

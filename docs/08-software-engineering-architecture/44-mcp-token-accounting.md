@@ -106,7 +106,7 @@ provider-billed counts.
 ```mermaid
 flowchart LR
   IDE["Coding agent IDE"] -->|"initialize / tools/list / tools/call"| GW["MCP gateway"]
-  GW -->|"append JSONL"| LOG[".agentcore/mcp-usage/events.jsonl"]
+  GW -->|"append JSONL"| LOG["AgentCore-data/mcp-usage/events.jsonl"]
   CLI["agentcore mcp tokens"] -->|"estimate"| PROF["Usage Profile JSON"]
   CLI -->|"load + filter"| LOG
   CLI -->|"wiring check"| CFG["IDE mcp.json files"]

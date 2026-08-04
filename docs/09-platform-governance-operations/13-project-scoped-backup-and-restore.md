@@ -133,7 +133,7 @@ Optional `--skip-contract` on `validate` / `dry-run` / `restore` skips only the
 
 | Tool | Role |
 | --- | --- |
-| `agentcore_backup_status` | Last local job summary under `.agentcore/backup/` |
+| `agentcore_backup_status` | Last local job summary under `<AGENTCORE_DATA_ROOT>/backup/` |
 | `agentcore_backup_dry_run` | Validate a **server-local** `bundle_path`; no large file transfer |
 
 Export/restore remain CLI-only (server / both install roles). Client-only hosts do not

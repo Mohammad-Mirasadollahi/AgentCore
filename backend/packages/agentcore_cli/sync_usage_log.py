@@ -41,7 +41,9 @@ def usage_log_dir(environ: dict[str, str] | None = None) -> Path:
         if resolved.suffix in {".jsonl", ".json"} and not resolved.is_dir():
             return resolved.parent
         return resolved
-    return (repo_root() / DEFAULT_DIR_REL).resolve()
+    from agentcore_cli.data_root import sync_usage_dir
+
+    return sync_usage_dir(install_root=repo_root(), environ=dict(env)).resolve()
 
 
 def usage_log_dir_max_bytes(environ: dict[str, str] | None = None) -> int:

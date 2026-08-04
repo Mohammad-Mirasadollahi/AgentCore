@@ -356,7 +356,74 @@ def test_cmd_sync_client_remote_discovers_and_persists_server_path(monkeypatch, 
     assert doc["source"]["server_path"] == "/opt/ThinkingSOC"
 
 
-def test_cmd_sync_client_remote_discovery_fails_closed(monkeypatch, tmp_path: Path):
+def test_cmd_sync_client_remote_stages_and_persists_when_undiscoverable(
+    monkeypatch, tmp_path: Path
+):
+    """No on-server tree → rsync stage to <install>-data/sources/<project> → sync."""
+    import yaml
+
+    app = tmp_path / "demo"
+    app.mkdir()
+    cfg = tmp_path / "connect.yaml"
+    cfg.write_text(
+        "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
+        "scope:\n  project: demo\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(app)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    staged: list[str] = []
+
+    def fake_stage(_settings, work: Path, dest: str) -> None:
+        assert work == app
+        staged.append(dest)
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.stage_local_checkout",
+        fake_stage,
+    )
+
+    def remote_is_dir(_settings, path: str) -> bool:
+        return bool(staged) and path == "/opt/AgentCore-data/sources/demo"
+
+    monkeypatch.setattr("agentcore_cli.connect_flow.ssh.remote_is_dir", remote_is_dir)
+    monkeypatch.setattr(
+        "agentcore_cli.install_root_marker.discover_remote_install_root",
+        lambda *a, **k: Path("/opt/AgentCore"),
+    )
+
+    seen: list[ConnectSettings] = []
+
+    def fake_remote(settings, args):
+        seen.append(settings)
+        return 0
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync_from_args",
+        fake_remote,
+    )
+    assert (
+        sync_cmd._cmd_sync_client_remote(
+            SimpleNamespace(force=False, path=None, tenant=None, workspace=None, project=None)
+        )
+        == 0
+    )
+    assert staged == [
+        "/opt/AgentCore-data/sources/demo",
+        "/opt/AgentCore-data/sources/demo",
+    ]  # discover stage + refresh before remote sync
+    assert seen[0].source_server_path == "/opt/AgentCore-data/sources/demo"
+    doc = yaml.safe_load(cfg.read_text(encoding="utf-8"))
+    assert doc["source"]["server_path"] == "/opt/AgentCore-data/sources/demo"
+
+
+def test_cmd_sync_client_remote_discovery_fails_closed_when_stage_fails(
+    monkeypatch, tmp_path: Path
+):
     cfg = tmp_path / "connect.yaml"
     cfg.write_text(
         "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
@@ -377,12 +444,15 @@ def test_cmd_sync_client_remote_discovery_fails_closed(monkeypatch, tmp_path: Pa
         "agentcore_cli.install_root_marker.discover_remote_install_root",
         lambda *a, **k: Path("/opt/AgentCore"),
     )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.stage_local_checkout",
+        lambda *_a, **_k: (_ for _ in ()).throw(SystemExit("error: rsync failed")),
+    )
     with pytest.raises(SystemExit) as exc:
         sync_cmd._cmd_sync_client_remote(
             SimpleNamespace(force=False, path=None, tenant=None, workspace=None, project=None)
         )
-    assert "auto-discover source.server_path" in str(exc.value)
-    assert "Probed via SSH" in str(exc.value)
+    assert "rsync" in str(exc.value)
 
 
 def test_cmd_sync_client_remote_cli_path_bypasses_discovery(monkeypatch, tmp_path: Path):
@@ -454,6 +524,46 @@ def test_cmd_sync_client_remote_helper(monkeypatch, tmp_path: Path):
     )
     args = SimpleNamespace(force=True, path=None, tenant=None, workspace=None, project=None)
     assert sync_cmd._cmd_sync_client_remote(args) == 0
+
+
+def test_cmd_sync_client_remote_refreshes_staged_path(monkeypatch, tmp_path: Path):
+    """Persisted staged mirror is re-rsynced on every client remote sync."""
+    app = tmp_path / "demo"
+    app.mkdir()
+    cfg = tmp_path / "connect.yaml"
+    cfg.write_text(
+        "server:\n  ssh: alice@srv\n  remote_root: /opt/AgentCore\n"
+        "scope:\n  project: demo\n"
+        "source:\n  server_path: /opt/AgentCore-data/sources/demo\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(app)
+    monkeypatch.setattr(
+        "agentcore_cli.connect_config.try_resolve_config_path",
+        lambda explicit="", project_root=None: cfg,
+    )
+    monkeypatch.setattr("agentcore_cli.util.repo_root", lambda: tmp_path)
+    refreshed: list[str] = []
+
+    def fake_refresh(settings, work, *, server_path: str = ""):
+        refreshed.append(settings.source_server_path)
+        assert work == app
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.source_path.refresh_staged_checkout",
+        fake_refresh,
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.connect_flow.remote_sync_from_args",
+        lambda *_a, **_k: 0,
+    )
+    assert (
+        sync_cmd._cmd_sync_client_remote(
+            SimpleNamespace(force=False, path=None, tenant=None, workspace=None, project=None)
+        )
+        == 0
+    )
+    assert refreshed == ["/opt/AgentCore-data/sources/demo"]
 
 
 def test_cmd_sync_client_remote_without_connect_exits(monkeypatch, tmp_path: Path):

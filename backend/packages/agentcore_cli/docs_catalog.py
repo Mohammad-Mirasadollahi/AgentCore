@@ -50,7 +50,9 @@ def cache_path(repo: Path) -> Path:
     override = os.environ.get("AGENTCORE_DOCS_CATALOG_CACHE", "").strip()
     if override:
         return Path(override).expanduser().resolve()
-    return (repo / CACHE_REL).resolve()
+    from agentcore_cli.data_root import cache_dir
+
+    return (cache_dir(install_root=repo) / "docs-catalog.json").resolve()
 
 
 def resolve_catalog_roots(

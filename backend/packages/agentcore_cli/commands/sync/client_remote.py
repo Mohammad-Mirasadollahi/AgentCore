@@ -2,7 +2,10 @@
 
 When ``source.server_path`` is empty and CLI ``--path`` is absent, resolve via
 shared ``connect_flow.source_path.ensure_remote_source_path`` and persist —
-same seam as connect. Do not remove that call (regression: explicit-path-only error).
+same seam as connect. When the resolved path is under the install sibling
+``*-data/sources/`` (or legacy ``/var/lib/agentcore/sources/``), refresh the
+rsync mirror before remote sync. Do not remove that call (regression:
+explicit-path-only error).
 """
 
 from __future__ import annotations
@@ -18,7 +21,10 @@ def cmd_sync_client_remote(args: argparse.Namespace) -> int:
         write_or_merge_connect_yaml,
     )
     from agentcore_cli.connect_flow import remote_sync_from_args
-    from agentcore_cli.connect_flow.source_path import ensure_remote_source_path
+    from agentcore_cli.connect_flow.source_path import (
+        ensure_remote_source_path,
+        refresh_staged_checkout,
+    )
     from agentcore_cli.service_runtime.paths import missing_local_stack_message
     from agentcore_cli.util import repo_root
 
@@ -30,8 +36,8 @@ def cmd_sync_client_remote(args: argparse.Namespace) -> int:
         raise SystemExit(missing_local_stack_message(repo_root()))
 
     cli_paths = list(getattr(args, "path", None) or [])
+    work = Path.cwd()
     if not cli_paths and not (settings.source_server_path or "").strip():
-        work = Path.cwd()
         before = (settings.source_server_path or "").strip()
         settings = ensure_remote_source_path(settings, work)
         after = (settings.source_server_path or "").strip()
@@ -41,6 +47,9 @@ def cmd_sync_client_remote(args: argparse.Namespace) -> int:
                 path=cfg,
                 prefer_http=settings.prefer_http,
             )
+
+    if not cli_paths:
+        refresh_staged_checkout(settings, work)
 
     return remote_sync_from_args(settings, args)
 
