@@ -56,13 +56,14 @@ def run_connect(
 
     bootstrap: dict[str, Any] = {}
     registered_via_api = False
+    user_api_token = (settings.api_token or "").strip()
     if settings.api_url and settings.register:
         bootstrap = api_bootstrap(settings)
         registered_via_api = True
         if bootstrap:
             print(f"   {ui.ok('✔')} API bootstrap OK")
             access_token = str(bootstrap.get("access_token") or "").strip()
-            if access_token:
+            if access_token and not user_api_token:
                 settings.api_token = access_token
                 from agentcore_cli.connect_http import persist_access_token
 
@@ -89,9 +90,10 @@ def run_connect(
     if http_url and not http_url.endswith("/mcp"):
         http_url = http_url.rstrip("/") + "/mcp"
     http_headers = dict(mcp_info.get("headers") or {})
-    # Shared AGENTCORE_MCP_HTTP_TOKEN / minted ac1.* without project-profile bootstrap.
-    if not http_headers and settings.prefer_http and http_url and settings.api_token:
+    # Prefer the operator API key (wizard / access_token file) over bootstrap-minted headers.
+    if settings.prefer_http and http_url and settings.api_token:
         http_headers = {
+            **http_headers,
             "Authorization": f"Bearer {settings.api_token}",
             "X-Tenant-Id": settings.tenant,
             "X-Workspace-Id": settings.workspace,

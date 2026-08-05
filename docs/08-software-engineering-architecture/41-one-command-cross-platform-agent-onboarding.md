@@ -37,13 +37,17 @@ related_docs:
 - docs/08-software-engineering-architecture/52-client-tls-trust-and-verify.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
 - docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
-doc_version: 2.2.0
+doc_version: 2.4.0
 updated_at: '2026-08-05'
 linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_https_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
+- backend/packages/agentcore_cli/connect_wizard.py::prompt_api_key
 - backend/packages/agentcore_cli/connect_flow/run.py::run_connect
+- backend/packages/agentcore_cli/commands/connect.py::_ensure_api_key
 - backend/packages/agentcore_cli/connect_config.py::write_or_merge_connect_yaml
+- backend/packages/agentcore_cli/connect_http.py::persist_access_token
+- backend/packages/agentcore_cli/connect_http.py::read_access_token_file
 - backend/packages/agentcore_client/main.py::main
 - backend/packages/agentcore_cli/connect_flow/source_path.py::source_path_for_connect
 - backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
@@ -170,6 +174,39 @@ Re-run the wizard (new server URL, rotate the bootstrap secret, or scope changed
 agentcore connect edit
 ```
 
+### Quick Setup — where the access token goes (client)
+
+Do **not** put the raw bearer token in `connect.yaml`. `agentcore-client connect` (and `connect edit`) **always prompts for an API key** on a TTY:
+
+- If `.agentcore/access_token` (or `AGENTCORE_TOKEN`) already has a key → **Enter keeps it**; paste a new `ac1.*` value to replace.
+- If none exists → paste is **required** (connect fails closed without it).
+- The chosen key is written to `<checkout>/.agentcore/access_token` (mode `600`).
+
+| Prefer | What you do | Path / name |
+| --- | --- | --- |
+| 1 (connect wizard) | Answer the API key prompt (keep or paste) | Writes `<checkout>/.agentcore/access_token` |
+| 2 (install-minted key) | Paste the once-shown `ac1.*` key at that prompt | Same file — one line, no quotes |
+| 3 (env / non-interactive) | Export the env named by `auth.token_env` | Default `AGENTCORE_TOKEN` (override with `AGENTCORE_CONNECT_TOKEN`) |
+| Recover | Re-run connect / edit | Paste a new key, or set `AGENTCORE_CONNECT_BOOTSTRAP_SECRET` for register/CA |
+
+Token lookup when loading `connect.yaml` (before the interactive prompt):
+
+1. Env named by `auth.token_env` (default `AGENTCORE_TOKEN`), or `AGENTCORE_CONNECT_TOKEN`
+2. Else `<checkout>/.agentcore/access_token` (sibling of `connect.yaml`)
+
+A user-supplied API key is **not** overwritten if bootstrap also mints a token. `connect.yaml` only names the env (`auth.token_env`); it must not store the secret. Gitignore `.agentcore/access_token`. TLS trust/verify: [52](./52-client-tls-trust-and-verify.md). Server mint during install: [39](./39-local-install-runbook.md#server-auth-secrets-jwt--bootstrap--optional-api-key).
+
+Minimal client checklist:
+
+```bash
+# On the app checkout (client host)
+cd /opt/MyApp
+bash /opt/AgentCore/install.sh --role client   # once
+agentcore-client connect                      # prompts API key (required); optional bootstrap
+agentcore-client doctor
+# Reload MCP / IDE window
+```
+
 ---
 
 ## Example 1 — HTTPS mode (remote AgentCore server)
@@ -219,7 +256,7 @@ connect:
   ingest: optional
 ```
 
-Export API token if needed:
+Credentials: see [Quick Setup — where the access token goes](#quick-setup--where-the-access-token-goes-client). Prefer `.agentcore/access_token` or:
 
 ```bash
 export AGENTCORE_TOKEN='...'
@@ -266,7 +303,7 @@ Do **not** commit files that contain live bearer tokens. Prefer gitignoring gene
 | `server.remote_root` | Optional | AgentCore install path (informational; default `/opt/AgentCore`) |
 | `server.url` | Optional | project-profile API base for bootstrap / ingest |
 | `server.mcp_http_url` | For remote mode | Public base of MCP HTTP (port `32500` by default); must be `https://` |
-| `auth.token_env` | Optional | Env var name holding API bearer for bootstrap |
+| `auth.token_env` | Optional | Env var name for the bearer (default `AGENTCORE_TOKEN`); prefer `.agentcore/access_token` over inline secrets |
 | `scope.tenant` / `workspace` | Yes | Platform scope |
 | `scope.project` | Optional | Defaults to **cwd directory name** |
 | `usage_profile` | Optional | Default `programming-cursor-mcp` |

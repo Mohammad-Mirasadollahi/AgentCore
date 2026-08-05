@@ -14,6 +14,7 @@ from agentcore_cli.install_auth import (
     bootstrap_secret_path,
     ensure_server_auth_secrets,
     mint_install_api_key,
+    print_auth_summary,
     upsert_env_key,
 )
 from agentcore_cli.service_runtime.paths import mcp_secret_path
@@ -112,3 +113,23 @@ def test_mint_install_api_key_registers_and_writes_once_file(tmp_path: Path, mon
         secret=secret,
     )
     assert claims.get("jti")
+
+
+def test_print_auth_summary_includes_client_quick_setup(capsys):
+    print_auth_summary(
+        {
+            "jwt": {"path": "/tmp/jwt", "action": "created"},
+            "bootstrap": {"path": "/tmp/boot", "action": "created"},
+        },
+        mint={
+            "token_id": "jti-1",
+            "expires_in": 0,
+            "scope": {"tenant_id": "t", "workspace_id": "w", "project_id": "p"},
+            "access_token": "ac1.test-token",
+            "once_file": "/tmp/once",
+        },
+    )
+    out = capsys.readouterr().out
+    assert "Client next (Quick Setup):" in out
+    assert ".agentcore/access_token" in out
+    assert "Do not put the token in connect.yaml" in out

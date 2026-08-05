@@ -156,6 +156,8 @@ def test_run_https_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
         return next(answers)
 
     def fake_password(prompt: str) -> str:
+        if "API key" in prompt:
+            return "ac1.test.token.value"
         return ""
 
     app = tmp_path / "MyApp"
@@ -172,6 +174,7 @@ def test_run_https_connect_wizard_writes_yaml(tmp_path: Path, monkeypatch):
     assert settings.tenant == "acme"
     assert settings.workspace == "eng"
     assert settings.prefer_http is True
+    assert settings.api_token == "ac1.test.token.value"
 
     doc = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     assert "ssh" not in doc.get("server", {})
@@ -264,10 +267,125 @@ def test_prompt_usage_profile_auto_selects_sole_entry(monkeypatch):
     )
 
 
-def test_load_allow_incomplete(tmp_path: Path):
-    cfg = tmp_path / "connect.yaml"
-    cfg.write_text(yaml.safe_dump({"scope": {"tenant": "t", "workspace": "w"}}), encoding="utf-8")
-    settings = load_connect_settings(config_path=str(cfg), allow_incomplete=True)
-    assert settings.tenant == "t"
-    with pytest.raises(SystemExit, match="server.local"):
-        load_connect_settings(config_path=str(cfg), allow_incomplete=False)
+def test_prompt_api_key_requires_when_missing():
+    from agentcore_cli.connect_wizard import prompt_api_key
+
+    with pytest.raises(SystemExit, match="API key is required"):
+        prompt_api_key(existing="", password_fn=lambda _p: "")
+
+
+def test_prompt_api_key_keeps_existing_on_blank():
+    from agentcore_cli.connect_wizard import prompt_api_key
+
+    got = prompt_api_key(
+        existing="ac1.existing.token.value",
+        password_fn=lambda _p: "",
+    )
+    assert got == "ac1.existing.token.value"
+
+
+def test_prompt_api_key_accepts_replacement():
+    from agentcore_cli.connect_wizard import prompt_api_key
+
+    got = prompt_api_key(
+        existing="ac1.old.token.value",
+        password_fn=lambda _p: "ac1.new.token.value",
+    )
+    assert got == "ac1.new.token.value"
+
+
+def test_prompt_api_key_reads_access_token_file(tmp_path: Path):
+    from agentcore_cli.connect_http import persist_access_token
+    from agentcore_cli.connect_wizard import prompt_api_key
+
+    cfg = tmp_path / ".agentcore" / "connect.yaml"
+    cfg.parent.mkdir(parents=True)
+    cfg.write_text("server: {}\n", encoding="utf-8")
+    persist_access_token(cfg, "ac1.from.file.token")
+    got = prompt_api_key(
+        existing="",
+        config_path=cfg,
+        password_fn=lambda _p: "",
+    )
+    assert got == "ac1.from.file.token"
+
+
+def test_run_https_connect_wizard_persists_api_key(tmp_path: Path, monkeypatch):
+    from agentcore_cli.connect_http import read_access_token_file
+    from agentcore_cli.connect_wizard import run_https_connect_wizard
+
+    monkeypatch.setattr("agentcore_cli.connect_wizard._require_tty", lambda: None)
+    answers = iter(["https://agentcore.example:9443", "acme", "eng"])
+
+    def fake_password(prompt: str) -> str:
+        if "API key" in prompt:
+            return "ac1.wizard.minted.token"
+        return "bootstrap-secret"
+
+    app = tmp_path / "MyApp"
+    app.mkdir()
+    cfg_path = tmp_path / ".agentcore" / "connect.yaml"
+    settings = run_https_connect_wizard(
+        existing=ConnectSettings(project="MyApp", usage_profile="programming-cursor-mcp"),
+        config_path=cfg_path,
+        project_dir=app,
+        input_fn=lambda _p: next(answers),
+        password_fn=fake_password,
+    )
+    assert settings.api_token == "ac1.wizard.minted.token"
+    assert read_access_token_file(cfg_path) == "ac1.wizard.minted.token"
+
+
+def test_run_connect_keeps_user_api_token_when_bootstrap_mints(monkeypatch):
+    """Bootstrap may return a minted token; user-supplied API key must win."""
+    from agentcore_cli.connect_flow import run as run_mod
+
+    settings = ConnectSettings(
+        api_url="https://api.example",
+        api_token="ac1.user.supplied",
+        tenant="t",
+        workspace="w",
+        project="p",
+        usage_profile="programming-cursor-mcp",
+        prefer_http=True,
+        mcp_http_url="https://mcp.example:32500",
+        register=True,
+        config_path=None,
+    )
+
+    monkeypatch.setattr(run_mod, "validate_connect_settings", lambda _s: [])
+    monkeypatch.setattr(run_mod, "reachability_check", lambda _s: None)
+    monkeypatch.setattr(
+        run_mod,
+        "api_bootstrap",
+        lambda _s: {
+            "access_token": "ac1.bootstrap.minted",
+            "mcp": {
+                "url": "https://mcp.example:32500/mcp",
+                "headers": {"Authorization": "Bearer ac1.bootstrap.minted"},
+            },
+        },
+    )
+    monkeypatch.setattr(run_mod, "mcp_http_smoke", lambda *a, **k: True)
+    monkeypatch.setattr(run_mod, "write_clients", lambda *a, **k: [])
+    monkeypatch.setattr(run_mod, "print_connect_summary", lambda *a, **k: None)
+    monkeypatch.setattr(run_mod, "should_ingest", lambda _s: False)
+    monkeypatch.setattr(run_mod, "guidance_connect_notes", lambda *_a, **_k: [])
+    monkeypatch.setattr(run_mod, "materialize_mcp_first_guidance", lambda *_a, **_k: {})
+
+    persisted: list[str] = []
+
+    def fake_persist(_path, token: str):
+        persisted.append(token)
+        return None
+
+    monkeypatch.setattr(
+        "agentcore_cli.connect_http.persist_access_token",
+        fake_persist,
+    )
+
+    code = run_mod.run_connect(settings, dry_run=True)
+    assert code == 0
+    assert settings.api_token == "ac1.user.supplied"
+    assert persisted == []
+

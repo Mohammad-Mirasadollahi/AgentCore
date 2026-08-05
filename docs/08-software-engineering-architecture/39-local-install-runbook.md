@@ -39,6 +39,7 @@ linked_symbols:
 - scripts/install/common.sh::resolve_install_api_key
 - backend/packages/agentcore_cli/install_auth.py::ensure_server_auth_secrets
 - backend/packages/agentcore_cli/install_auth.py::mint_install_api_key
+- backend/packages/agentcore_cli/install_auth.py::print_auth_summary
 - backend/packages/agentcore_cli/service_runtime/mcp.py::prepare_mcp_env
 - backend/packages/agentcore_cli/service_runtime/mcp.py::start_mcp_http
 - scripts/install/tls_edge/ensure_certs.sh
@@ -56,7 +57,7 @@ related_docs:
 - docs/08-software-engineering-architecture/52-client-tls-trust-and-verify.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.6.2
+doc_version: 1.7.1
 audience:
 - engineer
 - operator
@@ -141,6 +142,13 @@ On server/both bring-up (stage 06), the installer ensures:
 | Optional API key (`ac1.*`) | `.agentcore/install-api-key.secret` (once file) | — | Only when operator answers yes / `--mint-api-key`; printed once; `ttl_seconds=0` = non-expiring |
 
 Keys are also upserted into repo `.env` and compose `.env.local` when those files exist and the values are missing/placeholder. Upgrade backs up auth files under `.agentcore/upgrade-backups/…/auth/` without regenerating live secrets.
+
+**Quick Setup — what to do with a minted API key (client host):**
+
+1. Do **not** paste the key into `connect.yaml`.
+2. On the client, run `agentcore-client connect` — it **prompts for the API key** (Enter keeps an existing `.agentcore/access_token`; paste to replace).
+3. Non-interactive: write `<checkout>/.agentcore/access_token` (`chmod 600`) or export `AGENTCORE_TOKEN`.
+4. Full checklist: [41 — Quick Setup — where the access token goes](./41-one-command-cross-platform-agent-onboarding.md#quick-setup--where-the-access-token-goes-client).
 
 ### MCP HTTPS (default)
 

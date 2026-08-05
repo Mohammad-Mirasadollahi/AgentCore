@@ -118,6 +118,32 @@ def _ensure_usage_profile(
     )
 
 
+def _ensure_api_key(
+    settings: ConnectSettings,
+    *,
+    allow_prompt: bool,
+    config_path: Path | None,
+) -> ConnectSettings:
+    """Require API key for remote connect; on TTY offer keep-or-replace."""
+    if settings.local:
+        return settings
+    target = config_path or settings.config_path
+    if allow_prompt and sys.stdin.isatty() and sys.stdout.isatty():
+        from agentcore_cli.connect_http import persist_access_token
+        from agentcore_cli.connect_wizard import prompt_api_key
+
+        token = prompt_api_key(existing=settings.api_token, config_path=target)
+        if target is not None:
+            persist_access_token(target, token)
+        return replace(settings, api_token=token, config_path=target or settings.config_path)
+    if (settings.api_token or "").strip():
+        return settings
+    raise SystemExit(
+        "error: API key required for connect "
+        "(set AGENTCORE_TOKEN, write .agentcore/access_token, or run interactively)"
+    )
+
+
 def _config_path_from_args(args: argparse.Namespace, *, project_dir: Path) -> Path | None:
     explicit = str(args.config or "").strip()
     if explicit:
@@ -281,6 +307,12 @@ def _connect_one(
             config_path=cfg or yaml_path,
             project_dir=work,
             url_override=str(args.server or "").strip(),
+        )
+    elif not settings.local:
+        settings = _ensure_api_key(
+            settings,
+            allow_prompt=allow_prompt,
+            config_path=cfg or yaml_path,
         )
 
     settings = _ensure_usage_profile(

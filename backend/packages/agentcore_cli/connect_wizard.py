@@ -36,6 +36,37 @@ def _prompt_line(prompt: str, *, default: str = "", input_fn: PromptFn = input) 
     return raw or default
 
 
+def mask_api_key(token: str) -> str:
+    text = (token or "").strip()
+    if len(text) <= 8:
+        return "****"
+    return f"{text[:4]}…{text[-4:]}"
+
+
+def prompt_api_key(
+    *,
+    existing: str = "",
+    config_path: Path | None = None,
+    password_fn: PasswordFn = getpass.getpass,
+) -> str:
+    """Require an API access token; blank Enter keeps an existing one."""
+    from agentcore_cli.connect_http import read_access_token_file
+
+    current = (existing or "").strip() or read_access_token_file(config_path)
+    if current:
+        raw = password_fn(
+            f"API key [{mask_api_key(current)}] (Enter=keep, or paste new): "
+        ).strip()
+        return raw or current
+    raw = password_fn("API key (ac1.* required): ").strip()
+    if not raw:
+        raise SystemExit(
+            "error: API key is required for connect "
+            "(paste an ac1.* key, or set AGENTCORE_TOKEN / .agentcore/access_token)"
+        )
+    return raw
+
+
 def prompt_usage_profile(
     *,
     default: str = "",
@@ -90,21 +121,22 @@ def run_https_connect_wizard(
     input_fn: PromptFn = input,
     password_fn: PasswordFn = getpass.getpass,
 ) -> ConnectSettings:
-    """Prompt for HTTPS URL + bootstrap secret; merge connect.yaml, return settings.
+    """Prompt for HTTPS URL, API key, and optional bootstrap secret; write connect.yaml.
 
-    The actual bootstrap HTTP call (mint the long-lived access token, register
-    the project) happens later in ``run_connect`` — this wizard only collects
-    the inputs and writes them to ``connect.yaml``.
+    The bootstrap HTTP call (register project / optional mint) runs later in
+    ``run_connect``. The API key is required here and saved next to connect.yaml.
     """
     _require_tty()
     work = project_dir or Path.cwd()
     base = existing or ConnectSettings()
+    target = config_path or try_resolve_config_path() or default_connect_yaml_path()
 
     ui.blank()
     ui.heading("HTTPS connect setup")
     ui.blank()
-    ui.bullet("Bootstrap secret authenticates the first connect only; it is never saved.")
-    ui.bullet("Usage Profile defaults to the sole shipped catalog entry when only one exists.")
+    ui.bullet("API key (ac1.*) is required for MCP and sync; stored in .agentcore/access_token.")
+    ui.bullet("Existing key: Enter keeps it; paste a new value to replace.")
+    ui.bullet("Bootstrap secret authenticates first register only; it is never saved.")
     ui.blank()
 
     url = _prompt_line(
@@ -124,6 +156,11 @@ def run_https_connect_wizard(
         input_fn=input_fn,
     )
     project = base.project or work.name or "project"
+    api_token = prompt_api_key(
+        existing=base.api_token,
+        config_path=target,
+        password_fn=password_fn,
+    )
     secret = password_fn(f"Bootstrap secret for {url} (blank if none configured): ")
 
     settings = replace(
@@ -138,11 +175,17 @@ def run_https_connect_wizard(
         local=False,
         register=True,
         bootstrap_secret=secret,
+        api_token=api_token,
+        config_path=target,
     )
     secret = ""
 
-    target = config_path or try_resolve_config_path() or default_connect_yaml_path()
     written = write_or_merge_connect_yaml(settings, path=target, prefer_http=True)
+    from agentcore_cli.connect_http import persist_access_token
+
+    token_path = persist_access_token(target, api_token)
     print(f"   {ui.ok('✔')} wrote {written}")
+    if token_path is not None:
+        print(f"   {ui.ok('✔')} API key saved ({token_path.name}; mode 0600)")
     print(f"   {ui.ok('✔')} HTTPS target {settings.api_url}")
     return settings

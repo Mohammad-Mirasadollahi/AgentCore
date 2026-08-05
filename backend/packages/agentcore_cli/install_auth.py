@@ -285,3 +285,21 @@ def print_auth_summary(report: dict[str, Any], *, mint: dict[str, Any] | None = 
     print(f"  access_token: {mint.get('access_token')}", flush=True)
     if mint.get("once_file"):
         print(f"  once_file:    {mint.get('once_file')}", flush=True)
+    print("Client next (Quick Setup):", flush=True)
+    print(
+        "  Do not put the token in connect.yaml.",
+        flush=True,
+    )
+    print(
+        "  Prefer: write one line to <checkout>/.agentcore/access_token (chmod 600),",
+        flush=True,
+    )
+    print(
+        "  or export AGENTCORE_TOKEN, or re-run agentcore-client connect with the bootstrap secret.",
+        flush=True,
+    )
+    print(
+        "  Docs: 41-one-command-cross-platform-agent-onboarding.md "
+        "(Quick Setup — where the access token goes).",
+        flush=True,
+    )
