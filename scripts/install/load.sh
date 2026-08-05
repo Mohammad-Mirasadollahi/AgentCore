@@ -101,6 +101,13 @@ run_install_upgrade() {
   if [[ -f "${AGENTCORE_ROOT}/agentcore.sync.yaml" ]]; then
     cp -a "${AGENTCORE_ROOT}/agentcore.sync.yaml" "${backup_dir}/agentcore.sync.yaml"
   fi
+  # Auth secrets stay in place on upgrade (never regenerated); copy for operator backup only.
+  mkdir -p "${backup_dir}/auth"
+  for _auth in mcp-http.secret connect-bootstrap.secret install-api-key.secret install-api-key.meta.json; do
+    if [[ -f "${AGENTCORE_ROOT}/.agentcore/${_auth}" ]]; then
+      cp -a "${AGENTCORE_ROOT}/.agentcore/${_auth}" "${backup_dir}/auth/${_auth}"
+    fi
+  done
   ok "backup → ${backup_dir}"
 
   # Prefer persisted role/runtime; heal garbage from older prompt-capture bugs.

@@ -48,6 +48,8 @@ def test_install_help_exits_zero() -> None:
     assert "AgentCore installer" in proc.stdout
     assert "--check" in proc.stdout
     assert "--upgrade" in proc.stdout
+    assert "--mint-api-key" in proc.stdout
+    assert "--no-mint-api-key" in proc.stdout
 
 
 def test_install_list_stages_order() -> None:
@@ -71,16 +73,51 @@ def test_install_list_stages_order() -> None:
     assert positions == sorted(positions)
 
 
-def test_common_helpers_source_cleanly() -> None:
+def test_resolve_install_api_key_upgrade_skips_mint() -> None:
     script = r"""
 set -euo pipefail
 export AGENTCORE_ROOT="%s"
+export INSTALL_ACTION=upgrade
+export INSTALL_ROLE=server
+export INSTALL_NONINTERACTIVE=1
+export INSTALL_MINT_API_KEY=
 # shellcheck source=/dev/null
 source "%s/common.sh"
-py="$(python_bin)"
-test -n "$py"
-secret="$(random_secret)"
-test "${#secret}" -ge 16
+resolve_install_api_key
+test "${INSTALL_MINT_API_KEY}" = "0"
+echo OK
+""" % (
+        ROOT,
+        INSTALL_LIB,
+    )
+    proc = subprocess.run(
+        ["bash", "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "OK" in proc.stdout
+
+
+def test_resolve_install_api_key_flag_forces_mint() -> None:
+    script = r"""
+set -euo pipefail
+export AGENTCORE_ROOT="%s"
+export INSTALL_ACTION=install
+export INSTALL_ROLE=server
+export INSTALL_NONINTERACTIVE=1
+export INSTALL_MINT_API_KEY=1
+export INSTALL_API_KEY_TENANT=mir
+export INSTALL_API_KEY_WORKSPACE=dev
+export INSTALL_API_KEY_PROJECT=App
+export INSTALL_API_KEY_TTL_SECONDS=0
+# shellcheck source=/dev/null
+source "%s/common.sh"
+resolve_install_api_key
+test "${INSTALL_MINT_API_KEY}" = "1"
+test "${INSTALL_API_KEY_TENANT}" = "mir"
 echo OK
 """ % (
         ROOT,

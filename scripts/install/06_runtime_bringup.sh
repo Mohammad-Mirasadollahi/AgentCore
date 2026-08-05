@@ -183,11 +183,19 @@ EOF
     return 0
   fi
 
+  # JWT signing + bootstrap secrets before MCP start (never overwrite existing).
+  resolve_install_api_key
+  ensure_server_auth_secrets_py
+
   case "${runtime}" in
     venv|host) _stage_06_bringup_host ;;
     docker) _stage_06_bringup_docker ;;
     *) fail "unknown INSTALL_RUNTIME=${runtime}" ;;
   esac
+
+  if [[ "${INSTALL_MINT_API_KEY:-0}" == "1" ]]; then
+    mint_install_api_key_py || fail "API key mint failed"
+  fi
 
   stage_06_runtime_bringup_check || fail "runtime bring-up verification failed"
   mark_stage "06_runtime_bringup" "ok"
@@ -203,6 +211,8 @@ Next steps:
   2. Local stack + MCP mode: ${runtime} — run: agentcore sync
   3. Same-host IDE connect: agentcore connect
      (Usage Profile id is chosen at connect — see agentcore profile list)
+     Bootstrap secret file: ${AGENTCORE_ROOT}/.agentcore/connect-bootstrap.secret
+     JWT signing secret:    ${AGENTCORE_ROOT}/.agentcore/mcp-http.secret
   4. Run:  agentcore --help && agentcore doctor
   5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
   6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
@@ -217,14 +227,18 @@ EOF
 Next steps:
   1. agentcore is on the SERVER PATH via ~/.local/bin (open a new shell if \`command -v agentcore\` fails)
   2. Server MCP mode: ${runtime}
-  3. On coding-agent machines: bash install.sh --role client   then from each app repo:
+  3. Auth secrets (auto-created; preserved on upgrade):
+       JWT signing:  ${AGENTCORE_ROOT}/.agentcore/mcp-http.secret
+       Bootstrap:    ${AGENTCORE_ROOT}/.agentcore/connect-bootstrap.secret
+     Optional API key: minted only when you answered yes / --mint-api-key
+  4. On coding-agent machines: bash install.sh --role client   then from each app repo:
        agentcore connect
      (Usage Profile id is chosen at connect on the client — not during client install)
      Or multi-app: agentcore connect /opt/App1,/opt/App2
      Same-host dogfood instead: bash install.sh --role both
-  4. Run:  agentcore --help && agentcore doctor
-  5. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
-  6. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
+  5. Run:  agentcore --help && agentcore doctor
+  6. MCP health: curl -sS http://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT:-32500}/health
+  7. Docs:  docs/08-software-engineering-architecture/39-local-install-runbook.md
             docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 
 Compose env (secrets): ${COMPOSE_ENV_FILE}

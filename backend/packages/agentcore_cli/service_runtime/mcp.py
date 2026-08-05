@@ -52,6 +52,17 @@ def prepare_mcp_env(root: Path) -> dict[str, str]:
         env["AGENTCORE_MCP_TOKEN_SECRET"] = token
         os.environ["AGENTCORE_MCP_TOKEN_SECRET"] = token
 
+    # Connect bootstrap secret: load from durable file when env unset (install creates it).
+    if not (env.get("AGENTCORE_CONNECT_BOOTSTRAP_SECRET") or "").strip():
+        from agentcore_cli.install_auth import bootstrap_secret_path
+
+        boot_file = bootstrap_secret_path(root)
+        if boot_file.is_file():
+            boot = boot_file.read_text(encoding="utf-8").strip()
+            if boot:
+                env["AGENTCORE_CONNECT_BOOTSTRAP_SECRET"] = boot
+                os.environ["AGENTCORE_CONNECT_BOOTSTRAP_SECRET"] = boot
+
     host = env.get("AGENTCORE_MCP_HTTP_HOST") or DEFAULT_MCP_HOST
     port = str(env.get("AGENTCORE_MCP_HTTP_PORT") or DEFAULT_MCP_PORT)
     env["AGENTCORE_MCP_HTTP_HOST"] = host

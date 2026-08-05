@@ -795,3 +795,151 @@ resolve_install_data_root() {
   ensure_agentcore_data_root
   ok "Data root: ${AGENTCORE_DATA_ROOT}"
 }
+
+# ---------------------------------------------------------------------------
+# Server auth: JWT signing secret + bootstrap (always ensure); optional API key
+# ---------------------------------------------------------------------------
+# INSTALL_MINT_API_KEY: unset=ask on interactive install; 0=no; 1=yes
+# Upgrade never mints unless INSTALL_MINT_API_KEY=1 (or --mint-api-key).
+INSTALL_MINT_API_KEY="${INSTALL_MINT_API_KEY:-}"
+INSTALL_API_KEY_TTL_SECONDS="${INSTALL_API_KEY_TTL_SECONDS:-0}"
+INSTALL_API_KEY_TENANT="${INSTALL_API_KEY_TENANT:-}"
+INSTALL_API_KEY_WORKSPACE="${INSTALL_API_KEY_WORKSPACE:-}"
+INSTALL_API_KEY_PROJECT="${INSTALL_API_KEY_PROJECT:-}"
+
+prompt_mint_api_key() {
+  local choice=""
+  banner "Create an API access token (API key)?"
+  cat >&2 <<'AUTHPROMPT'
+  JWT signing secret and connect-bootstrap secret are created automatically
+  (existing files are preserved on upgrade).
+
+  An API key is a scoped Bearer (ac1.*) for clients / HTTP APIs.
+  ttl_seconds=0 means non-expiring.
+  Tip: non-interactive — --mint-api-key / --no-mint-api-key
+AUTHPROMPT
+  while true; do
+    choice="$(install_read_line 'Mint an API key now? [y/n]: ')"
+    if normalized="$(normalize_yes_no "${choice}" 2>/dev/null)"; then
+      printf '%s\n' "${normalized}"
+      return 0
+    fi
+    warn "Type y/yes or n/no (no default)"
+  done
+}
+
+prompt_api_key_scope_and_ttl() {
+  local tenant workspace project ttl
+  tenant="$(install_read_line "API key tenant_id [default: agentcore]: ")"
+  tenant="$(install_stdout_token "${tenant}")"
+  [[ -n "${tenant}" ]] || tenant="agentcore"
+  workspace="$(install_read_line "API key workspace_id [default: dev]: ")"
+  workspace="$(install_stdout_token "${workspace}")"
+  [[ -n "${workspace}" ]] || workspace="dev"
+  project="$(install_read_line "API key project_id [default: default]: ")"
+  project="$(install_stdout_token "${project}")"
+  [[ -n "${project}" ]] || project="default"
+  ttl="$(install_read_line "API key ttl_seconds [default: 0 = non-expiring]: ")"
+  ttl="$(install_stdout_token "${ttl}")"
+  [[ -n "${ttl}" ]] || ttl="0"
+  INSTALL_API_KEY_TENANT="${tenant}"
+  INSTALL_API_KEY_WORKSPACE="${workspace}"
+  INSTALL_API_KEY_PROJECT="${project}"
+  INSTALL_API_KEY_TTL_SECONDS="${ttl}"
+  export INSTALL_API_KEY_TENANT INSTALL_API_KEY_WORKSPACE INSTALL_API_KEY_PROJECT INSTALL_API_KEY_TTL_SECONDS
+}
+
+# Resolve whether to mint an API key. Sets INSTALL_MINT_API_KEY to 0 or 1.
+resolve_install_api_key() {
+  local role="${INSTALL_ROLE:-server}"
+  local action="${INSTALL_ACTION:-install}"
+  local choice=""
+
+  if [[ "${role}" == "client" || "${INSTALL_SKIP_INFRA}" == "1" ]]; then
+    INSTALL_MINT_API_KEY=0
+    export INSTALL_MINT_API_KEY
+    return 0
+  fi
+
+  if [[ "${INSTALL_MINT_API_KEY}" == "1" || "${INSTALL_MINT_API_KEY}" == "0" ]]; then
+    export INSTALL_MINT_API_KEY
+    if [[ "${INSTALL_MINT_API_KEY}" == "1" ]]; then
+      [[ -n "${INSTALL_API_KEY_TENANT}" ]] || INSTALL_API_KEY_TENANT="agentcore"
+      [[ -n "${INSTALL_API_KEY_WORKSPACE}" ]] || INSTALL_API_KEY_WORKSPACE="dev"
+      [[ -n "${INSTALL_API_KEY_PROJECT}" ]] || INSTALL_API_KEY_PROJECT="default"
+      [[ -n "${INSTALL_API_KEY_TTL_SECONDS}" ]] || INSTALL_API_KEY_TTL_SECONDS="0"
+      export INSTALL_API_KEY_TENANT INSTALL_API_KEY_WORKSPACE INSTALL_API_KEY_PROJECT INSTALL_API_KEY_TTL_SECONDS
+    fi
+    ok "API key mint: $([[ "${INSTALL_MINT_API_KEY}" == "1" ]] && echo yes || echo no)"
+    return 0
+  fi
+
+  # Upgrade: preserve — do not mint unless explicitly requested.
+  if [[ "${action}" == "upgrade" ]]; then
+    INSTALL_MINT_API_KEY=0
+    export INSTALL_MINT_API_KEY
+    info "Upgrade: preserving auth secrets; API key mint skipped (pass --mint-api-key to create one)"
+    return 0
+  fi
+
+  if install_can_prompt && [[ "${INSTALL_NONINTERACTIVE}" != "1" ]]; then
+    choice="$(prompt_mint_api_key)"
+    if [[ "${choice}" == "yes" ]]; then
+      INSTALL_MINT_API_KEY=1
+      prompt_api_key_scope_and_ttl
+    else
+      INSTALL_MINT_API_KEY=0
+    fi
+  else
+    INSTALL_MINT_API_KEY=0
+    info "Non-interactive install: skipping API key mint (pass --mint-api-key to create one)"
+  fi
+  export INSTALL_MINT_API_KEY
+  ok "API key mint: $([[ "${INSTALL_MINT_API_KEY}" == "1" ]] && echo yes || echo no)"
+}
+
+ensure_server_auth_secrets_py() {
+  local py="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/python"
+  [[ -x "${py}" ]] || fail "venv python missing for auth secrets (${py})"
+  info "Ensuring JWT signing + connect-bootstrap secrets (preserve if present)…"
+  AGENTCORE_ROOT="${AGENTCORE_ROOT}" "${py}" - <<'PYAUTH'
+import json, os
+from pathlib import Path
+from agentcore_cli.install_auth import ensure_server_auth_secrets, print_auth_summary
+root = Path(os.environ["AGENTCORE_ROOT"])
+report = ensure_server_auth_secrets(root)
+print_auth_summary(report)
+print(json.dumps({"ok": True, "jwt_action": report["jwt"]["action"], "bootstrap_action": report["bootstrap"]["action"]}))
+PYAUTH
+}
+
+mint_install_api_key_py() {
+  local py="${AGENTCORE_ROOT}/${AGENTCORE_VENV_DIR:-.venv}/bin/python"
+  local tenant="${INSTALL_API_KEY_TENANT:-agentcore}"
+  local workspace="${INSTALL_API_KEY_WORKSPACE:-dev}"
+  local project="${INSTALL_API_KEY_PROJECT:-default}"
+  local ttl="${INSTALL_API_KEY_TTL_SECONDS:-0}"
+  [[ -x "${py}" ]] || fail "venv python missing for API key mint (${py})"
+  info "Minting scoped API key (ttl_seconds=${ttl})…"
+  AGENTCORE_ROOT="${AGENTCORE_ROOT}" \
+  INSTALL_API_KEY_TENANT="${tenant}" \
+  INSTALL_API_KEY_WORKSPACE="${workspace}" \
+  INSTALL_API_KEY_PROJECT="${project}" \
+  INSTALL_API_KEY_TTL_SECONDS="${ttl}" \
+  "${py}" - <<'PYMINT'
+import json, os
+from pathlib import Path
+from agentcore_cli.install_auth import mint_install_api_key, print_auth_summary, ensure_server_auth_secrets
+root = Path(os.environ["AGENTCORE_ROOT"])
+report = ensure_server_auth_secrets(root)
+mint = mint_install_api_key(
+    root,
+    tenant_id=os.environ["INSTALL_API_KEY_TENANT"],
+    workspace_id=os.environ["INSTALL_API_KEY_WORKSPACE"],
+    project_id=os.environ["INSTALL_API_KEY_PROJECT"],
+    ttl_seconds=int(os.environ["INSTALL_API_KEY_TTL_SECONDS"]),
+)
+print_auth_summary(report, mint=mint)
+print(json.dumps({"ok": True, "token_id": mint["token_id"], "expires_in": mint["expires_in"], "registry": mint["registry"]}))
+PYMINT
+}

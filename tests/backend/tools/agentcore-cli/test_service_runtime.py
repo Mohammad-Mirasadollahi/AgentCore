@@ -387,6 +387,26 @@ def test_prepare_mcp_env_creates_secret(tmp_path: Path, monkeypatch):
     assert env.get("PYTHONUNBUFFERED") == "1"
 
 
+def test_prepare_mcp_env_loads_bootstrap_secret(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
+    monkeypatch.setattr(
+        "agentcore_cli.cli_defaults.load_dotenv_files",
+        lambda **_: [],
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.remote_client.apply_compose_env_to_os",
+        lambda _e, _r: (_ for _ in ()).throw(SystemExit("skip")),
+    )
+    boot = tmp_path / ".agentcore" / "connect-bootstrap.secret"
+    boot.parent.mkdir(parents=True)
+    boot.write_text("bootstrap-from-file\n", encoding="utf-8")
+    env = runtime.prepare_mcp_env(tmp_path)
+    assert env["AGENTCORE_CONNECT_BOOTSTRAP_SECRET"] == "bootstrap-from-file"
+    assert runtime.mcp_secret_path(tmp_path).is_file()
+
+
 def test_service_state_names_what_is_wrong():
     compose_ok = {"ok": True, "services": {}}
     compose_bad = {"ok": False, "services": {}}

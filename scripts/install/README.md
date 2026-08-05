@@ -14,12 +14,16 @@ Entrypoint options:
 | [`03_compose_env.sh`](03_compose_env.sh) | Seed repo templates; create `backend/deployments/compose/.env.local` with generated secrets + `AGENTCORE_DATA_ROOT` |
 | [`04_docker_infra.sh`](04_docker_infra.sh) | `docker compose --profile core up` for Postgres + Neo4j, wait healthy |
 | [`05_verify.sh`](05_verify.sh) | `agentcore doctor` + infra re-check; optional ai-toolstack |
-| [`06_runtime_bringup.sh`](06_runtime_bringup.sh) | Prompted/flagged runtime: host MCP or Docker `mcp-gateway`; always re-ensure PATH |
+| [`06_runtime_bringup.sh`](06_runtime_bringup.sh) | Ensure JWT+bootstrap secrets (preserve on upgrade); optional API key mint; host MCP or Docker `mcp-gateway`; PATH |
 | [`load.sh`](load.sh) | Source order + stage orchestration (`all`, `upgrade`, `stage`, …) |
+
+Python helper: [`backend/packages/agentcore_cli/install_auth.py`](../../backend/packages/agentcore_cli/install_auth.py) (`ensure_server_auth_secrets`, `mint_install_api_key`).
 
 Add new install steps in the smallest matching module. Keep root `install.sh` as flags + exit codes only.
 
-**Upgrade:** `bash install.sh --upgrade` backs up `.agentcore/install-state.env`, re-runs stages, then `agentcore upgrade finalize`. Control-plane / client paths: `agentcore upgrade …` (see docs/08…/51-software-upgrade-server-and-client.md). To refresh code from GitHub first, re-run `get-agentcore.sh` with the same channel.
+**Auth on server/both:** JWT signing secret (`.agentcore/mcp-http.secret`) and connect-bootstrap secret (`.agentcore/connect-bootstrap.secret`) are **auto-created when missing**. Interactive install asks whether to mint an API key (`ac1.*`); use `--mint-api-key` / `--no-mint-api-key` unattended. **Upgrade never regenerates** existing secrets and skips API key mint unless `--mint-api-key`.
+
+**Upgrade:** `bash install.sh --upgrade` backs up `.agentcore/install-state.env` (and auth secret copies under `upgrade-backups/…/auth/`), re-runs stages, then `agentcore upgrade finalize`. Control-plane / client paths: `agentcore upgrade …` (see docs/08…/51-software-upgrade-server-and-client.md). To refresh code from GitHub first, re-run `get-agentcore.sh` with the same channel.
 
 **Install-root marker:** after verify/runtime stages, install writes a readable
 `install-root` file under `<AGENTCORE_ROOT>/.agentcore/` and `$HOME/.agentcore/`

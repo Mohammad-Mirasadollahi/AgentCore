@@ -69,6 +69,12 @@ Options:
   --stage NAME            Run a single stage (see --list-stages)
   --list-stages           Print stage names and exit
   --compose-timeout SEC   Health wait timeout (default 180)
+  --mint-api-key          After server bring-up, mint a scoped API key (ac1.*)
+  --no-mint-api-key       Do not mint an API key (default for non-interactive)
+  --api-key-ttl SEC       API key ttl_seconds (default 0 = non-expiring)
+  --api-key-tenant ID     API key tenant_id (default agentcore)
+  --api-key-workspace ID  API key workspace_id (default dev)
+  --api-key-project ID    API key project_id (default default)
   -h, --help              Show this help
 
 Interactive (TTY, no flags):
@@ -77,6 +83,8 @@ Interactive (TTY, no flags):
   3) if install → client, server, or both? (no default)
   4) if server/both → venv or docker MCP? (no default)
   5) if server/both → data root path (Enter = sibling <install>-data)
+  6) if server/both install → mint API key? y/n (JWT+bootstrap secrets always auto-created;
+     upgrade preserves existing secrets and skips API key mint unless --mint-api-key)
 
 Roles:
   client  Coding-agent machine: CLI + .venv only; then run agentcore connect
@@ -168,6 +176,34 @@ while [[ $# -gt 0 ]]; do
     --non-interactive)
       export INSTALL_NONINTERACTIVE=1
       shift
+      ;;
+    --mint-api-key)
+      export INSTALL_MINT_API_KEY=1
+      shift
+      ;;
+    --no-mint-api-key)
+      export INSTALL_MINT_API_KEY=0
+      shift
+      ;;
+    --api-key-ttl)
+      [[ $# -ge 2 ]] || { echo "error: --api-key-ttl needs seconds (>=0; 0=non-expiring)" >&2; exit 64; }
+      export INSTALL_API_KEY_TTL_SECONDS="$2"
+      shift 2
+      ;;
+    --api-key-tenant)
+      [[ $# -ge 2 ]] || { echo "error: --api-key-tenant needs an id" >&2; exit 64; }
+      export INSTALL_API_KEY_TENANT="$2"
+      shift 2
+      ;;
+    --api-key-workspace)
+      [[ $# -ge 2 ]] || { echo "error: --api-key-workspace needs an id" >&2; exit 64; }
+      export INSTALL_API_KEY_WORKSPACE="$2"
+      shift 2
+      ;;
+    --api-key-project)
+      [[ $# -ge 2 ]] || { echo "error: --api-key-project needs an id" >&2; exit 64; }
+      export INSTALL_API_KEY_PROJECT="$2"
+      shift 2
       ;;
     *)
       echo "error: unknown option: $1 (try --help)" >&2

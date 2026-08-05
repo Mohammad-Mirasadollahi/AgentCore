@@ -21,6 +21,7 @@ if [[ -n "${AGENTCORE_NEO4J_HOST:-}" ]]; then
   export AGENTCORE_MCP_GRAPH_MODE="${AGENTCORE_MCP_GRAPH_MODE:-neo4j}"
 fi
 
+# Prefer JWT signing secret from install; shared HTTP token is lab fallback only.
 if [[ -z "${AGENTCORE_MCP_TOKEN_SECRET:-}" && -z "${AGENTCORE_MCP_HTTP_TOKEN:-}" ]]; then
   export AGENTCORE_MCP_HTTP_TOKEN="${AGENTCORE_MCP_HTTP_TOKEN:-agentcore-docker-dev-token}"
 fi

@@ -7,7 +7,8 @@ schema_version: '1.0'
 owner: platform-engineering
 summary: 'Beginner-safe modular install for AgentCore local-dev: interactive client/server/both
   role, venv or docker MCP mode, selectable durable data root (default sibling AgentCore-data),
-  system prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j, and verification.'
+  auto JWT/bootstrap secrets (preserved on upgrade), optional API key mint, system
+  prerequisites, .venv, Compose secrets, PostgreSQL/Neo4j, and verification.'
 tags:
 - install
 - bootstrap
@@ -35,6 +36,9 @@ linked_symbols:
 - scripts/install/common.sh::resolve_install_role
 - scripts/install/common.sh::resolve_install_runtime
 - scripts/install/common.sh::resolve_install_data_root
+- scripts/install/common.sh::resolve_install_api_key
+- backend/packages/agentcore_cli/install_auth.py::ensure_server_auth_secrets
+- backend/packages/agentcore_cli/install_auth.py::mint_install_api_key
 - scripts/install/tls_edge/ensure_certs.sh
 - backend/packages/agentcore_cli/data_root.py::ensure_data_root
 - backend/packages/agentcore_cli/tls_certs.py::ensure_tls_material
@@ -49,14 +53,14 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.5.2
+doc_version: 1.6.0
 audience:
 - engineer
 - operator
 - agent
 language: en
 security_classification: internal
-updated_at: '2026-08-04'
+updated_at: '2026-08-05'
 ---
 
 # 39 - Local Install Runbook
@@ -113,10 +117,37 @@ On a TTY the installer **asks in order**:
 
 1. **install or upgrade?** (must choose `1` or `2` — no Enter default)
 2. Confirm with **`y`/`yes`** or **`n`/`no`** (no default; empty re-prompts)
-3. If **install**: **client or server?** (no default)
-4. If **server**: **venv or docker** for MCP? (no default)
+3. If **install**: **client, server, or both?** (no default)
+4. If **server/both**: **venv or docker** for MCP? (no default)
    - **venv** — MCP HTTP from this machine’s Python `.venv` (recommended; formerly labeled `host`)
    - **docker** — MCP HTTP in the `mcp-gateway` Compose container
+5. If **server/both**: **data root** (Enter = sibling `<install>-data`)
+6. If **server/both** on **install**: **mint an API key?** (`y`/`n`, no default). JWT signing
+   secret and connect-bootstrap secret are **always auto-created** when missing.
+   **Upgrade** preserves existing auth secret files and skips API key mint unless you pass
+   `--mint-api-key`.
+
+### Server auth secrets (JWT + bootstrap + optional API key)
+
+On server/both bring-up (stage 06), the installer ensures:
+
+| Material | Path | Env | Behavior |
+| --- | --- | --- | --- |
+| JWT signing secret | `.agentcore/mcp-http.secret` | `AGENTCORE_MCP_TOKEN_SECRET` | Auto-create if missing; **never overwrite** on upgrade |
+| Connect bootstrap secret | `.agentcore/connect-bootstrap.secret` | `AGENTCORE_CONNECT_BOOTSTRAP_SECRET` | Auto-create if missing; **never overwrite** on upgrade |
+| Optional API key (`ac1.*`) | `.agentcore/install-api-key.secret` (once file) | — | Only when operator answers yes / `--mint-api-key`; printed once; `ttl_seconds=0` = non-expiring |
+
+Keys are also upserted into repo `.env` and compose `.env.local` when those files exist and the values are missing/placeholder. Upgrade backs up auth files under `.agentcore/upgrade-backups/…/auth/` without regenerating live secrets.
+
+```bash
+# Non-interactive: create JWT+bootstrap only (no API key)
+bash install.sh --non-interactive --role server --runtime venv
+
+# Non-interactive: also mint a non-expiring API key for scope mir/dev/ThinkingSOC
+bash install.sh --non-interactive --yes --role server --runtime venv \
+  --mint-api-key --api-key-ttl 0 \
+  --api-key-tenant mir --api-key-workspace dev --api-key-project ThinkingSOC
+```
 
 Non-interactive / CI (skips menus and the `yes` confirm):
 
