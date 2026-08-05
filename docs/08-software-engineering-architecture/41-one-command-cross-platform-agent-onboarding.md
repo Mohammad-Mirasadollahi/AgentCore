@@ -34,10 +34,11 @@ related_docs:
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/39-local-install-runbook.md
 - docs/08-software-engineering-architecture/40-remote-dev-client-mcp-wiring.md
+- docs/08-software-engineering-architecture/52-client-tls-trust-and-verify.md
 - docs/superpowers/specs/2026-07-25-thin-client-cli-design.md
 - docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
-doc_version: 2.1.0
-updated_at: '2026-08-04'
+doc_version: 2.2.0
+updated_at: '2026-08-05'
 linked_symbols:
 - backend/packages/agentcore_cli/connect_wizard.py::run_https_connect_wizard
 - backend/packages/agentcore_cli/connect_wizard.py::prompt_usage_profile
@@ -62,7 +63,8 @@ This document is the **operator guide** (examples included) and the **normative 
 
 Historical SSH wiring (removed): [40-remote-dev-client-mcp-wiring.md](./40-remote-dev-client-mcp-wiring.md).  
 CLI reference: [36-agentcore-cli.md](./36-agentcore-cli.md).  
-Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).
+Server install: [39-local-install-runbook.md](./39-local-install-runbook.md).  
+Client TLS verify / CA trust: [52-client-tls-trust-and-verify.md](./52-client-tls-trust-and-verify.md).
 
 ## Two hosts (topology)
 

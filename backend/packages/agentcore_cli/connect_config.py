@@ -50,6 +50,8 @@ class ConnectSettings:
     bootstrap_secret: str = ""
     # Path to PEM of the AgentCore private CA (auto-TLS). Env: AGENTCORE_CONNECT_CA_FILE.
     ca_file: str = ""
+    # When true, require ca_file and verify the server cert. Default false (lab-friendly).
+    tls_verify: bool = False
     token_env: str = "AGENTCORE_TOKEN"
 
 
@@ -190,6 +192,12 @@ def load_connect_settings(
     token_env = str(auth.get("token_env") or "AGENTCORE_TOKEN")
     token = _env(token_env) or str(auth.get("token") or "")
     ca_file = str(auth.get("ca_file") or server.get("ca_file") or "").strip()
+    from agentcore_cli.connect_http import parse_tls_verify
+
+    tls_verify = parse_tls_verify(
+        auth.get("tls_verify", server.get("tls_verify")),
+        default=False,
+    )
 
     raw_ssh = str(server.get("ssh") or "").strip()
     settings = ConnectSettings(
@@ -220,6 +228,7 @@ def load_connect_settings(
         actor_id=str(doc.get("actor_id") or "connect-cli").strip(),
         config_path=path,
         ca_file=ca_file,
+        tls_verify=tls_verify,
         token_env=token_env,
     )
 
@@ -232,6 +241,11 @@ def load_connect_settings(
     settings.project = _env("AGENTCORE_CONNECT_PROJECT", settings.project)
     settings.mcp_http_url = _env("AGENTCORE_CONNECT_MCP_HTTP_URL", settings.mcp_http_url)
     settings.ca_file = _env("AGENTCORE_CONNECT_CA_FILE", settings.ca_file)
+    env_verify = _env("AGENTCORE_CONNECT_TLS_VERIFY", "")
+    if env_verify.strip():
+        from agentcore_cli.connect_http import parse_tls_verify
+
+        settings.tls_verify = parse_tls_verify(env_verify, default=settings.tls_verify)
     # Transient bootstrap secret — never from connect.yaml (reject_secrets blocks "secret").
     settings.bootstrap_secret = _env("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", "")
     if _env("AGENTCORE_CONNECT_LOCAL", "").lower() in ("1", "true", "yes"):
@@ -313,6 +327,9 @@ auth:
   token_env: AGENTCORE_TOKEN
   # access token is long-lived (30 days); re-run `agentcore connect` to re-bootstrap
   # once it expires — there is no refresh flow.
+  # tls_verify: false          # default — encrypt, do not validate server cert (lab)
+  # tls_verify: true           # require auth.ca_file (AgentCore CA PEM) before connect/sync
+  # ca_file: .agentcore/certs/ca.pem
 
 scope:
   tenant: acme
@@ -392,6 +409,7 @@ def write_or_merge_connect_yaml(
     for forbidden in ("password", "postgres_password", "neo4j_password", "secret"):
         auth.pop(forbidden, None)
     auth["token_env"] = settings.token_env or "AGENTCORE_TOKEN"
+    auth["tls_verify"] = bool(settings.tls_verify)
     if settings.ca_file:
         auth["ca_file"] = settings.ca_file
     # Prefer token_env / access_token file — drop inline token if present.

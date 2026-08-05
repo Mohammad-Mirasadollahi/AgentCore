@@ -53,9 +53,10 @@ related_docs:
 - docs/08-software-engineering-architecture/13-local-development-and-environment-engineering.md
 - docs/08-software-engineering-architecture/36-agentcore-cli.md
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
+- docs/08-software-engineering-architecture/52-client-tls-trust-and-verify.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.6.1
+doc_version: 1.6.2
 audience:
 - engineer
 - operator
@@ -148,6 +149,10 @@ Host MCP (`agentcore service start` / install stage 06) and Compose `mcp-gateway
 `AGENTCORE_MCP_HTTP_PUBLIC_URL` defaults to `https://…:32500` (set `AGENTCORE_PUBLIC_HOSTNAME`
 for the advertise host clients should use). Escape hatch: `AGENTCORE_MCP_TLS=0` (plain HTTP;
 clients then need `AGENTCORE_ALLOW_INSECURE_HTTP=1`).
+
+Client certificate validation is separate: see
+[52 - Client TLS Trust And Certificate Verify](./52-client-tls-trust-and-verify.md)
+(`auth.tls_verify` defaults to **false**; set `true` + `auth.ca_file` to pin the server CA).
 
 ```bash
 # Non-interactive: create JWT+bootstrap only (no API key)

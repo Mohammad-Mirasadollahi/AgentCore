@@ -12,16 +12,69 @@ if TYPE_CHECKING:
 ACCESS_TOKEN_FILENAME = "access_token"
 CA_PEM_REL = Path("certs") / "ca.pem"
 
+_VERIFY_TRUE = frozenset({"1", "true", "yes", "on"})
+_VERIFY_FALSE = frozenset({"0", "false", "no", "off"})
 
-def httpx_verify(settings: "ConnectSettings") -> str | bool:
-    """Return httpx ``verify`` value: CA PEM path, or True (system trust)."""
+
+def parse_tls_verify(raw: object, *, default: bool = False) -> bool:
+    """Parse connect.yaml / env tls_verify flag. Default is off (lab-friendly)."""
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        return raw
+    text = str(raw).strip().lower()
+    if not text:
+        return default
+    if text in _VERIFY_TRUE:
+        return True
+    if text in _VERIFY_FALSE:
+        return False
+    raise SystemExit(
+        f"error: auth.tls_verify={raw!r} is invalid; use true/false "
+        "(default false — TLS without certificate verification)"
+    )
+
+
+def resolve_ca_file(settings: "ConnectSettings") -> str:
+    """Return an existing CA PEM path, or empty string."""
     ca = str(getattr(settings, "ca_file", "") or "").strip()
     if ca and Path(ca).is_file():
         return ca
     env_ca = os.environ.get("AGENTCORE_CONNECT_CA_FILE", "").strip()
     if env_ca and Path(env_ca).is_file():
         return env_ca
-    return True
+    return ""
+
+
+def httpx_verify(settings: "ConnectSettings") -> str | bool:
+    """Return httpx ``verify`` value.
+
+    Default (``tls_verify=false``): ``False`` — encrypt in transit, do not validate
+    the server certificate (convenient for auto-TLS lab installs).
+
+    When ``tls_verify=true``: require a readable CA PEM (``auth.ca_file`` /
+    ``AGENTCORE_CONNECT_CA_FILE`` / auto ``.agentcore/certs/ca.pem``) and return
+    that path. Missing trust material fails with a clear operator error.
+    """
+    tls_verify = bool(getattr(settings, "tls_verify", False))
+    if not tls_verify:
+        return False
+    ca = resolve_ca_file(settings)
+    if ca:
+        return ca
+    hint_paths = [
+        "auth.ca_file: /path/to/ca.pem",
+        "env AGENTCORE_CONNECT_CA_FILE=/path/to/ca.pem",
+        "re-run `agentcore-client connect` so bootstrap can write .agentcore/certs/ca.pem",
+        "copy server file {data-root}/certs/ca.pem (often /opt/AgentCore-data/certs/ca.pem)",
+    ]
+    raise SystemExit(
+        "error: auth.tls_verify is true but no CA trust file was found.\n"
+        "  TLS verification needs the AgentCore private CA PEM on the client.\n"
+        "  Fix one of:\n"
+        + "".join(f"  • {line}\n" for line in hint_paths)
+        + "  Or set auth.tls_verify: false (default) to connect without verifying the certificate."
+    )
 
 
 def access_token_path(config_path: Path | None) -> Path | None:
