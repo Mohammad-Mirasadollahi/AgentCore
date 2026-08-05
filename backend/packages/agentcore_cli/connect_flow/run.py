@@ -154,11 +154,27 @@ def run_connect(
                 result = api_ingest(settings)
                 notes.append(f"Ingest: {json.dumps(result.get('ingest', result), sort_keys=True)}")
             elif (settings.graph_url or "").strip() and (settings.api_token or "").strip():
-                code = remote_ingest(settings, work=work)
+                try:
+                    code = remote_ingest(settings, work=work)
+                except SystemExit as exc:
+                    msg = str(exc)
+                    if "cloud LLM" in msg or "ALLOW_CLOUD_LLM" in msg or "allow-cloud-llm" in msg:
+                        print(
+                            f"   {ui.warn('!')} content-push deferred (cloud LLM consent); "
+                            "run `agentcore-client sync --allow-cloud-llm`",
+                            file=sys.stderr,
+                        )
+                        notes.append(
+                            "Ingest deferred: pass --allow-cloud-llm on sync after explicit consent"
+                        )
+                        code = 0
+                    else:
+                        raise
                 if code != 0:
                     print(f"   {ui.warn('!')} content-push sync exited non-zero ({code})", file=sys.stderr)
-                else:
+                elif not any("deferred" in n for n in notes):
                     notes.append("Ran client content-push sync (HTTPS ingest-push)")
+
             elif settings.api_url:
                 notes.append(
                     "Ingest deferred: set server.graph_url + token, then run "
