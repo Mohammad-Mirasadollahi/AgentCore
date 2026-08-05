@@ -371,6 +371,11 @@ def test_boot_disable_removes_user_unit(tmp_path: Path, monkeypatch):
 def test_prepare_mcp_env_creates_secret(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
     monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_PUBLIC_URL", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_TLS", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_TLS_CERTFILE", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_TLS_KEYFILE", raising=False)
+    monkeypatch.setenv("AGENTCORE_DATA_ROOT", str(tmp_path / "data"))
     monkeypatch.setattr(
         "agentcore_cli.cli_defaults.load_dotenv_files",
         lambda **_: [],
@@ -385,12 +390,17 @@ def test_prepare_mcp_env_creates_secret(tmp_path: Path, monkeypatch):
     assert env["AGENTCORE_MCP_TOKEN_SECRET"] == secret.read_text(encoding="utf-8").strip()
     assert env["AGENTCORE_MCP_HTTP_PORT"] == str(runtime.DEFAULT_MCP_PORT)
     assert env.get("PYTHONUNBUFFERED") == "1"
+    assert env["AGENTCORE_MCP_HTTP_PUBLIC_URL"].startswith("https://")
+    assert Path(env["AGENTCORE_MCP_TLS_CERTFILE"]).is_file()
+    assert Path(env["AGENTCORE_MCP_TLS_KEYFILE"]).is_file()
 
 
 def test_prepare_mcp_env_loads_bootstrap_secret(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
     monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
     monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_PUBLIC_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_DATA_ROOT", str(tmp_path / "data"))
     monkeypatch.setattr(
         "agentcore_cli.cli_defaults.load_dotenv_files",
         lambda **_: [],
@@ -405,6 +415,26 @@ def test_prepare_mcp_env_loads_bootstrap_secret(tmp_path: Path, monkeypatch):
     env = runtime.prepare_mcp_env(tmp_path)
     assert env["AGENTCORE_CONNECT_BOOTSTRAP_SECRET"] == "bootstrap-from-file"
     assert runtime.mcp_secret_path(tmp_path).is_file()
+    assert env["AGENTCORE_MCP_HTTP_PUBLIC_URL"].startswith("https://")
+
+
+def test_prepare_mcp_env_tls_off_keeps_http_public_url(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_PUBLIC_URL", raising=False)
+    monkeypatch.setenv("AGENTCORE_MCP_TLS", "0")
+    monkeypatch.setenv("AGENTCORE_DATA_ROOT", str(tmp_path / "data"))
+    monkeypatch.setattr(
+        "agentcore_cli.cli_defaults.load_dotenv_files",
+        lambda **_: [],
+    )
+    monkeypatch.setattr(
+        "agentcore_cli.remote_client.apply_compose_env_to_os",
+        lambda _e, _r: (_ for _ in ()).throw(SystemExit("skip")),
+    )
+    env = runtime.prepare_mcp_env(tmp_path)
+    assert env["AGENTCORE_MCP_HTTP_PUBLIC_URL"].startswith("http://")
+    assert "AGENTCORE_MCP_TLS_CERTFILE" not in env or not env.get("AGENTCORE_MCP_TLS_CERTFILE")
 
 
 def test_service_state_names_what_is_wrong():

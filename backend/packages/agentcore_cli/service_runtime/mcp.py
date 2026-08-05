@@ -67,8 +67,46 @@ def prepare_mcp_env(root: Path) -> dict[str, str]:
     port = str(env.get("AGENTCORE_MCP_HTTP_PORT") or DEFAULT_MCP_PORT)
     env["AGENTCORE_MCP_HTTP_HOST"] = host
     env["AGENTCORE_MCP_HTTP_PORT"] = port
-    if not env.get("AGENTCORE_MCP_HTTP_PUBLIC_URL"):
-        env["AGENTCORE_MCP_HTTP_PUBLIC_URL"] = f"http://127.0.0.1:{port}"
+
+    tls_disabled = (env.get("AGENTCORE_MCP_TLS") or "1").strip().lower() in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+    if tls_disabled:
+        env.pop("AGENTCORE_MCP_TLS_CERTFILE", None)
+        env.pop("AGENTCORE_MCP_TLS_KEYFILE", None)
+    else:
+        cert = (env.get("AGENTCORE_MCP_TLS_CERTFILE") or "").strip()
+        key = (env.get("AGENTCORE_MCP_TLS_KEYFILE") or "").strip()
+        if not (cert and key and Path(cert).is_file() and Path(key).is_file()):
+            from agentcore_cli.data_root import ensure_data_root
+            from agentcore_cli.tls_certs import ensure_tls_material
+
+            data_root = ensure_data_root(install_root=root, environ=env)
+            hostname = (
+                (env.get("AGENTCORE_PUBLIC_HOSTNAME") or "").strip()
+                or (env.get("AGENTCORE_TLS_HOSTNAME") or "").strip()
+                or "localhost"
+            )
+            material = ensure_tls_material(data_root=data_root, hostname=hostname)
+            cert = str(material.cert_path)
+            key = str(material.key_path)
+        env["AGENTCORE_MCP_TLS_CERTFILE"] = cert
+        env["AGENTCORE_MCP_TLS_KEYFILE"] = key
+        os.environ["AGENTCORE_MCP_TLS_CERTFILE"] = cert
+        os.environ["AGENTCORE_MCP_TLS_KEYFILE"] = key
+
+    public = (env.get("AGENTCORE_MCP_HTTP_PUBLIC_URL") or "").strip().rstrip("/")
+    scheme = "http" if tls_disabled else "https"
+    pub_host = (env.get("AGENTCORE_PUBLIC_HOSTNAME") or "").strip() or "127.0.0.1"
+    if not public:
+        public = f"{scheme}://{pub_host}:{port}"
+    elif not tls_disabled and public.startswith("http://"):
+        public = "https://" + public[len("http://") :]
+    env["AGENTCORE_MCP_HTTP_PUBLIC_URL"] = public
+    os.environ["AGENTCORE_MCP_HTTP_PUBLIC_URL"] = public
 
     pythonpath = os.pathsep.join(
         [
@@ -293,10 +331,16 @@ def start_mcp_http(root: Path) -> dict[str, Any]:
             host=host,
             port=port,
         )
+    cmd = [exe, "-m", "mcp_gateway_service", "--http", "--host", host, "--port", str(port)]
+    cert = (env.get("AGENTCORE_MCP_TLS_CERTFILE") or "").strip()
+    key = (env.get("AGENTCORE_MCP_TLS_KEYFILE") or "").strip()
+    if cert and key:
+        cmd.extend(["--ssl-certfile", cert, "--ssl-keyfile", key])
+        progress(f"MCP HTTP: TLS enabled ({cert})")
     try:
         try:
             proc = subprocess.Popen(
-                [exe, "-m", "mcp_gateway_service", "--http", "--host", host, "--port", str(port)],
+                cmd,
                 cwd=str(root),
                 env=env,
                 stdout=log_f,

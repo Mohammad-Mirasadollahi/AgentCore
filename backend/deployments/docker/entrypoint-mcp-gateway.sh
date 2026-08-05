@@ -30,4 +30,19 @@ export AGENTCORE_ROOT="${AGENTCORE_ROOT:-/opt/AgentCore}"
 export AGENTCORE_MCP_HTTP_HOST="${AGENTCORE_MCP_HTTP_HOST:-0.0.0.0}"
 export AGENTCORE_MCP_HTTP_PORT="${AGENTCORE_MCP_HTTP_PORT:-32500}"
 
+# Default HTTPS when data-root certs are mounted at /certs (compose).
+if [[ -z "${AGENTCORE_MCP_TLS_CERTFILE:-}" && -f /certs/server.pem ]]; then
+  export AGENTCORE_MCP_TLS_CERTFILE=/certs/server.pem
+fi
+if [[ -z "${AGENTCORE_MCP_TLS_KEYFILE:-}" && -f /certs/server.key ]]; then
+  export AGENTCORE_MCP_TLS_KEYFILE=/certs/server.key
+fi
+if [[ -n "${AGENTCORE_MCP_TLS_CERTFILE:-}" && -n "${AGENTCORE_MCP_TLS_KEYFILE:-}" ]]; then
+  if [[ -z "${AGENTCORE_MCP_HTTP_PUBLIC_URL:-}" ]]; then
+    export AGENTCORE_MCP_HTTP_PUBLIC_URL="https://127.0.0.1:${AGENTCORE_MCP_HTTP_PORT}"
+  elif [[ "${AGENTCORE_MCP_HTTP_PUBLIC_URL}" == http://* ]]; then
+    export AGENTCORE_MCP_HTTP_PUBLIC_URL="https://${AGENTCORE_MCP_HTTP_PUBLIC_URL#http://}"
+  fi
+fi
+
 exec "$@"

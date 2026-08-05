@@ -39,6 +39,8 @@ linked_symbols:
 - scripts/install/common.sh::resolve_install_api_key
 - backend/packages/agentcore_cli/install_auth.py::ensure_server_auth_secrets
 - backend/packages/agentcore_cli/install_auth.py::mint_install_api_key
+- backend/packages/agentcore_cli/service_runtime/mcp.py::prepare_mcp_env
+- backend/packages/agentcore_cli/service_runtime/mcp.py::start_mcp_http
 - scripts/install/tls_edge/ensure_certs.sh
 - backend/packages/agentcore_cli/data_root.py::ensure_data_root
 - backend/packages/agentcore_cli/tls_certs.py::ensure_tls_material
@@ -53,7 +55,7 @@ related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/08-software-engineering-architecture/43-app-docker-and-wheelhouse-runbook.md
 - docs/08-software-engineering-architecture/51-software-upgrade-server-and-client.md
-doc_version: 1.6.0
+doc_version: 1.6.1
 audience:
 - engineer
 - operator
@@ -138,6 +140,14 @@ On server/both bring-up (stage 06), the installer ensures:
 | Optional API key (`ac1.*`) | `.agentcore/install-api-key.secret` (once file) | — | Only when operator answers yes / `--mint-api-key`; printed once; `ttl_seconds=0` = non-expiring |
 
 Keys are also upserted into repo `.env` and compose `.env.local` when those files exist and the values are missing/placeholder. Upgrade backs up auth files under `.agentcore/upgrade-backups/…/auth/` without regenerating live secrets.
+
+### MCP HTTPS (default)
+
+Host MCP (`agentcore service start` / install stage 06) and Compose `mcp-gateway` serve
+**HTTPS by default** using the same leaf certs under `{data_root}/certs/` as profile/graph.
+`AGENTCORE_MCP_HTTP_PUBLIC_URL` defaults to `https://…:32500` (set `AGENTCORE_PUBLIC_HOSTNAME`
+for the advertise host clients should use). Escape hatch: `AGENTCORE_MCP_TLS=0` (plain HTTP;
+clients then need `AGENTCORE_ALLOW_INSECURE_HTTP=1`).
 
 ```bash
 # Non-interactive: create JWT+bootstrap only (no API key)

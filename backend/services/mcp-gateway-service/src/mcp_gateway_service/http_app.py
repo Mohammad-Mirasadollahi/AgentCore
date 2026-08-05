@@ -116,11 +116,23 @@ def create_http_app(*, backends: Any | None = None) -> FastAPI:
     return api
 
 
-def run_http_server(*, host: str = "0.0.0.0", port: int = 32500) -> None:
+def run_http_server(
+    *,
+    host: str = "0.0.0.0",
+    port: int = 32500,
+    ssl_certfile: str | None = None,
+    ssl_keyfile: str | None = None,
+) -> None:
     import uvicorn
 
     from .backends import PlatformBackends
 
     backends = PlatformBackends.from_env()
     app = create_http_app(backends=backends)
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    kwargs: dict = {"host": host, "port": port, "log_level": "info"}
+    cert = (ssl_certfile or "").strip()
+    key = (ssl_keyfile or "").strip()
+    if cert and key:
+        kwargs["ssl_certfile"] = cert
+        kwargs["ssl_keyfile"] = key
+    uvicorn.run(app, **kwargs)
