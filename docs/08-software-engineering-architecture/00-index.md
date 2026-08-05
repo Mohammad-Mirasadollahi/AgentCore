@@ -22,8 +22,8 @@ authority: informative
 visibility: internal
 linked_symbols:
 - tests/backend/gates/port-profile-verification/run_gate.py::main
-doc_version: 1.1.0
-updated_at: '2026-08-04'
+doc_version: 1.1.1
+updated_at: '2026-08-05'
 ---
 
 # 08 - Software Engineering Architecture Index
@@ -168,6 +168,7 @@ PYTHONPATH=tests/support:backend/packages .venv/bin/python -m pytest tests/backe
 | app Docker + `/opt` wheelhouse (`mcp-gateway`) | 43-app-docker-and-wheelhouse-runbook.md |
 | remote dev client MCP (SSH, historical/removed) | 40-remote-dev-client-mcp-wiring.md |
 | one-command agent connect (spec, HTTPS) | 41-one-command-cross-platform-agent-onboarding.md |
+| client TLS verify + CA trust (`auth.tls_verify`) | 52-client-tls-trust-and-verify.md |
 | agentcore CLI install / overview | 36-agentcore-cli.md |
 | agentcore CLI full command reference | 42-agentcore-cli-command-reference.md |
 | MCP token accounting (`mcp tokens`) | 44-mcp-token-accounting.md |
