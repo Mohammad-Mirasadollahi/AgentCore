@@ -47,16 +47,23 @@ def mint_connect_token(
     iat: int | None = None,
     nonce: str | None = None,
 ) -> str:
-    """Issue a scoped HMAC token (ac1.<payload>.<sig>)."""
+    """Issue a scoped HMAC token (ac1.<payload>.<sig>).
+
+    ``ttl_seconds=0`` means non-expiring: claim ``exp`` is ``0`` and verifiers
+    skip the wall-clock expiry check (see ``verify_connect_token``).
+    """
     key = (secret if secret is not None else token_secret()).encode("utf-8")
     if not key:
         raise ValueError("AGENTCORE_MCP_TOKEN_SECRET or AGENTCORE_MCP_HTTP_TOKEN is required to mint tokens")
+    ttl = int(ttl_seconds)
+    if ttl < 0:
+        raise ValueError("ttl_seconds must be >= 0 (0 = non-expiring)")
     now = int(time.time())
     payload: dict[str, Any] = {
         "tenant_id": tenant_id,
         "workspace_id": workspace_id,
         "project_id": project_id,
-        "exp": now + int(ttl_seconds),
+        "exp": 0 if ttl == 0 else now + ttl,
         "jti": uuid4().hex,
     }
     if iat is not None:

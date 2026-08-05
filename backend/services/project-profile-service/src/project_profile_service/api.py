@@ -11,10 +11,12 @@ from agentcore_auth import (
     PostgresAccessTokenRegistry,
     hash_secret,
     mint_and_register_access_token,
+    revoke_access_token_in_scope,
     verify_secret,
 )
 from agentcore_auth.token_registry import AccessTokenRegistry
 from agentcore_auth.tokens import DEFAULT_ACCESS_TTL_SECONDS
+from usage_profile.mcp_tokens import verify_connect_token
 
 from .bootstrap import ServiceContainer, build_container
 from .core import ProjectProfileError, ProjectProfileService, Scope
@@ -23,6 +25,7 @@ from .rate_limit import InProcessRateLimiter
 
 BOOTSTRAP_SECRET_ENV = "AGENTCORE_CONNECT_BOOTSTRAP_SECRET"
 BOOTSTRAP_RATE_LIMIT_PER_MINUTE = 10
+TOKEN_MINT_RATE_LIMIT_PER_MINUTE = 20
 
 
 def _require_bootstrap_secret(secret_hash: str | None, body: dict[str, Any]) -> None:
@@ -116,6 +119,9 @@ def build_app(
     api.state.container = container
     api.state.bootstrap_rate_limiter = InProcessRateLimiter(
         max_events=BOOTSTRAP_RATE_LIMIT_PER_MINUTE,
+    )
+    api.state.token_mint_rate_limiter = InProcessRateLimiter(
+        max_events=TOKEN_MINT_RATE_LIMIT_PER_MINUTE,
     )
     api.state.token_registry = _build_token_registry(container)
     bootstrap_secret = os.environ.get(BOOTSTRAP_SECRET_ENV, "").strip()
@@ -283,6 +289,91 @@ def build_app(
     ) -> dict[str, Any]:
         _ = x_actor_id
         return service.connect_status(Scope(x_tenant_id, x_workspace_id, project_id))
+
+    @api.post("/api/v1/projects/{project_id}/access-tokens")
+    async def create_access_token(
+        project_id: str,
+        _auth: ConnectBearerAuth,
+        body: dict[str, Any] | None,
+        request: Request,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        """Mint a scoped access token (API key). ``ttl_seconds=0`` = non-expiring."""
+        _ = x_actor_id
+        _enforce_rate_limit(request, "token_mint_rate_limiter")
+        payload = body or {}
+        raw_ttl = payload.get("ttl_seconds", DEFAULT_ACCESS_TTL_SECONDS)
+        try:
+            ttl_seconds = int(raw_ttl)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ttl_seconds must be an integer >= 0 (0 = non-expiring)",
+            ) from exc
+        if ttl_seconds < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ttl_seconds must be an integer >= 0 (0 = non-expiring)",
+            )
+        try:
+            token = mint_and_register_access_token(
+                request.app.state.token_registry,
+                tenant_id=x_tenant_id,
+                workspace_id=x_workspace_id,
+                project_id=project_id,
+                ttl_seconds=ttl_seconds,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        claims = verify_connect_token(token)
+        return {
+            "access_token": token,
+            "token_id": claims.get("jti") or "",
+            "expires_in": ttl_seconds,
+            "scope": {
+                "tenant_id": x_tenant_id,
+                "workspace_id": x_workspace_id,
+                "project_id": project_id,
+            },
+        }
+
+    @api.delete("/api/v1/projects/{project_id}/access-tokens/{token_id}")
+    async def revoke_access_token(
+        project_id: str,
+        token_id: str,
+        _auth: ConnectBearerAuth,
+        request: Request,
+        x_tenant_id: str = Header(),
+        x_workspace_id: str = Header(),
+        x_actor_id: str = Header(),
+    ) -> dict[str, Any]:
+        """Revoke an access token by ``token_id`` (``jti``)."""
+        _ = x_actor_id
+        jti = str(token_id or "").strip()
+        if not jti:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="token_id is required",
+            )
+        try:
+            revoke_access_token_in_scope(
+                request.app.state.token_registry,
+                jti=jti,
+                tenant_id=x_tenant_id,
+                workspace_id=x_workspace_id,
+                project_id=project_id,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(exc),
+            ) from exc
+        return {"revoked": True, "token_id": jti}
 
     @api.get("/api/v1/projects/{project_id}/usage-profile/cursor-mcp")
     async def export_cursor_mcp(

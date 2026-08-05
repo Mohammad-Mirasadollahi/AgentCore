@@ -29,7 +29,11 @@ class ApiClient:
         return self.request("GET", url, **kwargs)
 
 
-def test_connect_bootstrap_register_activate_and_mcp():
+def test_connect_bootstrap_register_activate_and_mcp(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_PUBLIC_URL", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
     client = ApiClient(app(ProjectProfileService(InMemoryStore())))
     response = client.post(
         "/api/v1/projects/p/connect/bootstrap",
@@ -45,6 +49,7 @@ def test_connect_bootstrap_register_activate_and_mcp():
 
 
 def test_connect_bootstrap_http_transport(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     monkeypatch.setenv("AGENTCORE_MCP_HTTP_PUBLIC_URL", "http://agentcore.example.internal:32500")
     client = ApiClient(app(ProjectProfileService(InMemoryStore())))
@@ -65,7 +70,10 @@ def test_connect_bootstrap_http_transport(monkeypatch):
     assert body["project"]["code_source"]["server_path"] == "/opt/ThinkingSOC"
 
 
-def test_connect_sources_status_ingest_deferred():
+def test_connect_sources_status_ingest_deferred(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_TOKEN_SECRET", raising=False)
+    monkeypatch.delenv("AGENTCORE_MCP_HTTP_TOKEN", raising=False)
     client = ApiClient(app(ProjectProfileService(InMemoryStore())))
     client.post(
         "/api/v1/projects/p/connect/bootstrap",

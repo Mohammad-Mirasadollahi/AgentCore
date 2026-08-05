@@ -5,15 +5,17 @@ doc_type: contract
 status: active
 schema_version: '1.0'
 owner: project-profile-service
-summary: HTTP contract for project-profile health, Usage Profile catalog/activation, and
-  connect bootstrap/status/sources/ingest. Bootstrap mints a long-lived scoped access
-  token; the server stores only the SHA-256 digest in project_profile.access_tokens.
+summary: HTTP contract for project-profile health, Usage Profile catalog/activation,
+  connect bootstrap/status/sources/ingest, and scoped access-token (API key) mint/revoke.
+  Bootstrap and POST access-tokens mint ac1.* Bearers; ttl_seconds=0 is non-expiring;
+  DELETE revokes by token_id (jti). Server stores only SHA-256 digests.
 tags:
 - api
 - contract
 - project-profile
 - usage-profile
 - auth
+- access-token
 phase: usage-profile
 canonical_path: backend/services/project-profile-service/docs/usage-profile-api.md
 lifecycle_lane: current
@@ -23,11 +25,12 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.1.0
-updated_at: '2026-08-04'
+doc_version: 1.2.0
+updated_at: '2026-08-05'
 linked_symbols:
 - backend/services/project-profile-service/src/project_profile_service/api.py
 - backend/packages/agentcore_auth/tokens.py::mint_and_register_access_token
+- backend/packages/agentcore_auth/tokens.py::revoke_access_token_in_scope
 - backend/packages/agentcore_auth/token_registry.py::hash_access_token
 related_docs:
 - docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
@@ -39,8 +42,8 @@ related_docs:
 ## Purpose
 
 Document the project-profile-service HTTP surface used by `agentcore connect`: Usage
-Profile catalog and activation, connect bootstrap/status/sources/ingest, and how
-bootstrap issues a scoped Bearer token without storing plaintext at rest.
+Profile catalog and activation, connect bootstrap/status/sources/ingest, scoped
+access-token mint and revoke, and how tokens are stored without plaintext at rest.
 
 ## Endpoints
 
@@ -52,6 +55,8 @@ bootstrap issues a scoped Bearer token without storing plaintext at rest.
 | POST | `/api/v1/projects/{project_id}/connect/sources` | Register server path or git source |
 | POST | `/api/v1/projects/{project_id}/connect/ingest` | Request graph ingest for registered source |
 | GET | `/api/v1/projects/{project_id}/connect/status` | Profile, code source, ingest status (Bearer when enforcement on) |
+| POST | `/api/v1/projects/{project_id}/access-tokens` | Mint scoped access token (API key); Bearer required when secret configured |
+| DELETE | `/api/v1/projects/{project_id}/access-tokens/{token_id}` | Revoke by `token_id` (`jti`); scoped to tenant/workspace/project |
 | POST | `/api/v1/projects/{project_id}/usage-profile:activate` | Activate a Usage Profile on the project |
 | GET | `/api/v1/projects/{project_id}/usage-profile/effective` | Resolve effective profile for scope |
 | GET | `/api/v1/projects/{project_id}/usage-profile/cursor-mcp` | Materialize Cursor `mcpServers` fragment |
@@ -73,6 +78,63 @@ The server **does not** persist the raw access token. It registers a SHA-256 dig
 `mint_and_register_access_token`. Subsequent connect Bearer checks use
 `verify_registered_access_token` (HMAC + registry liveness). There is no refresh token;
 clients re-run bootstrap/connect after expiry or revoke.
+
+### Access tokens (API keys)
+
+Additional scoped tokens (same `ac1.*` format as bootstrap) can be minted and revoked
+without re-running connect. When `AGENTCORE_MCP_TOKEN_SECRET` (or
+`AGENTCORE_MCP_HTTP_TOKEN`) is set, both routes require a live Bearer for the same
+`X-Tenant-Id` / `X-Workspace-Id` / `{project_id}` scope.
+
+#### Create
+
+`POST /api/v1/projects/{project_id}/access-tokens`
+
+Request body:
+
+```json
+{
+  "ttl_seconds": 3600
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `ttl_seconds` | Lifetime in seconds. Omit → default 30 days. **`0` = non-expiring** (claim `exp=0`; registry `expires_at` null). Negative values → `400`. |
+
+Response (plaintext token returned **once**):
+
+```json
+{
+  "access_token": "ac1.…",
+  "token_id": "jti-hex",
+  "expires_in": 3600,
+  "scope": {
+    "tenant_id": "mir",
+    "workspace_id": "dev",
+    "project_id": "ThinkingSOC"
+  }
+}
+```
+
+For non-expiring tokens, `expires_in` is `0`. Rate-limited per client IP (default 20/min).
+
+#### Revoke by id
+
+`DELETE /api/v1/projects/{project_id}/access-tokens/{token_id}`
+
+`token_id` is the `jti` from create (or from decoding the Bearer). Revoke is
+scope-checked: a token registered under another project returns `404` (same as
+unknown id). Response:
+
+```json
+{
+  "revoked": true,
+  "token_id": "jti-hex"
+}
+```
+
+After revoke, Bearer checks fail closed with `401`.
 
 ### MCP HTTP gateway (Phase B)
 

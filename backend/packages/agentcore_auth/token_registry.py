@@ -1,6 +1,7 @@
 """At-rest registry for minted access tokens.
 
 Never persists the raw token — only its SHA-256 hex digest plus scope metadata.
+``expires_at=None`` means non-expiring (matches mint ``ttl_seconds=0``).
 """
 
 from __future__ import annotations
@@ -16,6 +17,17 @@ def hash_access_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+@dataclass(frozen=True)
+class AccessTokenRecord:
+    jti: str
+    token_hash: str
+    tenant_id: str
+    workspace_id: str
+    project_id: str
+    expires_at: datetime | None
+    revoked_at: datetime | None = None
+
+
 class AccessTokenRegistry(Protocol):
     def register(
         self,
@@ -25,12 +37,14 @@ class AccessTokenRegistry(Protocol):
         tenant_id: str,
         workspace_id: str,
         project_id: str,
-        expires_at: datetime,
+        expires_at: datetime | None,
     ) -> None: ...
 
     def assert_active(self, jti: str, token_hash: str) -> None:
         """Raise ``ValueError`` if the token is missing, hash-mismatched, revoked, or expired."""
         ...
+
+    def get(self, jti: str) -> AccessTokenRecord | None: ...
 
     def revoke(self, jti: str) -> None: ...
 
@@ -41,7 +55,7 @@ class _Record:
     tenant_id: str
     workspace_id: str
     project_id: str
-    expires_at: datetime
+    expires_at: datetime | None
     revoked_at: datetime | None = None
 
 
@@ -59,9 +73,23 @@ class InMemoryAccessTokenRegistry:
         tenant_id: str,
         workspace_id: str,
         project_id: str,
-        expires_at: datetime,
+        expires_at: datetime | None,
     ) -> None:
         self._records[jti] = _Record(token_hash, tenant_id, workspace_id, project_id, expires_at)
+
+    def get(self, jti: str) -> AccessTokenRecord | None:
+        record = self._records.get(jti)
+        if record is None:
+            return None
+        return AccessTokenRecord(
+            jti=jti,
+            token_hash=record.token_hash,
+            tenant_id=record.tenant_id,
+            workspace_id=record.workspace_id,
+            project_id=record.project_id,
+            expires_at=record.expires_at,
+            revoked_at=record.revoked_at,
+        )
 
     def assert_active(self, jti: str, token_hash: str) -> None:
         record = self._records.get(jti)
@@ -71,7 +99,7 @@ class InMemoryAccessTokenRegistry:
             raise ValueError("access token revoked")
         if record.token_hash != token_hash:
             raise ValueError("access token hash mismatch")
-        if datetime.now(UTC) > record.expires_at:
+        if record.expires_at is not None and datetime.now(UTC) > record.expires_at:
             raise ValueError("access token expired")
 
     def revoke(self, jti: str) -> None:
@@ -109,9 +137,14 @@ class PostgresAccessTokenRegistry:
                     tenant_id text NOT NULL,
                     workspace_id text NOT NULL,
                     project_id text NOT NULL,
-                    expires_at timestamptz NOT NULL,
+                    expires_at timestamptz,
                     revoked_at timestamptz,
                     created_at timestamptz NOT NULL DEFAULT now())"""
+            )
+            # Existing installs created expires_at NOT NULL before non-expiring tokens.
+            cursor.execute(
+                """ALTER TABLE project_profile.access_tokens
+                   ALTER COLUMN expires_at DROP NOT NULL"""
             )
 
     def register(
@@ -122,16 +155,40 @@ class PostgresAccessTokenRegistry:
         tenant_id: str,
         workspace_id: str,
         project_id: str,
-        expires_at: datetime,
+        expires_at: datetime | None,
     ) -> None:
         with self._connection.cursor() as cursor:
             cursor.execute(
                 """INSERT INTO project_profile.access_tokens
                    (jti, token_hash, tenant_id, workspace_id, project_id, expires_at)
                    VALUES (%s,%s,%s,%s,%s,%s)
-                   ON CONFLICT (jti) DO UPDATE SET token_hash=EXCLUDED.token_hash""",
+                   ON CONFLICT (jti) DO UPDATE SET
+                     token_hash=EXCLUDED.token_hash,
+                     expires_at=EXCLUDED.expires_at,
+                     revoked_at=NULL""",
                 (jti, token_hash, tenant_id, workspace_id, project_id, expires_at),
             )
+
+    def get(self, jti: str) -> AccessTokenRecord | None:
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT jti, token_hash, tenant_id, workspace_id, project_id,
+                          expires_at, revoked_at
+                   FROM project_profile.access_tokens WHERE jti=%s""",
+                (jti,),
+            )
+            row = cursor.fetchone()
+        if row is None:
+            return None
+        return AccessTokenRecord(
+            jti=str(row["jti"]),
+            token_hash=str(row["token_hash"]),
+            tenant_id=str(row["tenant_id"]),
+            workspace_id=str(row["workspace_id"]),
+            project_id=str(row["project_id"]),
+            expires_at=row["expires_at"],
+            revoked_at=row["revoked_at"],
+        )
 
     def assert_active(self, jti: str, token_hash: str) -> None:
         with self._connection.cursor() as cursor:
@@ -146,7 +203,8 @@ class PostgresAccessTokenRegistry:
             raise ValueError("access token revoked")
         if row["token_hash"] != token_hash:
             raise ValueError("access token hash mismatch")
-        if datetime.now(UTC) > row["expires_at"]:
+        expires_at = row["expires_at"]
+        if expires_at is not None and datetime.now(UTC) > expires_at:
             raise ValueError("access token expired")
 
     def revoke(self, jti: str) -> None:

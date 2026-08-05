@@ -43,6 +43,7 @@ def test_bootstrap_with_secret_returns_access_token(monkeypatch):
 
 def test_bootstrap_without_configured_secret_still_works(monkeypatch):
     """Backward-compatible: no AGENTCORE_CONNECT_BOOTSTRAP_SECRET → dev/lab default open."""
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     response = _client().post(
         "/api/v1/projects/p/connect/bootstrap",
         headers=H,
@@ -52,6 +53,7 @@ def test_bootstrap_without_configured_secret_still_works(monkeypatch):
 
 
 def test_bootstrap_rate_limited(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     client = _client()
     for _ in range(10):
@@ -69,6 +71,7 @@ def test_bootstrap_rate_limited(monkeypatch):
 
 
 def test_connect_route_requires_bearer_when_enforcement_enabled(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     client = _client()
     client.post("/api/v1/projects/p/connect/bootstrap", headers=H, json={"name": "Demo"})
@@ -82,6 +85,7 @@ def test_connect_route_requires_bearer_when_enforcement_enabled(monkeypatch):
 
 
 def test_connect_route_accepts_valid_bearer(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     client = _client()
     bootstrap = client.post("/api/v1/projects/p/connect/bootstrap", headers=H, json={"name": "Demo"})
@@ -102,6 +106,7 @@ def test_connect_route_accepts_valid_bearer(monkeypatch):
 
 
 def test_connect_ingest_requires_bearer_when_enforcement_enabled(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     client = _client()
     client.post("/api/v1/projects/p/connect/bootstrap", headers=H, json={"name": "Demo"})
@@ -118,6 +123,7 @@ def test_registry_revoke_blocks_status(monkeypatch):
     """Access tokens are hashed at rest and checked for revocation via app.state.token_registry."""
     from usage_profile.mcp_tokens import verify_connect_token
 
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     app = build_app(ProjectProfileService(InMemoryStore()))
     client = TestClient(app)
@@ -141,6 +147,7 @@ def test_registry_revoke_blocks_status(monkeypatch):
 
 
 def test_connect_status_rejects_bearer_scoped_to_wrong_project(monkeypatch):
+    monkeypatch.delenv("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", raising=False)
     monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", "unit-test-secret-key-32chars!!")
     client = _client()
     bootstrap = client.post("/api/v1/projects/p/connect/bootstrap", headers=H, json={"name": "Demo"})

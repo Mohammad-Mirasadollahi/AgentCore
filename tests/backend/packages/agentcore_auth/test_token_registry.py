@@ -100,3 +100,45 @@ def test_verify_registered_access_token_fails_after_revoke() -> None:
     registry.revoke(jti)
     with pytest.raises(ValueError):
         verify_registered_access_token(token, registry, secret=SECRET)
+
+
+def test_mint_ttl_zero_is_non_expiring(monkeypatch) -> None:
+    from usage_profile.mcp_tokens import mint_connect_token, verify_connect_token
+
+    monkeypatch.setenv("AGENTCORE_MCP_TOKEN_SECRET", SECRET)
+    token = mint_connect_token(
+        tenant_id="t", workspace_id="w", project_id="p", ttl_seconds=0, secret=SECRET
+    )
+    claims = verify_connect_token(token, secret=SECRET, now=2_000_000_000_000)
+    assert claims["jti"]
+
+
+def test_mint_and_register_ttl_zero_registry_has_null_expiry() -> None:
+    registry = InMemoryAccessTokenRegistry()
+    token = mint_and_register_access_token(
+        registry,
+        tenant_id="t",
+        workspace_id="w",
+        project_id="p",
+        ttl_seconds=0,
+        secret=SECRET,
+    )
+    jti = verify_connect_token(token, secret=SECRET)["jti"]
+    record = registry.get(jti)
+    assert record is not None
+    assert record.expires_at is None
+    registry.assert_active(jti, hash_access_token(token))
+
+
+def test_revoke_access_token_in_scope_rejects_wrong_project() -> None:
+    from agentcore_auth.tokens import revoke_access_token_in_scope
+
+    registry = InMemoryAccessTokenRegistry()
+    token = mint_and_register_access_token(
+        registry, tenant_id="t", workspace_id="w", project_id="p", secret=SECRET
+    )
+    jti = verify_connect_token(token, secret=SECRET)["jti"]
+    with pytest.raises(ValueError, match="not found"):
+        revoke_access_token_in_scope(
+            registry, jti=jti, tenant_id="t", workspace_id="w", project_id="other"
+        )
