@@ -87,7 +87,7 @@ def test_api_ingest_401_fails_closed_without_retry(monkeypatch):
         status_code = 401
         text = "unauthorized"
 
-    def post(url, headers=None, json=None, timeout=None):
+    def post(url, headers=None, json=None, timeout=None, verify=None):
         calls.append(url)
         return _UnauthorizedResp()
 

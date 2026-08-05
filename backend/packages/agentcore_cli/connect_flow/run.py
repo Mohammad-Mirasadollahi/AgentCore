@@ -14,8 +14,9 @@ from pathlib import Path
 from typing import Any
 
 from agentcore_cli import ui
-from agentcore_cli.connect_config import ConnectSettings
+from agentcore_cli.connect_config import ConnectSettings, write_or_merge_connect_yaml
 from agentcore_cli.connect_flow.api import api_bootstrap, api_health, api_ingest, mcp_http_smoke
+from agentcore_cli.connect_http import httpx_verify
 from agentcore_cli.connect_flow.ingest import local_ingest, remote_ingest, should_ingest
 from agentcore_cli.connect_flow.summary import (
     guidance_connect_notes,
@@ -63,6 +64,25 @@ def run_connect(
             access_token = str(bootstrap.get("access_token") or "").strip()
             if access_token:
                 settings.api_token = access_token
+                from agentcore_cli.connect_http import persist_access_token
+
+                token_path = persist_access_token(settings.config_path, access_token)
+                if token_path is not None:
+                    print(f"   {ui.ok('✔')} access token saved ({token_path.name}; mode 0600)")
+            ca_pem = str(bootstrap.get("ca_pem") or "").strip()
+            if ca_pem:
+                from agentcore_cli.connect_http import persist_ca_pem
+                from dataclasses import replace
+
+                ca_path = persist_ca_pem(settings.config_path, ca_pem)
+                if ca_path is not None:
+                    settings = replace(settings, ca_file=str(ca_path))
+                    if not dry_run and settings.config_path is not None:
+                        write_or_merge_connect_yaml(
+                            settings, path=settings.config_path, prefer_http=settings.prefer_http
+                        )
+                    print(f"   {ui.ok('✔')} trusted CA saved ({ca_path})")
+
 
     mcp_info = bootstrap.get("mcp") if isinstance(bootstrap.get("mcp"), dict) else {}
     http_url = str(mcp_info.get("url") or settings.mcp_http_url or "").strip()
@@ -122,7 +142,9 @@ def run_connect(
         written = write_clients(work, fragment, settings)
         notes = [f"Transport is Streamable HTTP ({http_url})"]
         notes.extend(guidance_connect_notes(materialize_mcp_first_guidance(work)))
-        if settings.smoke_test and not mcp_http_smoke(http_url, http_headers):
+        if settings.smoke_test and not mcp_http_smoke(
+            http_url, http_headers, verify=httpx_verify(settings)
+        ):
             print(
                 f"   {ui.warn('!')} MCP HTTP smoke (initialize) failed; check serve-http and token",
                 file=sys.stderr,

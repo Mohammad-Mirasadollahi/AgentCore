@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from agentcore_cli.connect_config import ConnectSettings, http_error_message
+from agentcore_cli.connect_http import httpx_verify
 
 
 def api_headers(settings: ConnectSettings) -> dict[str, str]:
@@ -39,7 +40,13 @@ def api_bootstrap(settings: ConnectSettings) -> dict[str, Any]:
         body["bootstrap_secret"] = settings.bootstrap_secret
     url = f"{settings.api_url}/api/v1/projects/{settings.project}/connect/bootstrap"
     try:
-        response = httpx.post(url, headers=api_headers(settings), json=body, timeout=30.0)
+        response = httpx.post(
+            url,
+            headers=api_headers(settings),
+            json=body,
+            timeout=30.0,
+            verify=httpx_verify(settings),
+        )
     except httpx.HTTPError as exc:
         raise SystemExit(f"error: connect bootstrap request failed: {exc}") from exc
     if response.status_code >= 400:
@@ -56,7 +63,13 @@ def api_ingest(settings: ConnectSettings) -> dict[str, Any]:
     url = f"{settings.api_url}/api/v1/projects/{settings.project}/connect/ingest"
 
     try:
-        response = httpx.post(url, headers=api_headers(settings), json=body, timeout=120.0)
+        response = httpx.post(
+            url,
+            headers=api_headers(settings),
+            json=body,
+            timeout=120.0,
+            verify=httpx_verify(settings),
+        )
     except httpx.HTTPError as exc:
         raise SystemExit(f"error: connect ingest request failed: {exc}") from exc
     if response.status_code >= 400:
@@ -68,16 +81,20 @@ def api_health(settings: ConnectSettings) -> bool:
     if not settings.api_url:
         return False
     try:
-        response = httpx.get(f"{settings.api_url}/health", timeout=10.0)
+        response = httpx.get(
+            f"{settings.api_url}/health",
+            timeout=10.0,
+            verify=httpx_verify(settings),
+        )
         return response.status_code == 200
     except httpx.HTTPError:
         return False
 
 
-def mcp_http_smoke(url: str, headers: dict[str, str]) -> bool:
+def mcp_http_smoke(url: str, headers: dict[str, str], *, verify: str | bool = True) -> bool:
     payload = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
     try:
-        response = httpx.post(url, headers=headers, json=payload, timeout=15.0)
+        response = httpx.post(url, headers=headers, json=payload, timeout=15.0, verify=verify)
     except httpx.HTTPError:
         return False
     if response.status_code >= 400:

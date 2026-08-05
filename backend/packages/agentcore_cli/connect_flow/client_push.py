@@ -13,6 +13,7 @@ from typing import Any
 
 from agentcore_cli import ui
 from agentcore_cli.connect_config import ConnectSettings, http_error_message
+from agentcore_cli.connect_http import httpx_verify
 from agentcore_cli.sync_config import resolve_sync_filters
 from agentcore_cli.util import ensure_service_import_paths
 
@@ -264,7 +265,12 @@ def fetch_remote_file_hashes(settings: ConnectSettings, args: Any) -> dict[str, 
     url = f"{settings.graph_url.rstrip('/')}/api/v1/projects/{project}/graph/file-hashes"
 
     try:
-        response = httpx.get(url, headers=_http_headers(settings), timeout=60.0)
+        response = httpx.get(
+            url,
+            headers=_http_headers(settings),
+            timeout=60.0,
+            verify=httpx_verify(settings),
+        )
     except httpx.HTTPError:
         return {}
     if response.status_code >= 400:
@@ -292,7 +298,13 @@ def _run_ingest_push_http(settings: ConnectSettings, args: Any, body: dict[str, 
     payload = {**body, "embedding_refresh_mode": refresh}
 
     try:
-        response = httpx.post(url, headers=_http_headers(settings), json=payload, timeout=600.0)
+        response = httpx.post(
+            url,
+            headers=_http_headers(settings),
+            json=payload,
+            timeout=600.0,
+            verify=httpx_verify(settings),
+        )
     except httpx.HTTPError as exc:
         raise SystemExit(f"error: HTTP ingest-push failed: {exc}") from exc
     if response.status_code >= 400:
@@ -335,7 +347,12 @@ def client_push_sync(settings: ConnectSettings, args: Any, *, work: Path) -> int
 
             url = f"{settings.graph_url.rstrip('/')}/api/v1/llm/config"
             try:
-                response = httpx.get(url, headers=_http_headers(settings), timeout=30.0)
+                response = httpx.get(
+                    url,
+                    headers=_http_headers(settings),
+                    timeout=30.0,
+                    verify=httpx_verify(settings),
+                )
             except httpx.HTTPError:
                 return dict(ASSUME_CLOUD_LLM_CONFIG)
             if response.status_code >= 400:

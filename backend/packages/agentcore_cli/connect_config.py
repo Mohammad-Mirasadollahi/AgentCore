@@ -45,8 +45,12 @@ class ConnectSettings:
     actor_id: str = "connect-cli"
     config_path: Path | None = None
     # Operator secret entered once by the HTTPS wizard for the initial bootstrap call.
-    # Transient only — never read from or written to connect.yaml.
+    # Transient only — never read from or written to connect.yaml. May come from
+    # AGENTCORE_CONNECT_BOOTSTRAP_SECRET for non-interactive connect.
     bootstrap_secret: str = ""
+    # Path to PEM of the AgentCore private CA (auto-TLS). Env: AGENTCORE_CONNECT_CA_FILE.
+    ca_file: str = ""
+    token_env: str = "AGENTCORE_TOKEN"
 
 
 def repo_agentcore_dir(root: Path | None = None) -> Path:
@@ -185,6 +189,7 @@ def load_connect_settings(
 
     token_env = str(auth.get("token_env") or "AGENTCORE_TOKEN")
     token = _env(token_env) or str(auth.get("token") or "")
+    ca_file = str(auth.get("ca_file") or server.get("ca_file") or "").strip()
 
     raw_ssh = str(server.get("ssh") or "").strip()
     settings = ConnectSettings(
@@ -214,6 +219,8 @@ def load_connect_settings(
         local=bool(server.get("local") or connect.get("local")),
         actor_id=str(doc.get("actor_id") or "connect-cli").strip(),
         config_path=path,
+        ca_file=ca_file,
+        token_env=token_env,
     )
 
     settings.remote_root = _env("AGENTCORE_CONNECT_REMOTE_ROOT", settings.remote_root)
@@ -224,8 +231,23 @@ def load_connect_settings(
     settings.workspace = _env("AGENTCORE_CONNECT_WORKSPACE", settings.workspace)
     settings.project = _env("AGENTCORE_CONNECT_PROJECT", settings.project)
     settings.mcp_http_url = _env("AGENTCORE_CONNECT_MCP_HTTP_URL", settings.mcp_http_url)
+    settings.ca_file = _env("AGENTCORE_CONNECT_CA_FILE", settings.ca_file)
+    # Transient bootstrap secret — never from connect.yaml (reject_secrets blocks "secret").
+    settings.bootstrap_secret = _env("AGENTCORE_CONNECT_BOOTSTRAP_SECRET", "")
     if _env("AGENTCORE_CONNECT_LOCAL", "").lower() in ("1", "true", "yes"):
         settings.local = True
+
+    if not settings.api_token:
+        from agentcore_cli.connect_http import read_access_token_file
+
+        settings.api_token = read_access_token_file(path)
+
+    if not settings.ca_file:
+        from agentcore_cli.connect_http import default_ca_path
+
+        auto_ca = default_ca_path(path)
+        if auto_ca is not None and auto_ca.is_file():
+            settings.ca_file = str(auto_ca)
 
     if api_url_override.strip():
         settings.api_url = api_url_override.strip().rstrip("/")
@@ -369,6 +391,11 @@ def write_or_merge_connect_yaml(
     # Never persist password; strip if a previous bad edit left one.
     for forbidden in ("password", "postgres_password", "neo4j_password", "secret"):
         auth.pop(forbidden, None)
+    auth["token_env"] = settings.token_env or "AGENTCORE_TOKEN"
+    if settings.ca_file:
+        auth["ca_file"] = settings.ca_file
+    # Prefer token_env / access_token file — drop inline token if present.
+    auth.pop("token", None)
 
     if settings.tenant:
         scope["tenant"] = settings.tenant
