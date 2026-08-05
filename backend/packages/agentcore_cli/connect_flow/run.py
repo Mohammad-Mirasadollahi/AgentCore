@@ -150,11 +150,22 @@ def run_connect(
                 file=sys.stderr,
             )
         if should_ingest(settings):
-            if settings.api_url:
+            if settings.api_url and settings.source_server_path:
                 result = api_ingest(settings)
                 notes.append(f"Ingest: {json.dumps(result.get('ingest', result), sort_keys=True)}")
+            elif (settings.graph_url or "").strip() and (settings.api_token or "").strip():
+                code = remote_ingest(settings, work=work)
+                if code != 0:
+                    print(f"   {ui.warn('!')} content-push sync exited non-zero ({code})", file=sys.stderr)
+                else:
+                    notes.append("Ran client content-push sync (HTTPS ingest-push)")
+            elif settings.api_url:
+                notes.append(
+                    "Ingest deferred: set server.graph_url + token, then run "
+                    "`agentcore-client sync`"
+                )
             else:
-                code = remote_ingest(settings)
+                code = remote_ingest(settings, work=work)
                 if code != 0:
                     print(f"   {ui.warn('!')} sync exited non-zero ({code})", file=sys.stderr)
         print_connect_summary(
