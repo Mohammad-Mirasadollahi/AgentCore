@@ -178,7 +178,7 @@ def test_run_ingest_push_uses_http(monkeypatch):
 
     seen: list[str] = []
 
-    def fake_http(settings, args, body):
+    def fake_http(settings, args, body, **_kwargs):
         seen.append("http")
         return {"files_ingested": 0, "files_failed": 0}
 
@@ -202,6 +202,101 @@ def test_run_ingest_push_without_graph_url_exits_with_hint():
         cp._run_ingest_push(settings, Namespace(sync_mode=""), {"files": []})
 
 
+def test_run_ingest_push_http_consumes_ndjson(monkeypatch):
+    """HTTP path requests NDJSON (Accept header) and feeds progress to the caller."""
+    import sys
+    from types import ModuleType
+
+    from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow import client_push as cp
+
+    calls: dict = {}
+
+    class Resp:
+        status_code = 200
+        headers: dict = {}
+
+        def iter_lines(self):
+            yield '{"type":"progress","phase":"ingest","done":1,"total":1,"file":"a.py"}'
+            yield '{"type":"result","files_ingested":1,"files_failed":0}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+    def stream(method, url, *, headers=None, json=None, timeout=None, verify=None):
+        calls["method"] = method
+        calls["url"] = url
+        calls["headers"] = dict(headers or {})
+        return Resp()
+
+    fake = ModuleType("httpx")
+    fake.HTTPError = Exception
+    fake.stream = stream
+    monkeypatch.setitem(sys.modules, "httpx", fake)
+    monkeypatch.setattr(cp, "httpx_verify", lambda _settings: True)
+
+    seen: list[dict] = []
+    settings = ConnectSettings(
+        graph_url="https://example.test",
+        api_token="tok",
+        tenant="t",
+        workspace="w",
+        project="p",
+    )
+    out = cp._run_ingest_push_http(
+        settings,
+        Namespace(project="p", sync_mode=""),
+        {"files": []},
+        on_progress=lambda e: seen.append(e),
+    )
+    assert out["files_ingested"] == 1
+    assert calls["method"] == "POST"
+    assert calls["headers"].get("Accept") == "application/x-ndjson"
+    # Defense in depth for proxies that strip Accept.
+    assert calls["url"].endswith("/graph/ingest-push?stream=1")
+    assert seen and seen[0]["done"] == 1
+
+
+def test_run_ingest_push_http_compat_plain_json(monkeypatch):
+    """Old server returning a plain JSON body (no NDJSON) is parsed once."""
+    import sys
+    from types import ModuleType
+
+    from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow import client_push as cp
+
+    class Resp:
+        status_code = 200
+        headers = {"content-type": "application/json"}
+
+        def read(self):
+            return None
+
+        def json(self):
+            return {"files_ingested": 2, "files_failed": 0}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+    fake = ModuleType("httpx")
+    fake.HTTPError = Exception
+    fake.stream = lambda method, url, **_kw: Resp()
+    monkeypatch.setitem(sys.modules, "httpx", fake)
+    monkeypatch.setattr(cp, "httpx_verify", lambda _settings: True)
+
+    settings = ConnectSettings(
+        graph_url="https://example.test", api_token="tok", tenant="t", workspace="w", project="p"
+    )
+    out = cp._run_ingest_push_http(settings, Namespace(project="p", sync_mode=""), {"files": []})
+    assert out == {"files_ingested": 2, "files_failed": 0}
+
+
 def test_client_push_sync_without_graph_url_exits_with_https_hint(tmp_path: Path):
     """client_push_sync must fail closed (mentioning graph_url/HTTPS)."""
     from agentcore_cli.connect_config import ConnectSettings
@@ -219,6 +314,52 @@ def test_client_push_sync_no_transport_exits_with_https_hint(tmp_path: Path):
     settings = ConnectSettings(graph_url="", api_token="")
     with pytest.raises(SystemExit, match="HTTPS"):
         client_push_sync(settings, Namespace(), work=tmp_path)
+
+
+def test_client_push_sync_stream_failure_marks_run_not_finished(monkeypatch, tmp_path: Path):
+    """A failing push must not print a green finished/100% tracker block."""
+    import agentcore_cli.sync_progress as sync_progress
+    from agentcore_cli.commands import graph as graph_cmd
+    from agentcore_cli.connect_config import ConnectSettings
+    from agentcore_cli.connect_flow import client_push as cp
+
+    finishes: list[bool] = []
+
+    class _Tracker:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __call__(self, _event):
+            pass
+
+        def begin_phase(self):
+            pass
+
+        def finish(self, *, cancelled: bool = False):
+            finishes.append(cancelled)
+
+    monkeypatch.setattr(sync_progress, "SyncProgressTracker", _Tracker)
+    monkeypatch.setattr(graph_cmd, "_require_cloud_llm_consent", lambda *a, **k: None)
+    monkeypatch.setattr(cp, "fetch_remote_file_hashes", lambda *a, **k: {})
+    monkeypatch.setattr(cp, "build_push_files", lambda *a, **k: ([], [], 0))
+    monkeypatch.setattr(cp, "build_push_docs", lambda *a, **k: [])
+
+    def boom(*_a, **_k):
+        raise SystemExit("error: ingest-push stream: boom")
+
+    monkeypatch.setattr(cp, "_run_ingest_push", boom)
+
+    settings = ConnectSettings(
+        graph_url="https://g.example",
+        api_token="tokentokentoken12",
+        tenant="t",
+        workspace="w",
+        project="p",
+    )
+    args = Namespace(project="p", sync_mode="", progress_interval=30)
+    with pytest.raises(SystemExit, match="ingest-push stream"):
+        cp.client_push_sync(settings, args, work=tmp_path)
+    assert finishes == [True]
 
 
 def test_build_push_docs_includes_frontmatter_doc(tmp_path: Path):
@@ -272,7 +413,7 @@ def test_fetch_remote_file_hashes_prefers_http(monkeypatch):
         def json():
             return {"hashes": {"a.py": "abc"}}
 
-    def get(url, headers=None, timeout=None):
+    def get(url, headers=None, timeout=None, verify=None):
         assert "file-hashes" in url
         assert headers["Authorization"].startswith("Bearer ")
         return _Resp()

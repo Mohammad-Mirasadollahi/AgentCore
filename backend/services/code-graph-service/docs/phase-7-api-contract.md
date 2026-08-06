@@ -23,8 +23,8 @@ audience_lane:
 - agents
 authority: normative
 visibility: internal
-doc_version: 1.1.0
-updated_at: '2026-08-04'
+doc_version: 1.3.1
+updated_at: '2026-08-05'
 linked_symbols:
 - backend/services/code-graph-service/src/code_graph_service/api/ingest.py
 - backend/services/code-graph-service/src/code_graph_service/api/auth.py::require_content_push_http_auth
@@ -56,7 +56,8 @@ All endpoints are scoped under `/api/v1/projects/{project_id}` and return snake_
 
 - `POST /api/v1/projects/{project_id}/graph/ingest-file`
 - `POST /api/v1/projects/{project_id}/graph/ingest-repo` — walk a local `root_path` and ingest supported sources (soft-fail per file)
-- `POST /api/v1/projects/{project_id}/graph/ingest-push` — client content-push bodies (no on-server tree); optional `docs[]`; requires Bearer when `AGENTCORE_CODE_GRAPH_HTTP_TOKEN` / `AGENTCORE_CONNECT_TOKEN` is set (else loopback only)
+- `POST /api/v1/projects/{project_id}/graph/ingest-push` — client content-push bodies (no on-server tree); optional `docs[]`; requires Bearer when `AGENTCORE_CODE_GRAPH_HTTP_TOKEN` / `AGENTCORE_CONNECT_TOKEN` is set (else loopback only); header `X-Sync-Job-Id` registers a cancelable job; returns **499** when that job is cancelled or the client disconnects
+- `POST /api/v1/projects/{project_id}/graph/ingest-push/cancel` — explicit cancel for one in-flight push (`{"job_id"}`); same Bearer + scope headers; cancels only the exact `(tenant, workspace, project, job_id)` handle (wrong scope / unknown id is a no-op)
 - `GET /api/v1/projects/{project_id}/graph/file-hashes` — FILE path → content hash map for client skip; same Bearer gate as ingest-push
 - `POST /api/v1/projects/{project_id}/graph/search:semantic` — Stage-1 hybrid RAG: kind-filtered pgvector (when `AGENTCORE_CODE_GRAPH_DATABASE_URL` set) or in-store cosine, then Neo4j/store neighborhood expand on top seeds
 - `POST /api/v1/projects/{project_id}/graph/explore` — hybrid seeds + call path + APOC expand when available; budgeted bodies / sibling skeletonization; `retrieval` mode

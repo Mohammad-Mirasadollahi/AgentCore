@@ -8,11 +8,16 @@ back to SSH.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from agentcore_cli import ui
 from agentcore_cli.connect_config import ConnectSettings, http_error_message
+from agentcore_cli.connect_flow.push_stream import (
+    consume_ndjson_ingest_push,
+    stream_accept_headers,
+)
 from agentcore_cli.connect_http import httpx_verify
 from agentcore_cli.sync_config import resolve_sync_filters
 from agentcore_cli.util import ensure_service_import_paths
@@ -236,7 +241,11 @@ def build_push_docs(root: Path, args: Any) -> list[dict[str, Any]]:
     return docs
 
 
-def _http_headers(settings: ConnectSettings) -> dict[str, str]:
+def _http_headers(
+    settings: ConnectSettings,
+    *,
+    job_id: str | None = None,
+) -> dict[str, str]:
     import uuid
 
     headers = {
@@ -248,7 +257,31 @@ def _http_headers(settings: ConnectSettings) -> dict[str, str]:
     }
     if settings.api_token:
         headers["Authorization"] = f"Bearer {settings.api_token}"
+    jid = str(job_id or "").strip()
+    if jid:
+        headers["X-Sync-Job-Id"] = jid
     return headers
+
+
+def _signal_cancel_job(settings: ConnectSettings, args: Any, job_id: str) -> bool:
+    """Best-effort explicit cancel for one in-flight ingest-push job (separate HTTP call)."""
+    jid = str(job_id or "").strip()
+    if not jid or not _graph_http_ready(settings):
+        return False
+    import httpx
+
+    project = str(getattr(args, "project", None) or settings.project or "project")
+    url = f"{settings.graph_url.rstrip('/')}/api/v1/projects/{project}/graph/ingest-push/cancel"
+    try:
+        with httpx.Client(timeout=5.0, verify=httpx_verify(settings)) as client:
+            response = client.post(
+                url,
+                headers=_http_headers(settings),
+                json={"job_id": jid},
+            )
+    except Exception:  # noqa: BLE001 — shutdown path must not hang on cancel errors
+        return False
+    return 200 <= int(response.status_code) < 300
 
 
 def _graph_http_ready(settings: ConnectSettings) -> bool:
@@ -289,41 +322,82 @@ def fetch_remote_file_hashes(settings: ConnectSettings, args: Any) -> dict[str, 
     }
 
 
-def _run_ingest_push_http(settings: ConnectSettings, args: Any, body: dict[str, Any]) -> dict[str, Any]:
+def _run_ingest_push_http(
+    settings: ConnectSettings,
+    args: Any,
+    body: dict[str, Any],
+    *,
+    on_progress: Callable[[dict[str, Any]], None] | None = None,
+    begin_phase: Callable[[], None] | None = None,
+) -> dict[str, Any]:
+    import uuid
+
     import httpx
 
     project = str(getattr(args, "project", None) or settings.project or "project")
-    url = f"{settings.graph_url.rstrip('/')}/api/v1/projects/{project}/graph/ingest-push"
+    # ?stream=1 alongside Accept: proxies that strip Accept still get NDJSON progress.
+    url = (
+        f"{settings.graph_url.rstrip('/')}/api/v1/projects/{project}"
+        "/graph/ingest-push?stream=1"
+    )
     refresh = "full" if str(getattr(args, "sync_mode", "") or "").strip().lower() == "heal" else "touched"
     payload = {**body, "embedding_refresh_mode": refresh}
+    job_id = str(uuid.uuid4())
+    headers = {**_http_headers(settings, job_id=job_id), **stream_accept_headers()}
 
+    # Streaming POST so Ctrl+C closes the TCP socket; also POST cancel for this job_id.
     try:
-        response = httpx.post(
+        with httpx.stream(
+            "POST",
             url,
-            headers=_http_headers(settings),
+            headers=headers,
             json=payload,
             timeout=600.0,
             verify=httpx_verify(settings),
-        )
+        ) as response:
+            if response.status_code == 499:
+                raise KeyboardInterrupt
+            if response.status_code >= 400:
+                response.read()
+                raise SystemExit(http_error_message("HTTP ingest-push", response))
+            content_type = str((getattr(response, "headers", None) or {}).get("content-type") or "")
+            if "application/json" in content_type and "ndjson" not in content_type:
+                # Compat: pre-streaming server returns a single JSON result body.
+                read = getattr(response, "read", None)
+                if callable(read):
+                    read()
+                try:
+                    data = response.json()
+                except Exception:  # noqa: BLE001
+                    return {}
+                return data if isinstance(data, dict) else {}
+            return consume_ndjson_ingest_push(
+                lines=response.iter_lines(),
+                on_progress=on_progress or (lambda _event: None),
+                begin_phase=begin_phase,
+            )
+    except KeyboardInterrupt:
+        _signal_cancel_job(settings, args, job_id)
+        raise
     except httpx.HTTPError as exc:
         raise SystemExit(f"error: HTTP ingest-push failed: {exc}") from exc
-    if response.status_code >= 400:
-        raise SystemExit(http_error_message("HTTP ingest-push", response))
-    try:
-        data = response.json()
-    except Exception:  # noqa: BLE001
-        return {}
-    return data if isinstance(data, dict) else {}
 
 
-def _run_ingest_push(settings: ConnectSettings, args: Any, body: dict[str, Any]) -> dict[str, Any]:
+def _run_ingest_push(
+    settings: ConnectSettings,
+    args: Any,
+    body: dict[str, Any],
+    *,
+    on_progress: Callable[[dict[str, Any]], None] | None = None,
+    begin_phase: Callable[[], None] | None = None,
+) -> dict[str, Any]:
     if not _graph_http_ready(settings):
         raise SystemExit(
             "error: content-push requires server.graph_url + auth token (HTTPS); "
             "SSH content-push has been removed — set server.graph_url in "
             ".agentcore/connect.yaml"
         )
-    return _run_ingest_push_http(settings, args, body)
+    return _run_ingest_push_http(settings, args, body, on_progress=on_progress, begin_phase=begin_phase)
 
 
 def client_push_sync(settings: ConnectSettings, args: Any, *, work: Path) -> int:
@@ -388,15 +462,38 @@ def client_push_sync(settings: ConnectSettings, args: Any, *, work: Path) -> int
         "docs_upserted": 0,
         "docs_failed": 0,
     }
-    for index, batch in enumerate(_batches(files, present, docs=docs), start=1):
-        print(f"   {ui.warn('…')} push batch {index} ({len(batch.get('files') or [])} files)")
-        result = _run_ingest_push(settings, args, batch)
-        totals["files_ingested"] += int(result.get("files_ingested") or 0)
-        totals["files_failed"] += int(result.get("files_failed") or 0)
-        totals["files_skipped"] += int(result.get("files_skipped") or 0)
-        docs_part = result.get("docs") if isinstance(result.get("docs"), dict) else {}
-        totals["docs_upserted"] += int(docs_part.get("docs_upserted") or 0)
-        totals["docs_failed"] += int(docs_part.get("docs_failed") or 0)
+
+    from agentcore_cli.sync_progress import SyncProgressTracker
+
+    scope_txt = f"{tenant}/{workspace}/{project}"
+    tracker = SyncProgressTracker(
+        scope=scope_txt,
+        path=str(work),
+        interval_sec=float(getattr(args, "progress_interval", 30) or 30),
+    )
+    cancelled = False
+    try:
+        for index, batch in enumerate(_batches(files, present, docs=docs), start=1):
+            print(f"   {ui.warn('…')} push batch {index} ({len(batch.get('files') or [])} files)")
+            tracker.begin_phase()
+            result = _run_ingest_push(
+                settings, args, batch,
+                on_progress=tracker,
+                begin_phase=tracker.begin_phase,
+            )
+            totals["files_ingested"] += int(result.get("files_ingested") or 0)
+            totals["files_failed"] += int(result.get("files_failed") or 0)
+            totals["files_skipped"] += int(result.get("files_skipped") or 0)
+            docs_part = result.get("docs") if isinstance(result.get("docs"), dict) else {}
+            totals["docs_upserted"] += int(docs_part.get("docs_upserted") or 0)
+            totals["docs_failed"] += int(docs_part.get("docs_failed") or 0)
+    except BaseException:
+        # Any non-clean exit (Ctrl+C, stream error line, HTTP failure) must not print
+        # a green "finished / 100%" block ahead of the error message.
+        cancelled = True
+        raise
+    finally:
+        tracker.finish(cancelled=cancelled)
 
     ui.kv(
         "Push",

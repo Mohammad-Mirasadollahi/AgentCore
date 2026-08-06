@@ -16,7 +16,7 @@ from typing import Any
 
 from .parallel_files import run_parallel_file_jobs
 from ...domain.enums import SymbolKind
-from ...domain.errors import ValidationError
+from ...domain.errors import ClientDisconnected, ValidationError
 from ...domain.hashing import content_hash
 from ...domain.languages import detect_language_from_path
 from ...domain.models import RepoIngestFileOutcome, RepoIngestResult
@@ -35,6 +35,8 @@ class PushedIngestMixin:
         correlation_id: str,
         idempotency_key: str,
         payload: dict[str, Any],
+        *,
+        should_cancel: Any = None,
     ) -> RepoIngestResult:
         raw_files = payload.get("files")
         if raw_files is None:
@@ -260,9 +262,19 @@ class PushedIngestMixin:
                     )
             _emit(done, file=rel, status="unchanged" if unchanged else "ok")
 
+        def _cancelled() -> bool:
+            return callable(should_cancel) and bool(should_cancel())
+
         _emit(0, status="started")
         if items:
-            run_parallel_file_jobs(workers=workers, items=items, fn=_process_one)
+            run_parallel_file_jobs(
+                workers=workers,
+                items=items,
+                fn=_process_one,
+                should_cancel=_cancelled if should_cancel is not None else None,
+            )
+            if _cancelled():
+                raise ClientDisconnected()
             try:
                 finals = self.finalize_cross_file_resolution(
                     scope,
@@ -272,6 +284,9 @@ class PushedIngestMixin:
                     totals["edges_written"] += int(finals or 0)
             except Exception:  # noqa: BLE001
                 pass
+
+        if _cancelled():
+            raise ClientDisconnected()
 
         embedding_refresh = self.refresh_embeddings_after_ingest(
             scope,
