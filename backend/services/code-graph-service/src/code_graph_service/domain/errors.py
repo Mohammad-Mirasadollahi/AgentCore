@@ -22,3 +22,10 @@ class NotFoundError(CodeGraphError):
 class ConflictError(CodeGraphError):
     def __init__(self, message: str):
         super().__init__("conflict_error", "conflict_error", message)
+
+
+class ClientDisconnected(CodeGraphError):
+    """Raised when the HTTP client closes the connection mid-request."""
+
+    def __init__(self, message: str = "client disconnected during request"):
+        super().__init__("client_disconnected", "cancelled", message)

@@ -59,6 +59,12 @@ class IngestPushRequest(BaseModel):
     max_file_bytes: int = Field(default=1_500_000, ge=1024, le=20_000_000)
 
 
+class IngestPushCancelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: str = Field(min_length=1, max_length=128)
+
+
 class RuntimeTraceCall(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

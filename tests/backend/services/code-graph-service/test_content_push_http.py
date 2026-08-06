@@ -148,6 +148,7 @@ def test_build_app_registers_content_push_routes():
     api = build_app(CodeGraphService(InMemoryStore()))
     paths = {route.path for route in api.routes if hasattr(route, "path")}
     assert "/api/v1/projects/{project_id}/graph/ingest-push" in paths
+    assert "/api/v1/projects/{project_id}/graph/ingest-push/cancel" in paths
     assert "/api/v1/projects/{project_id}/graph/file-hashes" in paths
     assert "/api/v1/projects/{project_id}/graph/purge" in paths
 

@@ -35,8 +35,8 @@ linked_symbols:
 - backend/packages/agentcore_cli/connect_flow/ingest.py::remote_ingest
 - backend/packages/agentcore_cli/commands/sync/client_remote.py::cmd_sync_client_remote
 - backend/packages/agentcore_cli/commands/ingest_push.py::cmd_ingest_push
-doc_version: 2.1.0
-updated_at: '2026-08-04'
+doc_version: 2.1.1
+updated_at: '2026-08-05'
 related_docs:
 - docs/08-software-engineering-architecture/41-one-command-cross-platform-agent-onboarding.md
 - docs/superpowers/specs/2026-08-04-api-only-https-no-ssh-design.md
@@ -96,6 +96,7 @@ Typical interactive order:
 | Rule | Detail |
 | --- | --- |
 | Content-push | Local `discover_source_files` + hash skip via `file-hashes` → HTTP `ingest-push` |
+| Live progress | Each `ingest-push` batch opts into an NDJSON stream (`Accept: application/x-ndjson`); client renders the same `SyncProgressTracker` lines as local `agentcore sync` (percent, ETA, symbols, docs phase). Design: [client-push-progress-stream](../../superpowers/specs/2026-08-05-client-push-progress-stream-design.md) |
 | Docs push | When sync docs filters enabled, last batch includes `docs[]` for `upsert_human_documentation` |
 | HTTP | `server.graph_url` + `AGENTCORE_CONNECT_TOKEN` / token; required (only transport) |
 | Connect ingest | Same content-push path when HTTPS is ready |
@@ -188,6 +189,7 @@ Details: [usage-profile-api.md](../../backend/services/project-profile-service/d
 | --- | --- |
 | `agentcore connect` + `connect.yaml` | Shipped |
 | Client content-push (`ingest-push`; no durable sources mirror) | Shipped |
+| Content-push live progress (NDJSON `ingest-push` stream) | Shipped |
 | HTTP content-push (`server.graph_url` + bearer) | Shipped |
 | Content-push HTTP bearer gate (`AGENTCORE_CODE_GRAPH_HTTP_TOKEN`) | Shipped |
 | Docs push on content-push last batch | Shipped |
